@@ -1,0 +1,212 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston5
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : StatPromo.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 05.02.2010
+'# Statistiques promotions
+'################################################
+
+CoulZns As Integer ' Variable pour la couleur du background des zones de saisie
+CoulZnaf As Integer ' Variable pour la couleur du background des columnviews
+Coulfc As Integer ' Variable pour la couleur du focus
+
+Public Sub _new()
+  
+  Dim Frmt As New String[]
+  
+  Balloon.Delay = 1500
+  Frmt = Utils.FColr(Settings["/Coul/Znaff"])
+  CoulZnaf = Val(Frmt[0])
+  Frmt = Utils.FColr(Settings["/Coul/Znss"])
+  CoulZns = Val(Frmt[0])
+  Frmt = Utils.FColr(Settings["/Coul/Focus"])
+  Coulfc = Val(Frmt[0])
+  Frmt = Utils.FColr(Settings["/Coul/Fnets"])
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  
+End
+
+Public Sub Button2_Click()
+  
+  Me.close
+  
+End
+
+'************************************
+'*    Affichage des promotions      *
+'************************************
+Public Sub Button3_Click()
+  
+  Dim rPromo As Result
+  
+  With Utils
+    If ColPromo.visible Then
+      ColPromo.clear
+      ColPromo.visible = False
+    Else
+      ColPromo.visible = True
+      ColPromo.Columns.count = 2
+      ColPromo.Columns[0].Width = 40
+      ColPromo.Columns[1].Width = 270
+      ColPromo.Columns[0].Text = "code"
+      ColPromo.Columns[1].Text = "Intitulé"
+      rPromo = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabPromo") & "")
+      If rPromo.Available Then
+        Repeat
+          ColPromo.Add(rPromo!code, rPromo!code)
+          ColPromo.Item[0] = rPromo!code
+          ColPromo.Item[1] = rPromo!libelle
+        Until rPromo.MoveNext()
+      Endif
+      If ColPromo.Count Then
+        ColPromo.MoveFirst
+        ColPromo.SetFocus
+        ColPromo.Item.Selected = True
+      Endif
+    Endif
+  End With
+  
+End
+
+'*****************************************
+'* sélection d'un code promo à la main *
+'*****************************************
+Public Sub CodeP_KeyPress()
+  
+  Dim rPromo As Result
+  
+  If Key.code = Key.enter Or Key.code = Key.Return Then
+    rPromo = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabPromo") & " where code = &1", CodeP.Text)
+    If rPromo.Available Then
+      codeP.Text = rPromo!code
+      Label1.Text = rPromo!libelle
+    Else
+      Message.Warning("Cette promotion n'existe pas !")
+      CodeP.SetFocus
+      CodeP.Select
+    Endif
+  Endif
+  If Key.code = Key.f2 Then Button3_Click()
+  
+End
+'*****************************************
+'* sélection d'un code promo à la souris *
+'*****************************************
+
+Public Sub ColPromo_Click()
+  
+  codeP.Text = ColPromo.Current[0]
+  Label1.Text = ColPromo.Current[1]
+  ColPromo.visible = False
+  ColPromo.clear
+  
+End
+
+'*****************************************
+'* sélection d'un code promo à la main *
+'*****************************************
+Public Sub ColPromo_KeyPress()
+  
+  If Key.code = Key.Return Or Key.Code = Key.Enter Then ColPromo_Click()
+  If Key.code = Key.f2 Or Key.code = Key.Esc Then
+    ColPromo.visible = False
+    ColPromo.clear
+  Endif
+  
+End
+
+Public Sub Button1_Click()
+  
+  If Label1.Text <> "" Then
+    Panel1.visible = True
+    Affichage()
+  Else
+    Message.Warning("Veuillez saisir un code promotion SVP !")
+  Endif
+  
+End
+
+Public Sub Button5_Click()
+  
+  Panel1.visible = False
+  
+End
+
+Public Sub Affichage()
+  
+  Dim rResult As Result
+  Dim Pvht As Float
+  Dim Pvttc As Float
+  Dim Pmp As Float
+  Dim Qte As Float
+  
+  With Liste
+    Tmarge.Text = "0"
+    .Columns.count = 7
+    .Columns[0].Width = 140
+    .Columns[1].Width = 280
+    .Columns[2].Width = 80
+    .Columns[3].Width = 80
+    .Columns[4].Width = 80
+    .Columns[5].Width = 90
+    .Columns[6].Width = 80
+    .Columns[0].Text = "Code"
+    .Columns[0].Alignment = 1
+    .Columns[1].Text = "Désignation"
+    .Columns[1].Alignment = 1
+    .Columns[2].Text = "Pmp"
+    .Columns[2].Alignment = 2
+    .Columns[3].Text = "Pv HT"
+    .Columns[3].Alignment = 2
+    .Columns[4].Text = "Pv TTC"
+    .Columns[4].Alignment = 2
+    .Columns[5].Text = "Qté"
+    .Columns[5].Alignment = 2
+    .Columns[6].Text = "Marge"
+    .Columns[6].Alignment = 2
+    .Clear
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArtPromo") & " where code_promo = &1 order by code", CodeP.text)
+    If rResult.Available Then
+      Repeat
+        .Add(rResult!code, rResult!code)
+        .Item[0] = rResult!code
+        .Item[1] = rResult!libelle
+        Try .Item[2] = Format$(rResult!pmp, "0.00")
+        Try .Item[3] = Format$(rResult!pht, "0.00")
+        Try .Item[4] = Format$(rResult!pttc, "0.00")
+        Try .Item[5] = Format$(rResult!qte, "0.000")
+        If .Item[5] <> "" Then Try .Item[6] = Format$((Val(Utils.cpoint(rResult!pht)) - Val(Utils.cpoint(rResult!pmp))) * Val(Utils.cpoint(rResult!qte)), "0.00")
+        Pvht = Pvht + rResult!pht
+        Pvttc = Pvttc + rResult!pttc
+        Try Qte = Qte + rResult!qte
+        Try Pmp = Pmp + rResult!pmp
+        If .Item[5] <> "" Then Tmarge.Text = Format$(Val(Utils.cpoint(Tmarge.Text)) + Val(Utils.cpoint(.Item[6])), "0.00")
+      Until rResult.MoveNext()
+      Tht.text = Format$(Val(Utils.cpoint(Pvht)), "0.00")
+      Tttc.Text = Format$(Val(Utils.cpoint(Pvttc)), "0.00")
+      Tqte.Text = Format$(Val(Utils.cpoint(Qte)), "0.000")
+    Endif
+  End With
+  
+End

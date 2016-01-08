@@ -1,0 +1,341 @@
+' Gambas class file
+
+' ----------------------------------------------------------------------------
+'
+'
+' Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+' le modifier selon les termes de la GNU General PUBLIC License publiés par
+' la Free Software Foundation.
+' Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+' License pour plus de details.
+' Vous devez lire la GNU General PUBLIC Licence.
+' Si vous ne disposez pas d'un exemplaire, veuillez écrire
+' à  " The Free Software Foundation
+' INC, 59 Temple place - Suite 33, Boston
+' MA 02111-1307 USA
+' ----------------------------------------------------------------------------
+' ################################################
+' # nom du fichier           : echeances.class
+' # Auteur                   : Jacky Tripoteau
+' # date de création         : 28/02/2007
+' #
+' ################################################
+'
+Private ye As String
+Private mo As String
+Private da As String
+Private son As Integer = Start.Son
+
+'********************************************
+'*   On initialise le son et le colomnview  *
+'********************************************
+Public Sub _New()
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Colech.Columns.count = 5
+  Colech.Columns[0].Width = 100
+  Colech.Columns[1].Width = 220
+  Colech.Columns[2].Width = 60
+  Colech.Columns[3].Width = 180
+  Colech.Columns[0].Text = "code"
+  Colech.Columns[1].Text = "Intitulé"
+  Colech.Columns[2].Text = "Durée"
+  Colech.Columns[3].Text = "jours"
+  
+End
+
+'**************************************************************
+'*   On mouvemente le colomnview avec l'ensemble des données  *
+'**************************************************************
+Public Sub Form_Open()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  
+  Tab = "Fiches_Echeances" 
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by num")
+  If rResult.Available Then
+    Repeat
+      Colech.add(rResult!num, rResult!num)
+      Colech.Item[1] = rResult!libell
+      Colech.Item[2] = rResult!duree
+      Colech.Item[3] = rResult!jours
+      Colech.Item[4] = rResult!finmois
+    Until rResult.MoveNext()
+  Endif
+  
+End
+
+'****************************************************
+'*   On mouvement nos champs suite à  une sélection  *
+'****************************************************
+Public Sub Maj_Zones()
+  
+  With Utils
+    Cdech.text = Colech.Current[0]
+    libellech.text = Colech.Current[1]
+    dureech.text = Colech.Current[2]
+    joursech.text = Colech.Current[3]
+    If Len(joursech.Text) = 1 Then joursech.Text = "0" & joursech.Text
+    Finm.Value = .convBool(Colech.Current[4])
+    Cdech.SetFocus
+  End With
+  
+End
+
+'******************************************
+'*      On remet tous les champs à  blanc  *
+'******************************************
+Public Sub CleanChamps()
+  
+  Cdech.Clear
+  libellech.Clear
+  dureech.Clear
+  joursech.Clear
+  Finm.Value = False
+  
+End
+
+'*******************************************************************************
+'*   On met à  jour le colomnview suite a un enregistrement ou à  un effacement  *
+'*******************************************************************************
+Public Sub Refresh()
+  
+  Colech.Clear
+  form_Open()
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub ech_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  
+End
+
+'***********************************************************
+'*      On teste les validations sur nos champs de saisie  *
+'***********************************************************
+Public Sub ech_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+      Case 1
+        If Not Cdech.Text Then
+          message.Warning(" Veuillez saisir un code SVP .", "OK")
+        Else
+          libellech.SetFocus
+          echMan()
+        Endif
+        Stop Event
+      Case 2
+        If Not libellech.Text Then
+          message.Warning(" Veuillez saisir un libellé SVP .", "OK")
+        Else
+          dureech.SetFocus
+        Endif
+        Stop Event
+      Case 3
+        If Not dureech.Text Then
+          message.Warning(" Veuillez saisir une durée d' échéance SVP .", "OK")
+        Else
+          If dureech.Text = "0" Then dureech.Text = "00"
+          If Len(dureech.Text) = 1 Then
+            Message.Warning("Attention ! La durée d'échéance se saisit sur 2 caractères. Ex: 00, 30, 60")
+            Dureech.SetFocus
+            Dureech.Select
+          Else
+            joursech.SetFocus
+          Endif
+        Endif
+        Stop Event
+      Case 4
+        If Not joursech.Text And Finm.Value = False Then
+          message.Warning(" Veuillez saisir une date SVP .", "OK")
+        Else
+          Button2.SetFocus
+        Endif
+        Stop Event
+      Case 5
+        Quittedate()
+        Stop Event
+      Case 6
+        datej.SetFocus
+        Stop Event
+    End Select
+  Endif
+  
+  If key.code = key.F1 Then
+    Button4_Click()
+    Stop Event
+  Endif
+  
+End
+
+'*************************************************
+'*    On gère les validations sur nos boutons    *
+'*************************************************
+Public Sub Btn_Keypress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.return Then
+    Select Case Last.tag
+      Case 3
+        Button2_Click()
+    End Select
+  Endif
+  
+End
+
+'********************************************
+'*    On gère les clicks sur nos boutons    *
+'********************************************
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+    Case 1
+      Button4_Click()
+    Case 2
+      Button1_Click()
+    Case 3
+      Button2_Click()
+    Case 4
+      Me.Close 'Youppi ! on sort
+    Case 5
+      Button5_Click()
+  End Select
+  
+End
+
+Public Sub Colech_Click()
+  
+  Maj_Zones()
+  
+End
+
+'*************************************************
+'*      On appelle l' échéance manuellement      *
+'*************************************************
+Public Sub echman()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  
+  Tab = "Fiches_Echeances" 
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where num = &1", Cdech.Text)
+  If rResult.Available Then
+    Cdech.Text = rResult!num
+    libellech.Text = rResult!libell
+    dureech.Text = rResult!duree
+    joursech.Text = rResult!jours
+    Finm.Value = rResult!finmois
+  Endif
+  
+End
+
+'**************************************
+'*    On efface l' enregistrement     *
+'**************************************
+Public Sub Button1_Click()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  
+  Tab = "Fiches_Echeances" 
+  If son Then
+    Music.Play
+  Endif
+  If Message.Question("Etes vous sur de vouloir effacer cet enregistrement", "Oui", "Non") = 1 Then
+    rResult = Utils.db.Exec("Select * FROM " & Tab & " WHERE num = &1", Cdech.Text)
+    If rResult.Available Then
+      Utils.db.Exec("DELETE FROM " & Tab & " WHERE num = &1", Cdech.Text)
+      Refresh()
+      CleanChamps()
+      If son Then
+        Music.Play
+      Endif
+      message.Warning(" echéance supprimée .", "OK")
+    Else
+    Endif
+  Endif
+  
+End
+
+'*************************************************
+'*    On met à  jour la base après validation     *
+'*************************************************
+Public Sub Button2_Click()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  
+  Tab = "Fiches_Echeances" 
+  If Not Cdech.Text Then
+    message.Warning(" Veuillez saisir un code SVP .", "OK")
+    Cdech.SetFocus
+  Else
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE num = &1", Cdech.Text)
+    If Not rResult.Available Then
+      Utils.db.Exec("INSERT INTO " & Tab & "(num, libell, duree, jours, finmois) VALUES (&1,&2,&3,&4,&5)", Cdech.Text, libellech.Text, dureech.Text, joursech.Text, Finm.Value)
+    Else
+      Utils.db.Exec("UPdate " & Tab & " SET  num = &1, libell = &2, duree = &3, jours = &4, finmois = &5 WHERE num = &1", Cdech.Text, libellech.Text, dureech.Text, joursech.Text, Finm.Value)
+      Cleanchamps()
+    Endif
+    Refresh()
+  Endif
+Catch
+  Music.Play
+  message.Error(Error.Text & " " & Error.where)
+  
+End
+
+'*************************************************
+'*  On controle la cohérence de la date saisie   *
+'*************************************************
+Public Sub Quittedate()
+  
+  With utils
+    datej.text = .Cdate_calc(datej.text)
+    datej.Text = .Cdate_aff(datej.Text)
+    If datej.Text = "00.00.0:00" Then
+      datej.Text = Format$(Now, "dd.mm.yyyy")
+      datej.SetFocus
+    Endif
+  End With
+  
+End
+
+'*************************
+'*  On teste la formule  *
+'*************************
+Public Sub Button5_Click()
+  
+  If Not Cdech.Text Then
+    message.Warning(" Veuillez saisir un code échéance SVP .", "OK")
+  Else
+    If Not datej.text Then datej.text = Format$(Now, "dd.mm.yyyy")
+    Quittedate()
+    dateech.Text = Utils.Calcech(dureech.Text, joursech.Text, Finm.Value, datej.Text)
+    ye = Right$(datej.text, 4)
+    mo = Mid$(dateech.text, 4, 2)
+    da = Left$(dateech.text, 2)
+    Try dateech = Date(dateech, mo, da)
+  Endif
+Catch
+  Music.Play
+  message.Error(Error.Text & " " & Error.where)
+  
+End
+
+'**********************************
+'*   On affiche la documentation  *
+'**********************************
+Public Sub Button4_Click()
+  '    Exec ["xdg-open", Application.Path &/ "Ecrans/Echeances.html"]
+  
+End

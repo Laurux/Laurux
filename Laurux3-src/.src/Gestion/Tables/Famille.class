@@ -1,0 +1,972 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Famille.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 20/11/2004
+'# Gestion de la table des familles
+'################################################
+'
+Private $iRow As Integer = 0
+Private $iColumn As Integer = 0
+CoulZns As Integer ' Variable pour la couleur du background des zones de saisie
+CoulFoc As Integer ' Variable pour la couleur du focus
+CoulCol As Integer ' Variable pour la couleur du columnview
+son As Integer = Start.Son
+b As Integer
+AncT As String
+Private Org As String
+
+Public Sub _New()
+  
+  Dim n As Integer
+  Dim $R As String
+  Dim Frmt As New String[]
+  
+  Frmt = Utils.FColr(Settings["/Coul/Focus"])
+  CoulFoc = Val(Frmt[0])
+  Frmt = Utils.FColr(Settings["/Coul/Znss"])
+  CoulZns = Val(Frmt[0])
+  Frmt = Utils.FColr(Settings["/Coul/Znaff"])
+  CoulCol = Val(Frmt[0])
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Music.Load(Start.Musique)
+  Me.Center
+  colFam.Columns.count = 5
+  colFam.Columns[0].Width = 70
+  colFam.Columns[1].Width = 310
+  colFam.Columns[2].Alignment = 2
+  colFam.Columns[2].Width = 60
+  colFam.Columns[3].Alignment = 2
+  colFam.Columns[3].Width = 60
+  colFam.Columns[4].Alignment = 2
+  colFam.Columns[4].Width = 90
+  colFam.Columns[0].Text = "  Code"
+  colFam.Columns[1].Text = String$(45, " ") & "Libellé"
+  colFam.Columns[2].Text = "Coef  "
+  colFam.Columns[3].Text = Settings["/Soc" & Start.Societe & "/Taxe"] & "   "
+  colFam.Columns[4].Text = "Compte       "
+  'Configuration de la grille Tbrem
+  Tbrem.Columns.Count = 3
+  Tbrem.Rows.Count = 6
+  Tbrem.Columns.Width = 90
+  Tbrem.Rows.Height = 25
+  Tbrem.Columns[0].text = "Val mini"
+  Tbrem.Columns[1].text = "Val maxi"
+  Tbrem.Columns[2].text = "Remise"
+  'Configuration de la grille Tbrem2
+  Tbrem2.Columns.Count = 1
+  Tbrem2.Rows.Count = 6
+  Tbrem2.Columns.Width = 90
+  Tbrem2.Rows.Height = 25
+  For n = 0 To 5
+    $R = "Remise " & n & "       "
+    Tbrem2.Rows[n].text = $R
+    Tbrem2.Rows[n].text = $R
+    Tbrem2.Rows[n].text = $R
+    Tbrem2.Rows[n].text = $R
+    Tbrem2.Rows[n].text = $R
+    Tbrem2.Rows[n].text = $R
+  Next
+  Cdf.SetFocus
+  b = 0
+  
+End
+
+Public Sub TBfam_click()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+End
+
+Public Sub Form_Open()
+  
+  Dim rResult As Result
+  
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " order by code_fam")
+  If rResult.Available Then
+    Repeat
+      colFam.Add(rResult!code_fam, rResult!code_fam)
+      colFam.Item[0] = rResult!code_fam
+      colFam.Item[1] = rResult!libell_fam
+      colFam.Item[2] = Format$(rResult!coef_fam, "0.000")
+      colFam.Item[3] = Format$(rResult!txtva_fam, "0.00")
+      colFam.Item[4] = rResult!compt_fam
+      ColFam.Item[5] = rResult!cdtva_fam
+      ColFam.Item[6] = rResult!cptrem_fam
+      Try ColFam.Item[7] = Format$(rResult!ect_fam, "0.00")
+      Try ColFam.Item[8] = Format$(rResult!rem_fam, "0.00")
+    Until rResult.MoveNext()
+    'Maj_Zones()
+  Endif
+  
+End
+
+Public Sub Refresh()
+  
+  colFam.clear
+  form_Open()
+  Maj_Zones()
+  
+End
+
+Public Sub Maj_Zones()
+  
+  Dim Rfam As Result
+  
+  Rfam = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " where code_fam = &1", colFam.Current[0])
+  Cdf.Text = Rfam!code_fam
+  LibelFam.text = Rfam!libell_fam
+  Coef.text = Format$(Rfam!coef_fam, "0.000")
+  Cdtva.text = Rfam!cdtva_fam
+  AncT = Cdtva.Text
+  codecompt.text = Rfam!compt_fam
+  codecompt2.text = Rfam!compt2_fam
+  codecompt3.text = Rfam!compt3_fam
+  Txtva.Text = Format$(Rfam!txtva_fam, "0.00")
+  CmptRem.Text = Rfam!cptrem_fam
+  Ecotx.Text = Rfam!ect_fam
+  Remise.text = Format$(Rfam!rem_fam, "0.000")
+  Tbrem.clear
+  Tbrem.Refresh
+  Try Tbrem[0, 0].Text = Format$(Rfam!qte1, "0.00")
+  Try Tbrem[0, 1].Text = Format$(Rfam!qte2, "0.00")
+  Try Tbrem[0, 2].Text = Format$(Rfam!rem1, "0.000")
+  Try Tbrem[1, 0].Text = Format$(Rfam!qte3, "0.00")
+  Try Tbrem[1, 1].Text = Format$(Rfam!qte4, "0.00")
+  Try Tbrem[1, 2].Text = Format$(Rfam!rem2, "0.000")
+  Try Tbrem[2, 0].Text = Format$(Rfam!qte5, "0.00")
+  Try Tbrem[2, 1].Text = Format$(Rfam!qte6, "0.00")
+  Try Tbrem[2, 2].Text = Format$(Rfam!rem3, "0.000")
+  Try Tbrem[3, 0].Text = Format$(Rfam!qte7, "0.00")
+  Try Tbrem[3, 1].Text = Format$(Rfam!qte8, "0.00")
+  Try Tbrem[3, 2].Text = Format$(Rfam!rem4, "0.000")
+  Try Tbrem[4, 0].Text = Format$(Rfam!qte9, "0.00")
+  Try Tbrem[4, 1].Text = Format$(Rfam!qte10, "0.00")
+  Try Tbrem[4, 2].Text = Format$(Rfam!rem5, "0.000")
+  Try Tbrem[5, 0].Text = Format$(Rfam!qte11, "0.00")
+  Try Tbrem[5, 1].Text = Format$(Rfam!qte12, "0.00")
+  Try Tbrem[5, 2].Text = Format$(Rfam!rem6, "0.000")
+  Cdf.SetFocus
+Catch
+  
+End
+
+'******************************
+'*    Gestion des remises     *
+'******************************
+
+' Clic sur Gridview Tbrem
+
+Public Sub tbrem_Click()
+  
+  HideTextBox()
+  tbrem.Current.EnsureVisible
+  $irow = tbrem.row
+  $icolumn = Tbrem.column
+  ShowTextBox()
+  Tbxrem.SetFocus
+  Tbxrem.Select
+  
+End
+
+' Gestion des touches sur Textbox Tbxrem
+Public Sub tbxrem_KeyPress()
+  
+  Select Key.Code
+      
+    Case Key.Left
+      HideTextBox()
+      MoveTo(tbrem.Row, tbrem.Column - 1)
+      tbrem_Click()
+      Stop Event
+      
+    Case Key.Right, Key.Return, Key.Enter, Key.tab
+      HideTextBox()
+      MoveTo(Tbrem.Row, Tbrem.Column + 1)
+      tbrem_Click()
+      Stop Event
+      
+    Case Key.Up
+      HideTextBox()
+      MoveTo(Tbrem.Row - 1, Tbrem.Column)
+      tbrem_Click()
+      Stop Event
+      
+    Case Key.Down
+      HideTextBox()
+      MoveTo(Tbrem.Row + 1, Tbrem.Column)
+      tbrem_Click()
+      Stop Event
+      
+  End Select
+  
+End
+
+' Gestion du déplacement de cellule
+Public Function MoveTo(iRow As Integer, iCol As Integer) As Boolean
+  
+  If iCol < 0 Then
+    Dec iRow
+    iCol = tbrem.Columns.Count - 1
+  Else If iCol >= tbrem.Columns.Count Then
+    Inc iRow
+    iCol = 0
+  Endif
+  If iRow < 0 Then Return True
+  If iRow >= Tbrem.Rows.Count Then Return True
+  tbrem.MoveTo(iRow, iCol)
+  
+End
+
+' Affichage du Textbox Tbrem
+Public Function ShowTextBox()
+  
+  With Tbrem.Current
+    Tbxrem.Text = .Text
+    Tbxrem.Background = CoulFoc
+    Tbxrem.MaxLength = 10
+    Tbxrem.Width = Tbrem.Columns.Width
+    Tbxrem.Move(Tbrem.Current.X, Tbrem.Y + Tbrem.Rows.Height + tbrem.current.Y, .W, .H)
+    'Tbxrem.Move(Tbrem.X + (Tbrem.Columns.width - 8) + Tbrem.Current.X, Tbrem.Y + Tbrem.Rows.Height + tbrem.current.Y, .W, .H)
+    If $icolumn = 0 Then
+      If IsNull(Tbxrem.text) Then Tbxrem.text = "0,00"
+      Try Tbxrem.Text = Format(Val(Utils.cpoint(Tbrem[$irow - 1, 1].Text)) + 0.01, "00.00")
+      If Error Then Tbxrem.Text = ""
+    Endif
+    If Not IsNull(Tbxrem.Text) Then
+      If Val(Tbxrem.Text) > 9999999.99 Then
+        Tbxrem.Text = "9999999,99"
+      Endif
+    Endif
+    If $irow = 0 And $icolumn = 0 Then Tbxrem.Text = "0,00"
+    Tbxrem.Visible = True
+  End With
+  
+End
+
+'Masquage du Textbox Tbrem
+Public Function HideTextBox()
+  
+  Dim Txt As String
+  
+  With Utils
+    Txt = Tbxrem.Text
+    If Val(.cpoint(Txt)) = Null Then
+      Tbxrem.Text = "0,00"
+    Else
+      Txt = Format$(Val(.cpoint(Txt)), "0.000")
+    Endif
+    If Not IsNull(Txt) Then
+      If Val(.cpoint(Txt)) > 9999999.99 Then Txt = "9999999,99"
+    Endif
+    If $icolumn = 2 Then
+      Try Txt = Format$(Val(Txt), "0.000")
+    Else
+      Try Txt = Format$(Val(Txt), "0.00")
+    Endif
+    If Val(Txt) = 0 And $irow <> 0 And $icolumn <> 0 Then Txt = ""
+    If $irow = 0 And $icolumn = 0 Then Txt = "0,00"
+    Tbrem[$irow, $icolumn].Text = Txt
+    If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then
+      Tbrem[$irow, $icolumn].Background = CoulCol
+    Else
+      Tbrem[$irow, $icolumn].Background = Color.TextBackground
+    Endif
+    Tbxrem.Visible = False
+    
+  End With
+  
+End
+
+Public Sub Cleanchamps()
+  
+  Cdf.Clear
+  Libelfam.Clear
+  Coef.Text = "1,000"
+  Remise.Text = "0.000"
+  Ecotx.Text = "0,00"
+  Tbrem.Clear
+  Tbxrem.Clear
+  Tbxrem.Visible = False
+  
+End
+
+Public Sub Button2_Click()
+  
+  Me.close
+  
+End
+
+Public Sub Button1_Click()
+  
+  Dim rResult As Result
+  Dim bb As String
+  Dim sKey As String
+  
+  With Utils
+    Test_Tva()
+    If b = 1 Then
+      b = 0
+      Cdtva.SetFocus
+      Cdtva.Select
+    Else
+      b = 0
+      bb = 0
+      Coef_LostFocus()
+      If b = 0 Then
+        Ecotx_LostFocus()
+        If b = 0 Then
+          Libelfam.Text = Utils.Remplace(Libelfam.Text)
+          'compteGman()
+          If b = 0 Then
+            bb = b
+            'compteGman2()
+          Endif
+        Endif
+      Endif
+      If bb <> 1 And b <> 1 Then
+        If Cdf.TEXT = "" Or Coef.TEXT = "" Or Cdtva.TEXT = "" Or codeCompt.Text = "" Or CmptRem.text = "" Then
+          If son Then
+            Music.Play
+          Endif
+          Message.Warning("VOUS DEVEZ D'ABORD REMPLIR LES CHAMPS OBLIGATOIRES", "OK")
+        Else
+          If Left$(Cmptrem.Text, 3) = "709" Then
+            rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " WHERE code_fam = &1", Cdf.Text)
+            If rResult.Available Then
+              Utils.db.Exec("UPdate  " & Cbase.Table("TabFam") & "  SET  code_fam = &1 , libell_fam = &2 , compt_fam = &3, coef_fam = &4, cdtva_fam = &5, txtva_fam = &6, cptrem_fam = &7 , ect_fam = &8 , rem_fam = &9, qte1 = &{10}, qte2 = &{11}, rem1 = &{12}, qte3 = &{13}, qte4 = &{14}, rem2 = &{15}, compt2_fam = &{16}, compt3_fam = &{17}  WHERE code_fam = &1", Cdf.Text, LibelFam.Text, codecompt.Text, .PointBase(Coef.Text), Cdtva.Text, .PointBase(Txtva.Text), CmptRem.Text, Val(Ecotx.Text), .PointBase(Remise.Text), Val(Tbrem[0, 0].Text), Val(Tbrem[0, 1].Text), Val(Tbrem[0, 2].Text), Val(Tbrem[1, 0].Text), Val(Tbrem[1, 1].Text), Val(Tbrem[1, 2].Text), codeCompt2.Text, codeCompt3.Text)
+              Utils.db.Exec("UPdate  " & Cbase.Table("TabFam") & "  SET  qte5 = &2, qte6 = &3, rem3 = &4, qte7 = &5, qte8 = &6, rem4 = &7, qte9 = &8, qte10 = &9, rem5 = &{10}, qte11 = &{11}, qte12=  &{12}, rem6 = &{13}  WHERE code_fam = &1", Cdf.Text, Val(Tbrem[2, 0].Text), Val(Tbrem[2, 1].Text), Val(Tbrem[2, 2].Text), Val(Tbrem[3, 0].Text), Val(Tbrem[3, 1].Text), Val(Tbrem[3, 2].Text), Val(Tbrem[4, 0].Text), Val(Tbrem[4, 1].Text), Val(Tbrem[4, 2].Text), Val(Tbrem[5, 0].Text), Val(Tbrem[5, 1].Text), Val(Tbrem[5, 2].Text))
+              'IF Settings["/Soc" & Start.Societe & "/Btq"] THEN Thelia.Pass("Fam", "M", Cdf.Text, Libelfam.Text, Coef.Text, Txtva.Text, Ecotx.Text, "", "", "", "", "", "", "", "", "", "")
+              sKey = ColFam.Current.Key
+            Else
+              Utils.db.Exec("INSERT INTO " & Cbase.Table("TabFam") & "(code_fam,libell_fam,compt_fam,compt2_fam,compt3_fam, coef_fam, cdtva_fam, txtva_fam, cptrem_fam, ect_fam, rem_fam, qte1, qte2, rem1, qte3, qte4, rem2, qte5, qte6, rem3, qte7, qte8, rem4, qte9, qte10, rem5, qte11, qte12, rem6) VALUES(&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24}, &{25}, &{26}, &{27}, &{28}, &{29})", Cdf.Text, LibelFam.Text, codeCompt.Text, codeCompt2.Text, codeCompt3.Text, .PointBase(Coef.Text), Cdtva.Text, .PointBase(Txtva.Text), CmptRem.Text, Val(Ecotx.Text), .PointBase(Remise.Text), Val(Tbrem[0, 0].Text), Val(Tbrem[0, 1].Text), Val(Tbrem[0, 2].Text), Val(Tbrem[1, 0].Text), Val(Tbrem[1, 1].Text), Val(Tbrem[1, 2].Text), Val(Tbrem[2, 0].Text), Val(Tbrem[2, 1].Text), Val(Tbrem[2, 2].Text), Val(Tbrem[3, 0].Text), Val(Tbrem[3, 1].Text), Val(Tbrem[3, 2].Text), Val(Tbrem[4, 0].Text), Val(Tbrem[4, 1].Text), Val(Tbrem[4, 2].Text), Val(Tbrem[5, 0].Text), Val(Tbrem[5, 1].Text), Val(Tbrem[5, 2].Text))
+              'IF Settings["/Soc" & Start.Societe & "/Btq"] THEN Thelia.Pass("Fam", "C", Cdf.Text, Libelfam.Text, Coef.Text, Txtva.Text, Ecotx.Text, "", "", "", "", "", "", "", "", "", "")
+              sKey = Cdf.Text
+            Endif
+            Refresh()
+            Cleanchamps()
+            Try ColFam.MoveTo(sKey)
+            Try ColFam.Item.Selected = True
+            Try ColFam.Item.EnsureVisible
+            Cdf.SetFocus
+            Cdf.Select
+          Else
+            Music.play
+            Message.ERROR("Un compte de remise doit commencer par 709")
+            Me.raise
+          Endif
+        Endif
+      Else
+        If bb = 1 Then
+          codecompt.Select
+          codecompt.SetFocus
+        Else
+          If b = 1 Then
+            CmptRem.Select
+            CmptRem.SetFocus
+          Endif
+        Endif
+      Endif
+    Endif
+  End With
+  
+End
+
+Public Sub Colfam_Click()
+  
+  Maj_Zones
+  
+End
+
+Public Sub Button3_Click()
+  
+  Dim rResult As Result
+  Dim Suppr As Integer
+  
+  Suppr = 1
+  If son Then
+    Music.Play
+  Endif
+  If Message.Warning("Etes vous sur de vouloir effacer cet enregistrement", "Oui", "Non") = 1 Then
+    Me.Mouse = Mouse.Wait
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE  art_fam = &1", Cdf.Text)
+    If rResult.Available Then
+      If son Then
+        Music.Play
+      Endif
+      Message.Warning(" Suppression impossible ! Il existe des articles dans cette famille")
+      Suppr = 0
+    Else
+      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMo") & " WHERE  mo_fam = &1", Cdf.Text)
+      If rResult.Available Then
+        If son Then
+          Music.Play
+        Endif
+        Message.Warning(" Suppression impossible ! Il existe une main d'oeuvre dans cette famille")
+        Suppr = 0
+      Else
+        If Suppr = 1 Then
+          Utils.db.Exec("DELETE FROM " & Cbase.Table("TabFam") & " WHERE code_fam = &1", colFam.Current[0])
+          Refresh()
+        Endif
+        Me.Mouse = Mouse.Pointing
+      Endif
+    Endif
+  Endif
+  
+End
+
+Public Sub ToggleButton2_Click()
+  
+  Org = "Codecompte"
+  AffCpt()
+  
+End
+
+Public Sub ToggleButton4_Click()
+  
+  Org = "Codecompte2"
+  AffCpt()
+  
+End
+
+Public Sub ToggleButton3_Click()
+  
+  Org = "Cmptrem"
+  AffCpt()
+  
+End 
+
+Public Sub ToggleButton5_Click()
+  
+  Org = "Codecompte3"
+  AffCpt()
+  
+End
+
+Public Sub AffCpt()
+  
+  Dim rResult As Result
+  
+  If Tvalist2.visible Then
+    Tvalist2.clear
+    Tvalist2.visible = False
+  End If
+  If Colcompt.visible Then
+    Colcompt.clear
+    Colcompt.visible = False
+  Else
+    Colcompt.visible = True
+    Colcompt.Columns.count = 2
+    Colcompt.Columns[0].Width = 65
+    Colcompt.Columns[1].Width = 180
+    Colcompt.Columns[0].Text = "code"
+    Colcompt.Columns[1].Text = "Intitulé"
+    If Org = "Codecompte3" Then
+      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " where left(compte_cc,1) = '6' order by cast(compte_cc AS char)")
+    Else
+      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " where left(compte_cc,1) = '7' order by cast(compte_cc AS char)")
+    Endif
+    If rResult.Available Then
+      Repeat
+        Colcompt.Add(rResult!compte_cc, rResult!compte_cc)
+        Colcompt.Item[0] = rResult!compte_cc
+        Colcompt.Item[1] = rResult!intitule_cc
+      Until rResult.MoveNext()
+      Colcompt.MoveFirst
+      Colcompt.SetFocus
+      Colcompt.Item.Selected = True
+    Endif
+  Endif
+  
+End
+
+Public Sub ToggleButton1_Click()
+  
+  Dim rResult As Result
+  
+  If Colcompt.visible Then
+    Colcompt.clear
+    Colcompt.visible = False
+  Endif
+  If Colcompt2.visible Then
+    Colcompt2.clear
+    Colcompt2.visible = False
+  Endif
+  If Tvalist2.visible Then
+    Tvalist2.clear
+    Tvalist2.visible = False
+  Else
+    Tvalist2.visible = True
+    Tvalist2.Columns.count = 3
+    Tvalist2.Columns[0].Width = 65
+    Tvalist2.Columns[1].Width = 80
+    Tvalist2.Columns[2].Width = 180
+    Tvalist2.Columns[0].Text = "code"
+    Tvalist2.Columns[1].Text = "Taux"
+    Tvalist2.Columns[2].Text = "compte"
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTvav") & "")
+    If rResult.Available Then
+      Repeat
+        Tvalist2.Add(rResult!code_tva, rResult!code_tva)
+        Tvalist2.Item[0] = rResult!code_tva
+        Tvalist2.Item[1] = Format$(rResult!taux_tva, "0.00")
+        Tvalist2.Item[2] = rResult!cc_tva
+      Until rResult.MoveNext()
+      Tvalist2.MoveFirst
+      Tvalist2.SetFocus
+      Tvalist2.Item.Selected = True
+    Endif
+  Endif
+  
+End
+
+Public Sub Colcompt_Click()
+  
+  If Org = "Codecompte" Then
+    codecompt.text = Colcompt.Item[0]
+    Codecompt2.setfocus
+  Else
+    If Org = "Codecompte2" Then
+      codecompt2.text = Colcompt.Item[0]
+      CmptRem.SetFocus
+    Else
+      If Org = "Cmptrem" Then
+        Cmptrem.text = Colcompt.Item[0]
+        Codecompt3.setfocus
+      Else
+        If Org = "Codecompte3" Then
+          codecompt3.text = Colcompt.Item[0]
+          Ecotx.SetFocus
+        Endif
+      Endif
+    Endif
+  Endif
+  Colcompt.visible = False
+  Colcompt.clear
+  
+End
+
+'**********************************************************
+'* Gestion du columnview lors d'une saisie manuelle       *
+'**********************************************************
+Public Sub Colcompt_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Colcompt.MoveCurrent
+    Colcompt_Click()
+    Stop Event
+  Endif
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Colcompt.visible = False
+    Colcompt.clear
+    CmptRem.SetFocus
+    CmptRem.Select
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Colcompt2_Click()
+  
+  CmptRem.text = Colcompt2.Item[0]
+  Colcompt2.visible = False
+  Colcompt2.clear
+  Cdf.SetFocus
+  Cdf.Select
+  
+End
+
+Public Sub Colcompt2_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Colcompt2.MoveCurrent
+    Colcompt2_Click()
+    Stop Event
+  Endif
+  
+  If key.code = key.F1 Then
+    Button5_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Colcompt2.visible = False
+    Colcompt2.clear
+    Cdf.SetFocus
+    Cdf.Select
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Tvalist2_Click()
+  
+  Cdtva.text = Tvalist2.Current[0]
+  Txtva.text = Tvalist2.Current[1]
+  Tvalist2.visible = False
+  Tvalist2.clear
+  codecompt.SetFocus
+  codecompt.Select
+  
+End
+
+'**********************************************************
+'* Gestion du columnview lors d'une saisie manuelle       *
+'**********************************************************
+Public Sub Tvalist2_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Tvalist2.MoveCurrent
+    Tvalist2_Click()
+    Stop Event
+  Endif
+  
+  If key.code = key.F1 Then
+    Button5_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Tvalist2.visible = False
+    Tvalist2.clear
+    codecompt.SetFocus
+    codecompt.Select
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Libelfam_LostFocus()
+  
+  Libelfam.Text = Utils.Remplace(Libelfam.Text)
+  
+End
+
+Public Sub Coef_LostFocus()
+  
+  Dim Tx As Float
+  
+  With Utils
+    Coef.Text = .cpoint(Coef.Text)
+    If Val(Coef.text) = Null Then
+      If son Then
+        Music.Play
+      Endif
+      message.Warning("Veuillez verifier la saisie de votre coefficient SVP !")
+      b = 1
+    Else
+      Tx = Val(.cpoint(Coef.Text))
+      Coef.Text = Format$(Tx, "0.000")
+      b = 0
+    Endif
+  End With
+  
+End
+
+Public Sub Remise_LostFocus()
+  
+  With Utils
+    Remise.Text = .cpoint(Remise.Text)
+    If IsNull(Remise.text) Then Remise.text = "0,000"
+    If Val(Remise.text) = Null Then
+      If son Then
+        Music.Play
+      Endif
+      message.Warning("Veuillez verifier la saisie de votre remise SVP !")
+      b = 1
+    Else
+      Remise.Text = Format$(Val(.cpoint(Remise.Text)), "0.000")
+      b = 0
+    Endif
+  End With
+  
+End
+
+Public Sub codecompt_LostFocus()
+  
+  compteGman(Codecompt.text)
+  
+End
+
+Public Sub codecompt2_LostFocus()
+  
+  compteGman(Codecompt2.text)
+  
+End
+
+Public Sub codecompt3_LostFocus()
+  
+  compteGman(Codecompt3.text)
+  
+End
+
+Public Sub Cmptrem_LostFocus()
+  
+  compteGman(Cmptrem.text)
+  
+End
+
+Public Sub Ecotx_LostFocus()
+  
+  With Utils
+    Ecotx.Text = .cpoint(Ecotx.Text)
+    If Ecotx.Text Then
+      Ecotx.Text = .cpoint(Ecotx.Text)
+      If Val(Ecotx.Text) = Null Then
+        If son Then
+          Music.Play
+        Endif
+        message.Warning("Veuillez verifier la saisie de l'éco-taxe SVP !")
+        b = 1
+      Else
+        Ecotx.Text = Format$(Val(Ecotx.Text), "0.00")
+      Endif
+    Endif
+  End With
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Fam_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  Select Case Last.tag
+    Case 3
+      If IsNull(Coef.text) Then Coef.text = "1,000"
+      
+    Case 4
+      If IsNull(remise.text) Then Remise.text = "0,000"
+      
+    Case 8
+      If IsNull(Ecotx.Text) Then Ecotx.Text = "0,00"
+      
+  End Select
+  
+End
+
+Public Sub Test_Tva()
+  
+  Dim rTva As Result
+  
+  If AncT <> Cdtva.Text Then
+    rTva = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_tva = &1 and art_fam = &2", Anct, Cdf.Text)
+    If rTva.Available Then
+      Try Message.Warning("Il existe des produits dans cette famille. La modification du code Tva n'est pas permise !")
+      Cdtva.Text = AncT
+      Cdtva.SetFocus
+      Cdtva.Select
+      b = 1
+    Endif
+  Endif
+  
+End
+
+Public Sub fam_KeyPress()
+  
+  Dim rResult As Result
+  
+  If Key.code = Key.enter Or Key.code = Key.Return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+        
+      Case 1
+        LibelFam.SetFocus
+        LibelFam.Select
+        Stop Event
+        
+      Case 2
+        Libelfam_LostFocus()
+        Coef.SetFocus
+        Coef.Select
+        Stop Event
+        
+      Case 3
+        Coef_LostFocus()
+        If b = 1 Then
+          Coef.SetFocus
+          Coef.Select
+          b = 0
+        Else
+          Remise.SetFocus
+          Remise.Select
+        Endif
+        Stop Event
+        
+      Case 4
+        Remise_LostFocus()
+        If b = 1 Then
+          Remise.SetFocus
+          Remise.Select
+          b = 0
+        Else
+          Cdtva.SetFocus
+          Cdtva.Select
+        Endif
+        Stop Event
+        
+      Case 5
+        Test_Tva()
+        If b <> 1 Then
+          rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTvav") & " where code_tva = &1", Cdtva.Text)
+          If rResult.Available Then
+            Txtva.text = Format$(rResult!taux_tva, "0.00")
+            codeCompt.SetFocus
+            codeCompt.Select
+          Else
+            Message.Warning("Ce Taux n'existe pas")
+            Cdtva.SetFocus
+            Cdtva.Select
+          Endif
+        Endif
+        Stop Event
+        
+      Case 6
+        codeCompt_LostFocus()
+        If b = 1 Then
+          codeCompt.SetFocus
+          codeCompt.Select
+        Else
+          codeCompt2.SetFocus
+          codeCompt2.Select
+        Endif
+        Stop Event
+        
+      Case 7
+        codeCompt2_LostFocus()
+        If b = 1 Then
+          codeCompt2.SetFocus
+          codeCompt2.Select
+        Else
+          Cmptrem.SetFocus
+          Cmptrem.Select
+        Endif
+        Stop Event
+        
+      Case 8
+        If Left$(Cmptrem.text, 3) = "709" Then
+          Cmptrem_LostFocus()
+          If b = 1 Then
+            CmptRem.SetFocus
+            CmptRem.Select
+            b = 0
+          Else
+            codeCompt3.SetFocus
+            codeCompt3.Select
+          Endif
+        Else
+          Message.Warning("Un compte de remise doit être un compte 709xxx")
+          CmptRem.SetFocus
+          CmptRem.Select
+        Endif
+        Stop Event
+        
+      Case 9
+        codeCompt3_LostFocus()
+        If b = 1 Then
+          codeCompt3.SetFocus
+          codeCompt3.Select
+        Else
+          Ecotx.SetFocus
+          Ecotx.Select
+        Endif
+        Stop Event
+        
+      Case 10
+        Ecotx_LostFocus()
+        If b = 1 Then
+          Ecotx.SetFocus
+          Ecotx.Select
+          b = 0
+        Else
+          Cdf.SetFocus
+          Cdf.Select
+        Endif
+        
+        Stop Event
+    End Select
+  Endif
+  
+  If key.code = key.F1 Then
+    Button5_Click()
+    Stop Event
+  Endif
+  
+  If key.code = key.F2 Then
+    Select Case Last.tag
+      Case 5
+        ToggleButton1_click()
+        Stop Event
+        
+      Case 6
+        ToggleButton2_click()
+        Stop Event
+        
+      Case 7
+        ToggleButton3_click()
+        Stop Event
+    End Select
+  Endif
+  
+End
+
+Public Sub Btn_KeyPress()
+  
+  Select Case Last.tag
+      
+    Case 3
+      Button1_Click()
+      
+  End Select
+  
+End
+
+'******************************************************************
+'*  Recherche d'un compte vente lors d'une saisie manuelle      *
+'******************************************************************
+Public Sub compteGman(compt As String)
+  
+  Dim Cmpts As Result
+  
+  Cmpts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & "  WHERE compte_cc = &1", compt)
+  If Not Cmpts.Available Then
+    If son Then
+      Music.Play
+    Endif
+    message.Warning("Ce compte n'existe pas !\n Verifiez votre saisie SVP !")
+    b = 1
+  Else
+    b = 0  
+  Endif
+  
+End
+
+'**********************************
+'*    Appel de la doc html        *
+'**********************************
+Public Sub Button5_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Familles.html"]
+  
+End

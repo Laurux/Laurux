@@ -1,0 +1,53 @@
+' Gambas class file
+
+Public Sub _new()
+  
+  Me.center
+  If Settings["/Soc" & Start.Societe & "/Materiel"] Then CheckBox1.Visible = True
+  
+End
+
+Public Sub Button2_Click()
+  
+  CheckBox1.value = False
+  Me.close
+  
+End
+
+'**********************************************On lance le traitement**************************************
+Public Sub Button1_Click()
+  
+  Dim rResult As Result
+  Dim chemin As String = "/Sauve"
+  Dim Nb As Integer = 0
+  Dim cs As String = Settings["/Soc"]
+  
+  If Start.son Then Music.play
+  If Message.Question("Ce programme va effacer les factures archivées\nantérieures à la date saisie !\nEtes-vous d'accord pour lancer le traitement ?", "Oui", "Non") = 1 Then
+    Me.mouse = mouse.Wait
+    If Not Exist(User.home & chemin) Then Mkdir User.home & chemin
+    Shell "mysqldump --lock-tables=0 -h " & Settings["/dbase/Host"] & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " Laurux" & cs & " --add-drop-table > " & User.home & "/Sauve/Laurux" & cs & "EffaceF.sql" Wait
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisFac") & " where datefac < &1", Format$(DateChooser1.Value, "yyyymmdd"))
+    If rResult.Available Then
+      Repeat
+        Utils.db.Exec("delete FROM " & Cbase.Table("TabHisLigFac") & " where num_ligfac = &1", rResult!numfac)
+        Utils.db.Exec("delete FROM " & Cbase.Table("TabHisFac") & " where numfac = &1", rResult!numfac)
+        Inc nb
+      Until rResult.MoveNext()
+    Endif
+    If CheckBox1.Value = True Then
+      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisFacm") & " where datefac < &1", Format$(DateChooser1.Value, "yyyymmdd"))
+      If rResult.Available Then
+        Repeat
+          Utils.db.Exec("delete FROM " & Cbase.Table("TabHisLigFacm") & " where num_ligfac = &1", rResult!numfac)
+          Utils.db.Exec("delete FROM " & Cbase.Table("TabHisFacm") & " where numfac = &1", rResult!numfac)
+          Inc nb
+        Until rResult.MoveNext()
+      Endif
+    Endif
+    Me.mouse = mouse.Default
+    Syntheses.Message("Traitement terminé ! " & nb & " factures ont été effacées.")
+    Message.Info("Traitement terminé ! " & nb & " factures ont été effacées.")
+  Endif
+  
+End

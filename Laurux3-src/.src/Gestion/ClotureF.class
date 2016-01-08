@@ -1,0 +1,334 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : ClotureF.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 07/11/2007
+'# Cloture mensuelle de la facturation
+'################################################
+'
+
+Tab As String
+Dtpc As String
+Dtepp As String ' date période précédente en facturation
+Entbonl As Result
+Remmo As String
+Remart As String
+TotSldHP As Float
+TotDeb As Float
+TotCred As Float
+TotSld As Float
+debit As Float
+credit As Float
+Compt As String
+Private Nfac As String
+
+Public Sub _New()
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+End
+
+Public Sub Form_Open()
+  
+  Aff_date()
+  
+End
+
+Public Sub Aff_date()
+  
+  Dim rResult As Result
+  
+  Tab = "Fiches_Parametres" 
+  With Utils
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
+    If Not rResult.Available Then
+      Message.Warning("Veuillez completez la table des parametres généraux SVP avant de faire vos clotures", "OK")
+      Quit
+    Else
+      If rResult!dtepec = "" Or If Left$(rResult!dtepec, 2) = "00" Then
+        Dtpc = Format$(Now, "mm.yyyy")
+      Else
+        Dtpc = rResult!dtepec
+      Endif
+      If rResult!dtepp = "" Or If Left$(rResult!dtepp, 2) = "00" Then
+        Dtepp = Format$(Now, "mm.yyyy")
+      Else
+        Dtepp = rResult!dtepp
+      Endif
+      Dtpc = "01." & Dtpc
+      Dtepp = "01." & Dtepp
+      dateprc.Text = "  " & Format$(Date(Right(dtepp, 4), Mid(dtepp, 4, 2), "01"), "mmmm  yyyy")
+      datecl.Text = "  " & Format$(Date(Right(dtpc, 4), Mid(dtpc, 4, 2), "01"), "mmmm  yyyy")
+    Endif
+  End With
+  
+End
+
+Public Sub Button3_Click()
+  
+  Me.Close
+  
+End
+
+Public Sub Button1_Click()
+  
+  Dim Tab2 As String
+  
+  Tab = "Fiches_Bl" 
+  Tab2 = "Fiches_Parametres" 
+  With Utils
+    If Message.Question("Etes vous sur de vouloir lancer la cloture du mois de" & datecl.Text, "Oui", "Non") = 1 Then
+      Maj_Archives()
+    Endif
+  End With
+  Try Me.Close
+  
+End
+
+'**********************************************************
+'*                   Maj Entetes Archives                 *
+'**********************************************************
+Public Sub Maj_Archives()
+  
+  Dim Ligbonl As Result
+  Dim Parmt As Result
+  Dim Tvarslt As Result
+  Dim Entf As String
+  Dim HisEntM As String
+  Dim Ligf As String
+  Dim Entbon As String
+  Dim Ligbon As String
+  Dim Parm As String
+  Dim Dppc As String
+  Dim TauxTva As String
+  
+  Entf = "Fiches_HistoFac" 
+  HisentM = "Fiches_Hisentmat" 
+  Ligf = "Fiches_HistoLigfac" 
+  Entbon = "Fiches_Bl" 
+  Ligbon = "Fiches_Ligbl" 
+  Parm = "Fiches_Parametres" 
+  Me.Mouse = Mouse.Wait
+  With Utils
+    Entbonl = Utils.db.Exec("SELECT * FROM " & Entbon & " where imp = &1 and type = &2 and dtefac <= &3 ", 1, "F", Right(dtpc, 4) & Mid(dtpc, 4, 2) & 31)
+    If EntBonl.Available Then
+      Repeat
+        If Right(.Cdate_Aff(Entbonl!dtefac), 4) & Mid(.Cdate_Aff(Entbonl!dtefac), 4, 2) Then
+          Tot_Remises()
+          Nfac = Entbonl!numfac
+          Try Utils.db.Exec("INSERT INTO " & Entf & "(numfac,datefac,cdclifac, nmclifac, rmofac, rartfac, pnmclifac, adr1fac, adr2fac, cpfac, villefac, exofac, cvclifac, remmofac, remartfac, totfac, reg, ech, numerobl, acpt, mreg, marge_art, marge_mo, totfacttc, cdep) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24},&{25})", Nfac, Entbonl!dtefac, Entbonl!cdclibl, Entbonl!nmclibl, Entbonl!rmobl, Entbonl!rartbl, Entbonl!pnmclibl, Entbonl!adr1bl, Entbonl!adr2bl, Entbonl!cpbl, Entbonl!villebl, Entbonl!exobl, Entbonl!cvclibl, .PointBase(Remmo), .PointBase(Remart), Entbonl!totalht, Entbonl!reg, Entbonl!ech, Entbonl!numbl, Entbonl!acpt, Entbonl!mreg, Entbonl!marge_art, Entbonl!marge_mo, Entbonl!totalttc, Entbonl!cdep)
+          If Error Then 
+            Parametres()
+            Message.Error("Attention problème d'archivage" & "\nLa facture  " & Entbonl!numfac & " a été renommée en  " & Nfac & "\nNotez ce changement et validez pour continuer")
+            Nfac = Left$(Entbonl!numfac, 4) & Nfac
+            Utils.db.Exec("INSERT INTO " & Entf & "(numfac,datefac,cdclifac, nmclifac, rmofac, rartfac, pnmclifac, adr1fac, adr2fac, cpfac, villefac, exofac, cvclifac, remmofac, remartfac, totfac, reg, ech, numerobl, acpt, mreg, marge_art, marge_mo, totfacttc, cdep) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24},&{25})", Nfac, Entbonl!dtefac, Entbonl!cdclibl, Entbonl!nmclibl, Entbonl!rmobl, Entbonl!rartbl, Entbonl!pnmclibl, Entbonl!adr1bl, Entbonl!adr2bl, Entbonl!cpbl, Entbonl!villebl, Entbonl!exobl, Entbonl!cvclibl, .PointBase(Remmo), .PointBase(Remart), Entbonl!totalht, Entbonl!reg, Entbonl!ech, Entbonl!numbl, Entbonl!acpt, Entbonl!mreg, Entbonl!marge_art, Entbonl!marge_mo, Entbonl!totalttc, Entbonl!cdep)
+          Endif
+          Ligbonl = Utils.db.Exec("SELECT * FROM " & Ligbon & " where num_ligbl = &1", Entbonl!numbl)
+          If Ligbonl.Available Then
+            Repeat
+              If Ligbonl!typel_ligbl <> "C" And If Ligbonl!typel_ligbl <> "R" Then
+                Try Tvarslt = Utils.db.Exec("select * from " & Cbase.Table("TabTvav") & " where code_tva = &1", Ligbonl!tx_ligbl)
+                If Tvarslt.available Then TauxTva = Tvarslt!taux_tva
+                Utils.db.Exec("INSERT INTO " & Ligf & "(num_ligfac, numlig_ligfac, code_ligfac,  libel_ligfac, Fam_Ligfac, Pu_Ligfac, qte_ligfac, brut_ligfac, rem_ligfac, netht_ligfac, tx_ligfac, nettc_ligfac, typel_ligfac, tm_ligfac, com_ligfac, bloc, mtx_ligfac) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Nfac, Ligbonl!numlig_ligbl, Ligbonl!code_ligbl, Ligbonl!libel_ligbl, Ligbonl!fam_ligbl, Ligbonl!pu_ligbl, Ligbonl!qte_ligbl, Ligbonl!brut_ligbl, Ligbonl!rem_ligbl, Ligbonl!netht_ligbl, Ligbonl!tx_ligbl, Ligbonl!nettc_ligbl, Ligbonl!typel_ligbl, Ligbonl!tm_ligbl, Ligbonl!com_ligbl, Ligbonl!block_ligbl, TauxTva)
+              Else
+                Utils.db.Exec("INSERT INTO " & Ligf & "(num_ligfac, numlig_ligfac, code_ligfac, com_ligfac, typel_ligfac, bloc)VALUES (&1, &2, &3, &4, &5, &6)", Nfac, Ligbonl!numlig_ligbl, Ligbonl!code_ligbl, Ligbonl!com_ligbl, Ligbonl!typel_ligbl, Ligbonl!block_ligbl)
+              Endif
+              'On met à jour les historiques des sorties de dépot
+              If Not IsNull(Entbonl!cdep) Then
+                If Ligbonl!typel_ligbl = "A" Then
+                  Utils.db.Exec("INSERT INTO " & Cbase.Table("TabSdepots") & "(code, cart, date, type, qte, com) VALUES (&1, &2, &3, &4, &5, &6)", Left$(Entbonl!cdep, 2), Ligbonl!code_ligbl, Entbonl!dtefac, "S", Ligbonl!qte_ligbl, "Facture N° " & Nfac)
+                Endif
+              Endif
+            Until Ligbonl.MoveNext()
+          Endif
+          ' on supprime les entetes de Bl et les lignes de Bl
+          Utils.db.Exec("DELETE FROM " & Entbon & " where numbl = &1", EntBonl!numbl)
+          Utils.db.Exec("DELETE FROM " & Ligbon & " where num_ligbl = &1", EntBonl!numbl)
+        Endif
+      Until Entbonl.MoveNext()
+    Endif
+    Entf = "Fiches_HistoFacM" 
+    HisEntM = "Fiches_Hisentmat" 
+    Ligf = "Fiches_HistoLigfacM" 
+    Entbon = "Fiches_BlM" 
+    Ligbon = "Fiches_LigblM" 
+    Entbonl = Utils.db.Exec("SELECT * FROM " & Entbon & " where imp = &1 and type = &2  and dtefac < &3  ", 1, "F", Right(dtpc, 4) & Mid(dtpc, 4, 2) & 31)
+    If EntBonl.Available Then
+      Repeat
+        If Right(.Cdate_Aff(Entbonl!dtefac), 4) & Mid(.Cdate_Aff(Entbonl!dtefac), 4, 2) Then
+          Tot_Remises()
+          Utils.db.Exec("INSERT INTO " & Entf & "(numfac,datefac,cdclifac, nmclifac, rmofac, rartfac, pnmclifac, adr1fac, adr2fac, cpfac, villefac, exofac, cvclifac, remmofac, remartfac, totfac, reg, ech, numerobl, acpt, mreg, marge_art, marge_mo, totfacttc) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13},&{14},&{15},&{16},&{17},&{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24})", Entbonl!numfac, Entbonl!dtefac, Entbonl!cdclibl, Entbonl!nmclibl, Entbonl!rmobl, Entbonl!rartbl, Entbonl!pnmclibl, Entbonl!adr1bl, Entbonl!adr2bl, Entbonl!cpbl, Entbonl!villebl, Entbonl!exobl, Entbonl!cvclibl, .PointBase(Remmo), .PointBase(Remart), Entbonl!totalht, Entbonl!reg, Entbonl!ech, Entbonl!numbl, Entbonl!acpt, Entbonl!mreg, Entbonl!marge_art, Entbonl!marge_mo, Entbonl!totalttc)
+          Ligbonl = Utils.db.Exec("SELECT * FROM " & Ligbon & " where num_ligbl = &1", Entbonl!numbl)
+          If Ligbonl.Available Then
+            Repeat
+              If Ligbonl!typel_ligbl <> "C" And If Ligbonl!typel_ligbl <> "R" Then
+                Try Tvarslt = Utils.db.Exec("select * from " & Cbase.Table("TabTvav") & " where code_tva = &1", Ligbonl!tx_ligbl)
+                If Tvarslt.available Then TauxTva = Tvarslt!taux_tva
+                Utils.db.Exec("INSERT INTO " & Ligf & "(num_ligfac, numlig_ligfac, code_ligfac,  libel_ligfac, Fam_Ligfac, Pu_Ligfac, qte_ligfac, brut_ligfac, rem_ligfac, netht_ligfac, tx_ligfac, nettc_ligfac, typel_ligfac, tm_ligfac, bloc, mtx_ligfac) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Entbonl!numfac, Ligbonl!numlig_ligbl, Ligbonl!code_ligbl, Ligbonl!libel_ligbl, Ligbonl!fam_ligbl, Ligbonl!pu_ligbl, Ligbonl!qte_ligbl, Ligbonl!brut_ligbl, Ligbonl!rem_ligbl, Ligbonl!netht_ligbl, Ligbonl!tx_ligbl, Ligbonl!nettc_ligbl, Ligbonl!typel_ligbl, Ligbonl!tm_ligbl, Ligbonl!com_ligbl, Ligbonl!block_ligbl, TauxTva)
+              Else
+                Utils.db.Exec("INSERT INTO " & Ligf & "(num_ligfac, numlig_ligfac, code_ligfac, com_ligfac, typel_ligfac, bloc)VALUES (&1, &2, &3, &4, &5, &6)", Entbonl!numfac, Ligbonl!numlig_ligbl, Ligbonl!code_ligbl, Ligbonl!com_ligbl, Ligbonl!typel_ligbl, Ligbonl!block_ligbl)
+              Endif
+            Until Ligbonl.MoveNext()
+          Endif
+          ' on supprime les entetes de Bl et les lignes de Bl
+          Utils.db.Exec("DELETE FROM " & Entbon & " where numbl = &1", EntBonl!numbl)
+          Utils.db.Exec("DELETE FROM " & Ligbon & " where num_ligbl = &1", EntBonl!numbl)
+        Endif
+      Until Entbonl.MoveNext()
+    Endif
+    Dtepp = Dtpc
+    ' On incrémente la période en cours
+    Dppc = Mid(dtpc, 4, 2)
+    Dppc = Val(Dppc) + 1
+    Dppc = Format$(Dppc, "00")
+    If Val(dppc) > 12 Then
+      dppc = "01"
+      dtpc = dppc & "." & Str(Val(Right$(dtpc, 4)) + 1)
+    Else
+      dtpc = Dppc & "." & Right$(dtpc, 4)
+    Endif
+    ' Met à jour la table des parametres
+    Parmt = Utils.db.Exec("SELECT * FROM " & Parm & "")
+    Utils.db.Exec("UPdate  " & Parm & "  SET  dtepp  =  &1, dtepec  =  &2", Right(dtepp, 7), Right(dtpc, 7))
+  End With
+  
+  Calc_solde()
+  
+End
+
+'**********************************************************
+'*                   Recup parametres                     *
+'**********************************************************
+Public Sub Parametres()
+  
+  Dim rResult As Result
+  Dim Tabp As String
+  
+  Tabp = "Fiches_Parametres"
+  rResult = Utils.db.Exec("SELECT * FROM " & Tabp & " ")
+  If rResult.Available Then
+    Nfac = rResult!dnfac
+  Endif
+  Nfac = Format$(Val(Nfac) + 1, "000000")
+  Utils.db.Exec("UPDATE  " & Tabp & "  SET  dnfac = &1", Nfac)
+  
+End
+
+'*****************************
+'*   On calcule  les soldes  *
+'*****************************
+Public Sub Calc_solde()
+  
+  Dim i As Integer
+  Dim rResult As Result
+  Dim rrResult As Result
+  Dim Tab2 As String
+  Dim Intit As String
+  Dim p1 As Integer
+  
+  totsldhp = 0.00
+  Tab = "Fiches_Mvt" 
+  Tab2 = "Fiches_Comptes" 
+  p1 = 1
+  With Utils
+    rrResult = Utils.db.Exec("SELECT compte_cc, intitule_cc  FROM " & Tab2 & " order by cast(compte_cc AS char)")
+    If rrResult.Available Then
+      Repeat
+        compt = rrResult!compte_cc
+        Intit = rrResult!intitule_cc
+        rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE compte = &1  and validee = &2  order by dte ", compt, 1)
+        If rResult.count <> 0 Then
+          i = 0
+          While i < rResult.count
+            debit = rResult!montantd
+            credit = rResult!montantc
+            totdeb = totdeb + debit
+            totcred = totcred + credit
+            totsld = totdeb - totcred
+            Inc i
+            rResult.MoveNext()
+          Wend
+          Utils.db.Exec("UPdate " & Tab2 & "  SET solde = &2 where compte_cc = &1", Compt, .PointBase(Totsld))
+        Else
+          totsld = 0
+          Utils.db.Exec("UPdate " & Tab2 & "  SET solde = &2 where compte_cc = &1", Compt, .PointBase(Totsld))
+        Endif
+        totdeb = 0
+        totcred = 0
+        totsld = 0
+      Until rrResult.MoveNext()
+    Endif
+  End With
+  If Start.son Then
+    Music.Play
+  Endif
+  Me.Mouse = Mouse.Default
+  message.Info(" Traitement terminé", "OK")
+  Me.Close
+  
+End
+
+'**********************************************
+'*            calcul des remises              *
+'**********************************************
+Public Sub Tot_Remises()
+  
+  Dim Blarch As Result
+  Dim Fbl As String
+  Dim Typel As String
+  
+  Fbl = "Fiches_Ligbl" 
+  Remmo = "0"
+  Remart = "0"
+  With Utils
+    Blarch = Utils.db.Exec("select * from " & Fbl & " where num_ligbl = &1", Entbonl!numbl)
+    If Blarch.Available Then
+      Repeat
+        Typel = Blarch!typel_ligbl
+        If typeL = "M" Then Remmo = Val(.CPoint(Remmo)) + Val(.CPoint(Blarch!brut_ligbl)) - Val(.CPoint(Blarch!netht_ligbl))
+        If typeL = "A" Then Remart = Val(.CPoint(Remart)) + Val(.CPoint(Blarch!brut_ligbl)) - Val(.CPoint(Blarch!netht_ligbl))
+      Until Blarch.MoveNext()
+    Endif
+  End With
+  
+End
+
+'******************************************************
+'*      Suppression Bon après maj historique          *
+'******************************************************
+Public Sub Bl_Sup()
+  
+  Dim Entbn As String
+  Dim Ligbn As String
+  
+  Entbn = "Fiches_Bl" 
+  Ligbn = "Fiches_Ligbl" 
+  Utils.db.Exec("DELETE FROM " & Entbn & " where numbl = &1", EntBonl!numbl)
+  Utils.db.Exec("DELETE FROM " & Ligbn & " where num_ligbl = &1", EntBonl!numbl)
+  
+End
+
+Public Sub Button2_Click()
+  'Exec ["xdg-open", Application.Path &/ "Ecrans/ClotureF.html"]
+  
+End

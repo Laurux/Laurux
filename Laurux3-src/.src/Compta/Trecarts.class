@@ -1,0 +1,288 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Trecarts.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 30/11/2006
+'# Traitements des écarts
+'################################################
+'
+
+Private TT As Float
+Private TD As String
+Private TC As String
+Private type As String
+Private Tab2 As String
+Private Compt As String
+Private b As Integer
+Private son As Integer = Start.Son
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  montant.Text = "0,00"
+  
+End
+
+Public Sub Ecarts_keypress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.tab Then
+    montant.Text = Utils.cpoint(montant.Text)
+    If Val(montant.Text) = Null Then
+      If son Then
+        Music.Play
+      Endif
+      message.Warning("Veuillez verifier votre saisie SVP !")
+      montant.SetFocus
+      montant.Select
+      Stop Event
+    Else
+      montant.Text = Val(Utils.cpoint(montant.Text))
+      montant.Text = Format$(Val(montant.Text), "0.00")
+      Stop Event
+    Endif
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Button1_Click()
+      
+    Case 2
+      Button2_Click()
+      
+    Case 3
+      Me.Close
+  End Select
+  
+End
+
+Public Sub clear()
+  
+  Td = 0
+  Tc = 0
+  TT = 0
+  
+End
+
+Public Sub Montant_GotFocus()
+  
+  Montant.Select
+  
+End
+
+Public Sub Montant_LostFocus()
+  
+  Try Montant.Text = Format$(Val(Utils.cpoint(Montant.text)), "0.00")
+  If Error Then
+    Try Message.Warning("Veuillez vérifier votre saisie SVP !")
+    Montant.SetFocus
+    Montant.Select
+  Endif
+  
+End
+
+Public Sub Montant_KeyPress()
+  
+  If InStr("0123456789,.", Key.Text) = 0 Then
+    If key.code <> key.BackSpace And Key.Code <> Key.tab And Key.Code <> Key.Delete And Key.code <> Key.enter And Key.code <> Key.return Then
+      Stop Event
+    Endif
+  Endif
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim cptResult As Result
+  Dim EResult As Result
+  Dim EcrResult As Result
+  Dim LResult As Result
+  Dim num As String
+  Dim Snum As String
+  Dim Tab As String
+  Dim Tab1 As String
+  Dim jour As String
+  Dim Intit As String
+  Dim dte As String
+  Dim numdoc As String
+  Dim libelle As String
+  Dim cptrplus As String ' compte de regul 758000
+  Dim cptrmoins As String ' compte de regul 658000
+  Dim cptr As String ' Variable d'ecriture
+  Dim coll As String
+  Dim Totd As Float
+  Dim Totc As Float
+  Dim TotE As Float
+  Dim Deb As Float
+  Dim cred As Float
+  Dim Mnt As Float
+  Dim numecr As Integer
+  
+  Tab = "Fiches_Comptes" 
+  Tab1 = "Fiches_Parametres" 
+  Tab2 = "Fiches_Mvt" 
+  With Utils
+    If Bclient.Value Then
+      type = "C"
+    Else
+      type = "F"
+    Endif
+    B = 0
+    dte = Format$(Now, "dd.mm.yyyy")
+    montant.Text = .cpoint(montant.Text)
+    If Val(montant.text) = Null Then
+      If son Then
+        Music.Play
+      Endif
+      message.Warning("Veuillez verifier votre montant SVP !")
+      montant.Select
+      montant.SetFocus
+    Else
+      montant.Text = Val(.cpoint(montant.Text))
+      montant.Text = Format$(montant.Text, "0.00")
+      Me.Mouse = Mouse.wait
+      ' On recupere le journal d'OD dans les parametres
+      cptResult = .db.Exec("SELECT * FROM " & Tab1 & "")
+      jour = cptResult!jdr
+      cptrplus = cptResult!cptrplus
+      cptrmoins = cptResult!cptrmoins
+      numecr = cptResult!numecriture
+      'On recupere les comptes clients ou fournisseurs
+      cptResult = .db.Exec("SELECT * FROM " & Tab & " WHERE type_cc = &1 order by cast(compte_cc AS char)", type)
+      If cptResult.Available Then
+        Repeat
+          Compt = cptResult!compte_cc
+          Intit = cptResult!intitule_cc
+          ' On prend les comptes qui ont des ecritures dans les mouvements
+          EResult = .db.Exec("SELECT * FROM " & Tab2 & " WHERE compte = &1 and lettree = &2 order by numlot", Compt, 0)
+          If EResult.Available Then
+            Repeat
+              'IF EResult!numlot <> num THEN
+              num = EResult!numlot
+              libelle = EResult!libelle
+              Snum = "E" & Right$(num, 9)
+              Tote = 0
+              'ENDIF
+              ' On prend toutes les ecritures d'un compte qui ont le meme numero de lot
+              EcrResult = .db.Exec("SELECT * FROM " & Tab2 & " WHERE numlot = &1 and lettree = &2 and compte = &3 order by compte", num, 0, Compt)
+              If EcrResult.Available Then
+                Repeat
+                  Deb = EcrResult!montantd
+                  Cred = EcrResult!montantc
+                  Totd = Totd + Deb
+                  Totc = Totc + Cred
+                Until EcrResult.MoveNext()
+                Tote = Totd - Totc
+                Totd = 0
+                Totc = 0
+                If Tote < 0 Then
+                  Deb = Abs(Tote)
+                  Cred = 0
+                Endif
+                If Tote > 0 Then
+                  Deb = 0
+                  Cred = Abs(Tote)
+                Endif
+                If Abs(Tote) > 0 And Abs(Tote) <= Val(montant.Text) Then
+                  numecr = numecr + 1
+                  '  On genere nos ecritures
+                  B = B + 1
+                  .db.Exec("INSERT INTO " & Tab2 & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16} )", jour, numecr, Compt, Intit, .cdate_Dbase(dte), numdoc, Snum, libelle, Deb, Cred, 1, 0, 0, 0, 1, 0)
+                  ' Puis on met a jour les soldes du compte
+                  LResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE compte_cc = &1", Compt)
+                  If LResult.Available Then
+                    Mnt = LResult!solde
+                    Mnt = Mnt + Deb - Cred
+                    Utils.db.Exec("Update " & Tab & " set solde = &1 Where compte_cc = &2", Mnt, Compt)
+                  Endif
+                  If Deb <> 0 Then
+                    cptr = cptrplus
+                    .db.Exec("INSERT INTO " & Tab2 & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16} )", jour, numecr, cptr, Intit, .cdate_Dbase(dte), numdoc, Snum, libelle, Cred, Deb, 1, 0, 0, 0, 1, 0)
+                    B = B + 1
+                    LResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE compte_cc = &1", cptr)
+                    If LResult.Available Then
+                      Mnt = LResult!solde
+                      Mnt = Mnt + Deb - Cred
+                      Utils.db.Exec("Update " & Tab & " set solde = &1 Where compte_cc = &2", Mnt, cptr)
+                    Endif
+                  Endif
+                  If Cred <> 0 Then
+                    cptr = cptrmoins
+                    .db.Exec("INSERT INTO " & Tab2 & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16} )", jour, numecr, cptr, Intit, .cdate_Dbase(dte), numdoc, Snum, libelle, Cred, Deb, 1, 0, 0, 0, 1, 0)
+                    LResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE compte_cc = &1", cptr)
+                    If LResult.Available Then
+                      Mnt = LResult!solde
+                      Mnt = Mnt + Deb - Cred
+                      Utils.db.Exec("Update " & Tab & " set solde = &1 Where compte_cc = &2", Mnt, cptr)
+                    Endif
+                  Endif
+                  'Puis on met a jour le collectif
+                  LResult = .db.Exec("SELECT * FROM " & Tab & " WHERE compte_cc = &1 ", Compt)
+                  If LResult.Available Then
+                    coll = Lresult!coll_cc
+                  Endif
+                  LResult = .db.Exec("SELECT * FROM " & Tab & " WHERE compte_cc = &1 ", coll)
+                  If LResult.Available Then
+                    Mnt = LResult!solde
+                    Mnt = Mnt + Deb - Cred
+                    Utils.db.Exec("Update " & Tab & " set solde = &1 Where compte_cc = &2", Mnt, coll)
+                  Endif
+                  ' Puis on lettre toutes les ecritures
+                  LResult = .db.Exec("SELECT * FROM " & Tab2 & " WHERE numlot = &1 and lettree = &2 and compte = &3 order by compte", num, 0, Compt)
+                  If LResult.Available Then
+                    Repeat
+                      .db.Exec("UPdate " & Tab2 & " SET numlot = &1, lettree = &2 where compte = &3 and numlot = &4", Snum, 1, Compt, num)
+                    Until Lresult.MoveNext()
+                  Endif
+                Endif
+              Endif
+            Until EResult.MoveNext()
+          Endif
+          
+        Until cptResult.MoveNext()
+      Endif
+      Me.mouse = mouse.Default
+      If son Then
+        Music.Play
+      Endif
+      Message.Info("Traitement terminé !\n" & B & " écriture(s) génerée(s)")
+    Endif
+  End With
+  
+End
+
+Public Sub Button1_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Genecart.html"]
+  
+End

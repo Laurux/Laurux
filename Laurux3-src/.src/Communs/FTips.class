@@ -1,0 +1,138 @@
+' Gambas class file
+
+'************************************************
+'*       Gestion des astuces du jour.           *
+'*       Programme de Benoit Minisini           *
+'************************************************
+
+Static Private $aOrder As New String[]
+
+Static Private $iTip As Integer
+
+Static Public Sub Run()
+  
+  Dim hForm As Form
+  
+  hForm = New FTips
+  hForm.ShowModal
+  
+End
+
+Static Public Sub _init()
+  
+  Dim hFic As File
+  Dim sLig As String
+  
+  hFic = Open "tips/tips.fr" For Read
+  
+  While Not Eof(hFic)
+    Line Input #hFic, sLig
+    If Left$(sLig) = "[" Then
+      $aOrder.Add(Mid$(Trim$(sLig), 2, -1))
+    Endif
+  Wend
+  
+End
+
+Public Sub _new()
+  
+  Dim Frmt As New String[]
+  
+  Frmt = Utils.FColr(Settings["/Coul/Fnets"])
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then
+    Me.Background = Val(Frmt[0])
+    chkShowTip.Background = Val(Frmt[0])
+    Frmt = Utils.FColr(Settings["/Coul/Btns"])
+  Endif
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  $iTip = Settings["/LastTip", 0]
+  chkShowTip.Value = Settings["/Tips", True]
+  
+  ShowNextTip
+  
+End
+
+Private Sub ShowNextTip(Optional bPrev As Boolean)
+  
+  txtTip.Text = GetNextTip(bPrev)
+  lblTitle.Text = "  " & ("Astuce du jour") & " #" & CStr($iTip)
+  
+End
+
+Private Function GetNextTip(Optional bPrev As Boolean) As String
+  
+  Dim sTip As String
+  Dim sFile As String
+  Dim iPos As Integer
+  Dim iPos2 As Integer
+  
+  If bPrev Then
+    Dec $iTip
+    If $iTip < 1 Then $iTip = $aOrder.Count
+  Else
+    If $iTip >= $aOrder.Count Then
+      $iTip = 1
+    Else
+      Inc $iTip
+    Endif
+  Endif
+  
+  sFile = "tips/tips.fr"
+  
+  sTip = File.Load(sFile)
+  iPos = InStr(sTip, "[" & $aOrder[$iTip - 1] & "]")
+  
+  If iPos = 0 Then Return
+  iPos = InStr(sTip, "\n", iPos)
+  If iPos = 0 Then Return
+  Inc iPos
+  
+  iPos2 = InStr(sTip, "\n[", iPos)
+  If iPos2 = 0 Then iPos2 = Len(sTip) + 1
+  
+  Return Mid$(sTip, iPos, iPos2 - iPos)
+  
+Catch
+  
+  Message.Error(("Impossible de lire l'astuce du jour !") & "\n\n" & Error.Text)
+  
+End
+
+Public Sub chkShowTip_Click()
+  
+  Settings["/Tips"] = chkShowTip.Value
+  
+End
+
+Public Sub btnNext_Click()
+  
+  ShowNextTip
+  
+End
+
+Public Sub Form_Resize()
+  
+  lblTitle.Width = Max(Me.ClientWidth, 512)
+  panBottom.Y = Me.ClientH - panBottom.Height
+  panBottom.W = Max(256, Me.ClientW - 16)
+  btnClose.X = panBottom.W - btnClose.W
+  btnNext.X = btnClose.X - btnNext.W - 8
+  btnPrev.X = btnNext.X - btnPrev.W - 8
+  chkShowTip.W = btnPrev.X - chkShowTip.X - 8
+  
+  txtTip.Resize(Me.ClientWidth - txtTip.X * 2, Me.ClientH - panBottom.H - txtTip.Y)
+  
+End
+
+Public Sub btnClose_Click()
+  
+  Settings["/LastTip"] = $iTip
+  Me.Close
+  
+End
+
+Public Sub btnPrev_Click()
+  
+  ShowNextTip(True)
+  
+End

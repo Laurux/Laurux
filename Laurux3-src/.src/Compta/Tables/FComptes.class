@@ -1,0 +1,1189 @@
+' Gambas class file
+
+Private Ncode As Integer ' Flag Pour la codification automatique
+Private soldec As Float ' solde du compte
+Private Enr As Integer ' Flag utilisé pour le focus si la donnée a recuperer existe ou non
+Private son As Integer = Start.Son
+Private Tri As String
+Private sel As String
+Private Dbl As String
+Private Type As String
+Private Type2 As String
+Private Qpostes As Boolean = True
+
+Public Function Cdate_EXT(dte As String) As String
+  
+  Return (Right$(dte, 2) & "/" & Mid$(dte, 4, 2) & "/" & Left$(dte, 2))
+  
+End
+
+Public Function lpad(Lpd As String) As String
+  
+  Return Left$(Lpd & Space$(8), 8)
+  
+End
+
+Public Function cpoint(mtt As String) As String
+  
+  Return (Replace$(mtt, ".", ","))
+  
+End
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  
+  Cdco.Select
+  
+End
+
+Public Sub Form_Open()
+  
+  Tri = "cast(compte_cc AS char)"
+  Tris()
+  Ccomptes.Deb2(Colco, Cbase.Table("TabComptes"), tri, sel)
+  If Ncode < 1000 Then
+    Ncode = 999
+  Else
+  Endif
+  TabStrip1[1].Visible = False
+  TabStrip1[2].Visible = False
+  
+End
+
+Public Sub Maj_Zones()
+  
+  Dim Cptr As Result
+  
+  With utils
+    Cptr = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " where compte_cc = &1", Colco[Colco.row, 0].Text)
+    Cdco.text = Cptr!compte_cc
+    Libelco.text = Cptr!intitule_cc
+    typeco.text = Cptr!type_cc
+    collectif.Text = Cptr!coll_cc
+    Try Ctrlr.Value = Cptr!cent_cc
+    Try comptr.Value = Cptr!comptr_cc
+    Tvave.text = Cptr!code_tvente
+    Tauxtvave.text = Cptr!taux_tvente
+    Try Gentvave.Value = Cptr!gen_tv
+    Tvaac.text = Cptr!code_tachat
+    Tauxtvaac.text = Cptr!taux_tachat
+    Try Gentvaac.Value = Cptr!gen_ta
+    Try Col.Value = Cptr!coll
+    If typeco.Text = "C" Or If Typeco.Text = "F" Then
+      typeco.ReadOnly = True
+    Else
+      typeco.ReadOnly = False
+    Endif
+    If Not Colco[Colco.row, 3].Text Then
+      soldec = 0
+    Else
+      soldec = Val(Colco[Colco.row, 3].Text)
+    Endif
+    Try cprincipal.value = Cptr!cprincipal
+    If Error Then cprincipal.value = False
+    Try Lettrable.value = Cptr!lettrable
+    If Error Then lettrable.value = False
+    Vents.clear
+    If cprincipal.value = False Then 
+      TabStrip1[1].Visible = False
+    Else
+      TabStrip1[1].Visible = True
+    Endif
+    If Typeco.Text = "B" Or Typeco.text = "G" And If Settings["/Soc" & Start.Societe & "/Analytique"] Then 
+      TabStrip1[2].Visible = True
+    Else
+      TabStrip1[2].Visible = False
+    Endif
+    Totposte.Text = "0"
+  End With
+  
+End
+
+Public Sub cleanChamps()
+  
+  Cdco.Clear
+  Libelco.Clear
+  typeco.Clear
+  Col.Value = False
+  collectif.Clear
+  Ctrlr.Value = False
+  comptr.Value = False
+  Tvave.Clear
+  Tauxtvave.Clear
+  Gentvave.Value = False
+  Tvaac.Clear
+  Tauxtvaac.Clear
+  Gentvaac.Value = False
+  soldec = 0
+  typeco.ReadOnly = False
+  cprincipal.value = False
+  Lettrable.value = False
+  
+End
+
+Public Sub Refresh()
+  
+  colco.clear
+  form_Open()
+  
+End
+
+Public Sub Cmpt_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+      Case 1
+        Comptman()
+        Libelco.SetFocus
+        Libelco.Select
+        Stop Event
+        
+      Case 2
+        'Libelco.Text = Utils.Remplace(Libelco.Text)
+        typeco.SetFocus
+        typeco.Select
+        Stop Event
+        
+      Case 3
+        Tvave.SetFocus
+        Tvave.Select
+        Stop Event
+        
+      Case 4
+        Tvaveman()
+        If Enr = 0 Then
+          tvave.SetFocus
+          Tvave.Select
+          Stop Event
+        Else
+          If Tvave.Text Then
+            Button2.SetFocus
+            Gentvave.Value = True
+          Else
+            Tvaac.SetFocus
+            Tvaac.Select
+          Endif
+          Stop Event
+        Endif
+        
+      Case 5
+        Tvaacman()
+        If Enr = 0 Then
+          tvaac.SetFocus
+          Tvaac.Select
+          Stop Event
+        Else
+          Gentvaac.Value = True
+          Button2.SetFocus
+          Stop Event
+        Endif
+    End Select
+  Endif
+  
+  If key.code = key.F1 Then
+    Button4_Click()
+    Stop Event
+  Endif
+  
+  If key.code = key.F2 Then
+    Select Case Last.tag
+      Case 4
+        ToggleButton2_Click()
+        Stop Event
+      Case 5
+        ToggleButton3_Click()
+        Stop Event
+    End Select
+  Endif
+  
+End
+
+Public Sub Btn_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Then
+    Select Case Last.tag
+      Case 3
+        Button2_Click()
+    End Select
+  Endif
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Button4_Click()
+      
+    Case 2
+      Button1_Click()
+      
+    Case 3
+      Button2_Click()
+      
+    Case 4
+      Me.Close
+      
+  End Select
+  
+End
+
+Public Sub Form_close()
+  
+  If TabStrip1[2].Visible = True Then Quitter_Postes()
+  If Qpostes = False Then 
+    Message.Info("La répartition des postes n'est pas équilibrée.\nFermeture impossible")
+    Stop Event
+    Return
+    
+  Endif   
+  
+End
+
+'**************************
+'*      Gestion du focus. *
+'**************************
+Public Sub Cmpt_GotFocus()
+  
+  Try Utils.ObsGotf(Last)
+  
+End
+
+Public Sub Cmpt_LostFocus()
+  
+  Try Utils.ObsLstf(Last)
+  
+End
+
+Public Sub colco_Keypress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    colco_Click()
+    Stop Event
+  Endif
+  
+  If key.code = key.F1 Then
+    Button4_Click()
+    Stop Event
+  Endif
+  
+End
+
+Public Sub colco_Click()
+  
+  If TabStrip1[2].Visible = True Then Quitter_Postes()
+  If Qpostes = True Then
+    Maj_Zones()
+    Ventilations()
+    Aff_Analytique()
+    Cdco.SetFocus
+  Else
+    Message.Info("La répartition des postes n'est pas équilibrée.") 
+  Endif
+  
+End
+
+'**********************************************************
+'*                Enregistrement du compte                *
+'**********************************************************
+Public Sub Button2_Click()
+  
+  Dim rResult As Result
+  Dim tab As String
+  Dim sKey As String
+  Dim Countrow As Integer
+  
+  Tab = "Fiches_Comptes"
+  With utils
+    typeco.Text = Upper$(typeco.Text)
+    If typeco.text = "F" Then
+      message.warning("ATTENTION ! veuillez créer et modifier vos comptes fournisseurs par la table correspondante", "OK")
+      Return
+    Endif
+    If typeco.text = "C" And IsNull(collectif.text) Then
+      message.warning("ATTENTION ! veuillez créer et modifier vos comptes clients par la table correspondante", "OK")
+      Return
+    Endif
+    If typeco.text = "C" And Not IsNull(collectif.text) Then collman("C")
+    If typeco.text = "F" And Not IsNull(collectif.text) Then collman("F")
+    If typeco.text = "B" Or If Upper$(typeco.text) = "G" Then enr = "1"
+    If enr = "1" Then
+      If typeco.Text <> "C" And If Typeco.Text <> "F" Then
+        If (Left$(cdco.text, 3) >= "100" And Left$(cdco.text, 3) <= "400" And typeco.text <> "B") Or (Left$(cdco.text, 3) >= "402" And Left$(cdco.text, 3) <= "411" And typeco.text <> "B") Or (Left$(cdco.text, 3) >= "420" And Left$(cdco.text, 3) <= "599" And typeco.text <> "B") Then
+          If son Then
+            Music.Play
+          Endif
+          Message.Warning("ATTENTION ! Un compte bilan doit etre de type 'B' \n Le programme va assigner le type 'B' par défaut \n Veuillez vérifier votre création SVP !", "OK")
+          typeco.Text = "B"
+        Endif
+      Endif
+      
+      If Left$(cdco.text, 3) >= "600" And Left$(cdco.text, 3) <= "799" And typeco.text <> "G" Then
+        If son Then
+          Music.Play
+        Endif
+        Message.Warning("ATTENTION ! Un compte gestion doit etre de type 'G' \n Le programme va assigner le type 'G' par défaut \n Veuillez vérifier votre création SVP !", "OK")
+        typeco.Text = "G"
+      Endif
+      
+      If Left$(cdco.text, 3) >= "800" And Left$(cdco.text, 3) <= "899" And typeco.text <> "B" Then
+        If son Then
+          Music.Play
+        Endif
+        Message.Warning("ATTENTION ! Un compte Bilan doit etre de type 'B' \n Le programme va assigner le type 'B' par défaut \n Veuillez vérifier votre création SVP !", "OK")
+        typeco.Text = "B"
+      Endif
+      
+      If Left$(cdco.text, 3) >= "900" And typeco.text <> "A" Then
+        Music.Play
+        Message.Warning("ATTENTION ! Un compte analytique doit etre de type 'A' \n Le programme va assigner le type 'A' par défaut \n Veuillez vérifier votre création SVP !", "OK")
+        typeco.Text = "A"
+      Endif
+      
+      If typeco.TEXT = "" Or Cdco.TEXT = "" Then
+        If son Then
+          Music.Play
+        Endif
+        Message.warning("ATTENTION !Vous devez remplir les champs obligatoires", "OK")
+        sKey = Cdco.text
+      Else
+        If col.Value = True Then
+          If son Then
+            Music.Play
+          Endif
+          message.warning("ATTENTION ! veuillez créer et modifier vos collectifs par les tables correspondantes", "OK")
+          sKey = Cdco.text
+        Else
+          If Left$(cdco.text, 3) = "401" And Upper$(typeco.text) <> "B" Or Left$(cdco.text, 3) = "411" And Upper$(typeco.text) <> "B" Then
+            If son Then
+              Music.Play
+            Endif
+            message.warning("ATTENTION ! veuillez créer et modifier vos comptes fournisseurs ou clients par les tables correspondantes", "OK")
+            sKey = Cdco.text
+          Else
+            rResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE compte_cc = '" & Cdco.Text & "'")
+            If Not rResult.Available Then
+              Utils.db.Exec("INSERT INTO " & tab & " (compte_cc,intitule_cc,type_cc,cent_cc,comptr_cc,coll,code_tvente,taux_tvente,gen_tv,code_tachat,taux_tachat,gen_ta,solde, cprincipal, lettrable,coll_cc) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13}, &{14}, &{15}, &{16})", Cdco.Text, Libelco.Text, typeco.Text, ctrlr.value, comptr.value, Col.value, Tvave.Text, Tauxtvave.Text, .convBool(Gentvave.value), Tvaac.Text, Tauxtvaac.Text, .convBool(Gentvaac.value), .PointBase("0,00"), cprincipal.value, Lettrable.value, collectif.Text)
+              sKey = Cdco.Text
+            Else
+              Utils.db.Exec("UPdate  " & tab & "  SET  compte_cc = &1 , intitule_cc = &2, type_cc = &3, cent_cc = &4  , comptr_cc = &5 ,coll = &6 , code_tvente = &7 , taux_tvente = &8, gen_tv = &9, code_tachat =  &{10} , taux_tachat = &{11}, gen_ta = &{12}, cprincipal = &{13}, lettrable = &{14}, coll_cc = &{15} WHERE compte_cc = &1", Cdco.Text, Libelco.Text, typeco.Text, ctrlr.value, comptr.value, Col.value, Tvave.Text, Tauxtvave.Text, .convBool(Gentvave.value), Tvaac.Text, Tauxtvaac.Text, .convBool(Gentvaac.value), cprincipal.value, Lettrable.value, collectif.Text)
+              sKey = Cdco.text
+            Endif
+          Endif
+        Endif
+      Endif
+      Refresh()
+      CleanChamps()
+      For CountRow = 0 To (colco.Rows.Count - 1)
+        If colco[CountRow, 0].Text = skey Then
+          colco.Rows[CountRow].Selected = True
+          Break
+        Endif
+      Next
+      Cdco.Select
+      Cdco.SetFocus
+    Endif
+  End With
+  
+End
+
+'**********************************************************
+'*               Suppression du compte                    *
+'**********************************************************
+
+Public Sub Button1_Click()
+  
+  Dim rResult As Result
+  Dim tab, tab2, Tab3, Tab4, Tab5, Tab6, Tab7, Tab8 As String
+  
+  Tab = "Fiches_Comptes"
+  Tab2 = "Fiches_Mvt"
+  tab3 = "Fiches_SousComptes"
+  Tab4 = "Fiches_Mvt1"
+  Tab5 = "Fiches_Mvt2"
+  Tab6 = "Fiches_Mvt3"
+  Tab7 = "Fiches_Mvt4"
+  Tab8 = "Fiches_Mvt5"
+  If Not IsNull(cdco.text) Then
+    If typeco.Text = "C" Or typeco.Text = "F" Then
+      If son Then
+        Music.Play
+      Endif
+      Message.Warning("Veuillez supprimer vos fiches client ou fournisseur par les tables correspondantes", "Ok")
+    Else
+      If Col.Value Then
+        If son Then
+          Music.Play
+        Endif
+        Message.Warning("Veuillez supprimer vos collectifs par les tables correspondantes", "Ok")
+      Else
+        rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " WHERE compt_fam = &1 or cptrem_fam = &1 or compt2_fam = &1 or compt3_fam = &1", Colco[Colco.row, 0].Text)
+        If Not rResult.Available Then
+          rResult = Utils.db.Exec("SELECT compte FROM " & Tab2 & "  WHERE compte = &1 union select compte FROM " & Tab4 & "  WHERE compte = &1 union select compte FROM " & Tab5 & "  WHERE compte = &1 union select compte FROM " & Tab6 & "  WHERE compte = &1 union select compte FROM " & Tab7 & "  WHERE compte = &1 union select compte FROM " & Tab8 & "  WHERE compte = &1", Colco[Colco.row, 0].Text)
+          If Not rResult.Available Then
+            If son Then
+              Music.Play
+            Endif
+            If Message.Question("Etes vous sur de vouloir effacer cet enregistrement", "Oui", "Non") = 1 Then
+              Utils.db.Exec("DELETE FROM " & tab & " WHERE compte_cc = &1", Colco[Colco.row, 0].Text)
+              Utils.db.Exec("DELETE FROM " & tab3 & " WHERE code = &1", Colco[Colco.row, 0].Text)
+              Refresh()
+              CleanChamps()
+            Endif
+          Else
+            If son Then
+              Music.Play
+            Endif
+            Message.Warning("Ce compte est mouvementé, suppression impossible", "Ok")
+          Endif
+        Else
+          If son Then
+            Music.Play
+          Endif
+          Message.Warning("Ce compte est utilisé par la famile " & rResult!code_fam & " , suppression impossible", "Ok")
+        Endif
+      Endif
+    Endif
+  Endif
+  
+End
+
+'**********************************************************
+'*   Recuperation de la Tva sur vente par le bouton       *
+'**********************************************************
+Public Sub ToggleButton2_Click()
+  
+  Dim rResult As Result
+  Dim tab As String
+  
+  Tab = "Fiches_Tvaav"
+  If tvalist.visible Then
+    tvalist.clear
+    tvalist.visible = False
+  Endif
+  If Tvalist2.visible Then
+    Tvalist2.clear
+    Tvalist2.visible = False
+  Else
+    Tvalist2.visible = True
+    Tvalist2.Columns.count = 3
+    Tvalist2.Columns[0].Width = 65
+    Tvalist2.Columns[1].Width = 80
+    Tvalist2.Columns[2].Width = 180
+    Tvalist2.Columns[0].Text = "Code"
+    Tvalist2.Columns[1].Text = "Taux"
+    Tvalist2.Columns[2].Text = "Compte"
+    rResult = Utils.db.Exec("SELECT * FROM " & tab & "")
+    If rResult.Available Then
+      Repeat
+        Tvalist2.Add(rResult!code_tva, rResult!code_tva)
+        Tvalist2.Item[0] = rResult!code_tva
+        Tvalist2.Item[1] = rResult!taux_tva
+        Tvalist2.Item[2] = rResult!cc_tva
+      Until rResult.MoveNext()
+    Endif
+    If Tvalist2.Count Then
+      Tvalist2.MoveFirst
+      Tvalist2.SetFocus
+      Tvalist2.Item.Selected = True
+    Endif
+  Endif
+  
+End
+
+'******************************************************************
+'* Recuperation de la Tva sur ventes lors d'une saisie manuelle   *
+'******************************************************************
+Public Sub Tvaveman()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  
+  Tab = "Fiches_Tvaav"
+  If Tvave.Text Then
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where code_tva = &1", Tvave.Text)
+    If Not rResult.Available Then
+      Enr = 0
+      If son Then
+        Music.Play
+      Endif
+      Message.Error("Attention ! Ce code Tva n'existe pas.")
+    Else
+      Enr = 1
+      Tvave.Text = rResult!code_tva
+      TauxTvave.text = rResult!taux_tva
+    Endif
+  Else
+    Enr = 1
+  Endif
+  
+End
+
+'**********************************************************
+'* Gestion du columnview lors d'une saisie manuelle       *
+'**********************************************************
+Public Sub Tvalist2_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Tvalist2.MoveCurrent
+    Tvalist2_Click()
+    Stop Event
+  Endif
+  
+  If key.code = key.F1 Then
+    Button4_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Tvalist2.visible = False
+    Tvalist2.clear
+    Tvave.SetFocus
+    Stop Event
+  Endif
+  
+End
+
+'*****************************************************************
+'* Gestion du columnview lors d'une selection avec la souris     *
+'*****************************************************************
+Public Sub Tvalist2_Click()
+  
+  tvave.text = Tvalist2.Item[0]
+  Tauxtvave.text = Tvalist2.Item[1]
+  Tvalist2.visible = False
+  Tvalist2.clear
+  Gentvave.Value = True
+  Tvaac.SetFocus
+  
+End
+
+'**********************************************************
+'*   Recuperation de la Tva sur achat par le bouton       *
+'**********************************************************
+Public Sub ToggleButton3_Click()
+  
+  Dim rResult As Result
+  Dim tab As String
+  
+  Tab = "Fiches_Tvaac"
+  If Tvalist2.visible Then
+    Tvalist2.clear
+    Tvalist2.visible = False
+  Endif
+  If tvalist.visible Then
+    tvalist.clear
+    tvalist.visible = False
+  Else
+    Tvalist.visible = True
+    Tvalist.Columns.count = 3
+    Tvalist.Columns[0].Width = 65
+    Tvalist.Columns[1].Width = 80
+    Tvalist.Columns[2].Width = 180
+    Tvalist.Columns[0].Text = "Code"
+    Tvalist.Columns[1].Text = "Taux"
+    Tvalist.Columns[2].Text = "Compte"
+    rResult = Utils.db.Exec("SELECT * FROM " & tab & "")
+    If rResult.Available Then
+      Repeat
+        Tvalist.Add(rResult!code_tva, rResult!code_tva)
+        Tvalist.Item[0] = rResult!code_tva
+        Tvalist.Item[1] = rResult!taux_tva
+        Tvalist.Item[2] = rResult!cc_tva
+      Until rResult.MoveNext()
+    Endif
+    If Tvalist.Count Then
+      Tvalist.MoveFirst
+      Tvalist.SetFocus
+      Tvalist.Item.Selected = True
+    Endif
+  Endif
+  
+End
+
+'******************************************************************
+'* Recuperation de la Tva sur achat lors d'une saisie manuelle    *
+'******************************************************************
+Public Sub Tvaacman()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  
+  Tab = "Fiches_Tvaac"
+  If Tvaac.Text Then
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where code_tva = &1", Tvaac.Text)
+    If Not rResult.Available Then
+      Enr = 0
+      If son Then
+        Music.Play
+      Endif
+      Message.Error("Attention ! Ce code Tva n'existe pas.")
+    Else
+      Enr = 1
+      Tvaac.Text = rResult!code_tva
+      TauxTvaac.text = rResult!taux_tva
+    Endif
+  Else
+    Enr = 1
+  Endif
+  
+End
+
+'**********************************************************
+'* Gestion du columnview lors d'une saisie manuelle       *
+'**********************************************************
+Public Sub Tvalist_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Tvalist.MoveCurrent
+    Tvalist_Click()
+    Stop Event
+  Endif
+  
+  If key.code = key.F1 Then
+    Button4_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Tvalist.visible = False
+    Tvalist.clear
+    Tvaac.SetFocus
+    Stop Event
+  Endif
+  
+End
+
+'*****************************************************************
+'* Gestion du columnview lors d'une selection avec la souris     *
+'*****************************************************************
+Public Sub tvalist_Click()
+  
+  tvaac.text = Tvalist.Item[0]
+  Tauxtvaac.text = Tvalist.Item[1]
+  tvalist.visible = False
+  Tvalist.clear
+  Gentvaac.Value = True
+  
+End
+
+'******************************************************************
+'*     Recuperation du compte si le compte saisi existe deja      *
+'******************************************************************
+Public Sub Comptman()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  
+  Tab = "Fiches_Comptes"
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where compte_cc = &1", Cdco.Text)
+  If rResult.Available Then
+    Libelco.text = rResult!intitule_cc
+    typeco.text = rResult!type_cc
+    collectif.Text = rResult!coll_cc
+    Ctrlr.Value = rResult!cent_cc
+    comptr.Value = rResult!comptr_cc
+    Tvave.text = rResult!code_tvente
+    Tauxtvave.text = rResult!taux_tvente
+    Gentvave.Value = rResult!gen_tv
+    Tvaac.text = rResult!code_tachat
+    Tauxtvaac.text = rResult!taux_tachat
+    Gentvaac.Value = rResult!gen_ta
+    Col.Value = rResult!coll
+    
+  Endif
+  
+End
+
+' On gère les recherches et l'affichage des comptes
+'***************************************************************************************************************'
+
+Public Sub Colco_Data(Row As Integer, Column As Integer)
+  
+  Ccomptes.Colco_Data(Colco, Row, Column)
+  
+End
+
+Public Sub Tris()
+  
+  Ccomptes.Tris(Colco, CO, Intit, Ty, Sol, Co2)
+  
+End
+
+Public Sub Co_GotFocus()
+  
+  Try Utils.ObsGotf(Co)
+  Co_Click()
+  
+End
+
+Public Sub Co_LostFocus()
+  
+  Try Utils.ObsLstf(CO)
+  
+End
+
+Public Sub Intit_GotFocus()
+  
+  Try Utils.ObsGotf(intit)
+  Intit_Click()
+  
+End
+
+Public Sub Intit_LostFocus()
+  
+  Try Utils.ObsLstf(Intit)
+  
+End
+
+Public Sub Co_Click()
+  
+  sel = ""
+  Dbl = ""
+  ref()
+  Co.Text = ""
+  Intit.Text = "Intitulé"
+  Tri = "cast(compte_cc AS char)"
+  Ccomptes.Deb2(Colco, Cbase.Table("TabComptes"), tri, sel)
+  
+End
+
+Public Sub Co_Dblclick()
+  
+  sel = ""
+  ref()
+  Co.Text = ""
+  Intit.Text = "Intitulé"
+  Tri = "cast(compte_cc AS char)"
+  Dbclk()
+  
+End
+
+Public Sub Co_KeyPress()
+  
+  If InStr("\"&'", Key.Text) = 0 Then
+    sel = utils.Obstch(sel)
+    Ccomptes.Deb2(Colco, Cbase.Table("TabComptes"), tri, sel)
+  Endif
+Catch
+  
+End
+
+Public Sub Intit_Click()
+  
+  sel = ""
+  Dbl = ""
+  ref()
+  Co.Text = "Code"
+  Intit.Text = ""
+  Tri = "intitule_cc"
+  Ccomptes.Deb2(Colco, Cbase.Table("TabComptes"), tri, sel)
+  
+End
+
+Public Sub Intit_Dblclick()
+  
+  sel = ""
+  ref()
+  Co.Text = "Code"
+  Intit.Text = ""
+  Tri = "intitule_cc"
+  Dbclk()
+  
+End
+
+Public Sub Intit_KeyPress()
+  
+  If InStr("\"&'", Key.Text) = 0 Then
+    sel = utils.Obstch(sel)
+    Ccomptes.Deb2(Colco, Cbase.Table("TabComptes"), tri, sel)
+  Endif
+Catch
+  
+End
+
+Public Sub Dbclk()
+  
+  If Not Dbl Then
+    Ccomptes.Deb3(Colco, Cbase.Table("TabComptes"), tri, sel)
+    Dbl = "1"
+  Else
+    Ccomptes.Deb2(Colco, Cbase.Table("TabComptes"), tri, sel)
+    Dbl = ""
+  Endif
+  
+End
+
+Public Sub Ref()
+  
+  Tri = "cast(compte_cc AS char)"
+  CleanChamps()
+  Tris()
+  
+End
+
+'**********************************************
+'           Gestion des sous-comptes          *
+'**********************************************
+Public Sub ToggleButton1_Click()
+  
+  Dim MyForm As TriComptes
+  
+  Tri = "cast(compte_cc AS char)"
+  Type = "G"
+  Type2 = "B"
+  Comptabilite.bsel = False
+  MyForm = New TriComptes(Tri, Type, Type2, "D4", "")
+  MyForm.Showmodal()
+  If Comptabilite.Bsel = True Then
+    Compt.text = Comptabilite.sCmpt
+    intitule.Text = Comptabilite.sDesg
+    Button6.SetFocus
+  Endif
+  
+End
+
+Public Sub Button6_Click()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  
+  Tab = "Fiches_SousComptes"
+  
+  If IsNull(compt.Text) Or If IsNull(cdco.text) Then
+    If son Then
+      Music.Play
+    Endif
+    message.warning("ATTENTION ! Veuillez saisir un compte SVP !", "OK !")
+  Else
+    Ventilman()
+    If Enr = 1 Then
+      rResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE code_vtl = &1", Compt.Text)
+      If rResult.Available Then
+        Utils.db.Exec("UPdate " & tab & " SET code = &1, code_vtl = &2, intitule_vtl = &3 WHERE code_vtl = &2", Cdco.Text, Compt.Text, intitule.Text)
+      Else
+        Utils.db.Exec("INSERT INTO " & tab & " (code,code_vtl, intitule_vtl) Values (&1,&2,&3)", Cdco.Text, Compt.Text, intitule.Text)
+      Endif
+    Endif
+  Endif
+  Vents.clear
+  Ventilations()
+  CleanVtl()
+  Compt.SetFocus
+  Compt.Select
+  
+End
+
+Public Sub Vents_KeyPress()
+  
+  Dim Tab As String
+  
+  Tab = "Fiches_SousComptes"
+  
+  If Message.Question("Attention ! Vous allez supprimer cet enregistrement.", "Oui", "Non") = 1 Then
+    If Key.Code = Key.Delete Then
+      Try Utils.db.Exec("DELETE FROM " & Tab & " WHERE code = &1 and code_vtl = &2", Cdco.Text, Vents.Current[0])
+      If Not Error Then
+        Message.Info("Enregistrement supprimé")
+      Else
+        Message.Info("Il y a un problème pour supprimer cet enregistrement")
+      Endif
+    Endif
+  Endif 
+  Ventilations()
+  
+End
+
+Public Sub Ventilations()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  
+  Tab = "Fiches_SousComptes"
+  Vents.Clear
+  Vents.Columns.count = 2
+  Vents.Columns[0].Width = 65
+  Vents.Columns[1].Width = 280
+  Vents.Columns[0].Text = "code"
+  Vents.Columns[1].Text = "Intitulé"
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE  code = '" & Cdco.Text & "' ORDER BY code_vtl")
+  If rResult.Available Then
+    Repeat
+      Vents.add(rResult!code_vtl, rResult!code_vtl)
+      Vents.Item[0] = rResult!code_vtl
+      Vents.Item[1] = rResult!intitule_vtl
+    Until rResult.MoveNext()
+  Endif
+  
+End
+
+Public Sub CleanVtl()
+  
+  Compt.Text = ""
+  intitule.Text = ""
+  
+End
+
+Public Sub Ventilman()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  
+  Tab = "Fiches_Comptes"
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where compte_cc = &1", Compt.Text)
+  If Not rResult.Available Then
+    Enr = 0
+    If son Then
+      Music.Play
+    Endif
+    Message.Error("Attention ! Ce compte n'existe pas.")
+  Else
+    If rResult!type_cc = "F" Or rResult!type_cc = "C" Or rResult!coll Then
+      Message.Warning("Vous ne pouvez pas sasir ce type de compte dans les ventilations !")
+      Compt.clear
+      Compt.SetFocus
+      Compt.Select
+      Enr = 0
+    Else
+      Enr = 1
+      Compt.text = rResult!compte_cc
+      intitule.text = rResult!intitule_cc
+      Button6.SetFocus
+    Endif
+  Endif
+  
+End
+
+'**********************************************
+'*     Affichage de la documentation html     *
+'**********************************************
+Public Sub Button4_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Comptes.html"]
+  
+End
+
+Public Sub cprincipal_Click()
+  
+  If cprincipal.value = True Then
+    TabStrip1[1].Visible = True
+  Else
+    TabStrip1[1].Visible = False
+  Endif
+  
+End
+
+'************************************ On gère les comptes analytiques ********************************If key.code = key.F1 Then
+
+' Le focus
+
+Public Sub Cmpt3_GotFocus()
+  
+  Try Utils.ObsGotf(Last)
+  
+End
+
+Public Sub Cmpt3_LostFocus()
+  
+  Try Utils.ObsLstf(Last)
+  
+End
+
+Public Sub Cmpt3_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+      Case 3
+        Vnt_Click()
+        Stop Event
+        
+        If key.code = key.F1 Then
+          ToggleButton4_Click()
+          Stop Event
+        Endif
+    End Select  
+  Endif
+  
+End
+
+'on affiche les postes
+Public Sub ToggleButton4_Click()
+  
+  Dim Rposte As Result
+  
+  If Colposte.Visible = True Then
+    Colposte.Clear
+    Colposte.Visible = False
+  Else
+    Colposte.visible = True
+    Colposte.Columns.count = 2
+    Colposte.Columns[0].Width = 65
+    Colposte.Columns[1].Width = 80
+    Colposte.Columns[0].Text = "code"
+    Colposte.Columns[1].Text = "Intitulé"
+    Rposte = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabPostes") & "")
+    If Rposte.Available Then
+      Repeat
+        Try Colposte.Add(Rposte!code, Rposte!code)
+        Try Colposte.Item[0] = Rposte!code
+        Try Colposte.Item[1] = Rposte!intitulep
+      Until Rposte.MoveNext()
+      Colposte.MoveFirst
+      Colposte.SetFocus
+      Colposte.Item.Selected = True
+    Endif
+  Endif
+  
+End
+
+'On sélectionne le poste
+Public Sub Colposte_Click()
+  
+  If Colposte.Count > 0 Then
+    Poste.Text = Colposte.Current[0]
+    Label10.Text = Colposte.Current[1]
+    Colposte.Clear
+    Colposte.Visible = False
+    Pourcent.SetFocus
+    Pourcent.Select
+  Endif
+  
+End
+
+Public Sub TabStrip1_Click()
+  
+  If TabStrip1[2].Visible Then Poste.SetFocus
+  
+End
+
+'On enregistre le poste
+Public Sub Vnt_Click()
+  
+  Dim rResult As Result
+  
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabAna") & " WHERE code = &1 and compte = &2", Poste.Text, Cdco.Text)
+  If Not rResult.Available Then
+    Utils.db.Exec("INSERT INTO " & Cbase.Table("TabAna") & "(code, compte, pourcent) VALUES (&1, &2, &3)", Poste.Text, Cdco.text, Pourcent.Text)
+  Else
+    Utils.db.Exec("UPdate  " & Cbase.Table("TabAna") & "  SET  pourcent = &3  WHERE code = &1 and compte = &2", Poste.Text, Cdco.Text, Pourcent.Text)
+  Endif
+  Poste.Clear
+  Totposte.Text = "0"
+  Label10.Text = ""
+  Pourcent.Clear
+  Poste.SetFocus
+  Poste.Select
+  Aff_Analytique()
+Catch
+  If son Then
+    Music.Play
+  Endif
+  message.Error(Error.Text & " " & Error.where)
+  
+End
+
+Public Sub Aff_Analytique()
+  
+  Dim Rposte As Result
+  
+  Postes.Clear
+  Totposte.Text = "0"
+  Postes.Columns.count = 3
+  Postes.Columns[0].Width = 65
+  Postes.Columns[1].Width = 290
+  Postes.Columns[2].Width = 80
+  Postes.Columns[0].Text = "code"
+  Postes.Columns[1].Text = "Intitulé"
+  Postes.Columns[2].Text = "Pourcentage"
+  'Rposte = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabAna") & " d INNER JOIN " & Cbase.Table("TabPostes") & " n on n.code = d.code where n.compte = &1", Cdco.Text)
+  Rposte = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabAna") & " a inner join  " & Cbase.Table("TabPostes") & " p on p.code = a.code where a.compte = &1", Cdco.Text)
+  If Rposte.Available Then
+    Repeat
+      Postes.Add(Rposte!code, Rposte!code)
+      Postes.Item[0] = Rposte!code
+      Postes.Item[1] = Rposte!intitulep
+      Postes.Item[2] = Rposte!pourcent
+      Try Totposte.Text = Val(Totposte.Text) + Rposte!pourcent
+    Until Rposte.MoveNext()
+  Endif
+  
+End
+
+Public Sub Postes_KeyPress()
+  
+  If Message.Question("Attention ! Vous allez supprimer cet enregistrement.", "Oui", "Non") = 1 Then
+    If Key.Code = Key.Delete Then
+      Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabAna") & " WHERE code = &1 and compte = &2", Postes.Current[0], Cdco.Text)
+      If Not Error Then
+        Message.Info("Enregistrement supprimé")
+      Else
+        Message.Info("Il y a un problème pour supprimer cet enregistrement")
+      Endif
+    Endif
+  Endif 
+  
+  Aff_Analytique()
+  
+End
+
+Public Sub Quitter_Postes()
+  
+  If Totposte.Text <> "100" Or If Postes.Count = 0 Then
+    If Totposte.text <> "0" Then Qpostes = False
+  Else
+    Qpostes = True
+  Endif
+  
+End
+
+Public Sub collman(Typc As String)
+  
+  Dim rResult As Result
+  Dim Tab As String
+  
+  Tab = "Fiches_Comptes"
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where compte_cc = &1", collectif.Text)
+  If rResult.Available Then
+    If typc = "C" Then
+      If Not rResult!coll Or If rResult!coll And Left$(collectif.Text, 2) <> "41" And Left$(collectif.Text, 3) <> "453" Then
+        If son Then
+          Music.Play
+        Endif
+        Message.Warning("Attention ! Ce compte n'est pas un collectif client", "OK")
+        Enr = 0
+        Collectif.SetFocus
+        Collectif.Select
+      Else
+        Enr = 1
+      Endif
+    Endif
+    If type = "F" Then
+      If Not rResult!coll Or If rResult!coll And Left$(collectif.Text, 2) <> "40" Then
+        If son Then
+          Music.Play
+        Endif
+        Message.Warning("Attention ! Ce compte n'est pas un collectif fournisseur", "OK")
+        Enr = 0
+        Collectif.SetFocus
+        Collectif.Select
+      Else
+        Enr = 1
+      Endif
+    Endif
+  Else
+    If son Then
+      Music.Play
+    Endif
+    Message.Error("Attention ! Ce collectif n'existe pas.")
+    Enr = 0
+    Collectif.SetFocus
+    Collectif.Select
+  Endif
+Catch
+  
+End

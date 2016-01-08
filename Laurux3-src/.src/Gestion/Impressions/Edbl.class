@@ -1,0 +1,264 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Edbl.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 16/11/2005
+'# Impression des Bl fournisseurs
+'################################################
+'
+Tab As String
+Tab2 As String
+dater As String
+codef As String
+Tri As String
+b As Integer
+Coulfond As New String[]
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Me.Center
+  Music.Load(Start.Musique)
+  
+End
+
+'***********************
+'* On gere nos touches *
+'***********************
+Public Sub Cmpt_KeyPress()
+  
+  Dim rResult As Result
+
+  Tab = String = "Fiches_Ligrecpt"
+  
+  Select Case Last.tag
+      
+    Case 1
+      
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE numrecpt = &1", Nbl.Text) 
+        If rResult.Available Then
+          codef = rResult!four
+          dater = rResult!daterecpt
+          Edbr.Ed(Nbl.Text, codef, dater, coulfond, "")
+          Me.Mouse = Mouse.Pointing
+        Else
+          Me.Mouse = Mouse.Pointing
+          Message.Warning("Ce numéro de bon n'existe pas !")
+          Nbl.Select
+          Nbl.SetFocus
+        Endif
+        Stop Event
+      Endif
+      
+  End Select
+  
+End
+
+'************************************
+'* Affichage du columnview Colbl    *
+'************************************
+Public Sub ToggleButton1_Click()
+  
+  Tri = "ddate desc"
+  b = 0
+  Colbl.clear
+  If Colbl.visible Then
+    Cd.Hide
+    Nm.Hide
+    Nr.Hide
+    Dt.Hide
+    Colbl.visible = False
+  Else
+    Cd.Visible = True
+    Nm.Visible = True
+    Nr.Visible = True
+    Dt.Visible = True
+    Colbl.visible = True
+    Aff_Data
+  Endif
+  
+End
+
+Public Sub Aff_Data()
+  
+  Dim rResult As Result
+  Dim FoResult As Result
+  
+  Tab = "Fiches_Entrecpt" 
+  Tab2 = "Fiches_Four" 
+  Colbl.Columns.count = 4
+  Colbl.Columns[0].Width = Nm.Width
+  Colbl.Columns[1].Width = Cd.Width
+  Colbl.Columns[2].Width = Nr.Width
+  Colbl.Columns[3].Width = Dt.Width
+  With Utils
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by " & Tri & "")
+    If rResult.Available Then
+      Repeat
+        Colbl.Add(rResult!numrecpt & rResult!four, rResult!numrecpt & rResult!four)
+        Colbl.Item[1] = rResult!four
+        FoResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " where  fo_code = &1", rResult!four)
+        Colbl.Item[0] = FoResult!fo_nom
+        Colbl.Item[2] = rResult!numrecpt
+        Colbl.Item[3] = .Cdate_Aff(rResult!ddate)
+      Until rResult.MoveNext()
+    Endif
+    If Colbl.Count Then
+      Colbl.MoveFirst
+      Colbl.SetFocus
+      Colbl.Item.Selected = True
+    Endif
+  End With
+  
+End
+
+'***********************************************************
+'* Gestion du columnview Colbl lors d'une saisie manuelle *
+'***********************************************************
+Public Sub Colbl_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Colbl.MoveCurrent
+    Nbl.Text = Colbl.Current[2]
+    codef = Colbl.Current[1]
+  Endif
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Nbl.SetFocus
+    Nbl.Select
+    Stop Event
+  Endif
+  Cd.Hide
+  Nm.Hide
+  Nr.Hide
+  Dt.Hide
+  Colbl.visible = False
+  Colbl.clear
+  
+End
+
+'****************************************************************
+'* Gestion du columnview Colbl lors d'une saisie avec la souris *
+'****************************************************************
+Public Sub Colbl_Click()
+  
+  Nbl.Text = Colbl.Current[2]
+  codef = Colbl.Current[1]
+  dater = Colbl.Current[3]
+  Cd.Hide
+  Nm.Hide
+  Nr.Hide
+  Dt.Hide
+  Colbl.visible = False
+  Colbl.clear
+  
+End
+
+Public Sub Cd_GotFocus()
+  
+  If b = 0 Then
+    b = 1
+    Tri = "four asc, ddate"
+  Else
+    b = 0
+    Tri = "four desc, ddate"
+  Endif
+  Colbl.Sorted = False
+  Colbl.Clear
+  Aff_Data
+  
+End
+
+Public Sub Nr_GotFocus()
+  
+  If b = 0 Then
+    b = 1
+    Tri = "numrecpt asc"
+  Else
+    b = 0
+    Tri = "numrecpt desc"
+  Endif
+  Colbl.Sorted = False
+  Colbl.Clear
+  Aff_Data
+  
+End
+
+Public Sub Dt_GotFocus()
+  
+  If b = 0 Then
+    b = 1
+    Tri = "ddate asc"
+  Else
+    b = 0
+    Tri = "ddate desc"
+  Endif
+  Colbl.Sorted = False
+  Colbl.Clear
+  Aff_Data
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Cmpt_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim rResult As Result
+
+  Tab = "Fiches_Ligrecpt"
+  
+  Me.Mouse = Mouse.Wait
+  If IsNull(codef) Or If IsNull(dater) Then
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE numrecpt = &1", Nbl.Text) 
+    If rResult.Available Then
+      codef = rResult!four
+      dater = rResult!daterecpt
+      Edbr.Ed(Nbl.Text, codef, dater, coulfond, "")
+      Me.Mouse = Mouse.Pointing
+    Else
+      Me.Mouse = Mouse.Pointing
+      Message.Warning("Ce numéro de bon n'existe pas !")
+      Nbl.Select
+      Nbl.SetFocus
+    Endif  
+  Else
+    Edbr.Ed(Nbl.Text, codef, dater, coulfond, "")
+    Me.Mouse = Mouse.Pointing 
+  Endif
+  
+End
+
+Public Sub Button3_Click()
+  
+  If Exist(User.home & "/Edbl.ps") Then Try Kill User.home & "/Edbl.ps"
+  Me.Close
+  
+End

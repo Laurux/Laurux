@@ -1,0 +1,4844 @@
+' Gambas class file
+
+' Software: PDFWriter
+' Version : 0.0.2
+' Date    : 2007-10-10
+' Author  : Luigi Carlotto <md9327@mclink.it>
+' License : GPL2
+' Note    : Conversion of FPDF 1.53 library (http://www.fpdf.org) for the Gambas language
+'
+' Included in the base version 0.0.1:
+'     Bookmarks (Olivier)
+'         add: Bookmark(), _putbookmarks()
+'         upd: _putresources(), _putcatalog()
+'     Rounded rectangle (Maxime Delorme, Christophe Prugnaud)
+'         add: RoundedRect(), _Arc()
+'     Rotations (Olivier)
+'         add: Rotate(), RotatedText(), RotatedImage()
+'         upd: _endpage()
+'     GetStringLimit (Luigi Carlotto)
+'         add: GetStringLimit()
+'     Table with MultiCells (Olivier)
+'         add: SetWidths(), SetAligns(), Row()
+'         upd: _checkPageBreak(), _nbLines()
+'     Circles and ellipses (Olivier)
+'         add: Circle(), Ellipse()
+'     Forced justification (Maxime Delorme)
+'         upd: Cell()
+'     Index (Min's)
+'         add: CreateIndex()
+'     Dashed rectangle (Antoine Michéa)
+'         add: DashedRect()
+'     Sector (Maxime Delorme)
+'         add: Sector()
+'         upd: _Arc()
+'     Diagrams (Pierre Marletta)
+'         add: PieChart(), BarDiagram(), SetLegends()
+'
+' Included in version 0.0.2:
+'     Dashes (yukihiro_o)
+'         add: SetDash()
+'     MultiCell with bullet (Patrick Benny)
+'         add: MultiCellBlt()
+'     GetW, GetH (Luigi Carlotto)
+'         add: GetW(), GetH()
+'     GetLeftMargin, GetTopMargin, GetRightMargin (Luigi Carlotto)
+'         add: GetLeftMargin(), GetTopMargin(), GetRightMargin()
+'     GetAuthor, GetCreator, GetSubject, GetTitle (Luigi Carlotto)
+'         add: GetAuthor(), GetCreator(), GetSubject(), GetTitle()
+'     GetCompression (Luigi Carlotto)
+'         add: GetCompression()
+'     GetLineWidth (Luigi Carlotto)
+'         add: GetLineWidth()
+'     Polygons (Andrew Meier)
+'         add: Polygon()
+'     Cube (Luciano Salvino, Luigi Carlotto)
+'         add: Cube()
+'     Geometric figures (David Hernández Sanz)
+'         add: SetLineStyle(), Line2(), Rect2(), Curve2(), Ellipse2(), Circle2(), Polygon2(),
+'              RegularPolygon2(), StarPolygon2(), RoundedRect2(), _Point(), _Line(), _Curve()
+'     Star (Luciano Salvino)
+'         add: Star()
+'     Gradients (Andreas Würmser)
+'         add: LinearGradient(), RadialGradient(), CoonsPatchMesh(), Clip(), Gradient(), _putshaders()
+'         upd: _putresourcedict(), _putresources()
+'     Barcodes (Olivier)
+'         add: EAN13(), UPC_A(), GetCheckDigit(), TestCheckDigit(), Barcode()
+'     Code 39 barcodes (The-eh, Emmanuel Havet) *** TO VERIFY (2) ***
+'         add: Code39()
+'     i25 barcodes (Matthias Lau)
+'         add: i25()
+'     Codabar barcodes (Florence Demoures)
+'         add: Codabar()
+'     Transformations (Moritz Wagner & Andreas Würmser)
+'         add: StartTransform(), ScaleX(), ScaleY(), ScaleXY(), Scale(), MirrorH(), MirrorV(), MirrorP(),
+'              MirrorL(), TranslateX(), TranslateY(), Translate(), SkewX(), SkewY(), Skew(), Transform(),
+'              StopTransform()
+'         upd: Rotate()
+'     Circular text (Andreas Würmser)
+'         add: CircularText()
+'
+Public Const Version As String = "0.2" 'Set default PdfWriter version number
+Public Const PDFVersion As String = "1.3" 'Set PDF version
+
+' Private properties
+Private $page As Integer 'current page number
+Private $n As Integer 'current object number
+Private $offsets As Integer[] 'array of object offsets
+Private $buffer As String 'buffer holding in-memory PDF
+Private $pages As String[] 'array containing pages
+Private $state As Integer 'current document state (0=undefined,1=open/endpage,2=beginpage,3=enddoc)
+Private $compress As Boolean 'compression flag
+Private $DefOrientation As String 'default orientation
+Private $CurOrientation As String 'current orientation
+Private $OrientationChanges As Boolean[] 'array indicating orientation changes
+Private $k As Float 'scale factor (number of points in user unit)
+Private $fwPt As Float 'width of page format in points
+Private $fhPt As Float 'height of page format in points
+Private $fw As Float 'width of page format in user unit
+Private $fh As Float 'height of page format in user unit
+Private $wPt As Float 'current dimensions of page in points
+Private $hPt As Float 'current dimensions of page in points
+Private $w As Float 'current dimensions of page in user unit
+Private $h As Float 'current dimensions of page in user unit
+Private $lMargin As Float 'left margin
+Private $tMargin As Float 'top margin
+Private $rMargin As Float 'right margin
+Private $bMargin As Float 'page break margin
+Private $cMargin As Float 'cell margin
+Private $x As Float 'current position x in user unit for cell positioning
+Private $y As Float 'current position y in user unit for cell positioning
+Private $lasth As Integer 'height of last cell printed
+Private $LineWidth As Float 'line width in user unit
+Private $CoreFonts As Collection 'array of standard font names
+Private $fonts As Collection 'array of used fonts
+Private $FontFiles As Collection 'array of font files
+Private $diffs As Boolean[] 'array of encoding differences
+Private $images As Collection 'array of used images
+Private $PageLinks As Collection 'array of links in pages
+Private $links As Collection 'array of internal links
+Private $FontFamily As String 'current font family
+Private $FontStyle As String 'current font style
+Private $underline As Boolean 'underlining flag
+Private $CurrentFont As Collection 'current font info
+Private $FontSizePt As Integer 'current font size in points
+Private $FontSize As Float 'current font size in user unit
+Private $DrawColor As String 'commands for drawing color
+Private $FillColor As String 'commands for filling color
+Private $TextColor As String 'commands for text color
+Private $ColorFlag As Boolean 'indicates whether fill and text colors are different
+Private $ws As Float 'word spacing
+Private $AutoPageBreak As Boolean 'automatic page breaking
+Private $PageBreakTrigger As Float 'threshold used to trigger page breaks
+Private $InFooter As Boolean 'flag set when processing footer
+Private $ZoomMode As Variant 'zoom display mode
+Private $LayoutMode As String 'layout display mode
+Private $title As String 'title
+Private $subject As String 'subject
+Private $author As String 'author
+Private $keywords As String 'keywords
+Private $creator As String 'creator
+Private $AliasNbPages As String 'alias for total number of pages
+Private $angle As Integer 'angle of rotation
+Private $columnWidths As Float[] 'column widths
+Private $columnAligns As String[] 'column aligns
+Private $outlines As Object[] 'outlines for bookmark
+Private $OutlineRoot As Integer 'outline root for bookmark
+Private $legends As String[]
+Private $wLegend As Float
+Private $sum As Float
+Private $NbVal As Integer
+Private $gradients As Object[]
+Private $lasthmulti As Integer
+
+'********************************************************************************
+'*                                                                              *
+'*                               Public methods                                 *
+'*                                                                              *
+'********************************************************************************
+
+Public Sub _new(Optional orientation As String = "P", Optional unit As String = "mm", Optional form As String = "A4")
+  
+  Dim margin As Float
+  'Initialization of properties
+  $gradients = New Object[]
+  $legends = New String[]
+  $outlines = New Object[]
+  $OutlineRoot = 0
+  $columnWidths = New Float[]
+  $columnAligns = New String[]
+  $angle = 0
+  $page = -1
+  $buffer = ""
+  $pages = New String[]
+  $OrientationChanges = New Boolean[]
+  $state = 0
+  '---------------------------
+  'Each element of $fonts has:
+  ' i (Integer)     = font id number
+  ' type (String)   = font type = (core, Type1, TrueType)
+  ' name (String)   = font name = ($fonts.key = (Symbol, ZapfDingbats))
+  ' desc (String)   = font description
+  ' up (Integer)    =
+  ' ut (Integer)    =
+  ' cw (Collection) = character dimensions
+  ' enc (Boolean)   = font encoding = (true, false)
+  ' file (String)   = font file name
+  ' diff (Integer)  =
+  ' n (Integer)     =
+  $fonts = New Collection
+  '---------------------------
+  'Each element of $FontFiles has:
+  ' n (Integer)       =
+  ' length1 (Integer) =
+  ' length2 (Integer) =
+  $FontFiles = New Collection
+  '---------------------------
+  'Each element of $images has:
+  ' n (Integer)    = image id
+  ' data (String)  = image data
+  ' i (Integer)    =
+  ' w (Integer)    = image width
+  ' h (Integer)    = image height
+  ' cs (String)    = color space = (Indexed, DeviceCMYK)
+  ' pal (String)   = image palette
+  ' bpc (Integer)  = bits per component
+  ' f (String)     = filter
+  ' parms (String) = parameters
+  ' trns (Integer/Integer[]) =
+  $images = New Collection
+  $diffs = New Boolean[]
+  $links = New Collection
+  $offsets = [0, 0]
+  $n = $offsets.Count
+  $PageLinks = New Collection
+  $InFooter = False
+  $lasth = 0
+  $FontFamily = ""
+  $FontStyle = ""
+  $FontSizePt = 12
+  $underline = False
+  $DrawColor = "0 G"
+  $FillColor = "0 g"
+  $TextColor = "0 g"
+  $ColorFlag = False
+  $ws = 0
+  'Standard fonts
+  $CoreFonts = New Collection
+  $CoreFonts.Add("Courier", "courier")
+  $CoreFonts.Add("Courier-Bold", "courierB")
+  $CoreFonts.Add("Courier-Oblique", "courierI")
+  $CoreFonts.Add("Courier-BoldOblique", "courierBI")
+  $CoreFonts.Add("Helvetica", "helvetica")
+  $CoreFonts.Add("Helvetica-Bold", "helveticaB")
+  $CoreFonts.Add("Helvetica-Oblique", "helveticaI")
+  $CoreFonts.Add("Helvetica-BoldOblique", "helveticaBI")
+  $CoreFonts.Add("Times-Roman", "times")
+  $CoreFonts.Add("Times-Bold", "timesB")
+  $CoreFonts.Add("Times-Italic", "timesI")
+  $CoreFonts.Add("Times-BoldItalic", "timesBI")
+  $CoreFonts.Add("Serif", "serif")
+  $CoreFonts.Add("Serif-Bold", "serifB")
+  $CoreFonts.Add("Serif-Oblique", "serifI")
+  $CoreFonts.Add("Serif-BoldOblique", "serifBI")
+  $CoreFonts.Add("Symbol", "symbol")
+  $CoreFonts.Add("ZapfDingbats", "zapfdingbats")
+  'Scale factor
+  Select Case Lower(unit)
+    Case "pt"
+      $k = 1
+    Case "mm"
+      $k = 72 / 25.4
+    Case "cm"
+      $k = 72 / 2.54
+    Case "in"
+      $k = 72
+    Default
+      Error.Raise("Incorrect unit: " & unit)
+  End Select
+  'Page format
+  Select Case Lower(form)
+    Case "a3"
+      $fwPt = 841.89
+      $fhPt = 1190.55
+    Case "a4"
+      $fwPt = 595.28
+      $fhPt = 841.89
+    Case "a5"
+      $fwPt = 420.94
+      $fhPt = 595.28
+    Case "letter"
+      $fwPt = 612
+      $fhPt = 792
+    Case "legal"
+      $fwPt = 612
+      $fhPt = 1008
+    Case "dymoc"
+      $fwPt = 70.86
+      $fhPt = 70.86
+    Case "dymog"
+      $fwPt = 248.64
+      $fhPt = 99.21
+    Default
+      Error.Raise("Unknown page format: " & form)
+  End Select
+  $fw = $fwPt / $k
+  $fh = $fhPt / $k
+  'Page orientation
+  Select Case Lower(orientation)
+    Case "p", "portrait"
+      $DefOrientation = "P"
+      $wPt = $fwPt
+      $hPt = $fhPt
+    Case "l", "landscape"
+      $DefOrientation = "L"
+      $wPt = $fhPt
+      $hPt = $fwPt
+    Default
+      Error.Raise("Incorrect orientation: " & orientation)
+  End Select
+  $CurOrientation = $DefOrientation
+  $w = $wPt / $k
+  $h = $hPt / $k
+  'Page margins (1 cm)
+  margin = 28.35 / $k
+  Me.SetMargins(margin, margin)
+  'Interior cell margin (1 mm)
+  $cMargin = margin / 10
+  'Line width (0.2 mm)
+  $LineWidth = 0.567 / $k
+  'Automatic page break
+  Me.SetAutoPageBreak(True, 2 * margin)
+  'Full width display mode
+  Me.SetDisplayMode("fullwidth")
+  'Enable compression
+  Me.SetCompression(True)
+  
+End
+
+'Public Sub _free()
+
+'End
+
+'********************************************************************************
+'*                                                                              *
+'*                              Protected methods                               *
+'*                                                                              *
+'********************************************************************************
+
+Public Sub SetMargins(l As Float, t As Float, Optional r As Float = -1)
+  'Set left, top and right margins
+  
+  $lMargin = l
+  $tMargin = t
+  If (r = -1) Then r = l
+  $rMargin = t
+  
+End
+
+Public Sub SetLeftMargin(margin As Float)
+  'Set left margin
+  
+  $lMargin = margin
+  If ($page >= 0 And $x < margin) Then $x = margin
+  
+End
+
+'GetLeftMargin, GetTopMargin, GetRightMargin (Luigi Carlotto)
+Public Function GetLeftMargin() As Float
+  'Get left margin
+  
+  Return $lMargin
+  
+End
+
+Public Sub SetTopMargin(margin As Float)
+  'Set top margin
+  
+  $tMargin = margin
+  
+End
+
+'GetLeftMargin, GetTopMargin, GetRightMargin (Luigi Carlotto)
+Public Function GetTopMargin() As Float
+  'Get top margin
+  
+  Return $tMargin
+  
+End
+
+Public Sub SetRightMargin(margin As Float)
+  'Set right margin
+  
+  $rMargin = margin
+  
+End
+
+'GetLeftMargin, GetTopMargin, GetRightMargin (Luigi Carlotto)
+Public Function GetRightMargin() As Float
+  'Get right margin
+  
+  Return $rMargin
+  
+End
+
+Public Sub SetAutoPageBreak(auto As Boolean, Optional margin As Float = 0)
+  'Set auto page break mode and triggering margin
+  
+  $AutoPageBreak = auto
+  $bMargin = margin
+  $PageBreakTrigger = $h - margin + 18
+  
+End
+
+Public Sub SetDisplayMode(zoom As Variant, Optional layout As String = "continuous")
+  'Set display mode in viewer
+  
+  Select Case zoom
+    Case "fullpage", "fullwidth", "real", "default"
+      $ZoomMode = zoom
+    Default
+      ' [GB2:ISTY] If (IsString(zoom)) Then Error.Raise("Incorrect zoom display mode: " & zoom)
+      If (TypeOf(zoom) = gb.String) Then Error.Raise("Incorrect zoom display mode: " & zoom)
+      $ZoomMode = zoom
+  End Select
+  Select Case layout
+    Case "single", "continuous", "two", "default"
+      $LayoutMode = layout
+    Default
+      Error.Raise("Incorrect layout display mode: " & layout)
+  End Select
+  
+End
+
+Public Sub SetCompression(compr As Boolean)
+  'Set page compression
+  
+  $compress = compr
+  
+End
+
+'GetCompression (Luigi Carlotto)
+Public Function GetCompression() As Boolean
+  'Get page compression
+  
+  Return $compress
+  
+End
+
+Public Sub SetTitle(title As String)
+  'Title of document
+  
+  $title = title
+  
+End
+
+'GetAuthor, GetCreator, GetSubject, GetTitle (Luigi Carlotto)
+Public Function GetTitle() As String
+  'Title of document
+  
+  Return $title
+  
+End
+
+Public Sub SetSubject(subject As String)
+  'Subject of document
+  
+  $subject = subject
+  
+End
+
+'GetAuthor, GetCreator, GetSubject, GetTitle (Luigi Carlotto)
+Public Function GetSubject() As String
+  'Subject of document
+  
+  Return $subject
+  
+End
+
+Public Sub SetAuthor(author As String)
+  'Author of document
+  
+  $author = author
+  
+End
+
+'GetAuthor, GetCreator, GetSubject, GetTitle (Luigi Carlotto)
+Public Function GetAuthor() As String
+  'Author of document
+  
+  Return $author
+  
+End
+
+Public Sub SetCreator(creator As String)
+  'Creator of document
+  
+  $creator = creator
+  
+End
+
+'GetAuthor, GetCreator, GetSubject, GetTitle (Luigi Carlotto)
+Public Function GetCreator() As String
+  'Creator of document
+  
+  Return $creator
+  
+End
+
+Public Function AliasNbPages(Optional alias As String = "{nb}")
+  'Define an alias for total number of pages
+  
+  $AliasNbPages = alias
+  
+End
+
+Public Sub Open()
+  'Begin document
+  
+  $state = 1
+  
+End
+
+Public Sub Close()
+  'Terminate document
+  
+  If ($state = 3) Then Return
+  If ($page = -1) Then Me.AddPage()
+  'Page footer
+  '$InFooter = True
+  'Me.Footer()
+  '$InFooter = False
+  'Close page
+  _endpage()
+  'Close document
+  _enddoc()
+  
+End
+
+Public Sub AddPage(Optional orientation As String = "")
+  
+  Dim family, style, dc, fc, tc As String
+  Dim size As Integer
+  Dim lw As Float
+  Dim cf As Boolean
+  'Start a new page
+  If ($state = 0) Then Me.Open()
+  family = $FontFamily
+  style = $FontStyle & IIf($underline, "U", "")
+  size = $FontSizePt
+  lw = $LineWidth
+  dc = $DrawColor
+  fc = $FillColor
+  tc = $TextColor
+  cf = $ColorFlag
+  If ($page >= 0) Then
+    'Page footer
+    '$InFooter = True
+    'Me.Footer()
+    '$InFooter = False
+    'Close page
+    _endpage()
+  End If
+  'Start new page
+  _beginpage(orientation)
+  'Set line cap style to square
+  _out("2 J")
+  'Set line width
+  $LineWidth = lw
+  _out(_stringFloat(lw * $k, "0.00") & " w")
+  'Set font
+  If (Not IsNull(family)) Then Me.SetFont(family, style, size)
+  'Set colors
+  $DrawColor = dc
+  If (dc <> "0 G") Then _out(dc)
+  $FillColor = fc
+  If (fc <> "0 g") Then _out(fc)
+  $TextColor = tc
+  $ColorFlag = cf
+  'Page header
+  'Me.Header()
+  'Restore line width
+  If ($LineWidth <> lw) Then
+    $LineWidth = lw
+    _out(_stringFloat(lw * $k, "0.00") & " w")
+  End If
+  'Restore font
+  If (family) Then Me.SetFont(family, style, size)
+  'Restore colors
+  If ($DrawColor <> dc) Then
+    $DrawColor = dc
+    _out(dc)
+  End If
+  If ($FillColor <> fc) Then
+    $FillColor = fc
+    _out(fc)
+  End If
+  $TextColor = tc
+  $ColorFlag = cf
+  
+End
+
+Public Sub Header(sEntete As String)
+  'To be implemented in your own inherited class
+  
+  Me.SetXY(10, 5)
+  Me.SetFont("Arial", "BI", 20)
+  Me.cell(190, 6, sEntete, False, 0, "C", False)
+  Me.SetLineWidth(0.2)
+  Me.Line(10, 15, 200, 15)
+  
+End
+
+Public Sub Footer()
+  'To be implemented in your own inherited class
+  
+End
+
+Public Function PageNo() As Integer
+  'Get current page number
+  
+  Return ($page + 1)
+  
+End
+
+Public Sub SetDrawColor(r As Integer, Optional g As Integer = -1, Optional b As Integer = -1)
+  'Set color for all stroking operations
+  
+  If ((r = 0 And g = 0 And b = 0) Or g = -1) Then
+    $DrawColor = _stringFloat(r / 255, "0.000") & " G"
+  Else
+    $DrawColor = _stringFloat(r / 255, "0.000") & " " &
+      _stringFloat(g / 255, "0.000") & " " &
+      _stringFloat(b / 255, "0.000") & " RG"
+  End If
+  If ($page >= 0) Then _out($DrawColor)
+  
+End
+
+Public Sub SetFillColor(r As Integer, Optional g As Integer = -1, Optional b As Integer = -1)
+  'Set color for all filling operations
+  
+  If ((r = 0 And g = 0 And b = 0) Or g = -1) Then
+    $FillColor = _stringFloat(r / 255, "0.000") & " g"
+  Else
+    $FillColor = _stringFloat(r / 255, "0.000") & " " &
+      _stringFloat(g / 255, "0.000") & " " &
+      _stringFloat(b / 255, "0.000") & " rg"
+  End If
+  $ColorFlag = ($FillColor <> $TextColor)
+  If ($page >= 0) Then _out($FillColor)
+  
+End
+
+Public Sub SetTextColor(r As Integer, Optional g As Integer = -1, Optional b As Integer = -1)
+  'Set color for text
+  
+  If ((r = 0 And g = 0 And b = 0) Or g = -1) Then
+    $TextColor = _stringFloat(r / 255, "0.000") & " g"
+  Else
+    $TextColor = _stringFloat(r / 255, "0.000") & " " &
+      _stringFloat(g / 255, "0.000") & " " &
+      _stringFloat(b / 255, "0.000") & " rg"
+  End If
+  $ColorFlag = ($FillColor <> $TextColor)
+  
+End
+
+Public Function GetStringWidth(s As String) As Float
+  
+  Dim l, i As Integer
+  Dim cw As Integer[]
+  Dim w As Float
+  'Get width of a string in the current font
+  s = CStr(s)
+  cw = $CurrentFont["cw"]
+  w = 0.0
+  l = Len(s)
+  For i = 0 To (l - 1)
+    w += cw[Asc(s, i)]
+  Next
+  Return (w * $FontSize / 1000)
+  
+End
+
+Public Sub SetLineWidth(width As Float)
+  'Set line width
+  
+  $LineWidth = width
+  If ($page >= 0) Then _out(_stringFloat(width * $k, "0.00") & " w")
+  
+End
+
+'GetLineWidth (Luigi Carlotto)
+Public Function GetLineWidth() As Float
+  'Get line width
+  
+  Return $LineWidth
+  
+End
+
+' *** ORIGINAL ***
+' Draws a line
+' Parameters:
+' - x1, y1: Start point
+' - x2, y2: End point
+' - style: Line style. Array like for SetLineStyle
+Public Sub Line(x1 As Integer, y1 As Integer, x2 As Integer, y2 As Integer)
+  'Draw a line
+  
+  _out(_stringFloat(x1 * $k, "0.00") & " " &
+    _stringFloat(($h - y1) * $k, "0.00") & " m " &
+    _stringFloat(x2 * $k, "0.00") & " " &
+    _stringFloat(($h - y2) * $k, "0.00") & " l S")
+  
+End
+
+'Geometric figures (David Hernández Sanz)
+' Draws a line
+' Parameters:
+' - x1, y1: Start point
+' - x2, y2: End point
+' - style: Line style. Array like for SetLineStyle
+Public Sub Line2(x1 As Integer, y1 As Integer, x2 As Integer, y2 As Integer, Optional style As Collection = Null)
+  
+  If (Not IsNull(style)) Then Me.SetLineStyle(style)
+  'Draw a line
+  _out(_stringFloat(x1 * $k, "0.00") & " " &
+    _stringFloat(($h - y1) * $k, "0.00") & " m " &
+    _stringFloat(x2 * $k, "0.00") & " " &
+    _stringFloat(($h - y2) * $k, "0.00") & " l S")
+  
+End
+
+' *** ORIGINAL ***
+' Draws a rectangle
+' Parameters:
+' - x, y: Top left corner
+' - w, h: Width and height
+' - style: Style of rectangle (draw and/or fill: D, F, DF, FD)
+Public Sub Rect(x As Float, y As Float, w As Float, h As Float, Optional style As String = "")
+  
+  Dim op As String
+  'Draw a rectangle
+  Select Case style
+    Case "F"
+      op = "f"
+    Case "FD", "DF"
+      op = "B"
+    Default
+      op = "S"
+  End Select
+  _out(_stringFloat(x * $k, "0.00") & " " &
+    _stringFloat(($h - y) * $k, "0.00") & " " &
+    _stringFloat(w * $k, "0.00") & " " &
+    _stringFloat(- h * $k, "0.00") & " re " & op)
+  
+End
+
+'Geometric figures (David Hernández Sanz)
+' Draws a rectangle
+' Parameters:
+' - x, y: Top left corner
+' - w, h: Width and height
+' - style: Style of rectangle (draw and/or fill: D, F, DF, FD)
+' - border_style: Border style of rectangle. Array with some of this index
+'   . all: Line style of all borders. Array like for SetLineStyle
+'   . L: Line style of left border. null (no border) or array like for SetLineStyle
+'   . T: Line style of top border. null (no border) or array like for SetLineStyle
+'   . R: Line style of right border. null (no border) or array like for SetLineStyle
+'   . B: Line style of bottom border. null (no border) or array like for SetLineStyle
+' - fill_color: Fill color. Array with components (red, green, blue)
+Public Sub Rect2(x As Float, y As Float, w As Float, h As Float, Optional style As String = "", Optional border_style As Collection = Null, Optional fill_color As Integer[] = Null)
+  
+  Dim op As String
+  Dim r, g, b As Integer
+  
+  If (InStr(style, "F") > 0 And Not IsNull(fill_color)) Then
+    r = fill_color[0]
+    g = fill_color[1]
+    b = fill_color[2]
+    Me.SetFillColor(r, g, b)
+  End If
+  'Draw a rectangle
+  Select Case style
+    Case "F"
+      border_style = Null
+      Me.Rect(x, y, w, h, style)
+    Case "FD", "DF"
+      If (IsNull(border_style)) Then
+      Else If (border_style.Exist("all")) Then
+        If (Not IsNull(border_style["all"])) Then
+          Me.SetLineStyle(border_style["all"])
+          border_style = Null
+        End If
+      Else
+        border_style = Null
+      End If
+      Me.Rect(x, y, w, h, style)
+    Default
+      If (IsNull(border_style)) Then
+        Me.Rect(x, y, w, h, style)
+      Else If (border_style.Exist("all")) Then
+        If (Not IsNull(border_style["all"])) Then
+          Me.SetLineStyle(border_style["all"])
+          border_style = Null
+        End If
+        Me.Rect(x, y, w, h, style)
+      End If
+  End Select
+  If (Not IsNull(border_style)) Then
+    If (border_style.Exist("L")) Then
+      If (Not IsNull(border_style["L"])) Then Me.Line2(x, y, x, y + h, border_style["L"])
+    End If
+    If (border_style.Exist("T")) Then
+      If (Not IsNull(border_style["T"])) Then Me.Line2(x, y, x + w, y, border_style["T"])
+    End If
+    If (border_style.Exist("R")) Then
+      If (Not IsNull(border_style["R"])) Then Me.Line2(x + w, y, x + w, y + h, border_style["R"])
+    End If
+    If (border_style.Exist("B")) Then
+      If (Not IsNull(border_style["B"])) Then Me.Line2(x, y + h, x + w, y + h, border_style["B"])
+    End If
+  End If
+  
+End
+
+Public Sub AddFont(family As String, Optional style As String = "", Optional filename As String = "")
+  
+  Dim fontkey, type, name, desc As String
+  Dim c, c1 As Collection
+  Dim i, up, ut, diff, d, originalsize, size1, size2 As Integer
+  Dim enc As Boolean
+  Dim cw As Integer[]
+  'Add a TrueType or Type1 font
+  family = Lower(family)
+  If (filename = "") Then filename = Replace(family, " ", "") & Lower(style) ' & ".class"
+  If (family = "arial") Then family = "helvetica"
+  style = Upper(style)
+  If (style = "IB") Then style = "BI"
+  fontkey = family & style
+  If ($fonts.Exist(fontkey)) Then Error.Raise("Font already added: " & family & " " & style)
+  cw = PdfWriterFont.Font(filename)
+  i = $fonts.Count
+  c = New Collection
+  c.Add(i, "i")
+  c.Add(type, "type")
+  c.Add(name, "name")
+  c.Add(desc, "desc")
+  c.Add(up, "up")
+  c.Add(ut, "ut")
+  c.Add(cw, "cw")
+  c.Add(enc, "enc")
+  c.Add(filename, "file")
+  c.Add(0, "diff")
+  c.Add(0, "n")
+  $fonts.Add(c, fontkey)
+  If (diff) Then
+    'Search existing encodings
+    d = -1
+    For i = 0 To ($diffs.Count - 1)
+      If ($diffs[i] = diff) Then
+        d = i
+        Break
+      End If
+    Next
+    If (d = -1) Then
+      $diffs.Add(diff)
+      $fonts[fontkey]["diff"] = $diffs.Count - 1
+    Else
+      $fonts[fontkey]["diff"] = d
+    End If
+  End If
+  If (filename) Then
+    c1 = New Collection
+    c1.Add(0, "n")
+    If (type = "TrueType") Then
+      c1.Add(originalsize, "length1")
+      c1.Add(0, "length2")
+    Else
+      c1.Add(size1, "length1")
+      c1.Add(size2, "length2")
+    End If
+    $FontFiles.Add(c1, filename)
+  End If
+  
+End
+
+Public Sub SetFont(family As String, Optional style As String = "", Optional size As Integer = 0)
+  
+  Dim c As Collection
+  Dim fontkey, filename As String
+  Dim i As Integer
+  Dim fpdf_charwidths As Integer[]
+  'Select a font; size given in points
+  family = Lower(family)
+  If (family = "") Then family = $FontFamily
+  Select Case family
+    Case "arial"
+      family = "helvetica"
+    Case "symbol", "zapfdingbats"
+      style = ""
+  End Select
+  style = Upper(style)
+  If (InStr(style, "U")) Then
+    $underline = True
+    style = Replace(style, "U", "")
+  Else
+    $underline = False
+  End If
+  If (style = "IB") Then style = "BI"
+  If (size = 0) Then size = $FontSizePt
+  'Test if font is already selected
+  If ($FontFamily = family And $FontStyle = style And $FontSizePt = size) Then Return
+  'Test if used for the first Time
+  fontkey = family & style
+  If (Not $fonts.Exist(fontkey)) Then
+    'Check if one of the standard fonts
+    If ($CoreFonts.Exist(fontkey)) Then
+      'Load metric file
+      filename = family
+      If (family = "times" Or family = "helvetica") Then filename &= style
+      fpdf_charwidths = PdfWriterFont.Font(filename)
+      i = $fonts.Count
+      c = New Collection
+      c.Add(i, "i")
+      c.Add("core", "type")
+      c.Add($CoreFonts[fontkey], "name")
+      c.Add("", "desc")
+      c.Add(-100, "up")
+      c.Add(50, "ut")
+      c.Add(fpdf_charwidths, "cw")
+      c.Add(False, "enc")
+      c.Add("", "file")
+      c.Add(0, "diff")
+      c.Add(0, "n")
+      $fonts.Add(c, fontkey)
+    Else
+      Error.Raise("Undefined font: " & family & " " & style)
+    End If
+  End If
+  'Select it
+  $FontFamily = family
+  $FontStyle = style
+  $FontSizePt = size
+  $FontSize = size / $k
+  $CurrentFont = $fonts[fontkey]
+  If ($page >= 0) Then _out("BT /F" & Str($CurrentFont["i"] + 1) & " " & _stringFloat($FontSizePt, "0.00") & " Tf ET")
+  
+End
+
+Public Sub SetFontSize(size As Integer)
+  'Set font size in points
+  
+  If ($FontSizePt = size) Then Return
+  $FontSizePt = size
+  $FontSize = size / $k
+  If ($page >= 0) Then _out("BT /F" & Str($CurrentFont["i"] + 1) & " " & _stringFloat($FontSizePt, "0.00") & " Tf ET")
+  
+End
+
+Public Function AddLink() As Integer
+  'Create a new internal link
+  
+  Dim n As Integer = $links.Count
+  
+  $links.Add([0, 0], Str(n))
+  Return (n)
+  
+End
+
+Public Sub SetLink(slink As String, Optional y As Float = 0, Optional page As Integer = -1)
+  'Set destination of internal link
+  
+  If (y = -1) Then y = $y
+  If (page = -1) Then page = $page
+  $links[slink] = [page, y]
+  
+End
+
+Public Sub Link(x As Integer, y As Integer, w As Integer, h As Integer, slink As String)
+  
+  Dim v As New Variant[]
+  Dim v1 As New Variant[]
+  
+  v.Add(x * $k)
+  v.Add($hPt - y * $k)
+  v.Add(w * $k)
+  v.Add(h * $k)
+  v.Add(slink)
+  'Put a link on the page
+  If (Not $PageLinks.Exist(Str($page))) Then $PageLinks.Add(v1, Str($page))
+  $PageLinks[Str($page)].Add(v)
+  
+End
+
+Public Sub Text(x As Float, y As Float, txt As String)
+  'Output a string
+  
+  Dim s As String
+  
+  s = "BT " & _stringFloat(x * $k, "0.00") & " " &
+    _stringFloat(($h - y) * $k, "0.00") & " Td (" & _escape(txt) & ") Tj ET"
+  If ($underline And txt <> "") Then s &= " " & _dounderline(x, y, txt)
+  If ($ColorFlag) Then s = "q " & $TextColor & " " & s & " Q"
+  _out(s)
+  
+End
+
+Public Function AcceptPageBreak() As Boolean
+  'Accept automatic page break or not
+  
+  Return ($AutoPageBreak)
+  
+End
+
+Public Sub Cell(w As Float, Optional h As Float = 0, Optional txt As String = "", Optional border As Variant = False, Optional ln As Integer = 0, Optional align As String = "", Optional fill As Boolean = False, Optional slink As String = "")
+  
+  Dim k, x, y, ws, dx, wmax, wlink As Float
+  Dim s, op, txt2 As String
+  'Output a cell
+  k = $k
+  If ($y + h > $PageBreakTrigger And Not $InFooter And AcceptPageBreak()) Then
+    'Automatic page break
+    x = $x
+    ws = $ws
+    If (ws > 0) Then
+      $ws = 0
+      _out("0 Tw")
+    End If
+    Me.AddPage($CurOrientation)
+    $x = x
+    If (ws > 0) Then
+      $ws = ws
+      _out(_stringFloat(ws * k, "0.000") & " Tw")
+    End If
+  End If
+  If (w = 0) Then w = $w - $rMargin - $x
+  s = ""
+  ' [GB2:ISTY] If (IsBoolean(border)) Then
+  If (TypeOf(border) = gb.Boolean) Then
+    If (fill Or border) Then
+      op = IIf(fill, IIf(border, "B", "f"), "S")
+      s = _stringFloat($x * k, "0.00") & " " &
+        _stringFloat(($h - $y) * k, "0.00") & " " &
+        _stringFloat(w * k, "0.00") & " " &
+        _stringFloat(- h * k, "0.00") & " re " & op & " "
+    End If
+    ' [GB2:ISTY] Else If (IsString(border)) Then
+  Else If (TypeOf(border) = gb.String) Then
+    x = $x
+    y = $y
+    If (InStr(border, "L")) Then
+      s &= _stringFloat(x * k, "0.00") & " " &
+        _stringFloat(($h - y) * k, "0.00") & " m " &
+        _stringFloat(x * k, "0.00") & " " &
+        _stringFloat(($h - (y + h)) * k, "0.00") & " l S "
+    End If
+    If (InStr(border, "T")) Then
+      s &= _stringFloat(x * k, "0.00") & " " &
+        _stringFloat(($h - y) * k, "0.00") & " m " &
+        _stringFloat((x + w) * k, "0.00") & " " &
+        _stringFloat(($h - y) * k, "0.00") & " l S "
+    End If
+    If (InStr(border, "R")) Then
+      s &= _stringFloat((x + w) * k, "0.00") & " " &
+        _stringFloat(($h - y) * k, "0.00") & " m " &
+        _stringFloat((x + w) * k, "0.00") & " " &
+        _stringFloat(($h - (y + h)) * k, "0.00") & " l S "
+    End If
+    If (InStr(border, "B")) Then
+      s &= _stringFloat(x * k, "0.00") & " " &
+        _stringFloat(($h - (y + h)) * k, "0.00") & " m " &
+        _stringFloat((x + w) * k, "0.00") & " " &
+        _stringFloat(($h - (y + h)) * k, "0.00") & " l S "
+    End If
+  End If
+  If (txt <> "") Then
+    Select Case align
+      Case "R"
+        dx = w - $cMargin - Me.GetStringWidth(txt)
+      Case "C"
+        dx = (w - Me.GetStringWidth(txt)) / 2
+      Case "FJ" 'Justify
+        'Set word spacing
+        wmax = (w - 2 * $cMargin)
+        $ws = (wmax - Me.GetStringWidth(txt)) / (Split(txt, " ").Count - 1)
+        _out(_stringFloat($ws * $k, "0.000") & " Tw")
+        dx = $cMargin
+      Default
+        dx = $cMargin
+    End Select
+    If ($ColorFlag) Then s &= "q " & $TextColor & " "
+    txt2 = Replace(Replace(Replace(txt, "\\", "\\\\"), "(", "\\("), ")", "\\)")
+    If String.Right$(txt2) <> "€" Then 
+      Try txt2 = Conv(txt2, "UTF-8", "ISO-8859-15") 'aggiunta
+    Else
+      Try txt2 = Conv(txt2, "UTF-8", "ISO-8859-1")
+      'If Error Then Print Chr(128)
+    Endif
+    'righe aggiunte da golia
+    If Error Then
+      txt2 = Replace(txt2, "€", Chr(128))
+      txt2 = Replace(txt2, "‚", Chr(130))
+      txt2 = Replace(txt2, "ƒ", Chr(131))
+      txt2 = Replace(txt2, "„", Chr(132))
+      txt2 = Replace(txt2, "…", Chr(133))
+      txt2 = Replace(txt2, "†", Chr(134))
+      txt2 = Replace(txt2, "‡", Chr(135))
+      txt2 = Replace(txt2, "ˆ", Chr(136))
+      txt2 = Replace(txt2, "‰", Chr(137))
+      txt2 = Replace(txt2, "Š", Chr(138))
+      txt2 = Replace(txt2, "‹", Chr(139))
+      txt2 = Replace(txt2, "Œ", Chr(140))
+      txt2 = Replace(txt2, "Ž", Chr(142))
+      txt2 = Replace(txt2, "‘", Chr(145))
+      txt2 = Replace(txt2, "’", Chr(146))
+      txt2 = Replace(txt2, "“", Chr(147))
+      txt2 = Replace(txt2, "”", Chr(148))
+      txt2 = Replace(txt2, "•", Chr(149))
+      txt2 = Replace(txt2, "–", Chr(150))
+      txt2 = Replace(txt2, "—", Chr(151))
+      txt2 = Replace(txt2, "˜", Chr(152))
+      txt2 = Replace(txt2, "™", Chr(153))
+      txt2 = Replace(txt2, "š", Chr(154))
+      txt2 = Replace(txt2, "›", Chr(155))
+      txt2 = Replace(txt2, "œ", Chr(156))
+      txt2 = Replace(txt2, "ž", Chr(158))
+      txt2 = Replace(txt2, "Ÿ", Chr(159))
+      txt2 = Replace(txt2, "é", "e")
+      txt2 = Replace(txt2, "è", "e")
+      txt2 = Replace(txt2, "£", Chr(163))
+      txt2 = Replace(txt2, "à", "a")
+      txt2 = Replace(txt2, "â", "a")
+      txt2 = Replace(txt2, "ç", "c")
+      txt2 = Replace(txt2, "ì", "i")
+      txt2 = Replace(txt2, "ò", "o")
+      txt2 = Replace(txt2, "ô", "o")
+      txt2 = Replace(txt2, "°", "o")
+      txt2 = Replace(txt2, "ù", "u")
+      txt2 = Replace(txt2, "§", Chr(167))
+    Endif
+    'fine righe golia
+    
+    s &= "BT " & _stringFloat(($x + dx) * k, "0.00") & " " &
+      _stringFloat(($h - ($y + 0.5 * h + 0.3 * $FontSize)) * k, "0.00") & " Td (" & txt2 & ") Tj ET"
+    If ($underline) Then s &= " " & _dounderline($x + dx, $y + 0.5 * h + 0.3 * $FontSize, txt)
+    If ($ColorFlag) Then s &= " Q"
+    'IF (slink) THEN ME.Link($x + dx, $y + 0.5 * h - 0.5 * $FontSize, ME.GetStringWidth(txt), $FontSize, slink)
+    If (slink) Then
+      If (align = "FJ") Then
+        wlink = wmax
+      Else
+        wlink = Me.GetStringWidth(txt)
+      End If
+      Me.Link($x + dx, $y + 0.5 * h - 0.5 * $FontSize, wlink, $FontSize, slink)
+    End If
+  End If
+  If (s) Then _out(s)
+  If (align = "FJ") Then
+    'Remove word spacing
+    _out("0 Tw")
+    $ws = 0
+  End If
+  $lasth = h
+  If (ln > 0) Then
+    'Go to next line
+    $y += h
+    If (ln = 1) Then $x = $lMargin
+  Else
+    $x += w
+  End If
+  
+End
+
+Public Sub MultiCell(w As Float, h As Float, txt As String, Optional border As Variant = False, Optional align As String = "J", Optional fill As Boolean = False)
+  
+  Dim cw As Integer[]
+  Dim wmax As Float
+  Dim s, b, b2, c As String
+  Dim nb, sep, i, j, l, ns, nl, ls As Integer
+  'Output text with automatic or explicit line breaks
+  cw = $CurrentFont["cw"]
+  If (w = 0) Then w = $w - $rMargin - $x
+  wmax = (w - 2 * $cMargin) * 1000 / $FontSize
+  s = Replace(txt, "\r", "")
+  nb = Len(s)
+  If (nb > 0) And If (Mid(s, nb, 1) = "\n") Then Dec nb
+  b = 0
+  ' [GB2:ISTY] If (IsBoolean(border) Or IsInteger(border)) Then
+  If (TypeOf(border) = gb.Boolean Or TypeOf(border) = gb.Integer) Then
+    If (border) Then
+      border = "LTRB"
+      b = "LRT"
+      b2 = "LR"
+    End If
+    ' [GB2:ISTY] Else If (IsString(border)) Then
+  Else If (TypeOf(border) = gb.String) Then
+    b2 = ""
+    If (InStr(border, "L")) Then b2 &= "L"
+    If (InStr(border, "R")) Then b2 &= "R"
+    b = IIf(InStr(border, "T"), b2 & "T", b2)
+  End If
+  sep = -1
+  i = 1
+  j = 1
+  l = 0
+  ns = 0
+  nl = 1
+  While (i <= nb)
+    'Get next character
+    c = Mid(s, i, 1)
+    If (c = "\n") Then
+      'Explicit line break
+      If ($ws > 0) Then
+        $ws = 0
+        _out("0 Tw")
+      End If
+      Me.Cell(w, h, Mid(s, j, i - j), b, 2, align, fill)
+      Inc i
+      sep = -1
+      j = i
+      l = 0
+      ns = 0
+      Inc nl
+      ' [GB2:ISTY] If (IsBoolean(border) Or IsInteger(border)) Then
+      If (TypeOf(border) = gb.Boolean Or TypeOf(border) = gb.Integer) Then
+        If (border And nl = 2) Then b = b2
+        ' [GB2:ISTY] Else If (IsString(border)) Then
+      Else If (TypeOf(border) = gb.String) Then
+        If (Not IsNull(border) And nl = 2) Then b = b2
+      End If
+      Continue
+    End If
+    If (c = " ") Then
+      sep = i
+      ls = l
+      Inc ns
+    End If
+    l += cw[Asc(c)]
+    If (l > wmax) Then
+      'Automatic line break
+      If (sep = -1) Then
+        If (i = j) Then Inc i
+        If ($ws > 0) Then
+          $ws = 0
+          _out("0 Tw")
+        End If
+        Me.Cell(w, h, Mid(s, j, i - j), b, 2, align, fill)
+      Else
+        If (align = "J") Then
+          $ws = IIf(ns > 1, (wmax - ls) / 1000 * $FontSize / (ns - 1), 0)
+          _out(_stringFloat($ws * $k, "0.000") & " Tw")
+        End If
+        Me.Cell(w, h, Mid(s, j, sep - j), b, 2, align, fill)
+        i = sep + 1
+      End If
+      sep = -1
+      j = i
+      l = 0
+      ns = 0
+      Inc nl
+      ' [GB2:ISTY] If (IsBoolean(border) Or IsInteger(border)) Then
+      If (TypeOf(border) = gb.Boolean Or TypeOf(border) = gb.Integer) Then
+        If (border And nl = 2) Then b = b2
+        ' [GB2:ISTY] Else If (IsString(border)) Then
+      Else If (TypeOf(border) = gb.String) Then
+        If (Not IsNull(border) And nl = 2) Then b = b2
+      End If
+    Else
+      Inc i
+    End If
+  Wend
+  'Last chunk
+  If ($ws > 0) Then
+    $ws = 0
+    _out("0 Tw")
+  End If
+  ' [GB2:ISTY] If (IsString(border)) Then
+  If (TypeOf(border) = gb.String) Then
+    If (Not IsNull(border) And InStr(border, "B")) Then b &= "B"
+  End If
+  Me.Cell(w, h, Mid(s, j, i - j), b, 2, align, fill)
+  $x = $lMargin
+  
+End
+
+Public Sub Write(h As Float, txt As String, Optional slink As String = "")
+  
+  Dim cw As Integer[]
+  Dim w, wmax As Float
+  Dim s, c As String
+  Dim nb, sep, i, j, l, nl As Integer
+  'Output text in flowing mode
+  cw = $CurrentFont["cw"]
+  w = $w - $rMargin - $x
+  wmax = (w - 2 * $cMargin) * 1000 / $FontSize
+  s = Replace(txt, "\r", "")
+  nb = Len(s)
+  sep = -1
+  i = 0
+  j = 0
+  l = 0
+  nl = 1
+  While (i < nb)
+    'Get next character
+    c = Mid(s, i, 1)
+    If (c = "\n") Then
+      'Explicit line break
+      Me.Cell(w, h, Mid(s, j, i - j), 0, 2, "", 0, slink)
+      Inc i
+      sep = -1
+      j = i
+      l = 0
+      If (nl = 1) Then
+        $x = $lMargin
+        w = $w - $rMargin - $x
+        wmax = (w - 2 * $cMargin) * 1000 / $FontSize
+      End If
+      Inc nl
+      Continue
+    End If
+    If (c = " ") Then sep = i
+    l += cw[Asc(c)]
+    If (l > wmax) Then
+      'Automatic line break
+      If (sep = -1) Then
+        If ($x > $lMargin) Then
+          'Move to next line
+          $x = $lMargin
+          $y += h
+          w = $w - $rMargin - $x
+          wmax = (w - 2 * $cMargin) * 1000 / $FontSize
+          Inc i
+          Inc nl
+          Continue
+        End If
+        If (i = j) Then Inc i
+        Me.Cell(w, h, Mid(s, j, i - j), 0, 2, "", 0, slink)
+      Else
+        Me.Cell(w, h, Mid(s, j, sep - j), 0, 2, "", 0, slink)
+        i = sep + 1
+      End If
+      sep = -1
+      j = i
+      l = 0
+      If (nl = 1) Then
+        $x = $lMargin
+        w = $w - $rMargin - $x
+        wmax = (w - 2 * $cMargin) * 1000 / $FontSize
+      End If
+      Inc nl
+    Else
+      Inc i
+    End If
+  Wend
+  'Last chunk
+  If (i <> j) Then Me.Cell(l / 1000 * $FontSize, h, Mid(s, j), 0, 0, "", 0, slink)
+  
+End
+
+Public Sub Image(filename As String, x As Float, y As Float, Optional w As Float = 0, Optional h As Float = 0, Optional type As String = "", Optional slink As String = "")
+  
+  Dim pos As Integer
+  Dim info As Collection
+  'Put an image on the page
+  If (Not $images.Exist(filename)) Then
+    'First use of image, get info
+    If (type = "") Then
+      pos = RInStr(filename, ".")
+      If (pos = 0) Then Error.Raise("Image file has no extension and no type was specified: " & filename)
+      type = Mid(filename, pos + 1)
+    End If
+    type = Lower(type)
+    If (type = "jpg" Or type = "jpeg") Then
+      info = _parsejpg(filename)
+    Else If (type = "png") Then
+      info = _parsepng(filename)
+    Else
+      Error.Raise("Unsupported image type: " & type)
+    End If
+    info["i"] = $images.Count
+    $images[filename] = info
+  Else
+    info = $images[filename]
+  End If
+  'Automatic width and height calculation if needed
+  If (w = 0 And h = 0) Then
+    'Put image at 72 dpi
+    w = info["w"] / $k
+    h = info["h"] / $k
+  End If
+  If (w = 0) Then w = h * info["w"] / info["h"]
+  If (h = 0) Then h = w * info["h"] / info["w"]
+  _out("q " &
+    _stringFloat(w * $k, "0.00") & " 0 0 " &
+    _stringFloat(h * $k, "0.00") & " " &
+    _stringFloat(x * $k, "0.00") & " " &
+    _stringFloat(($h - (y + h)) * $k, "0.00") & " cm /I" & Str(info["i"] + 1) & " Do Q")
+  If (slink) Then Me.Link(x, y, w, h, slink)
+  
+End
+
+Public Sub Ln(Optional h As Variant = "")
+  'Line feed; default value is last cell height
+  
+  $x = $lMargin
+  ' [GB2:ISTY] $y += IIf(IsString(h), $lasth, h)
+  $y += IIf(TypeOf(h) = gb.String, $lasth, h)
+  
+End
+
+Public Function GetX() As Float
+  'Get x position
+  
+  Return ($x)
+  
+End
+
+Public Sub SetX(x As Float)
+  'Set x position
+  
+  $x = IIf(x >= 0, x, $w + x)
+  
+End
+
+Public Function GetY() As Float
+  'Get y position
+  
+  Return ($y)
+  
+End
+
+Public Sub SetY(y As Float)
+  'Set y position and reset x
+  
+  $x = $lMargin
+  $y = IIf(y >= 0, y, $h + y)
+  
+End
+
+Public Sub SetXY(x As Float, y As Float)
+  'Set x and y positions
+  
+  Me.SetY(y)
+  Me.SetX(x)
+  
+End
+
+Public Function Output(Optional name As String = "", Optional dest As Variant = "") As String
+  
+  Dim f As File
+  'Output PDF to some destination
+  'Finish document if necessary
+  If ($state < 3) Then Me.Close()
+  'Normalize parameters
+  ' [GB2:ISTY] If (IsBoolean(dest)) Then dest = IIf(dest, "D", "F")
+  If (TypeOf(dest) = gb.Boolean) Then dest = IIf(dest, "D", "F")
+  dest = Upper(dest)
+  If (dest = "") Then
+    If (name = "") Then
+      name = "doc.pdf"
+      dest = "I"
+    Else
+      dest = "F"
+    End If
+  End If
+  Select Case dest
+    Case "I"
+      Print $buffer
+    Case "F"
+      'Save to local file
+      f = Open name For Write Create
+      If (IsNull(f)) Then Error.Raise("Unable to create output file: " & name)
+      Write #f, $buffer, Len($buffer)
+      Close #f
+    Case "S"
+      'Return as a string
+      Return ($buffer)
+    Default
+      Error.Raise("Incorrect output destination: " & dest)
+  End Select
+  Return ("")
+  
+End
+
+' Rounded rectangle
+' Original Author: Maxime Delorme, Christophe Prugnaud
+' Porting into Gambas
+' Note: This script is based on this one and allows to draw a rectangle with some rounded corners.
+' Parameters:
+'     x, y: top left corner of the rectangle.
+'     w, h: width and height.
+'     r: radius of the rounded corners.
+'     style: same as Rect(): F, D (default), FD or DF.
+'     angle: numbers of the corners to be rounded: 1, 2, 3, 4 or any combination (1=top left, 2=top right, 3=bottom right, 4=bottom left).
+Public Sub RoundedRect(x As Float, y As Float, w As Float, h As Float, r As Float, Optional style As String = "", Optional angle As String = "1234")
+  
+  Dim k, hp, MyArc, xc, yc As Float
+  Dim op As String
+  
+  k = $k
+  hp = $h
+  Select Case style
+    Case "F"
+      op = "f"
+    Case "FD", "DF"
+      op = "B"
+    Default
+      op = "S"
+  End Select
+  MyArc = 4 / 3 * (Sqr(2) - 1)
+  _out(_stringFloat((x + r) * k, "0.00") & " " & _stringFloat((hp - y) * k, "0.00") & " m")
+  xc = x + w - r
+  yc = y + r
+  _out(_stringFloat(xc * k, "0.00") & " " & _stringFloat((hp - y) * k, "0.00") & " l")
+  If (InStr(angle, "2") = 0) Then
+    _out(_stringFloat((x + w) * k, "0.00") & " " & _stringFloat((hp - y) * k, "0.00") & " l")
+  Else
+    _Arc(xc + r * MyArc, yc - r, xc + r, yc - r * MyArc, xc + r, yc)
+  End If
+  xc = x + w - r
+  yc = y + h - r
+  _out(_stringFloat((x + w) * k, "0.00") & " " & _stringFloat((hp - yc) * k, "0.00") & " l")
+  If (InStr(angle, "3") = 0) Then
+    _out(_stringFloat((x + w) * k, "0.00") & " " & _stringFloat((hp - (y + h)) * k, "0.00") & " l")
+  Else
+    _Arc(xc + r, yc + r * MyArc, xc + r * MyArc, yc + r, xc, yc + r)
+  End If
+  xc = x + r
+  yc = y + h - r
+  _out(_stringFloat(xc * k, "0.00") & " " & _stringFloat((hp - (y + h)) * k, "0.00") & " l")
+  If (InStr(angle, "4") = 0) Then
+    _out(_stringFloat((x) * k, "0.00") & " " & _stringFloat((hp - (y + h)) * k, "0.00") & " l")
+  Else
+    _Arc(xc - r * MyArc, yc + r, xc - r, yc + r * MyArc, xc - r, yc)
+  End If
+  xc = x + r
+  yc = y + r
+  _out(_stringFloat((x) * k, "0.00") & " " & _stringFloat((hp - yc) * k, "0.00") & " l")
+  If (InStr(angle, "1") = 0) Then
+    _out(_stringFloat((x) * k, "0.00") & " " & _stringFloat((hp - y) * k, "0.00") & " l")
+    _out(_stringFloat((x + w) * k, "0.00") & " " & _stringFloat((hp - y) * k, "0.00") & " l")
+  Else
+    _Arc(xc - r, yc - r * MyArc, xc - r * MyArc, yc - r, xc, yc - r)
+  End If
+  _out(op)
+  
+End
+
+'Geometric figures (David Hernández Sanz)
+' Draws a rounded rectangle
+' Parameters:
+' - x, y: Top left corner
+' - w, h: Width and height
+' - r: Radius of the rounded corners
+' - round_corner: Draws rounded corner or not. String with a 0 (not rounded i-corner)
+'                 or 1 (rounded i-corner) in i-position. Positions are, in order and
+'                 begin to 0: top left, top right, bottom right and bottom left
+' - style: Style of rectangle (draw and/or fill) (D, F, DF, FD)
+' - border_style: Border style of rectangle. Array like for SetLineStyle
+' - fill_color: Fill color. Array with components (red, green, blue)
+Public Sub RoundedRect2(x As Float, y As Float, w As Float, h As Float, r As Float, Optional round_corner As String = "1111", Optional style As String = "", Optional border_style As Collection = Null, Optional fill_color As Integer[] = Null)
+  
+  Dim op As String
+  Dim MyArc, xc, yc As Float
+  
+  If ("0000" = round_corner) Then 'Not rounded
+    Me.Rect2(x, y, w, h, style, border_style, fill_color)
+  Else 'Rounded
+    If (InStr(style, "F") > 0 And Not IsNull(fill_color)) Then
+      Me.SetFillColor(fill_color[0], fill_color[1], fill_color[2])
+    End If
+    Select Case style
+      Case "F"
+        border_style = Null
+        op = "f"
+      Case "FD", "DF"
+        op = "B"
+      Default
+        op = "S"
+    End Select
+    If (Not IsNull(border_style)) Then Me.SetLineStyle(border_style)
+    MyArc = 4 / 3 * (Sqr(2) - 1)
+    _Point(x + r, y)
+    xc = x + w - r
+    yc = y + r
+    _Line(xc, y)
+    If (Mid(round_corner, 1, 1) = "1") Then
+      _Curve(xc + (r * MyArc), yc - r, xc + r, yc - (r * MyArc), xc + r, yc)
+    Else
+      _Line(x + w, y)
+    End If
+    xc = x + w - r
+    yc = y + h - r
+    _Line(x + w, yc)
+    If (Mid(round_corner, 2, 1) = "1") Then
+      _Curve(xc + r, yc + (r * MyArc), xc + (r * MyArc), yc + r, xc, yc + r)
+    Else
+      _Line(x + w, y + h)
+    End If
+    xc = x + r
+    yc = y + h - r
+    _Line(xc, y + h)
+    If (Mid(round_corner, 3, 1) = "1") Then
+      _Curve(xc - (r * MyArc), yc + r, xc - r, yc + (r * MyArc), xc - r, yc)
+    Else
+      _Line(x, y + h)
+    End If
+    xc = x + r
+    yc = y + r
+    _Line(x, yc)
+    If (Mid(round_corner, 4, 1) = "1") Then
+      _Curve(xc - r, yc - (r * MyArc), xc - (r * MyArc), yc - r, xc, yc - r)
+    Else
+      _Line(x, y)
+      _Line(x + r, y)
+    End If
+    _out(op)
+  End If
+  
+End
+
+'GetStringLimit (Luigi Carlotto)
+' It returns tightens it cut to the demanded dimension if longer, continuation to right from three dots.
+'   s: text
+'   d: max width
+Public Function GetStringLimit(Optional s As String = "", Optional d As Integer = 0) As String
+  
+  If (Me.GetStringWidth(s) > d) Then
+    While (Me.GetStringWidth(s & "...") > d)
+      s = Mid(s, 1, Len(s) - 1)
+    Wend
+    s &= "..."
+  End If
+  Return s
+  
+End
+
+'Rotations (Olivier)
+Public Sub RotatedText(x As Float, y As Float, txt As String, angle As Float)
+  'Text rotated around its origin
+  
+  _rotate(angle, x, y)
+  Me.Text(x, y, txt)
+  _rotate(0)
+  
+End
+
+'Rotations (Olivier)
+Public Sub RotatedImage(filename As String, x As Float, y As Float, w As Float, h As Float, angle As Float)
+  'Image rotated around its upper-left corner
+  
+  _rotate(angle, x, y)
+  Me.Image(filename, x, y, w, h)
+  _rotate(0)
+  
+End
+
+Public Sub SetColumnWidths(w As Float[])
+  'Set the array of column widths
+  
+  $columnWidths = w
+  
+End
+
+Public Sub SetColumnAligns(a As String[])
+  'Set the array of column alignments
+  
+  $columnAligns = a
+  
+End
+
+'Table with MultiCells (Olivier)
+Public Sub Row(data As String[])
+  
+  Dim nb, i As Integer
+  Dim h, w, x, y As Float
+  Dim a As String
+  'Calculate the height of the row
+  If (data.Count <> $columnWidths.Count) Then Error.Raise("Row: Error number element's in array")
+  nb = 0
+  For i = 0 To (data.Count - 1)
+    nb = Max(nb, _nbLines($columnWidths[i], data[i]))
+  Next
+  h = 5 * nb
+  'Issue a page break first if needed
+  _checkPageBreak(h)
+  'Draw the cells of the row
+  For i = 0 To (data.Count - 1)
+    w = $columnWidths[i]
+    If (i >= $columnAligns.Count) Then
+      a = "L"
+    Else If (IsNull($columnAligns[i])) Then
+      a = "L"
+    Else
+      a = $columnAligns[i]
+    End If
+    'Save the current position
+    x = Me.GetX()
+    y = Me.GetY()
+    'Draw the border
+    Me.Rect(x, y, w, h)
+    'Print the text
+    Me.MultiCell(w, 5, data[i], 0, a)
+    'Put the position to the right of the cell
+    Me.SetXY(x + w, y)
+  Next
+  'Go to the next line
+  Me.Ln(h)
+  
+End
+
+'Circles and ellipses (Olivier)
+'This script allows to draw circles and ellipses.
+'   x: abscissa of center.
+'   y: ordinate of center.
+'   r: radius.
+'   style: style of rendering, like for Rect (D, F or FD). Default value: D.
+Public Sub Circle(x As Float, y As Float, r As Float, Optional style As String = "")
+  
+  Me.Ellipse(x, y, r, r, style)
+  
+End
+
+'Geometric figures (David Hernández Sanz)
+' Draws a circle
+' Parameters:
+' - x0, y0: Center point
+' - r: Radius
+' - astart: Start angle
+' - afinish: Finish angle
+' - style: Style of circle (draw and/or fill) (D, F, DF, FD, C (D + close))
+' - line_style: Line style for circle. Array like for SetLineStyle
+' - fill_color: Fill color. Array with components (red, green, blue)
+' - nSeg: Ellipse is made up of nSeg Bézier curves
+Public Sub Circle2(x0 As Float, y0 As Float, r As Float, Optional astart As Float = 0, Optional afinish As Float = 360, Optional style As String = "", Optional line_style As Collection = Null, Optional fill_color As Integer[] = Null, Optional nSeg As Integer = 8)
+  
+  Me.Ellipse2(x0, y0, r, 0, 0, astart, afinish, style, line_style, fill_color, nSeg)
+  
+End
+
+'Circles and ellipses (Olivier)
+'This script allows to draw circles and ellipses.
+'   x: abscissa of center.
+'   y: ordinate of center.
+'   rx: horizontal radius.
+'   ry: vertical radius.
+'   style: style of rendering.
+Public Sub Ellipse(x As Float, y As Float, rx As Float, ry As Float, Optional style As String = "D")
+  
+  Dim op As String
+  Dim lx, ly, k, h As Float
+  
+  If (style = "F") Then
+    op = "f"
+  Else If (style = "FD" Or style = "DF") Then
+    op = "B"
+  Else
+    op = "S"
+  End If
+  lx = 4 / 3 * (Sqr(2) - 1) * rx
+  ly = 4 / 3 * (Sqr(2) - 1) * ry
+  k = $k
+  h = $h
+  _out(_stringFloat((x + rx) * k, "0.00") & " " &
+    _stringFloat((h - y) * k, "0.00") & " m " &
+    _stringFloat((x + rx) * k, "0.00") & " " &
+    _stringFloat((h - (y - ly)) * k, "0.00") & " " &
+    _stringFloat((x + lx) * k, "0.00") & " " &
+    _stringFloat((h - (y - ry)) * k, "0.00") & " " &
+    _stringFloat(x * k, "0.00") & " " &
+    _stringFloat((h - (y - ry)) * k, "0.00") & " c")
+  _out(_stringFloat((x - lx) * k, "0.00") & " " &
+    _stringFloat((h - (y - ry)) * k, "0.00") & " " &
+    _stringFloat((x - rx) * k, "0.00") & " " &
+    _stringFloat((h - (y - ly)) * k, "0.00") & " " &
+    _stringFloat((x - rx) * k, "0.00") & " " &
+    _stringFloat((h - y) * k, "0.00") & " c")
+  _out(_stringFloat((x - rx) * k, "0.00") & " " &
+    _stringFloat((h - (y + ly)) * k, "0.00") & " " &
+    _stringFloat((x - lx) * k, "0.00") & " " &
+    _stringFloat((h - (y + ry)) * k, "0.00") & " " &
+    _stringFloat(x * k, "0.00") & " " &
+    _stringFloat((h - (y + ry)) * k, "0.00") & " c")
+  _out(_stringFloat((x + lx) * k, "0.00") & " " &
+    _stringFloat((h - (y + ry)) * k, "0.00") & " " &
+    _stringFloat((x + rx) * k, "0.00") & " " &
+    _stringFloat((h - (y + ly)) * k, "0.00") & " " &
+    _stringFloat((x + rx) * k, "0.00") & " " &
+    _stringFloat((h - y) * k, "0.00") & " c " & op)
+  
+End
+
+'Geometric figures (David Hernández Sanz)
+' Draws an ellipse
+' Parameters:
+' - x0, y0: Center point
+' - rx, ry: Horizontal and vertical radius (if ry = 0, draws a circle)
+' - angle: Orientation angle (anti-clockwise)
+' - astart: Start angle
+' - afinish: Finish angle
+' - style: Style of ellipse (draw and/or fill: D, F, DF, FD, C (D + close))
+' - line_style: Line style for ellipse. Array like for SetLineStyle
+' - fill_color: Fill color. Array with components (red, green, blue)
+' - nSeg: Ellipse is made up of nSeg Bézier curves
+Public Sub Ellipse2(x0 As Float, y0 As Float, rx As Float, Optional ry As Float = 0, Optional angle As Float = 0, Optional astart As Float = 0, Optional afinish As Float = 360, Optional style As String = "", Optional line_style As Collection = Null, Optional fill_color As Integer[] = Null, Optional nSeg As Integer = 8)
+  
+  Dim r, g, b, i As Integer
+  Dim op As String
+  Dim totalAngle, dt, dtm, a, t1 As Float
+  Dim a0, b0, c0, d0, a1, b1, c1, d1 As Float
+  
+  If (rx) Then
+    If (InStr(style, "F") > 0 And Not IsNull(fill_color)) Then
+      r = fill_color[0]
+      g = fill_color[1]
+      b = fill_color[2]
+      Me.SetFillColor(r, g, b)
+    End If
+    Select Case style
+      Case "F"
+        op = "f"
+        line_style = Null
+      Case "FD", "DF"
+        op = "B"
+      Case "C"
+        op = "s" 'small 's' means closing the path as well
+      Default
+        op = "S"
+    End Select
+    If (Not IsNull(line_style)) Then Me.SetLineStyle(line_style)
+    If (ry = 0) Then ry = rx
+    rx *= $k
+    ry *= $k
+    If (nSeg < 2) Then nSeg = 2
+    astart = Rad(astart)
+    afinish = Rad(afinish)
+    totalAngle = afinish - astart
+    dt = totalAngle / nSeg
+    dtm = dt / 3
+    x0 *= $k
+    y0 = ($h - y0) * $k
+    If (angle <> 0) Then
+      a = - Rad(angle)
+      _out("q " &
+        _stringFloat(Cos(a), "0.00") & " " &
+        _stringFloat(-1 * Sin(a), "0.00") & " " &
+        _stringFloat(Sin(a), "0.00") & " " &
+        _stringFloat(Cos(a), "0.00") & " " &
+        _stringFloat(x0, "0.00") & " " &
+        _stringFloat(y0, "0.00") & " cm")
+      x0 = 0
+      y0 = 0
+    End If
+    t1 = astart
+    a0 = x0 + (rx * Cos(t1))
+    b0 = y0 + (ry * Sin(t1))
+    c0 = - rx * Sin(t1)
+    d0 = ry * Cos(t1)
+    _Point(a0 / $k, $h - (b0 / $k))
+    For i = 1 To nSeg
+      'Draw this bit of the total curve
+      t1 = (i * dt) + astart
+      a1 = x0 + (rx * Cos(t1))
+      b1 = y0 + (ry * Sin(t1))
+      c1 = - rx * Sin(t1)
+      d1 = ry * Cos(t1)
+      _Curve((a0 + (c0 * dtm)) / $k,
+        $h - ((b0 + (d0 * dtm)) / $k),
+        (a1 - (c1 * dtm)) / $k,
+        $h - ((b1 - (d1 * dtm)) / $k),
+        a1 / $k,
+        $h - (b1 / $k))
+      a0 = a1
+      b0 = b1
+      c0 = c1
+      d0 = d1
+    Next
+    _out(op)
+    If (angle <> 0) Then _out("Q")
+  End If
+  
+End
+
+'Bookmarks (Olivier)
+'This extension adds bookmark support.
+'   txt: the bookmark title.
+'   level: the bookmark level (0 is top level, 1 is just below, and so on).
+'   y: the y position of the bookmark destination in the current page. -1 means the current position. Default value: 0.
+Public Sub Bookmark(txt As String, Optional level As Integer = 0, Optional y As Float = 0)
+  
+  Dim c As Collection
+  
+  If (y = -1) Then y = Me.GetY()
+  c = New Collection
+  c.Add(-1, "parent")
+  c.Add(-1, "first")
+  c.Add(-1, "last")
+  c.Add(-1, "next")
+  c.Add(-1, "prev")
+  c.Add(txt, "t")
+  c.Add(level, "l")
+  c.Add(y, "y")
+  c.Add(Me.PageNo(), "p")
+  $outlines.Add(c)
+  
+End
+
+'Index (Min's)
+'This class prints an index from the created bookmarks.
+Public Sub CreateIndex(Optional title As String = "Index")
+  
+  Dim size, i, level, nb As Integer
+  Dim PageCellSize, strsize, avail_size, w As Float
+  Dim txt, dots As String
+  'Index title
+  Me.SetFontSize(20)
+  Me.Cell(0, 5, title, 0, 1, "C")
+  Me.SetFontSize(15)
+  Me.Ln(10)
+  size = $outlines.Count
+  PageCellSize = Me.GetStringWidth("p. " & $outlines[size - 1]["p"]) + 2
+  For i = 0 To (size - 1)
+    'Offset
+    level = $outlines[i]["l"]
+    If (level > 0) Then Me.Cell(level * 8)
+    'Caption
+    txt = $outlines[i]["t"]
+    strsize = Me.GetStringWidth(txt)
+    avail_size = $w - $lMargin - $rMargin - PageCellSize - (level * 8) - 4
+    While (strsize >= avail_size)
+      txt = Mid(txt, 1)
+      strsize = Me.GetStringWidth(txt)
+    Wend
+    Me.Cell(strsize + 2, $FontSize + 2, txt)
+    'Filling dots
+    w = $w - $lMargin - $rMargin - PageCellSize - (level * 8) - (strsize + 2)
+    nb = w / Me.GetStringWidth(".")
+    dots = String(nb, ".")
+    Me.Cell(w, $FontSize + 2, dots, 0, 0, "R")
+    'Page number
+    Me.Cell(PageCellSize, $FontSize + 2, "p. " & $outlines[i]["p"], 0, 1, "R")
+  Next
+  
+End
+
+'Dashed rectangle (Antoine Michéa)
+'Description: Allows to draw a dashed rectangle.
+'Parameters are:
+'     x1, y1 : upper left corner of the rectangle.
+'     x2, y2 : lower right corner of the rectangle.
+'     width  : dash thickness (1 by default).
+'     nb     : number of dashes per line (15 by default).
+Public Sub DashedRect(x1 As Float, y1 As Float, x2 As Float, y2 As Float, Optional width As Float = 1, Optional nb As Integer = 15)
+  
+  Dim longueur, hauteur, Pointilles, i, j As Float
+  
+  Me.SetLineWidth(width)
+  longueur = Abs(x1 - x2)
+  hauteur = Abs(y1 - y2)
+  If (longueur > hauteur) Then
+    Pointilles = (longueur / nb) / 2 'length of dashes
+  Else
+    Pointilles = (hauteur / nb) / 2
+  End If
+  For i = x1 To x2 Step (Pointilles + Pointilles)
+    For j = i To (i + Pointilles)
+      If (j <= (x2 - 1)) Then
+        Me.Line(j, y1, j + 1, y1) 'upper dashes
+        Me.Line(j, y2, j + 1, y2) 'lower dashes
+      End If
+    Next
+  Next
+  For i = y1 To y2 Step (Pointilles + Pointilles)
+    For j = i To (i + Pointilles)
+      If (j <= (y2 - 1)) Then
+        Me.Line(x1, j, x1, j + 1) 'left dashes
+        Me.Line(x2, j, x2, j + 1) 'right dashes
+      End If
+    Next
+  Next
+  
+End
+
+'Sector (Maxime Delorme)
+'This script allows to draw the sector of a circle. It can be used for instance to render pie charts.
+'   xc: abscissa of the center.
+'   yc: ordinate of the center.
+'   r: radius.
+'   a: start angle (in degrees).
+'   b: end angle (in degrees).
+'   style: D, F, FD or DF (draw, fill, fill and draw). Default: FD.
+'   cw: indicates whether to go clockwise (default: true).
+'   o: origin of angles (0 for 3 o'clock, 90 for noon, 180 for 9 o'clock, 270 for 6 o'clock). Default: 90.
+Public Sub Sector(xc As Float, yc As Float, r As Float, a As Float, b As Float, Optional style As String = "FD", Optional cw As Boolean = True, Optional o As Float = 90)
+  
+  Dim k, hp, MyArc As Float
+  Dim op As String
+  Dim d As Float
+  
+  MyArc = 0
+  If (cw) Then
+    d = b
+    b = o - a
+    a = o - d
+  Else
+    b += o
+    a += o
+  End If
+  a = CFloat(CInt(a) Mod 360) + 360 '(CInt(a) MOD 360) + 360
+  b = CFloat(CInt(b) Mod 360) + 360 '(CInt(b) MOD 360) + 360
+  If (a > b) Then b += 360
+  b = b / 360 * 2 * Pi() 'CInt(b / 360 * 2 * Pi())
+  a = a / 360 * 2 * Pi() 'CInt(a / 360 * 2 * Pi())
+  d = b - a
+  If (d = 0) Then d = 2 * Pi() 'CInt(2 * Pi())
+  k = $k
+  hp = $h
+  If (style = "F") Then
+    op = "f"
+  Else If (style = "FD" Or style = "DF") Then
+    op = "b"
+  Else
+    op = "s"
+  End If
+  If (Sin(d / 2)) Then MyArc = 4 / 3 * (1 - Cos(d / 2)) / Sin(d / 2) * r 'CInt(4 / 3 * (1 - Cos(d / 2)) / Sin(d / 2) * r)
+  'first put the center
+  _out(_stringFloat((xc) * k, "0.00") & " " & _stringFloat((hp - yc) * k, "0.00") & " m")
+  'put the first point
+  _out(_stringFloat((xc + r * Cos(a)) * k, "0.00") & " " & _stringFloat((hp - (yc - r * Sin(a))) * k, "0.00") & " l")
+  'draw the arc
+  If (d < Pi() / 2) Then
+    _Arc(xc + r * Cos(a) + MyArc * Cos(Pi() / 2 + a),
+      yc - r * Sin(a) - MyArc * Sin(Pi() / 2 + a),
+      xc + r * Cos(b) + MyArc * Cos(b - Pi() / 2),
+      yc - r * Sin(b) - MyArc * Sin(b - Pi() / 2),
+      xc + r * Cos(b),
+      yc - r * Sin(b))
+  Else
+    b = a + d / 4
+    MyArc = 4 / 3 * (1 - Cos(d / 8)) / Sin(d / 8) * r
+    _Arc(xc + r * Cos(a) + MyArc * Cos(Pi() / 2 + a),
+      yc - r * Sin(a) - MyArc * Sin(Pi() / 2 + a),
+      xc + r * Cos(b) + MyArc * Cos(b - Pi() / 2),
+      yc - r * Sin(b) - MyArc * Sin(b - Pi() / 2),
+      xc + r * Cos(b),
+      yc - r * Sin(b))
+    a = b
+    b = a + d / 4
+    _Arc(xc + r * Cos(a) + MyArc * Cos(Pi() / 2 + a),
+      yc - r * Sin(a) - MyArc * Sin(Pi() / 2 + a),
+      xc + r * Cos(b) + MyArc * Cos(b - Pi() / 2),
+      yc - r * Sin(b) - MyArc * Sin(b - Pi() / 2),
+      xc + r * Cos(b),
+      yc - r * Sin(b))
+    a = b
+    b = a + d / 4
+    _Arc(xc + r * Cos(a) + MyArc * Cos(Pi() / 2 + a),
+      yc - r * Sin(a) - MyArc * Sin(Pi() / 2 + a),
+      xc + r * Cos(b) + MyArc * Cos(b - Pi() / 2),
+      yc - r * Sin(b) - MyArc * Sin(b - Pi() / 2),
+      xc + r * Cos(b),
+      yc - r * Sin(b))
+    a = b
+    b = a + d / 4
+    _Arc(xc + r * Cos(a) + MyArc * Cos(Pi() / 2 + a),
+      yc - r * Sin(a) - MyArc * Sin(Pi() / 2 + a),
+      xc + r * Cos(b) + MyArc * Cos(b - Pi() / 2),
+      yc - r * Sin(b) - MyArc * Sin(b - Pi() / 2),
+      xc + r * Cos(b),
+      yc - r * Sin(b))
+  End If
+  'terminate drawing
+  _out(op)
+  
+End
+
+'Diagrams (Pierre Marletta)
+' This script allows to generate pie charts and bar diagrams. It requires Sector.
+'   w: maximum width of the diagram.
+'   h: maximum height of the diagram.
+'   data: associative array containing the labels and the corresponding data.
+'   format: format used to display the legends.
+'           It is a string which can contain the following special values: %l (label), %v (value) and %p (percentage).
+'   colors: array containing the colors. If not given, a grayscale will be used.
+Public Sub PieChart(w As Float, h As Float, data As Float[], f As String, Optional colors As Object[] = Null)
+  
+  Dim XPage, YPage, margin, hLegend, radius, XDiag, YDiag As Float
+  Dim angleStart, angleEnd, angle As Float
+  Dim x1, x2, y1 As Float
+  Dim i, gray, v As Integer
+  
+  Me.SetFont("Courier", "", 10)
+  Me.SetLegends(data, f)
+  XPage = Me.GetX()
+  YPage = Me.GetY()
+  margin = 2
+  hLegend = 5
+  radius = Min(w - margin * 4 - hLegend - $wLegend, h - margin * 2)
+  radius = Round(radius / 2, 0)
+  XDiag = XPage + margin + radius
+  YDiag = YPage + margin + radius
+  If (IsNull(colors)) Then
+    colors = New Object[]
+    For i = 0 To ($NbVal - 1)
+      gray = i * CInt(255 / $NbVal)
+      colors.Add([gray, gray, gray])
+    Next
+  End If
+  'Sectors
+  Me.SetLineWidth(0.2)
+  angleStart = 0
+  angleEnd = 0
+  i = 0
+  For Each v In data
+    angle = Round((v * 360) / ($sum), 0)
+    If (angle <> 0) Then
+      angleEnd = angleStart + angle
+      Me.SetFillColor(colors[i][0], colors[i][1], colors[i][2])
+      Me.Sector(XDiag, YDiag, radius, angleStart, angleEnd)
+      angleStart += angle
+    End If
+    Inc i
+  Next
+  If (angleEnd <> 360) Then Me.Sector(XDiag, YDiag, radius, angleStart - angle, 360)
+  'Legends
+  Me.SetFont("Courier", "", 10)
+  x1 = XPage + 2 * radius + 4 * margin
+  x2 = x1 + hLegend + margin
+  y1 = YDiag - radius + (2 * radius - $NbVal * (hLegend + margin)) / 2
+  For i = 0 To ($NbVal - 1)
+    Me.SetFillColor(colors[i][0], colors[i][1], colors[i][2])
+    Me.Rect(x1, y1, hLegend, hLegend, "DF")
+    Me.SetXY(x2, y1)
+    Me.Cell(0, hLegend, $legends[i])
+    y1 += hLegend + margin
+  Next
+  
+End
+
+'Diagrams (Pierre Marletta)
+' This script allows to generate pie charts and bar diagrams. It requires Sector.
+'   w: width of the diagram.
+'   h: height of the diagram.
+'   data: associative array containing the labels and the corresponding data.
+'   format: format used to display the legends.
+'           It is a string which can contain the following special values: %l (label), %v (value) and %p (percentage).
+'   color: color of the bars. If not given, gray will be used.
+'   maxVal: high value of the scale. Defaults to the maximum value of the data.
+'   nbDiv: number of subdivisions of the scale (4 by default).
+Public Sub BarDiagram(w As Float, h As Float, data As Float[], f As String, Optional color As Object[] = Null, Optional maxVal As Integer = 0, Optional nbDiv As Integer = 4)
+  
+  Dim XPage, YPage, margin, YDiag, hDiag, XDiag, lDiag, xval, lval, yval, hval, xpos, ypos As Float
+  Dim valIndRepere, lRepere, unit, hBar, eBaton As Float
+  Dim v, i As Integer
+  
+  Me.SetFont("Courier", "", 10)
+  Me.SetLegends(data, f)
+  XPage = Me.GetX()
+  YPage = Me.GetY()
+  margin = 2
+  YDiag = YPage + margin
+  hDiag = Round(h - margin * 2, 0)
+  XDiag = XPage + margin * 2 + $wLegend
+  lDiag = Round(w - margin * 3 - $wLegend, 0)
+  If (IsNull(color)) Then color = [155, 155, 155]
+  If (maxVal = 0) Then
+    For Each v In data
+      maxVal = Max(v, maxVal)
+    Next
+  End If
+  valIndRepere = Round((maxVal / nbDiv) + 0.9, 0)
+  maxVal = valIndRepere * nbDiv
+  lRepere = Round(lDiag / nbDiv, 0)
+  lDiag = lRepere * nbDiv
+  unit = lDiag / maxVal
+  hBar = Round(hDiag / ($NbVal + 1), 0)
+  hDiag = hBar * ($NbVal + 1)
+  eBaton = Round(hBar * 80 / 100, 0)
+  Me.SetLineWidth(0.2)
+  Me.Rect(XDiag, YDiag, lDiag, hDiag)
+  Me.SetFont("Courier", "", 10)
+  Me.SetFillColor(color[0], color[1], color[2])
+  i = 0
+  For Each v In data
+    'Bar
+    xval = XDiag
+    lval = CInt(v * unit)
+    yval = YDiag + (i + 1) * hBar - eBaton / 2
+    hval = eBaton
+    Me.Rect(xval, yval, lval, hval, "DF")
+    'Legend
+    Me.SetXY(0, yval)
+    Me.Cell(xval - margin, hval, $legends[i], 0, 0, "R")
+    Inc i
+  Next
+  'Scales
+  For i = 0 To nbDiv
+    xpos = XDiag + lRepere * i
+    Me.Line(xpos, YDiag, xpos, YDiag + hDiag)
+    v = i * valIndRepere
+    xpos = XDiag + lRepere * i - Me.GetStringWidth(v) / 2
+    ypos = YDiag + hDiag - margin
+    Me.Text(xpos, ypos, v)
+  Next
+  
+End
+
+'Diagrams (Pierre Marletta)
+Public Sub SetLegends(data As Float[], f As String)
+  
+  Dim v As Float
+  Dim l As Integer
+  Dim p, legend As String
+  
+  $legends.Clear()
+  $wLegend = 0
+  $sum = 0
+  For Each v In data
+    $sum += v
+  Next
+  $NbVal = data.Count
+  For l = 0 To (data.Count - 1)
+    v = data[l]
+    p = _stringFloat(v / $sum * 100, "0.00") & "%"
+    legend = Replace(Replace(Replace(f, "%l", Str(l)), "%v", Str(v)), "%p", p)
+    $legends.Add(legend)
+    $wLegend = Max(Me.GetStringWidth(legend), $wLegend)
+  Next
+  
+End
+
+'Dashes (yukihiro_o)
+' This extension allows to set a dash pattern and draw dashed lines or rectangles.
+'   black: length of dashes
+'   white: length of gaps
+' Call the function without parameter to restore normal drawing.
+Public Sub SetDash(Optional b As Float = 0, Optional w As Float = 0)
+  
+  If (b > 0 And w > 0) Then
+    _out("[" & _stringFloat(b * $k, "0.000") & " " & _stringFloat(w * $k, "0.000") & "] 0 d")
+  Else
+    _out("[] 0 d")
+  End If
+  
+End
+
+'MultiCell with bullet (Patrick Benny)
+' This method allows MultiCell output with a text bullet ahead of the first line.
+' Text is indented to the right of the bullet.
+' Usage is the same as MultiCell except that there's an extra blt parameter for
+' the text of the bullet.
+Public Sub MultiCellBlt(w As Float, h As Float, blt As String, txt As String, Optional border As Variant = False, Optional align As String = "J", Optional fill As Boolean = False)
+  
+  Dim blt_width, bak_x As Float
+  'Get bullet width including margins
+  blt_width = Me.GetStringWidth(blt) + $cMargin * 2
+  'Save x
+  bak_x = $x
+  'Output bullet
+  Me.Cell(blt_width, h, blt, False, 0, "", fill)
+  'Output text
+  Me.MultiCell(w - blt_width, h, txt, border, align, fill)
+  'Restore x
+  $x = bak_x
+  
+End
+
+'GetW, GetH (Luigi Carlotto)
+Public Function GetW() As Float
+  'Get width
+  
+  Return ($w)
+  
+End
+
+'GetW, GetH (Luigi Carlotto)
+Public Function GetH() As Float
+  'Get height
+  
+  Return ($h)
+  
+End
+
+'Polygons (Andrew Meier)
+' This script allows to draw polygons.
+'   points: array of the form (x1, y1, x2, y2, ..., xn, yn)
+'           where (x1, y1) is the starting point and (xn, yn) is the last one.
+'   style: style of rendering, the same as for Rect(): D, F or FD.
+Public Sub Polygon(points As Float[], Optional style As String = "D")
+  
+  Dim op, points_string As String
+  Dim h, k As Float
+  Dim i As Integer
+  'Draw a polygon
+  If (style = "F") Then
+    op = "f"
+  Else If (style = "FD" Or style = "DF") Then
+    op = "b"
+  Else
+    op = "s"
+  End If
+  h = $h
+  k = $k
+  points_string = ""
+  For i = 0 To (points.Count - 1) Step 2
+    points_string &= _stringFloat(points[i] * k, "0.00") & " " &
+      _stringFloat((h - points[i + 1]) * k, "0.00")
+    If (i = 0) Then
+      points_string &= " m "
+    Else
+      points_string &= " l "
+    End If
+  Next
+  _out(points_string & op)
+  
+End
+
+'Geometric figures (David Hernández Sanz)
+' Draws a polygon
+' Parameters:
+' - p: Points. Array with values x0, y0, x1, y1,..., x(np-1), y(np - 1)
+' - style: Style of polygon (draw and/or fill) (D, F, DF, FD)
+' - line_style: Line style. Array with one of this index
+'   . all: Line style of all lines. Array like for SetLineStyle
+'   . 0..np-1: Line style of each line. Item is 0 (not line) or like for SetLineStyle
+' - fill_color: Fill color. Array with components (red, green, blue)
+Public Sub Polygon2(p As Float[], Optional style As String = "", Optional line_style As Collection = Null, Optional fill_color As Integer[] = Null)
+  
+  Dim op As String
+  Dim draw As Boolean = True
+  Dim np, i, n As Integer
+  Dim v As Collection
+  
+  np = p.Count / 2
+  If (InStr(style, "F") > 0 And Not IsNull(fill_color)) Then
+    Me.SetFillColor(fill_color[0], fill_color[1], fill_color[2])
+  End If
+  Select Case style
+    Case "F"
+      line_style = Null
+      op = "f"
+    Case "FD", "DF"
+      op = "B"
+    Default
+      op = "S"
+  End Select
+  If (Not IsNull(line_style)) Then
+    If (line_style.Exist("all")) Then
+      Me.SetLineStyle(line_style["all"])
+    Else '0 .. (np - 1), op = {B, S}
+      draw = False
+      If ("B" = op) Then
+        op = "f"
+        _Point(p[0], p[1])
+        For i = 2 To (np * 2) - 1 Step 2
+          _Line(p[i], p[i + 1])
+        Next
+        _Line(p[0], p[1])
+        _out(op)
+      End If
+      p.Add(p[0])
+      p.Add(p[1])
+      For i = 0 To (np - 1)
+        n = 0
+        For Each v In line_style
+          If (n = i) Then
+            If (Not IsNull(v)) Then
+              Me.Line2(p[i * 2], p[(i * 2) + 1], p[(i * 2) + 2], p[(i * 2) + 3], v)
+            End If
+            Break
+          End If
+          Inc n
+        Next
+      Next
+    End If
+  End If
+  If (draw) Then
+    _Point(p[0], p[1])
+    For i = 2 To (np * 2) - 1 Step 2
+      _Line(p[i], p[i + 1])
+    Next
+    _Line(p[0], p[1])
+    _out(op)
+  End If
+  
+End
+
+'Cube (Luciano Salvino, Luigi Carlotto)
+' You can create a cube and rotate it around the x,y,z axes using the following function:
+' where a, b and c are the cube dimensions; scale is the scaling factor;
+' alfax, alfay and alfaz are the rotation angles.
+Public Sub Cube(x1 As Float, y1 As Float, Optional a As Float = 10, Optional b As Float = 10, Optional c As Float = 10, Optional scale As Float = 1, Optional alfax As Float = 10, Optional alfay As Float = 10, Optional alfaz As Float = 10)
+  
+  Dim x, y, d, e, f, g, h, k As Float
+  Dim senx, seny, senz As Float
+  Dim cosx, cosy, cosz As Float
+  Dim cubo As New Object[]
+  Dim i As Integer
+  
+  x = x1 + a 'x = ($w - $rMargin) / 2 - (a / 2)
+  y = y1 + b 'y = ($h - $tMargin) / 2 - (b / 2)
+  cubo = [[x + a, y + b, c],
+    [x + a, y + b, - c],
+    [x - a, y + b, - c],
+    [x - a, y + b, c],
+    [x + a, y - b, c],
+    [x + a, y - b, - c],
+    [x - a, y - b, - c],
+    [x - a, y - b, c]]
+  senx = Sin(alfax * Pi() / 180)
+  cosx = Cos(alfax * Pi() / 180)
+  seny = Sin(alfay * Pi() / 180)
+  cosy = Cos(alfay * Pi() / 180)
+  senz = Sin(alfaz * Pi() / 180)
+  cosz = Cos(alfaz * Pi() / 180)
+  a = cosy * cosz
+  b = cosy * senz
+  c = - seny
+  d = senx * seny * cosz - cosx * senz
+  e = senx * seny * senz + cosx * cosz
+  f = senx * cosy
+  g = cosx * seny * cosz + senx * senz
+  h = cosx * seny * senz - senx * cosz
+  k = cosx * cosy
+  For i = 0 To (cubo.Count - 1)
+    cubo[i][0] = (a * cubo[i][0] + b * cubo[i][1] + c * cubo[i][2]) * scale
+    cubo[i][1] = (d * cubo[i][0] + e * cubo[i][1] + f * cubo[i][2]) * scale
+    cubo[i][2] = (g * cubo[i][0] + h * cubo[i][1] + k * cubo[i][2]) * scale
+  Next
+  'Tapa inferior
+  Me.Line(cubo[0][0], cubo[0][1], cubo[1][0], cubo[1][1])
+  Me.Line(cubo[1][0], cubo[1][1], cubo[2][0], cubo[2][1])
+  Me.Line(cubo[2][0], cubo[2][1], cubo[3][0], cubo[3][1])
+  Me.Line(cubo[3][0], cubo[3][1], cubo[0][0], cubo[0][1])
+  'Tapa superior
+  Me.Line(cubo[4][0], cubo[4][1], cubo[5][0], cubo[5][1])
+  Me.Line(cubo[5][0], cubo[5][1], cubo[6][0], cubo[6][1])
+  Me.Line(cubo[6][0], cubo[6][1], cubo[7][0], cubo[7][1])
+  Me.Line(cubo[7][0], cubo[7][1], cubo[4][0], cubo[4][1])
+  'Laterales
+  Me.Line(cubo[0][0], cubo[0][1], cubo[4][0], cubo[4][1])
+  Me.Line(cubo[1][0], cubo[1][1], cubo[5][0], cubo[5][1])
+  Me.Line(cubo[2][0], cubo[2][1], cubo[6][0], cubo[6][1])
+  Me.Line(cubo[3][0], cubo[3][1], cubo[7][0], cubo[7][1])
+  
+End
+
+'Geometric figures (David Hernández Sanz)
+' Sets line style
+' Parameters:
+' - style: Line style. Array with keys among the following:
+'   . width: Width of the line in user units
+'   . cap: Type of cap to put on the line (butt, round, square).
+'          The difference between 'square' and 'butt' is that 'square' projects
+'          a flat end past the end of the line.
+'   . join: miter, round or bevel
+'   . dash: Dash pattern. Is 0 (without dash) or array with series of length
+'           values, which are the lengths of the on and off dashes.
+'           For example: (2) represents 2 on, 2 off, 2 on , 2 off ...
+'                        (2,1) is 2 on, 1 off, 2 on, 1 off.. etc
+'   . phase: Modifier of the dash pattern which is used to shift the point at
+'            which the pattern starts
+'   . color: Draw color. Array with components (red, green, blue)
+Public Sub SetLineStyle(style As Collection)
+  
+  Dim width_prev As Float
+  Dim ca, ja As Collection
+  Dim dash_string As String
+  Dim tab As String[]
+  Dim i, r, g, b As Integer
+  
+  If (style.Exist("width")) Then
+    width_prev = $LineWidth
+    Me.SetLineWidth(style["width"])
+    $LineWidth = width_prev
+  End If
+  If (style.Exist("cap")) Then
+    ca = New Collection
+    ca.Add(0, "butt")
+    ca.Add(1, "round")
+    ca.Add(2, "square")
+    If (ca.Exist(style["cap"])) Then _out(ca[style["cap"]] & " J")
+  End If
+  If (style.Exist("join")) Then
+    ja = New Collection
+    ja.Add(0, "miter")
+    ja.Add(1, "round")
+    ja.Add(2, "bevel")
+    If (ja.Exist(style["join"])) Then _out(ja[style["join"]] & " j")
+  End If
+  If (style.Exist("dash")) Then
+    dash_string = ""
+    If (Not IsNull(style["dash"])) Then
+      If (InStr(style["dash"], ",") > 0) Then
+        tab = Split(style["dash"], ",")
+      Else
+        tab = [style["dash"]]
+      End If
+      dash_string = ""
+      For i = 0 To (tab.Count - 1)
+        If (i > 0) Then dash_string &= " "
+        dash_string &= _stringFloat(Val(tab[i]), "0.00")
+      Next
+    End If
+    If (Not style.Exist("phase") Or IsNull(style["dash"])) Then
+      _out("[" & dash_string & "] 0.00 d")
+    Else
+      _out("[" & dash_string & "] " & _stringFloat(style["phase"], "0.00") & " d")
+    End If
+  End If
+  If (style.Exist("color")) Then
+    r = style["color"][0]
+    g = style["color"][1]
+    b = style["color"][2]
+    Me.SetDrawColor(r, g, b)
+  End If
+  
+End
+
+'Geometric figures (David Hernández Sanz)
+' Draws a Bézier curve (the Bézier curve is tangent to the line between the
+' control points at either end of the curve)
+' Parameters:
+' - x0, y0: Start point
+' - x1, y1: Control point 1
+' - x2, y2: Control point 2
+' - x3, y3: End point
+' - style: Style of rectangule (draw and/or fill: D, F, DF, FD)
+' - line_style: Line style for curve. Array like for SetLineStyle
+' - fill_color: Fill color. Array with components (red, green, blue)
+Public Sub Curve2(x0 As Float, y0 As Float, x1 As Float, y1 As Float, x2 As Float, y2 As Float, x3 As Float, y3 As Float, Optional style As String = "", Optional line_style As Collection = Null, Optional fill_color As Integer[] = Null)
+  
+  Dim r, g, b As Integer
+  Dim op As String
+  
+  If (InStr(style, "F") > 0 And Not IsNull(fill_color)) Then
+    r = fill_color[0]
+    g = fill_color[1]
+    b = fill_color[2]
+    Me.SetFillColor(r, g, b)
+  End If
+  Select Case style
+    Case "F"
+      op = "f"
+      line_style = Null
+    Case "FD", "DF"
+      op = "B"
+    Default
+      op = "S"
+  End Select
+  If (Not IsNull(line_style)) Then Me.SetLineStyle(line_style)
+  _Point(x0, y0)
+  _Curve(x1, y1, x2, y2, x3, y3)
+  _out(op)
+  
+End
+
+'Geometric figures (David Hernández Sanz)
+' Draws a regular polygon
+' Parameters:
+' - x0, y0: Center point
+' - r: Radius of circumscribed circle
+' - ns: Number of sides
+' - angle: Orientation angle (anti-clockwise)
+' - circle: Draw circumscribed circle or not
+' - style: Style of polygon (draw and/or fill) (D, F, DF, FD)
+' - line_style: Line style. Array with one of this index
+'   . all: Line style of all lines. Array like for SetLineStyle
+'   . 0..ns-1: Line style of each line. Item is 0 (not line) or like for SetLineStyle
+' - fill_color: Fill color. Array with components (red, green, blue)
+' - circle_style: Style of circumscribed circle (draw and/or fill) (D, F, DF, FD) (if draw)
+' - circle_line_style: Line style for circumscribed circle. Array like for SetLineStyle (if draw)
+' - circle_fill_color: Fill color for circumscribed circle. Array with components (red, green, blue) (if draw fill circle)
+Public Sub RegularPolygon2(x0 As Float, y0 As Float, r As Float, ns As Integer, Optional angle As Float = 0, Optional circle As Boolean = False, Optional style As String = "", Optional line_style As Collection = Null, Optional fill_color As Integer[] = Null, Optional circle_style As String = "", Optional circle_line_style As Collection = Null, Optional circle_fill_color As Integer[] = Null)
+  
+  Dim p As New Float[]
+  Dim i As Integer
+  Dim a_rad As Float
+  
+  If (ns < 3) Then ns = 3
+  If (circle) Then Me.Circle2(x0, y0, r, 0, 360, circle_style, circle_line_style, circle_fill_color)
+  For i = 0 To (ns - 1)
+    a_rad = Rad(angle + (i * 360 / ns))
+    p.Add(x0 + (r * Sin(a_rad)))
+    p.Add(y0 + (r * Cos(a_rad)))
+  Next
+  Me.Polygon2(p, style, line_style, fill_color)
+  
+End
+
+'Geometric figures (David Hernández Sanz)
+' Draws a star polygon
+' Parameters:
+' - x0, y0: Center point
+' - r: Radius of circumscribed circle
+' - nv: Number of vertices
+' - ng: Number of gaps (ng % nv = 1 => regular polygon)
+' - angle: Orientation angle (anti-clockwise)
+' - circle: Draw circumscribed circle or not
+' - style: Style of polygon (draw and/or fill) (D, F, DF, FD)
+' - line_style: Line style. Array with one of this index
+'   . all: Line style of all lines. Array like for SetLineStyle
+'   . 0..n-1: Line style of each line. Item is 0 (not line) or like for SetLineStyle
+' - fill_color: Fill color. Array with components (red, green, blue)
+' - circle_style: Style of circumscribed circle (draw and/or fill) (D, F, DF, FD) (if draw)
+' - circle_line_style: Line style for circumscribed circle. Array like for SetLineStyle (if draw)
+' - circle_fill_color: Fill color for circumscribed circle. Array with components (red, green, blue) (if draw fill circle)
+Public Sub StarPolygon2(x0 As Float, y0 As Float, r As Float, nv As Integer, ng As Integer, Optional angle As Float = 0, Optional circle As Boolean = False, Optional style As String = "", Optional line_style As Collection = Null, Optional fill_color As Integer[] = Null, Optional circle_style As String = "", Optional circle_line_style As Collection = Null, Optional circle_fill_color As Integer[] = Null)
+  
+  Dim p2 As New Float[]
+  Dim p As New Float[]
+  Dim visited As New Boolean[]
+  Dim a_rad As Float
+  Dim i As Integer
+  
+  If (nv < 2) Then nv = 2
+  If (circle) Then Me.Circle2(x0, y0, r, 0, 360, circle_style, circle_line_style, circle_fill_color)
+  For i = 0 To (nv - 1)
+    a_rad = Rad(angle + (i * 360 / nv))
+    p2.Add(x0 + (r * Sin(a_rad)))
+    p2.Add(y0 + (r * Cos(a_rad)))
+    visited.Add(False)
+  Next
+  i = 0
+  Do
+    p.Add(p2[i * 2])
+    p.Add(p2[(i * 2) + 1])
+    visited[i] = True
+    i += ng
+    i = (i Mod nv)
+  Loop Until (visited[i])
+  Me.Polygon2(p, style, line_style, fill_color)
+  
+End
+
+'Star (Luciano Salvino)
+' This script draws a star.
+'   X: abscissa of center.
+'   Y: ordinate of center.
+'   rin: internal radius.
+'   rout: external radius.
+'   points: number of points that the star is composed of.
+'   style: style of rendering, the same as for Rect(): D, F or FD.
+' Note: if rin=rout, the star will appear as a simple circle.
+Public Sub Star(x As Float, y As Float, rin As Float, rout As Float, points As Integer, Optional style As String = "D")
+  
+  Dim op, points_string As String
+  Dim cx, cy As Float
+  Dim dth, th, k, h As Float
+  Dim i As Integer
+  
+  Select Case style
+    Case "F"
+      op = "f"
+    Case "FD", "DF"
+      op = "B"
+    Default
+      op = "S"
+  End Select
+  dth = (Pi() / points)
+  th = 0
+  k = $k
+  h = $h
+  points_string = ""
+  For i = 0 To (points * 2)
+    th = th + dth
+    cx = x + (IIf(i Mod 2 = 0, rin, rout) * Cos(th))
+    cy = y + (IIf(i Mod 2 = 0, rin, rout) * Sin(th))
+    points_string &= _stringFloat(cx * k, "0.00") & " " & _stringFloat((h - cy) * k, "0.00")
+    If (i = 0) Then
+      points_string &= " m "
+    Else
+      points_string &= " l "
+    End If
+  Next
+  _out(points_string & op)
+  
+End
+
+'Gradients (Andreas Würmser)
+' Paints linear and radial gradients as well as multi-color gradients (coons patch meshes) inside a rectangle.
+' x: abscissa of the top left corner of the rectangle.
+' y: ordinate of the top left corner of the rectangle.
+' w: width of the rectangle.
+' h: height of the rectangle.
+' col1: first color (RGB components).
+' col2: second color (RGB components).
+' coords: array of the form (x1, y1, x2, y2) which defines the gradient vector (see linear_gradient_coords.jpg).
+'         The default value is from left to right (x1=0, y1=0, x2=1, y2=0).
+Public Sub LinearGradient(x As Float, y As Float, w As Float, h As Float, Optional col1 As Integer[] = Null, Optional col2 As Integer[] = Null, Optional coords As Float[] = Null)
+  
+  Dim v As Float[]
+  
+  If (IsNull(col1)) Then col1 = [0, 0, 0]
+  If (IsNull(col2)) Then col2 = [0, 0, 0]
+  If (IsNull(coords)) Then coords = [0.0, 0.0, 1.0, 0.0]
+  Me.Clip(x, y, w, h)
+  Me.Gradient(2, col1, col2, coords)
+  
+End
+
+'Gradients (Andreas Würmser)
+' Paints linear and radial gradients as well as multi-color gradients (coons patch meshes) inside a rectangle.
+' x: abscissa of the top left corner of the rectangle.
+' y: ordinate of the top left corner of the rectangle.
+' w: width of the rectangle.
+' h: height of the rectangle.
+' col1: first color (RGB components).
+' col2: second color (RGB components).
+' coords: array of the form (fx, fy, cx, cy, r) where
+'         (fx, fy) is the starting point of the gradient with color1,
+'         (cx, cy) is the center of the circle with color2,
+'         and r is the radius of the circle (see radial_gradient_coords.jpg).
+'         (fx, fy) should be inside the circle, otherwise some areas will not be defined.
+Public Sub RadialGradient(x As Float, y As Float, w As Float, h As Float, Optional col1 As Integer[] = Null, Optional col2 As Integer[] = Null, Optional coords As Float[] = Null)
+  
+  Dim v As Float[]
+  
+  If (IsNull(col1)) Then col1 = [0, 0, 0]
+  If (IsNull(col2)) Then col2 = [0, 0, 0]
+  If (IsNull(coords)) Then coords = [0.5, 0.5, 0.5, 0.5, 1.0]
+  Me.Clip(x, y, w, h)
+  Me.Gradient(3, col1, col2, coords)
+  
+End
+
+'Gradients (Andreas Würmser)
+' Paints linear and radial gradients as well as multi-color gradients (coons patch meshes) inside a rectangle.
+' x: abscissa of the top left corner of the rectangle.
+' y: ordinate of the top left corner of the rectangle.
+' w: width of the rectangle.
+' h: height of the rectangle.
+' col1: first color (lower left corner) (RGB components).
+' col2: second color (lower right corner) (RGB components).
+' col3: third color (upper right corner) (RGB components).
+' col4: fourth color (upper left corner) (RGB components).
+' coords:
+' - for one patch mesh
+'   array(float x1, float y1, .... float x12, float y12): 12 pairs of coordinates (normally from 0 to 1) which
+'   specify the Bézier control points that define the patch. First pair is the lower left edge point, next is its
+'   right control point (control point 2). Then the other points are defined in the order: control point 1, edge
+'   point, control point 2 going counter-clockwise around the patch. Last (x12, y12) is the first edge point's
+'   Left control point(control point 1).
+' - for two or more patch meshes
+'   array[number of patches]: arrays with the following keys for each patch:
+'   f: where to put that patch (0 = first patch, 1, 2, 3 = right, top and left of precedent
+'      patch - I didn't figure this out completely - just try and error ;-)
+'      points: 12 pairs of coordinates of the Bézier control points as above for the first patch,
+'              8 pairs of coordinates for the following patches, ignoring the coordinates already
+'              defined by the precedent patch (I also didn't figure out the order of these - also:
+'              try and see what's happening)
+'      colors: must be 4 colors for the first patch, 2 colors for the following patches
+' coords_min: minimum value used by the coordinates.
+'             If a coordinate's value is smaller than this it will be cut to coords_min. default: 0
+' coords_max: maximum value used by the coordinates.
+'             If a coordinate's value is greater than this it will be cut to coords_max. default: 1
+Public Sub CoonsPatchMesh(x As Float, y As Float, w As Float, h As Float, Optional col1 As Integer[] = Null, Optional col2 As Integer[] = Null, Optional col3 As Integer[] = Null, Optional col4 As Integer[] = Null, Optional coords As Variant = Null, Optional coords_min As Float = 0, Optional coords_max As Float = 1)
+  
+  Dim bpcd, j, n, i, xxx As Integer
+  Dim o, patch_array As Object[]
+  Dim g As Collection
+  
+  If (IsNull(col1)) Then col1 = [0, 0, 0]
+  If (IsNull(col2)) Then col2 = [0, 0, 0]
+  If (IsNull(col3)) Then col3 = [0, 0, 0]
+  If (IsNull(col4)) Then col4 = [0, 0, 0]
+  If (IsNull(coords)) Then
+    coords = [0.00, 0.00, 0.33, 0.00, 0.67, 0.00, 1.00, 0.00, 1.00, 0.33, 1.00, 0.67, 1.00, 1.00, 0.67, 1.00, 0.33, 1.00, 0.00, 1.00, 0.00, 0.67, 0.00, 0.33]
+    g = New Collection
+    g.Add(0, "f")
+    g.Add(coords, "points")
+    o = New Object[]
+    o.Add(col1)
+    o.Add(col2)
+    o.Add(col3)
+    o.Add(col4)
+    g.Add(o, "colors")
+    'multi patch array
+    patch_array = New Object[]
+    patch_array.Add(g)
+  Else If (Object.Type(coords) = "Float[]") Then
+    g = New Collection
+    g.Add(0, "f")
+    g.Add(coords, "points")
+    o = New Object[]
+    o.Add(col1)
+    o.Add(col2)
+    o.Add(col3)
+    o.Add(col4)
+    g.Add(o, "colors")
+    'multi patch array
+    patch_array = New Object[]
+    patch_array.Add(g)
+  Else
+    patch_array = coords
+  End If
+  Me.Clip(x, y, w, h)
+  g = New Collection
+  g.Add(6, "type") 'coons patch mesh
+  g.Add("", "stream")
+  $gradients.Add(g)
+  n = $gradients.Count - 1
+  bpcd = 65535 '16 BitsPerCoordinate
+  'build the data stream
+  For i = 0 To (patch_array.Count - 1)
+    $gradients[n]["stream"] &= Chr(patch_array[i]["f"]) 'start with the edge flag as 8 bit
+    For j = 0 To (patch_array[i]["points"].Count - 1)
+      'each point as 16 bit
+      patch_array[i]["points"][j] = ((patch_array[i]["points"][j] - coords_min) / (coords_max - coords_min)) * bpcd
+      If (patch_array[i]["points"][j] < 0) Then patch_array[i]["points"][j] = 0
+      If (patch_array[i]["points"][j] > bpcd) Then patch_array[i]["points"][j] = bpcd
+      xxx = Round(patch_array[i]["points"][j] / 256)
+      If (xxx > 255) Then xxx = 255
+      $gradients[n]["stream"] &= Chr(xxx)
+      xxx = Int(patch_array[i]["points"][j])
+      $gradients[n]["stream"] &= Chr(xxx Mod 256)
+    Next
+    For j = 0 To (patch_array[i]["colors"].Count - 1)
+      'each color component as 8 bit
+      $gradients[n]["stream"] &= Chr(patch_array[i]["colors"][j][0])
+      $gradients[n]["stream"] &= Chr(patch_array[i]["colors"][j][1])
+      $gradients[n]["stream"] &= Chr(patch_array[i]["colors"][j][2])
+    Next
+  Next
+  'paint the gradient
+  _out("/Sh" & n & " sh")
+  'restore previous Graphic State
+  _out("Q")
+  
+End
+
+'Gradients (Andreas Würmser)
+Public Sub Clip(x As Float, y As Float, w As Float, h As Float)
+  
+  Dim s As String
+  'save current Graphic State
+  s = "q"
+  'set clipping area
+  s &= " " &
+    _stringFloat(x * $k, "0,00") & " " &
+    _stringFloat(($h - y) * $k, "0,00") & " " &
+    _stringFloat(w * $k, "0,00") & " " &
+    _stringFloat(- h * $k, "0,00") & " re W n"
+  'set up transformation matrix for gradient
+  s &= " " &
+    _stringFloat(w * $k, "0.000") & " 0 0 " &
+    _stringFloat(h * $k, "0.000") & " " &
+    _stringFloat(x * $k, "0.000") & " " &
+    _stringFloat(($h - (y + h)) * $k, "0.000") & " cm"
+  _out(s)
+  
+End
+
+'Gradients (Andreas Würmser)
+Public Sub Gradient(type As Integer, col1 As Integer[], col2 As Integer[], coords As Float[])
+  
+  Dim o As New Collection
+  
+  o["type"] = type
+  o["stream"] = ""
+  o["col1"] = _stringFloat(col1[0] / 255, "0.000") & " " &
+    _stringFloat(col1[1] / 255, "0.000") & " " &
+    _stringFloat(col1[2] / 255, "0.000")
+  o["col2"] = _stringFloat(col2[0] / 255, "0.000") & " " &
+    _stringFloat(col2[1] / 255, "0.000") & " " &
+    _stringFloat(col2[2] / 255, "0.000")
+  o["coords"] = coords
+  $gradients.Add(o)
+  'paint the gradient
+  _out("/Sh" & Str($gradients.Count) & " sh")
+  'restore previous Graphic State
+  _out("Q")
+  
+End
+
+'Barcodes (Olivier)
+' This script implements EAN13 and UPC-A barcodes (the second being a particular case of the first one).
+' Bars are drawn directly in the PDF (no image is generated).
+'   x: abscissa of barcode.
+'   y: ordinate of barcode.
+'   barcode: value of barcode.
+'   h: height of barcode. Default value: 16.
+'   w: width of a bar. Default value: 0.35.
+' An EAN13 barcode is made up of 13 digits, UPC-A of 12 (leading zeroes are added if necessary).
+' The last digit is a check digit; if it's not supplied, it will be automatically computed.
+Public Sub EAN13(x As Float, y As Float, barcode As String, Optional h As Float = 16, Optional w As Float = 0.35)
+  
+  _Barcode(x, y, barcode, h, w, 13)
+  
+End
+
+'Barcodes (Olivier)
+' This script implements EAN13 and UPC-A barcodes (the second being a particular case of the first one).
+' Bars are drawn directly in the PDF (no image is generated).
+'   x: abscissa of barcode.
+'   y: ordinate of barcode.
+'   barcode: value of barcode.
+'   h: height of barcode. Default value: 16.
+'   w: width of a bar. Default value: 0.35.
+' An EAN13 barcode is made up of 13 digits, UPC-A of 12 (leading zeroes are added if necessary).
+' The last digit is a check digit; if it's not supplied, it will be automatically computed.
+Public Sub UPC_A(x As Float, y As Float, barcode As String, Optional h As Float = 16, Optional w As Float = 0.35)
+  
+  _Barcode(x, y, barcode, h, w, 12)
+  
+End
+
+' This script implements Code 39 barcodes. A Code 39 barcode can encode a string with the following characters:
+' digits (0 to 9), uppercase letters (A to Z) and 8 additional characters (- . space $ / + % *).
+'   xpos: abscissa of barcode
+'   ypos: ordinate of barcode
+'   code: value of barcode
+'   baseline: corresponds to the width of a wide bar (defaults to 0.5)
+'   height: bar height (defaults to 5)
+' PUBLIC SUB Code39(xpos AS Float, ypos AS Float, code AS String, OPTIONAL baseline AS Float = 0.5, OPTIONAL height AS Float = 5)
+'   DIM wide, narrow, gap, lineWidth AS Float
+'   DIM barChar AS NEW Collection
+'   DIM i, bar AS Integer
+'   DIM char, seq AS String
+'   wide = baseline
+'   narrow = baseline / 3
+'   gap = narrow
+'   barChar.Add("nnnwwnwnn", "0")
+'   barChar.Add("wnnwnnnnw", "1")
+'   barChar.Add("nnwwnnnnw", "2")
+'   barChar.Add("wnwwnnnnn", "3")
+'   barChar.Add("nnnwwnnnw", "4")
+'   barChar.Add("wnnwwnnnn", "5")
+'   barChar.Add("nnwwwnnnn", "6")
+'   barChar.Add("nnnwnnwnw", "7")
+'   barChar.Add("wnnwnnwnn", "8")
+'   barChar.Add("nnwwnnwnn", "9")
+'   barChar.Add("wnnnnwnnw", "A")
+'   barChar.Add("nnwnnwnnw", "B")
+'   barChar.Add("wnwnnwnnn", "C")
+'   barChar.Add("nnnnwwnnw", "D")
+'   barChar.Add("wnnnwwnnn", "E")
+'   barChar.Add("nnwnwwnnn", "F")
+'   barChar.Add("nnnnnwwnw", "G")
+'   barChar.Add("wnnnnwwnn", "H")
+'   barChar.Add("nnwnnwwnn", "I")
+'   barChar.Add("nnnnwwwnn", "J")
+'   barChar.Add("wnnnnnnww", "K")
+'   barChar.Add("nnwnnnnww", "L")
+'   barChar.Add("wnwnnnnwn", "M")
+'   barChar.Add("nnnnwnnww", "N")
+'   barChar.Add("wnnnwnnwn", "O")
+'   barChar.Add("nnwnwnnwn", "P")
+'   barChar.Add("nnnnnnwww", "Q")
+'   barChar.Add("wnnnnnwwn", "R")
+'   barChar.Add("nnwnnnwwn", "S")
+'   barChar.Add("nnnnwnwwn", "T")
+'   barChar.Add("wwnnnnnnw", "U")
+'   barChar.Add("nwwnnnnnw", "V")
+'   barChar.Add("wwwnnnnnn", "W")
+'   barChar.Add("nwnnwnnnw", "X")
+'   barChar.Add("wwnnwnnnn", "Y")
+'   barChar.Add("nwwnwnnnn", "Z")
+'   barChar.Add("nwnnnnwnw", "-")
+'   barChar.Add("wwnnnnwnn", ".")
+'   barChar.Add("nwwnnnwnn", " ")
+'   barChar.Add("nwnnwnwnn", "*")
+'   barChar.Add("nwnwnwnnn", "$")
+'   barChar.Add("nwnwnnnwn", "/")
+'   barChar.Add("nwnnnwnwn", "+")
+'   barChar.Add("nnnwnwnwn", "%")
+'   ME.SetFont("Arial", "", 10)
+'   ME.Text(xpos, ypos + height + 4, code)
+'   ME.SetFillColor(0)
+'   code = "*" & Upper(code) & "*"
+'   FOR i = 1 TO Len(code)
+'     char = Mid(code, i, 1)
+'     IF (NOT barChar.Exist(char)) THEN Error.Raise("Invalid character in barcode: " & char)
+'     seq = barChar[char]
+'     FOR bar = 0 TO 8
+'       IF (Mid(seq, bar + 1, 1) = "n") THEN
+'         lineWidth = narrow
+'       ELSE
+'         lineWidth = wide
+'       END IF
+'       IF (bar MOD 2 = 0) THEN ME.Rect(xpos, ypos, lineWidth, height, "F")
+'       xpos += lineWidth
+'     NEXT
+'     xpos += gap
+'   NEXT
+' END
+
+'Code 39 barcodes (The-eh, Emmanuel Havet)
+' This script supports both standard and extended Code 39 barcodes.
+' The extended mode gives Access to the full ASCII range( FROM 0 TO 127).
+' The script also gives the possibility to add a checksum.
+'   x: abscissa
+'   y: ordinate
+'   code: barcode value
+'   ext: indicates if extended mode must be used (true by default)
+'   cks: indicates if a checksum must be appended (false by default)
+'   w: width of a narrow bar (0.4 by default)
+'   h: height of bars (20 by default)
+'   wide: indicates if ratio between wide and narrow bars is high; if yes, ratio is 3, if no, it's 2 (true by default)
+Public Sub Code39(x As Float, y As Float, code As String, Optional ext As Boolean = True, Optional cks As Boolean = False, Optional w As Float = 0.4, Optional h As Float = 20, Optional wide As Boolean = True)
+  
+  Dim n, i As Integer
+  Dim narrow_encoding, wide_encoding As String
+  Dim gap, encode, e As String
+  Dim encoding As String[]
+  'Display code
+  Me.SetFont("Arial", "", 10)
+  Me.Text(x, y + h + 4, code)
+  If (ext) Then
+    'Extended encoding
+    code = _encode_code39_ext(code)
+  Else
+    'Convert to upper case
+    code = Upper(code)
+    'Check validity
+    For n = 1 To Len(code)
+      If (InStr("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-. $/+%", Mid(code, n, 1)) = 0) Then
+        Error.Raise("Invalid barcode value: " & code)
+      End If
+    Next
+  End If
+  'Compute checksum
+  If (cks) Then code &= _checksum_code39(code)
+  'Add start and stop characters
+  code = "*" & code & "*"
+  'Conversion tables
+  narrow_encoding = "0-101001101101,1-110100101011,2-101100101011,3-110110010101,4-101001101011," &
+    "5-110100110101,6-101100110101,7-101001011011,8-110100101101,9-101100101101," &
+    "A-110101001011,B-101101001011,C-110110100101,D-101011001011,E-110101100101," &
+    "F-101101100101,G-101010011011,H-110101001101,I-101101001101,J-101011001101," &
+    "K-110101010011,L-101101010011,M-110110101001,N-101011010011,O-110101101001," &
+    "P-101101101001,Q-101010110011,R-110101011001,S-101101011001,T-101011011001," &
+    "U-110010101011,V-100110101011,W-110011010101,X-100101101011,Y-110010110101," &
+    "Z-100110110101,--100101011011,.-110010101101, -100110101101,*-100101101101," &
+    "$-100100100101,/-100100101001,+-100101001001,%-101001001001"
+  wide_encoding = "0-101000111011101,1-111010001010111,2-101110001010111,3-111011100010101,4-101000111010111," &
+    "5-111010001110101,6-101110001110101,7-101000101110111,8-111010001011101,9-101110001011101," &
+    "A-111010100010111,B-101110100010111,C-111011101000101,D-101011100010111,E-111010111000101," &
+    "F-101110111000101,G-101010001110111,H-111010100011101,I-101110100011101,J-101011100011101," &
+    "K-111010101000111,L-101110101000111,M-111011101010001,N-101011101000111,O-111010111010001," &
+    "P-101110111010001,Q-101010111000111,R-111010101110001,S-101110101110001,T-101011101110001," &
+    "U-111000101010111,V-100011101010111,W-111000111010101,X-100010111010111,Y-111000101110101," &
+    "Z-100011101110101,--100010101110111,.-111000101011101, -100011101011101,*-100010111011101," &
+    "$-100010001000101,/-100010001010001,+-100010100010001,%-101000100010001"
+  encoding = Split(IIf(wide, wide_encoding, narrow_encoding), ",")
+  'Inter-character spacing
+  gap = IIf(w > 0.29, "00", "0")
+  'Convert to bars
+  encode = ""
+  For i = 1 To Len(code)
+    For Each e In encoding
+      If (Left(e, 1) = Mid(code, i, 1)) Then
+        encode &= Mid(e, 3) & gap
+      End If
+    Next
+  Next
+  'Draw bars
+  _draw_code39(encode, x, y, w, h)
+  
+End
+
+'i25 barcodes (Matthias Lau)
+' This script implements Interleaved 2 of 5 barcodes. An Interleaved 2 of 5 barcode contains digits (0 to 9)
+' and encodes the data in the width of both bars and spaces. It is used primarily in the distribution and
+' warehouse industry.
+'   xpos: abscissa of barcode
+'   ypos: ordinate of barcode
+'   code: value of barcode
+'   basewidth: corresponds to the width of a wide bar (defaults to 1)
+'   height: bar height (defaults to 10)
+' Note: if the length of the code is not even, a 0 is preprended.
+Public Sub i25(xpos As Float, ypos As Float, code As String, Optional basewidth As Float = 1, Optional height As Float = 10)
+  
+  Dim barChar As New Collection
+  Dim wide, narrow, lineWidth As Float
+  Dim i, s, bar As Integer
+  Dim charBar, charSpace, seq As String
+  
+  wide = basewidth
+  narrow = basewidth / 3
+  'wide/narrow codes for the digits
+  barChar.Add("nnwwn", "0")
+  barChar.Add("wnnnw", "1")
+  barChar.Add("nwnnw", "2")
+  barChar.Add("wwnnn", "3")
+  barChar.Add("nnwnw", "4")
+  barChar.Add("wnwnn", "5")
+  barChar.Add("nwwnn", "6")
+  barChar.Add("nnnww", "7")
+  barChar.Add("wnnwn", "8")
+  barChar.Add("nwnwn", "9")
+  barChar.Add("nn", "A")
+  barChar.Add("wn", "Z")
+  'add leading zero if code-length is odd
+  If (Len(code) Mod 2 <> 0) Then code = "0" & code
+  Me.SetFont("Arial", "", 10)
+  Me.Text(xpos, ypos + height + 4, code)
+  Me.SetFillColor(0)
+  'add start and stop codes
+  code = "AA" & Lower(code) & "ZA"
+  For i = 1 To Len(code) Step 2
+    'choose next pair of digits
+    charBar = Mid(code, i, 1)
+    charSpace = Mid(code, i + 1, 1)
+    'check whether it is a valid digit
+    If (Not barChar.Exist(charBar)) Then Error.Raise("Invalid character in barcode: " & charBar)
+    If (Not barChar.Exist(charSpace)) Then Error.Raise("Invalid character in barcode: " & charSpace)
+    'create a wide/narrow-sequence (first digit=bars, second digit=spaces)
+    seq = ""
+    For s = 1 To Len(barChar[charBar])
+      seq &= Mid(barChar[charBar], s, 1) & Mid(barChar[charSpace], s, 1)
+    Next
+    For bar = 1 To Len(seq)
+      'set lineWidth depending on value
+      If (Mid(seq, bar, 1) = "n") Then
+        lineWidth = narrow
+      Else
+        lineWidth = wide
+      End If
+      'draw every second value, because the second digit of the pair is represented by the spaces
+      If (bar Mod 2 = 0) Then Me.Rect(xpos, ypos, lineWidth, height, "F")
+      xpos += lineWidth
+    Next
+  Next
+  
+End
+
+'Codabar barcodes (Florence Demoures)
+' This script implements Codabar barcodes (also known as NW-7 or Code 2 of 7).
+' This barcode allows to encode numeric data (0-9) as well as 6 special characters ($, -, :, /, ., +).
+' It has 8 start/stop characters available (a, b, c, d, e, *, n, t).
+'   xpos: abscissa of barcode
+'   ypos: ordinate of barcode
+'   code: value of barcode
+'   start: start character (default value: a)
+'   end: stop character (default value: a)
+'   basewidth: width of a thin bar (default value: 0.35)
+'   height: height of bars (default value: 16)
+Public Sub Codabar(xpos As Float, ypos As Float, code As String, Optional starts As String = "A", Optional Eands As String = "A", Optional basewidth As Float = 0.35, Optional height As Float = 16)
+  
+  Dim barChar As New Collection
+  Dim i, bar As Integer
+  Dim char As String
+  Dim lineWidth As Float
+  Dim seq As Float[]
+  
+  barChar.Add([6.5, 10.4, 6.5, 10.4, 6.5, 24.3, 17.9], "0")
+  barChar.Add([6.5, 10.4, 6.5, 10.4, 17.9, 24.3, 6.5], "1")
+  barChar.Add([6.5, 10.0, 6.5, 24.4, 6.5, 10.0, 18.6], "2")
+  barChar.Add([17.9, 24.3, 6.5, 10.4, 6.5, 10.4, 6.5], "3")
+  barChar.Add([6.5, 10.4, 17.9, 10.4, 6.5, 24.3, 6.5], "4")
+  barChar.Add([17.9, 10.4, 6.5, 10.4, 6.5, 24.3, 6.5], "5")
+  barChar.Add([6.5, 24.3, 6.5, 10.4, 6.5, 10.4, 17.9], "6")
+  barChar.Add([6.5, 24.3, 6.5, 10.4, 17.9, 10.4, 6.5], "7")
+  barChar.Add([6.5, 24.3, 17.9, 10.4, 6.5, 10.4, 6.5], "8")
+  barChar.Add([18.6, 10.0, 6.5, 24.4, 6.5, 10.0, 6.5], "9")
+  barChar.Add([6.5, 10.0, 18.6, 24.4, 6.5, 10.0, 6.5], "$")
+  barChar.Add([6.5, 10.0, 6.5, 24.4, 18.6, 10.0, 6.5], "-")
+  barChar.Add([16.7, 9.3, 6.5, 9.3, 16.7, 9.3, 14.7], ":")
+  barChar.Add([14.7, 9.3, 16.7, 9.3, 6.5, 9.3, 16.7], "/")
+  barChar.Add([13.6, 10.1, 14.9, 10.1, 17.2, 10.1, 6.5], ".")
+  barChar.Add([6.5, 10.1, 17.2, 10.1, 14.9, 10.1, 13.6], "+")
+  barChar.Add([6.5, 8.0, 19.6, 19.4, 6.5, 16.1, 6.5], "A")
+  barChar.Add([6.5, 8.0, 19.6, 19.4, 6.5, 16.1, 6.5], "T")
+  barChar.Add([6.5, 16.1, 6.5, 19.4, 6.5, 8.0, 19.6], "B")
+  barChar.Add([6.5, 16.1, 6.5, 19.4, 6.5, 8.0, 19.6], "N")
+  barChar.Add([6.5, 8.0, 6.5, 19.4, 6.5, 16.1, 19.6], "C")
+  barChar.Add([6.5, 8.0, 6.5, 19.4, 6.5, 16.1, 19.6], "*")
+  barChar.Add([6.5, 8.0, 6.5, 19.4, 19.6, 16.1, 6.5], "D")
+  barChar.Add([6.5, 8.0, 6.5, 19.4, 19.6, 16.1, 6.5], "E")
+  Me.SetFont("Arial", "", 13)
+  Me.Text(xpos, ypos + height + 4, code)
+  Me.SetFillColor(0)
+  code = Upper(starts & code & Eands)
+  For i = 1 To Len(code)
+    char = Mid(code, i, 1)
+    If (Not barChar.Exist(char)) Then Error.Raise("Invalid character in barcode: " & char)
+    seq = barChar[char]
+    For bar = 0 To 6
+      lineWidth = basewidth * seq[bar] / 6.5
+      If (bar Mod 2 = 0) Then Me.Rect(xpos, ypos, lineWidth, height, "F")
+      xpos += lineWidth
+    Next
+    xpos += basewidth * 10.4 / 6.5
+  Next
+  
+End
+
+'Transformations (Moritz Wagner & Andreas Würmser)
+' Performs the following 2D transformations: scaling, mirroring, translation, rotation and skewing.
+' Use StartTransform() before, and StopTransform() after the transformations to restore the normal behavior.
+' Use this before calling any tranformation.
+Public Sub StartTransform()
+  'save the current graphic state
+  
+  _out("q")
+  
+End
+
+'Transformations (Moritz Wagner & Andreas Würmser)
+'   s_x: scaling factor for width as percent. 0 is not allowed.
+'   x: abscissa of the scaling center. Default is current x position
+'   y: ordinate of the scaling center. Default is current y position
+Public Sub ScaleX(s_x As Float, Optional x As Float = 0, Optional y As Float = 0)
+  
+  Me.Scale(s_x, 100, x, y)
+  
+End
+
+'Transformations (Moritz Wagner & Andreas Würmser)
+'   s_y: scaling factor for height as percent. 0 is not allowed.
+'   x: abscissa of the scaling center. Default is current x position
+'   y: ordinate of the scaling center. Default is current y position
+Public Sub ScaleY(s_y As Float, Optional x As Float = 0, Optional y As Float = 0)
+  
+  Me.Scale(100, s_y, x, y)
+  
+End
+
+'Transformations (Moritz Wagner & Andreas Würmser)
+'   s: scaling factor for width and height as percent. 0 is not allowed.
+'   x: abscissa of the scaling center. Default is current x position
+'   y: ordinate of the scaling center. Default is current y position
+Public Sub ScaleXY(s As Float, Optional x As Float = 0, Optional y As Float = 0)
+  
+  Me.Scale(s, s, x, y)
+  
+End
+
+'Transformations (Moritz Wagner & Andreas Würmser)
+Public Sub Scale(s_x As Float, s_y As Float, Optional x As Float = 0, Optional y As Float = 0)
+  
+  If (IsNull(x)) Then x = $x
+  If (IsNull(y)) Then y = $y
+  If (s_x = 0 Or s_y = 0) Then Error.Raise("Please use values unequal to zero for Scaling")
+  y = ($h - y) * $k
+  x *= $k
+  'calculate elements of transformation matrix
+  s_x /= 100
+  s_y /= 100
+  'scale the coordinate system
+  Me.Transform([s_x, 0.0, 0.0, s_y, x * (1 - s_x), y * (1 - s_y)])
+  
+End
+
+'Transformations (Moritz Wagner & Andreas Würmser)
+' Alias for scaling -100% in x-direction
+'   x: abscissa of the axis of reflection
+Public Sub MirrorH(Optional x As Float = 0)
+  
+  If (IsNull(x)) Then
+    Me.Scale(-100, 100)
+  Else
+    Me.Scale(-100, 100, x)
+  End If
+  
+End
+
+'Transformations (Moritz Wagner & Andreas Würmser)
+' Alias for scaling -100% in y-direction
+'   y: ordinate of the axis of reflection
+Public Sub MirrorV(Optional y As Float = 0)
+  
+  Me.Scale(100, -100, 0, y)
+  
+End
+
+'Transformations (Moritz Wagner & Andreas Würmser)
+' Point reflection on point (x, y). (alias for scaling -100 in x- and y-direction)
+'   x: abscissa of the point. Default is current x position
+'   y: ordinate of the point. Default is current y position
+Public Sub MirrorP(Optional x As Float = 0, Optional y As Float = 0)
+  
+  Me.Scale(-100, -100, x, y)
+  
+End
+
+'Transformations (Moritz Wagner & Andreas Würmser)
+' Reflection against a straight line through point (x, y) with the gradient angle (angle).
+'   angle: gradient angle of the straight line. Default is 0 (horizontal line).
+'   x: abscissa of the point. Default is current x position
+'   y: ordinate of the point. Default is current y position
+Public Sub MirrorL(Optional angle As Float = 0, Optional x As Float = 0, Optional y As Float = 0)
+  
+  Me.Scale(-100, 100, x, y)
+  Me.Rotate(-2 * (angle - 90), x, y)
+  
+End
+
+'Transformations (Moritz Wagner & Andreas Würmser)
+' t_x: movement to the right
+Public Sub TranslateX(t_x As Float, Optional x As Float = 0, Optional y As Float = 0)
+  
+  Me.Translate(t_x, 0, x, y)
+  
+End
+
+'Transformations (Moritz Wagner & Andreas Würmser)
+' t_y: movement to the bottom
+Public Sub TranslateY(t_y As Float, Optional x As Float = 0, Optional y As Float = 0)
+  
+  Me.Translate(0, t_y, x, y)
+  
+End
+
+'Transformations (Moritz Wagner & Andreas Würmser)
+' t_x: movement to the right
+' t_y: movement to the bottom
+Public Sub Translate(t_x As Float, t_y As Float)
+  'translate the coordinate system
+  
+  Me.Transform([1.0, 0.0, 0.0, 1.0, t_x * $k, - t_y * $k])
+  
+End
+
+'Rounded rectangle (Maxime Delorme, Christophe Prugnaud)
+'   angle: angle in degrees for counter-clockwise rotation
+'   x: abscissa of the rotation center. Default is current x position
+'   y: ordinate of the rotation center. Default is current y position
+Public Sub Rotate(angle As Float, Optional x As Float = 0, Optional y As Float = 0)
+  
+  If (IsNull(x)) Then x = $x
+  If (IsNull(y)) Then y = $y
+  y = ($h - y) * $k
+  x *= $k
+  'rotate the coordinate system around ($x,$y)
+  Me.Transform([Cos(Rad(angle)),
+    Sin(Rad(angle)),
+    - Sin(Rad(angle)),
+    Cos(Rad(angle)),
+    x + Sin(Rad(angle)) * y - Cos(Rad(angle)) * x,
+    y - Cos(Rad(angle)) * y - Sin(Rad(angle)) * x])
+  
+End
+
+'Transformations (Moritz Wagner & Andreas Würmser)
+'   angle_x: angle in degrees between -90 (skew to the left) and 90 (skew to the right)
+'   x: abscissa of the skewing center. default is current x position
+'   y: ordinate of the skewing center. default is current y position
+Public Sub SkewX(angle_x As Float, Optional x As Float = 0, Optional y As Float = 0)
+  
+  Me.Skew(angle_x, 0, x, y)
+  
+End
+
+'Transformations (Moritz Wagner & Andreas Würmser)
+'   angle_y: angle in degrees between -90 (skew to the bottom) and 90 (skew to the top)
+'   x: abscissa of the skewing center. default is current x position
+'   y: ordinate of the skewing center. default is current y position
+Public Sub SkewY(angle_y As Float, Optional x As Float = 0, Optional y As Float = 0)
+  
+  Me.Skew(0, angle_y, x, y)
+  
+End
+
+'Transformations (Moritz Wagner & Andreas Würmser)
+'   angle_x: angle in degrees between -90 (skew to the left) and 90 (skew to the right)
+'   angle_y: angle in degrees between -90 (skew to the bottom) and 90 (skew to the top)
+'   x: abscissa of the skewing center. default is current x position
+'   y: ordinate of the skewing center. default is current y position
+Public Sub Skew(angle_x As Float, angle_y As Float, Optional x As Float = 0, Optional y As Float = 0)
+  
+  If (IsNull(x)) Then x = $x
+  If (IsNull(y)) Then y = $y
+  If (angle_x <= -90 Or angle_x >= 90 Or angle_y <= -90 Or angle_y >= 90) Then
+    Error.Raise("Please use values between -90° and 90° for skewing")
+  End If
+  x *= $k
+  y = ($h - y) * $k
+  'skew the coordinate system
+  Me.Transform([1.0,
+    Tan(Rad(angle_y)),
+    Tan(Rad(angle_x)),
+    1.0,
+    - Tan(Rad(angle_x)) * y,
+    - Tan(Rad(angle_y)) * x])
+  
+End
+
+'Transformations (Moritz Wagner & Andreas Würmser)
+Public Sub Transform(tm As Float[])
+  
+  _out(_stringFloat(tm[0], "0.000") & " " &
+    _stringFloat(tm[1], "0.000") & " " &
+    _stringFloat(tm[2], "0.000") & " " &
+    _stringFloat(tm[3], "0.000") & " " &
+    _stringFloat(tm[4], "0.000") & " " &
+    _stringFloat(tm[5], "0.000") & " cm")
+  
+End
+
+'Transformations (Moritz Wagner & Andreas Würmser)
+' Restores the normal painting and placing behavior as it was before calling StartTransform().
+Public Sub StopTransform()
+  'restore previous graphic state
+  
+  _out("Q")
+  
+End
+
+'Circular text (Andreas Würmser)
+'This script prints a circular text inside a given circle.
+'   x: abscissa of center
+'   y: ordinate of center
+'   r: radius of circle
+'   text: text to be printed
+'   align: text alignment: top or bottom. Default value: top
+'   kerning: spacing between letters in percentage. Default value: 120. Zero is not allowed.
+'   fontwidth: width of letters in percentage. Default value: 100. Zero is not allowed.
+Public Sub CircularText(x As Float, y As Float, r As Float, text As String, Optional align As String = "top", Optional kerning As Float = 120, Optional fontwidth As Float = 100)
+  
+  Dim i As Integer
+  Dim w As Float[]
+  Dim t, u, d As Float
+  
+  kerning /= 100
+  fontwidth /= 100
+  If (kerning = 0) Then Error.Raise("Please use values unequal to zero for kerning")
+  If (fontwidth = 0) Then Error.Raise("Please use values unequal to zero for font width")
+  'get width of every letter
+  w = New Float[]
+  For i = 0 To (Len(text) - 1)
+    w.Add(0)
+    w[i] = Me.GetStringWidth(Mid(text, i + 1, 1))
+    w[i] *= kerning * fontwidth
+    'total width of string
+    t += w[i]
+  Next
+  'circumference
+  u = (r * 2) * Pi()
+  'total width of string in degrees
+  d = (t / u) * 360
+  Me.StartTransform()
+  'rotate matrix for the first letter to center the text
+  '(half of total degrees)
+  If (align = "top") Then
+    Me.Rotate(d / 2, x, y)
+  Else
+    Me.Rotate(- d / 2, x, y)
+  End If
+  'run through the string
+  For i = 0 To (Len(text) - 1)
+    If (align = "top") Then
+      'rotate matrix half OF the width OF current letter + half of the width of preceding letter
+      If (i = 0) Then
+        Me.Rotate(- ((w[i] / 2) / u) * 360, x, y)
+      Else
+        Me.Rotate(- ((w[i] / 2 + w[i - 1] / 2) / u) * 360, x, y)
+      End If
+      If (fontwidth <> 1) Then
+        Me.StartTransform()
+        Me.ScaleX(fontwidth * 100, x, y)
+      End If
+      Me.SetXY(x - w[i] / 2, y - r)
+    Else
+      'rotate matrix half of the width of current letter + half of the width of preceding letter
+      If (i = 0) Then
+        Me.Rotate(((w[i] / 2) / u) * 360, x, y)
+      Else
+        Me.Rotate(((w[i] / 2 + w[i - 1] / 2) / u) * 360, x, y)
+      End If
+      If (fontwidth <> 1) Then
+        Me.StartTransform()
+        Me.ScaleX(fontwidth * 100, x, y)
+      End If
+      Me.SetXY(x - w[i] / 2, y + r - ($FontSize))
+    End If
+    Me.Cell(w[i], $FontSize, Mid(text, i + 1, 1), 0, 0, "C")
+    If (fontwidth <> 1) Then
+      Me.StopTransform()
+    End If
+  Next
+  Me.StopTransform()
+  
+End
+
+'********************************************************************************
+'*                                                                              *
+'* Protected methods                                                            *
+'*                                                                              *
+'********************************************************************************
+
+Private Sub _putpages()
+  
+  Dim nb, n, i As Integer
+  Dim wPt, hPt, l, h As Float
+  Dim filter, annots, rect, p, kids As String
+  Dim pl As Float[]
+  Dim cmp As New Compress
+  
+  nb = $page
+  If (Not IsNull($AliasNbPages)) Then
+    'Replace number of pages
+    For n = 0 To nb
+      $pages[n] = Replace($pages[n], $AliasNbPages, Str(nb + 1))
+    Next
+  End If
+  If ($DefOrientation = "P") Then
+    wPt = $fwPt
+    hPt = $fhPt
+  Else
+    wPt = $fhPt
+    hPt = $fwPt
+  End If
+  filter = IIf($compress, "/Filter /FlateDecode ", "")
+  For n = 0 To nb
+    'Page
+    _newobj()
+    _out("<</Type /Page")
+    _out("/Parent 1 0 R")
+    If ($OrientationChanges[n]) Then
+      _out("/MediaBox [0 0 " & _stringFloat(hPt, "0.00") & " " &
+        _stringFloat(wPt, "0.00") & "]")
+    End If
+    _out("/Resources 2 0 R")
+    If ($PageLinks.Exist(Str(n))) Then
+      'Links
+      annots = "/Annots ["
+      For Each pl In $PageLinks[Str(n)]
+        rect = _stringFloat(pl[0], "0.00") & " " &
+          _stringFloat(pl[1], "0.00") & " " &
+          _stringFloat(pl[0] + pl[2], "0.00") & " " &
+          _stringFloat(pl[1] - pl[3], "0.00")
+        annots &= "<</Type /Annot /Subtype /Link /Rect [" & rect & "] /Border [0 0 0] "
+        ' [GB2:ISTY] If (IsString(pl[4])) Then
+        If (TypeOf(pl[4]) = gb.String) Then
+          annots &= "/A <</S /URI /URI " & _textstring(pl[4]) & ">>>>"
+        Else
+          l = $links[pl[4]]
+          h = IIf($OrientationChanges[l[0]], wPt, hPt)
+          annots &= "/Dest [" & Str(1 + 2 * l[0]) & " 0 R /XYZ 0 " &
+            _stringFloat(h - l[1] * $k, "0.00") & " null]>>"
+        End If
+      Next
+      _out(annots & "]")
+    End If
+    _out("/Contents " & Str($n + 1) & " 0 R>>")
+    _out("endobj")
+    'Page content
+    cmp.Type = "zlib"
+    p = IIf($compress, cmp.String($pages[n]), $pages[n])
+    _newobj()
+    _out("<<" & filter & "/Length " & Len(p) & ">>")
+    _putstream(p)
+    _out("endobj")
+  Next
+  'Pages root
+  $offsets[0] = Len($buffer)
+  _out("1 0 obj")
+  _out("<</Type /Pages")
+  kids = "/Kids ["
+  For i = 0 To nb '(nb - 1)
+    kids &= Str(3 + 2 * i) & " 0 R "
+  Next
+  _out(kids & "]")
+  '_out("/Count " & Str(nb))
+  _out("/Count " & Str(nb + 1))
+  _out("/MediaBox [0 0 " & _stringFloat(wPt, "0.00") & " " &
+    _stringFloat(hPt, "0.00") & "]")
+  _out(">>")
+  _out("endobj")
+  
+End
+
+Private Sub _putfonts()
+  
+  Dim nf, i As Integer
+  Dim diff, compressed, header As Boolean
+  Dim info, fontt As Collection
+  Dim filename, k, type, name, v, mtd, s As String
+  Dim cw As Integer[]
+  
+  nf = $n
+  For Each diff In $diffs
+    'Encodings
+    _newobj()
+    _out("<</Type /Encoding /BaseEncoding /WinAnsiEncoding /Differences [" & IIf(diff, "true", "false") & "]>>")
+    _out("endobj")
+  Next
+  For Each info In $FontFiles '($FontFiles AS filename = > info)
+    filename = $FontFiles.Key
+    'Font file embedding
+    _newobj()
+    $FontFiles[filename]["n"] = $n
+    fontt = ""
+    If (Not Exist(filename)) Then Error.Raise("Font file not found")
+    fontt = File.Load(filename)
+    compressed = (Right(filename, 2) = ".z")
+    If (Not compressed And Not IsNull(info["length2"])) Then
+      header = (Asc(fontt, 1) = 128)
+      'Strip first binary header
+      If (header) Then fontt = Mid(fontt, 6)
+      'Strip second binary header
+      If (header And Asc(fontt, info["length1"]) = 128) Then fontt = Mid(fontt, 1, info["length1"]) & Mid(fontt, info["length1"] + 6)
+    End If
+    _out("<</Length " & Len(fontt))
+    If (compressed) Then _out("/Filter /FlateDecode")
+    _out("/Length1 " & info["length1"])
+    If (Not IsNull(info["length2"])) Then _out("/Length2 " & info["length2"] & " /Length3 0")
+    _out(">>")
+    _putstream(fontt)
+    _out("endobj")
+  Next
+  For Each fontt In $fonts
+    k = $fonts.Key
+    'Font objects
+    $fonts[k]["n"] = $n
+    type = fontt["type"]
+    name = fontt["name"]
+    Select Case type
+      Case "core"
+        'Standard font
+        _newobj()
+        _out("<</Type /Font")
+        _out("/BaseFont /" & name)
+        _out("/Subtype /Type1")
+        If (name <> "Symbol" And name <> "ZapfDingbats") Then _out("/Encoding /WinAnsiEncoding")
+        _out(">>")
+        _out("endobj")
+      Case "Type1", "TrueType"
+        'Additional Type1 or TrueType font
+        _newobj()
+        _out("<</Type /Font")
+        _out("/BaseFont /" & name)
+        _out("/Subtype /" & type)
+        _out("/FirstChar 32 /LastChar 255")
+        _out("/Widths " & Str($n + 1) & " 0 R")
+        _out("/FontDescriptor " & Str($n + 2) & " 0 R")
+        If (fontt["enc"]) Then
+          If (Not IsNull(fontt["diff"])) Then
+            _out("/Encoding " & Str(nf + fontt["diff"]) & " 0 R")
+          Else
+            _out("/Encoding /WinAnsiEncoding")
+          End If
+        End If
+        _out(">>")
+        _out("endobj")
+        'Widths
+        _newobj()
+        cw = fontt["cw"]
+        s = "["
+        For i = 32 To 255
+          s &= Str(cw[i]) & " "
+        Next
+        _out(s & "]")
+        _out("endobj")
+        'Descriptor
+        _newobj()
+        s = "<</Type /FontDescriptor /FontName /" & name
+        For Each v In fontt["desc"] '($font[ 'desc'] as k=>v)
+          k = fontt["desc"].Key
+          s &= " /" & k & " " & v
+        Next
+        filename = fontt["file"]
+        If (filename) Then s &= " /FontFile" & IIf(type = "Type1", "", "2") & " " & Str($FontFiles[filename]["n"] + 1) & " 0 R"
+        _out(s & ">>")
+        _out("endobj")
+      Default
+        Error.Raise("Unsupported font type: " & type)
+    End Select
+  Next
+  
+End
+
+Private Sub _putimages()
+  
+  Dim filter, filename, trns, pal As String
+  Dim info As Collection
+  Dim i As Integer
+  Dim cmp As New Compress
+  
+  filter = IIf($compress, "/Filter /FlateDecode ", "")
+  For Each info In $images
+    filename = $images.Key
+    _newobj()
+    $images[filename]["n"] = $n - 1
+    _out("<</Type /XObject")
+    _out("/Subtype /Image")
+    _out("/Width " & info["w"])
+    _out("/Height " & info["h"])
+    If (info["cs"] = "Indexed") Then
+      _out("/ColorSpace [/Indexed /DeviceRGB " & Str(Len(info["pal"]) / 3 - 1) & " " & Str($n + 1) & " 0 R]")
+    Else
+      _out("/ColorSpace /" & info["cs"])
+      If (info["cs"] = "DeviceCMYK") Then _out("/Decode [1 0 1 0 1 0 1 0]")
+    End If
+    _out("/BitsPerComponent " & info["bpc"])
+    If (Not IsNull(info["f"])) Then _out("/Filter /" & info["f"])
+    If (Not IsNull(info["parms"])) Then _out(info["parms"])
+    ' [GB2:ISTY] If (Not IsNull(info["trns"]) And IsObject(info["trns"])) Then
+    If (Not IsNull(info["trns"]) And TypeOf(info["trns"]) = gb.Object) Then
+      trns = ""
+      For i = 0 To (info["trns"].Count - 1)
+        trns &= info["trns"][i] & " " & info["trns"][i] & " "
+      Next
+      _out("/Mask [" & trns & "]")
+    End If
+    _out("/Length " & Str(Len(info["data"])) & ">>")
+    _putstream(info["data"])
+    $images[filename]["data"] = ""
+    _out("endobj")
+    'Palette
+    If (info["cs"] = "Indexed") Then
+      _newobj()
+      cmp.Type = "zlib"
+      pal = IIf($compress, cmp.String(info["pal"]), info["pal"])
+      _out("<<" & filter & "/Length " & Str(Len(pal)) & ">>")
+      _putstream(pal)
+      _out("endobj")
+    End If
+  Next
+  
+End
+
+Private Sub _putxobjectdict()
+  
+  Dim image As Collection
+  
+  For Each image In $images
+    _out("/I" & Str(image["i"] + 1) & " " & Str(image["n"] + 1) & " 0 R")
+  Next
+  
+End
+
+Private Sub _putresourcedict()
+  
+  Dim fontt As Collection
+  Dim id As Integer
+  
+  _out("/ProcSet [/PDF /Text /ImageB /ImageC /ImageI]")
+  _out("/Font <<")
+  For Each fontt In $fonts
+    _out("/F" & Str(fontt["i"] + 1) & " " & Str(fontt["n"] + 1) & " 0 R")
+  Next
+  _out(">>")
+  _out("/XObject <<")
+  _putxobjectdict()
+  _out(">>")
+  'Gradients (start)
+  If ($gradients.Count > 0) Then
+    _out("/Shading <<")
+    For id = 0 To ($gradients.Count - 1)
+      _out("/Sh" & Str(id) & " " & $gradients[id]["id"] & " 0 R")
+    Next
+    _out(">>")
+  End If
+  'Gradients (end)
+  
+End
+
+Private Sub _putresources()
+  'Gradients (start)
+  
+  _putshaders()
+  'Gradients (end)
+  _putfonts()
+  _putimages()
+  'Resource dictionary
+  $offsets[1] = Len($buffer)
+  _out("2 0 obj")
+  _out("<<")
+  _putresourcedict()
+  _out(">>")
+  _out("endobj")
+  'Bookmarks (Olivier)
+  'This extension adds bookmark support.
+  _putbookmarks()
+  
+End
+
+Private Sub _putinfo()
+  
+  _out("/Producer " & _textstring("PdfWriter " & Me.Version))
+  If (Not IsNull($title)) Then _out("/Title " & _textstring($title))
+  If (Not IsNull($subject)) Then _out("/Subject " & _textstring($subject))
+  If (Not IsNull($author)) Then _out("/Author " & _textstring($author))
+  If (Not IsNull($keywords)) Then _out("/Keywords " & _textstring($keywords))
+  If (Not IsNull($creator)) Then _out("/Creator " & _textstring($creator))
+  _out("/CreationDate " & _textstring("D:" & Format(Now(), "yyyymmddhhnnss")))
+  
+End
+
+Private Sub _putcatalog()
+  
+  _out("/Type /Catalog")
+  _out("/Pages 1 0 R")
+  If ($ZoomMode = "fullpage") Then
+    _out("/OpenAction [3 0 R /Fit]")
+  Else If ($ZoomMode = "fullwidth") Then
+    _out("/OpenAction [3 0 R /FitH null]")
+  Else If ($ZoomMode = "real") Then
+    _out("/OpenAction [3 0 R /XYZ null null 1]")
+    ' [GB2:ISTY] Else If (Not IsString($ZoomMode)) Then
+  Else If (Not TypeOf($ZoomMode) = gb.String) Then
+    _out("/OpenAction [3 0 R /XYZ null null " & Str($ZoomMode / 100) & "]")
+  End If
+  If ($LayoutMode = "single") Then
+    _out("/PageLayout /SinglePage")
+  Else If ($LayoutMode = "continuous") Then
+    _out("/PageLayout /OneColumn")
+  Else If ($LayoutMode = "two") Then
+    _out("/PageLayout /TwoColumnLeft")
+  End If
+  'Bookmarks (Olivier)
+  'This extension adds bookmark support.
+  If ($outlines.Count > 0) Then
+    _out("/Outlines " & $OutlineRoot & " 0 R")
+    _out("/PageMode /UseOutlines")
+  End If
+  
+End
+
+Private Sub _putheader()
+  '_out("%PdfWriter-" & Version)
+  
+  _out("%PDF-" & Me.PDFVersion)
+  
+End
+
+Private Sub _puttrailer()
+  
+  _out("/Size " & Str($n + 1))
+  _out("/Root " & Str($n) & " 0 R")
+  _out("/Info " & Str($n - 1) & " 0 R")
+  
+End
+
+Public Sub _enddoc()
+  
+  Dim o, i As Integer
+  
+  _putheader()
+  _putpages()
+  _putresources()
+  'Info
+  _newobj()
+  _out("<<")
+  _putinfo()
+  _out(">>")
+  _out("endobj")
+  'Catalog
+  _newobj()
+  _out("<<")
+  _putcatalog()
+  _out(">>")
+  _out("endobj")
+  'Cross - ref
+  o = Len($buffer)
+  _out("xref")
+  _out("0 " & Str($n + 1))
+  _out("0000000000 65535 f ")
+  'FOR i = 1 TO ($n - 1)
+  For i = 0 To ($n - 1)
+    _out(Format($offsets[i], "0000000000") & " 00000 n ")
+  Next
+  'Trailer
+  _out("trailer")
+  _out("<<")
+  _puttrailer()
+  _out(">>")
+  _out("startxref")
+  _out(o)
+  _out("%%EOF")
+  $state = 3
+  
+End
+
+Private Sub _beginpage(Optional orientation As String = "")
+  
+  $pages.Add("")
+  $page = $pages.Count - 1
+  $OrientationChanges.Add(False)
+  $state = 2
+  $x = $lMargin
+  $y = $tMargin
+  $FontFamily = ""
+  'Page orientation
+  If (IsNull(orientation)) Then
+    orientation = $DefOrientation
+  Else
+    orientation = Upper(Left(orientation, 1)) & Mid(orientation, 2)
+    If (orientation <> $DefOrientation) Then $OrientationChanges[$page] = True
+  End If
+  If (orientation <> $CurOrientation) Then
+    'Change orientation
+    If (orientation = "P") Then
+      $wPt = $fwPt
+      $hPt = $fhPt
+      $w = $fw
+      $h = $fh
+    Else
+      $wPt = $fhPt
+      $hPt = $fwPt
+      $w = $fh
+      $h = $fw
+    End If
+    $PageBreakTrigger = $h - $bMargin
+    $CurOrientation = orientation
+  End If
+  
+End
+
+Public Sub _endpage()
+  'Rounded rectangle (Maxime Delorme, Christophe Prugnaud)
+  
+  If ($angle <> 0) Then
+    $angle = 0
+    _out("Q")
+  End If
+  'End of page contents
+  $state = 1
+  
+End
+
+Private Sub _newobj()
+  'Begin a new object
+  
+  $offsets.Add(Len($buffer))
+  $n = $offsets.Count
+  _out(Str($n) & " 0 obj")
+  
+End
+
+Private Function _dounderline(x As Float, y As Float, txt As String) As String
+  
+  Dim up, ut As Integer
+  Dim w As Float
+  'Underline text
+  up = $CurrentFont["up"]
+  ut = $CurrentFont["ut"]
+  w = Me.GetStringWidth(txt) + $ws * Split(txt, " ").Count
+  Return (_stringFloat(x * $k, "0.00") & " " &
+    _stringFloat(($h - (y - up / 1000 * $FontSize)) * $k, "0.00") & " " &
+    _stringFloat(w * $k, "0.00") & " " &
+    _stringFloat(- ut / 1000 * $FontSizePt, "0.00") & " re f")
+  
+End
+
+Private Function _parsejpg(filename As String) As Collection
+  
+  Dim c As Collection
+  Dim colspace As String
+  Dim bpc, w, h As Integer
+  Dim data As Image
+  Dim datab As String
+  
+  If (Not Exist(filename)) Then
+    Error.Raise("Missing or incorrect image file: " & filename)
+  Else If (Lower(File.Ext(filename)) <> "jpg" And Lower(File.Ext(filename)) <> "jpeg") Then
+    Error.Raise("Not a JPEG file: " & filename)
+  End If
+  'Extract info from a JPEG file
+  datab = File.Load(filename)
+  data = Image.Load(filename)
+  w = data.Width
+  h = data.Height
+  If (data.Depth = 2) Then
+    colspace = "DeviceGray"
+  Else
+    colspace = "DeviceRGB" '"DeviceCMYK"
+  End If
+  bpc = 8
+  'Read whole file
+  c = New Collection
+  c.Add(data.Width, "w")
+  c.Add(data.Height, "h")
+  c.Add(colspace, "cs")
+  c.Add(bpc, "bpc")
+  c.Add("DCTDecode", "f")
+  c.Add(datab, "data")
+  Return (c)
+  
+End
+
+Private Function _parsepng(filename As String) As Collection
+  
+  Dim hFile As File
+  Dim c As Collection
+  Dim colspace, parms, pal, trns, type, buf, data As String
+  Dim w, h, bpc, ct, n, pos, i As Integer
+  Dim a As Byte[]
+  Dim b As Byte
+  'Extract info from a PNG file
+  hFile = Open filename For Read
+  If (Not hFile) Then Error.Raise("Can't open image file: " & filename)
+  'Check signature
+  buf = ""
+  Read #hFile, buf, 8
+  If (buf <> Chr(137) & "PNG" & Chr(13) & Chr(10) & Chr(26) & Chr(10)) Then
+    Close #hFile
+    Error.Raise("Not a PNG file: " & filename)
+  End If
+  'Read header chunk
+  buf = ""
+  Read #hFile, buf, 8
+  If (Mid(buf, 5) <> "IHDR") Then
+    Close #hFile
+    Error.Raise("Incorrect PNG file: " & filename)
+  End If
+  w = _freadint(hFile)
+  h = _freadint(hFile)
+  buf = ""
+  Read #hFile, buf, 1
+  bpc = Asc(Left(buf, 1))
+  If (bpc > 8) Then
+    Close #hFile
+    Error.Raise("16-bit depth not supported: " & filename)
+  End If
+  buf = ""
+  Read #hFile, buf, 1
+  ct = Asc(Left(buf, 1))
+  If (ct = 0) Then
+    colspace = "DeviceGray"
+  Else If (ct = 2) Then
+    colspace = "DeviceRGB"
+  Else If (ct = 3) Then
+    colspace = "Indexed"
+  Else
+    Close #hFile
+    Error.Raise("Alpha channel not supported: " & filename)
+  End If
+  buf = ""
+  Read #hFile, buf, 1
+  If (Asc(Left(buf, 1)) <> 0) Then
+    Close #hFile
+    Error.Raise("Unknown compression method: " & filename)
+  End If
+  buf = ""
+  Read #hFile, buf, 1
+  If (Asc(Left(buf, 1)) <> 0) Then
+    Close #hFile
+    Error.Raise("Unknown filter method: " & filename)
+  End If
+  buf = ""
+  Read #hFile, buf, 1
+  If (Asc(Left(buf, 1)) <> 0) Then Error.Raise("Interlacing not supported: " & filename)
+  buf = ""
+  Read #hFile, buf, 4
+  parms = "/DecodeParms <</Predictor 15 /Colors "
+  If (ct = 2) Then
+    parms &= "3"
+  Else
+    parms &= "1"
+  End If
+  parms &= " /BitsPerComponent " & Str(bpc) & " /Columns " & Str(w) & ">>"
+  'Scan chunks looking for palette, transparency and image data
+  pal = ""
+  trns = ""
+  data = ""
+  Do
+    n = _freadint(hFile)
+    type = ""
+    Read #hFile, type, 4
+    If (type = "PLTE") Then
+      'Read palette
+      buf = ""
+      Read #hFile, buf, n + 4
+      pal = Left(buf, n - 4)
+    Else If (type = "tRNS") Then
+      'Read transparency info
+      buf = ""
+      Read #hFile, buf, n
+      If (ct = 0) Then
+        trns = New Array(Asc(Left(buf, 1)))
+      Else If (ct = 2) Then
+        trns = New Array(Asc(Mid(buf, 1, 1)), Asc(Mid(buf, 3, 1)), Asc(Mid(buf, 5, 1)))
+      Else
+        pos = InStr(buf, Chr(0))
+        If (pos > 0) Then trns = New Array(pos)
+      End If
+      buf = ""
+      Read #hFile, buf, 4
+    Else If (type = "IDAT") Then
+      'Read image data block
+      buf = ""
+      Read #hFile, buf, n
+      data &= buf
+      buf = ""
+      Read #hFile, buf, 4
+    Else If (type = "IEND") Then
+      Break
+    Else
+      buf = ""
+      Read #hFile, buf, n + 4
+    End If
+  Loop Until n <= 0
+  If (colspace = "Indexed" And IsNull(pal) = "") Then
+    Close #hFile
+    Error.Raise("Missing palette in " & filename)
+  End If
+  Close #hFile
+  c = New Collection
+  c.Add(w, "w")
+  c.Add(h, "h")
+  c.Add(colspace, "cs")
+  c.Add(bpc, "bpc")
+  c.Add("FlateDecode", "f")
+  c.Add(parms, "parms")
+  c.Add(pal, "pal")
+  c.Add(trns, "trns")
+  c.Add(data, "data")
+  Return (c)
+  
+End
+
+Private Function _freadint(hFile As File) As Integer
+  
+  Dim a As String
+  Dim i As Integer = 0
+  'Read a 4-byte integer from file
+  Read #hFile, a, 4
+  i = Asc(Mid(a, 1, 1)) * 256 * 256 * 256
+  i += Asc(Mid(a, 2, 1)) * 256 * 256
+  i += Asc(Mid(a, 3, 1)) * 256
+  i += Asc(Mid(a, 4, 1))
+  Return (i)
+  
+End
+
+Private Function _textstring(s As String) As String
+  'Format a text string
+  
+  Return ("(" & _escape(s) & ")")
+  
+End
+
+Private Function _escape(s As String) As String
+  'Add \ before \, ( and )
+  
+  Return (Replace(Replace(Replace(s, "\\", "\\\\"), "(", "\\("), ")", "\\)"))
+  
+End
+
+Private Sub _putstream(s As String)
+  
+  _out("stream")
+  _out(s)
+  _out("endstream")
+  
+End
+
+Private Sub _out(s As String)
+  'Add a line to the document
+  
+  If ($state = 2) Then
+    $pages[$page] &= s & "\n"
+  Else
+    $buffer &= s & "\n"
+  End If
+  
+End
+
+Private Sub _stringFloat(v As Variant, f As String) As String
+  
+  Return (Replace(Format(v, f), ",", "."))
+  
+End
+
+' Disegna un arco.
+Private Function _Arc(x1 As Float, y1 As Float, x2 As Float, y2 As Float, x3 As Float, y3 As Float)
+  
+  Dim h As Float = $h
+  
+  _out(_stringFloat(x1 * $k, "0.00") & " " &
+    _stringFloat((h - y1) * $k, "0.00") & " " &
+    _stringFloat(x2 * $k, "0.00") & " " &
+    _stringFloat((h - y2) * $k, "0.00") & " " &
+    _stringFloat(x3 * $k, "0.00") & " " &
+    _stringFloat((h - y3) * $k, "0.00") & " c ")
+  
+End
+
+Private Function _rotate(angle As Float, Optional x As Float = -1, Optional y As Float = -1)
+  
+  Dim c, s As Float
+  Dim cx, cy As Float
+  
+  If (x = -1) Then x = $x
+  If (y = -1) Then y = $y
+  If ($angle <> 0) Then _out("Q")
+  $angle = angle
+  If (angle <> 0) Then
+    angle *= (Pi() / 180)
+    c = Cos(angle)
+    s = Sin(angle)
+    cx = x * $k
+    cy = ($h - y) * $k
+    _out("q " & _stringFloat(c, "0.00000") & " " &
+      _stringFloat(s, "0.00000") & " " &
+      _stringFloat(- s, "0.00000") & " " &
+      _stringFloat(c, "0.00000") & " " &
+      _stringFloat(cx, "0.00") & " " &
+      _stringFloat(cy, "0.00") & " cm 1 0 0 1 " &
+      _stringFloat(- cx, "0.00") & " " &
+      _stringFloat(- cy, "0.00") & " cm")
+  End If
+  
+End
+
+Private Function _checkPageBreak(h As Float)
+  'If the height h would cause an overflow, add a new page immediately
+  
+  If (Me.GetY() + h > $PageBreakTrigger) Then
+    Me.AddPage($CurOrientation)
+  End If
+  
+End
+
+Private Function _nbLines(w As Float, txt As String) As Integer
+  
+  Dim cw As Integer[]
+  Dim wmax As Float
+  Dim s, c As String
+  Dim nb, sep, i, j, l, nl As Integer
+  'Computes the number of lines a MultiCell of width w will take
+  cw = $CurrentFont["cw"]
+  If (w = 0) Then w = $w - $rMargin - $x
+  wmax = (w - 2 * $cMargin) * 1000 / $FontSize
+  s = Replace(txt, "\r", "")
+  nb = Len(s)
+  If (nb > 0) And If (Mid(s, nb, 1) = "\n") Then Dec nb
+  sep = -1
+  i = 1
+  j = 1
+  l = 0
+  nl = 1
+  While (i <= nb)
+    c = Mid(s, i, 1)
+    If (c = "\n") Then
+      Inc i
+      sep = -1
+      j = i
+      l = 0
+      Inc nl
+      Continue
+    End If
+    If (c = " ") Then sep = i
+    l += cw[Asc(c)]
+    If (l > wmax) Then
+      If (sep = -1) Then
+        If (i = j) Then Inc i
+      Else
+        i = sep + 1
+      End If
+      sep = -1
+      j = i
+      l = 0
+      Inc nl
+    Else
+      Inc i
+    End If
+  Wend
+  Return nl
+  
+End
+
+'Bookmarks (Olivier)
+'This extension adds bookmark support.
+Private Function _putbookmarks()
+  
+  Dim nb, level, parent, i, prev, n As Integer
+  Dim lru As Integer[]
+  Dim o As Collection
+  
+  nb = $outlines.Count
+  If (nb = 0) Then Return
+  lru = New Integer[$outlines.Count]
+  level = 0
+  For i = 0 To ($outlines.Count - 1)
+    o = $outlines[i]
+    If (o["l"] > 0) Then
+      parent = lru[o["l"] - 1]
+      'Set parent and last pointers
+      $outlines[i]["parent"] = parent
+      $outlines[parent]["last"] = i
+      'Level increasing: set first pointer
+      If (o["l"] > level) Then $outlines[parent]["first"] = i
+    Else
+      $outlines[i]["parent"] = nb
+    End If
+    If (o["l"] <= level And i > 0) Then
+      'Set prev and next pointers
+      prev = lru[o["l"]]
+      $outlines[prev]["next"] = i
+      $outlines[i]["prev"] = prev
+    End If
+    lru[o["l"]] = i
+    level = o["l"]
+  Next
+  'Outline items
+  n = $n + 1
+  For Each o In $outlines
+    _newobj()
+    _out("<</Title " & _textstring(o["t"]))
+    _out("/Parent " & Str(n + o["parent"]) & " 0 R")
+    If (o["prev"] <> -1) Then _out("/Prev " & Str(n + o["prev"]) & " 0 R")
+    If (o["next"] <> -1) Then _out("/Next " & Str(n + o["next"]) & " 0 R")
+    If (o["first"] <> -1) Then _out("/First " & Str(n + o["first"]) & " 0 R")
+    If (o["last"] <> -1) Then _out("/Last " & Str(n + o["last"]) & " 0 R")
+    _out("/Dest [" & Str(1 + 2 * o["p"]) & " 0 R /XYZ 0 " & _stringFloat(($h - o["y"]) * $k, "0.00") & " null]")
+    _out("/Count 0>>")
+    _out("endobj")
+  Next
+  'Outline root
+  _newobj()
+  $OutlineRoot = $n
+  _out("<</Type /Outlines /First " & Str(n) & " 0 R")
+  _out("/Last " & Str(n + lru[0]) & " 0 R>>")
+  _out("endobj")
+  
+End
+
+'Geometric figures (David Hernández Sanz)
+' Sets a draw point
+' Parameters:
+' - x, y: Point
+Private Sub _Point(x As Float, y As Float)
+  
+  _out(_stringFloat(x * $k, "0.00") & " " & _stringFloat(($h - y) * $k, "0.00") & " m")
+  
+End
+
+'Geometric figures (David Hernández Sanz)
+' Draws a line from last draw point
+' Parameters:
+' - x, y: End point
+Private Sub _Line(x As Float, y As Float)
+  
+  _out(_stringFloat(x * $k, "0.00") & " " & _stringFloat(($h - y) * $k, "0.00") & " l")
+  
+End
+
+'Geometric figures (David Hernández Sanz)
+' Draws a Bézier curve from last draw point
+' Parameters:
+' - x1, y1: Control point 1
+' - x2, y2: Control point 2
+' - x3, y3: End point
+Private Sub _Curve(x1 As Float, y1 As Float, x2 As Float, y2 As Float, x3 As Float, y3 As Float)
+  
+  _out(_stringFloat(x1 * $k, "0.00") & " " &
+    _stringFloat(($h - y1) * $k, "0.00") & " " &
+    _stringFloat(x2 * $k, "0.00") & " " &
+    _stringFloat(($h - y2) * $k, "0.00") & " " &
+    _stringFloat(x3 * $k, "0.00") & " " &
+    _stringFloat(($h - y3) * $k, "0.00") & " c")
+  
+End
+
+'Gradients (Andreas Würmser)
+Private Sub _putshaders()
+  
+  Dim id, f1 As Integer
+  Dim grad As Collection
+  
+  For id = 0 To ($gradients.Count - 1)
+    grad = $gradients[id]
+    If (grad["type"] = 2 Or grad["type"] = 3) Then
+      _newobj()
+      _out("<<")
+      _out("/FunctionType 2")
+      _out("/Domain [0.0 1.0]")
+      _out("/C0 [" & grad["col1"] & "]")
+      _out("/C1 [" & grad["col2"] & "]")
+      _out("/N 1")
+      _out(">>")
+      _out("endobj")
+      f1 = $n
+    End If
+    _newobj()
+    _out("<<")
+    _out("/ShadingType " & grad["type"])
+    _out("/ColorSpace /DeviceRGB")
+    If (grad["type"] = "2") Then
+      _out("/Coords [" &
+        _stringFloat(grad["coords"][0], "0.000") & " " &
+        _stringFloat(grad["coords"][1], "0.000") & " " &
+        _stringFloat(grad["coords"][2], "0.000") & " " &
+        _stringFloat(grad["coords"][3], "0.000") & "]")
+      _out("/Function " & f1 & " 0 R")
+      _out("/Extend [true true] ")
+      _out(">>")
+    Else If (grad["type"] = 3) Then
+      'x0, y0, r0, x1, y1, r1
+      'at this this time radius of inner circle is 0
+      _out("/Coords [" &
+        _stringFloat(grad["coords"][0], "0.000") & " " &
+        _stringFloat(grad["coords"][1], "0.000") & " 0 " &
+        _stringFloat(grad["coords"][2], "0.000") & " " &
+        _stringFloat(grad["coords"][3], "0.000") & " " &
+        _stringFloat(grad["coords"][4], "0.000") & "]")
+      _out("/Function " & f1 & " 0 R")
+      _out("/Extend [true true] ")
+      _out(">>")
+    Else If (grad["type"] = 6) Then
+      _out("/BitsPerCoordinate 16")
+      _out("/BitsPerComponent 8")
+      _out("/Decode[0 1 0 1 0 1 0 1 0 1]")
+      _out("/BitsPerFlag 8")
+      _out("/Length " & Str(Len(grad["stream"])))
+      _out(">>")
+      _putstream(grad["stream"])
+    End If
+    _out("endobj")
+    $gradients[id]["id"] = $n
+  Next
+  
+End
+
+'Barcodes (Olivier)
+Private Function _GetCheckDigit(barcode As String) As String
+  
+  Dim sum, i, r As Integer
+  'Compute the check digit
+  sum = 0
+  For i = 2 To 12 Step 2
+    sum += 3 * Val(Mid(barcode, i, 1))
+  Next
+  For i = 1 To 11 Step 2
+    sum += Val(Mid(barcode, i, 1))
+  Next
+  r = sum Mod 10
+  If (r > 0) Then r = 10 - r
+  Return Str(r)
+  
+End
+
+'Barcodes (Olivier)
+Private Function _TestCheckDigit(barcode As String) As Boolean
+  
+  Dim sum, i As Integer
+  'Test validity of check digit
+  sum = 0
+  For i = 2 To 12 Step 2
+    sum += 3 * Val(Mid(barcode, i, 1))
+  Next
+  For i = 1 To 11 Step 2
+    sum += Val(Mid(barcode, i, 1))
+  Next
+  Return (sum + Val(Mid(barcode, 13, 1)) Mod 10 == 0)
+  
+End
+
+'Barcodes (Olivier)
+Private Sub _Barcode(x As Float, y As Float, barcode As String, h As Float, w As Float, length As Integer)
+  
+  Dim codes, parities As Collection
+  Dim p As String[]
+  Dim i As Integer
+  Dim code As String
+  'Padding
+  barcode = Right(String(length - 1, "0") & barcode, length - 1)
+  If (length = 12) Then barcode = "0" & barcode
+  'Add or control the check digit
+  If (Len(barcode) = 12) Then
+    barcode &= _GetCheckDigit(barcode)
+  Else If (Not _TestCheckDigit(barcode)) Then
+    Error.Raise("Incorrect check digit")
+  End If
+  'Convert digits to bars
+  codes = New Collection
+  codes.Add(["0001101", "0011001", "0010011", "0111101", "0100011",
+    "0110001", "0101111", "0111011", "0110111", "0001011"], "A")
+  codes.Add(["0100111", "0110011", "0011011", "0100001", "0011101",
+    "0111001", "0000101", "0010001", "0001001", "0010111"], "B")
+  codes.Add(["1110010", "1100110", "1101100", "1000010", "1011100",
+    "1001110", "1010000", "1000100", "1001000", "1110100"], "C")
+  parities = New Collection
+  parities.Add(["A", "A", "A", "A", "A", "A"], "0")
+  parities.Add(["A", "A", "B", "A", "B", "B"], "1")
+  parities.Add(["A", "A", "B", "B", "A", "B"], "2")
+  parities.Add(["A", "A", "B", "B", "B", "A"], "3")
+  parities.Add(["A", "B", "A", "A", "B", "B"], "4")
+  parities.Add(["A", "B", "B", "A", "A", "B"], "5")
+  parities.Add(["A", "B", "B", "B", "A", "A"], "6")
+  parities.Add(["A", "B", "A", "B", "A", "B"], "7")
+  parities.Add(["A", "B", "A", "B", "B", "A"], "8")
+  parities.Add(["A", "B", "B", "A", "B", "A"], "9")
+  code = "101"
+  p = parities[Mid(barcode, 1, 1)]
+  For i = 1 To 6
+    code &= codes[p[i - 1]][Val(Mid(barcode, i, 1))]
+  Next
+  code &= "01010"
+  For i = 7 To 12
+    code &= codes["C"][Val(Mid(barcode, i, 1))]
+  Next
+  code &= "101"
+  'Draw bars
+  For i = 1 To Len(code)
+    If (Mid(code, i, 1) = "1") Then Me.Rect(x + (i - 1) * w, y, w, h, "F")
+  Next
+  'Print text uder barcode
+  'Me.SetFont("Arial", "", 12)
+  'Me.Text(x, y + h + 11 / $k, Right(barcode, length))
+  
+End
+
+Private Function _checksum_code39(code As String) As String
+  
+  Dim sum, i As Integer
+  Dim chars As String
+  'Compute the modulo 43 checksum
+  chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-. $/+%"
+  sum = 0
+  For i = 1 To Len(code)
+    sum += InStr(chars, Mid(code, i, 1))
+  Next
+  Return Mid(chars, (sum Mod 43) + 1, 1)
+  
+End
+
+Private Function _encode_code39_ext(code As String) As String
+  
+  Dim encode As String
+  Dim code_ext As String
+  Dim i As Integer
+  'Encode characters in extended mode
+  encode = "%U,$A,$B,$C,$D,$E,$F,$G,$H,$I,$J,£K,$L,$M,$N,$O,$P,$Q,$R,$S,$T,$U," &
+    "$V,$W,$X,$Y,$Z,%A,%B,%C,%D,%E, ,/A,/B,/C,/D,/E,/F,/G,/H,/I,/J,/K,/L," &
+    "-,.,/O,0,1,2,3,4,5,6,7,8,9,/Z,%F,%G,%H,%I,%J,%V,A,B,C,D,E,F,G,H,I," &
+    "J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,%K,%L,%M,%N,%O,%W,+A,+B,+C,+D,+E,+F,+G," &
+    "+H,+I,+J,+K,+L,+M,+N,+O,+P,+Q,+R,+S,+T,+U,+V,+W,+X,+Y,+Z,%P,%Q,%R,%S,%T"
+  code_ext = ""
+  For i = 1 To Len(code)
+    If (Asc(Mid(code, i, 1)) > 127) Then Error.Raise("Invalid character: " & Mid(code, i, 1))
+    code_ext &= Split(encode, ",")[Asc(Mid(code, i, 1))]
+  Next
+  Return code_ext
+  
+End
+
+Private Sub _draw_code39(code As String, x As Float, y As Float, w As Float, h As Float)
+  
+  Dim i As Integer
+  'Draw bars
+  For i = 1 To Len(code)
+    If (Mid(code, i, 1) = "1") Then Me.Rect(x + i * w, y, w, h, "F")
+  Next
+  
+End
+
+Public Sub Cell2(w As Float, Optional h As Float = 0, Optional txt As String = "", Optional border As Variant = False, Optional ln As Integer = 0, Optional align As String = "", Optional fill As Boolean = False, Optional slink As String = "")
+  
+  Dim k, x, y, ws, dx, wmax, wlink As Float
+  Dim s, op, txt2 As String
+  'Output a cell
+  k = $k
+  
+  If (w = 0) Then w = $w - $rMargin - $x
+  s = ""
+  ' [GB2:ISTY] If (IsBoolean(border)) Then
+  If (TypeOf(border) = gb.Boolean) Then
+    If (fill Or border) Then
+      op = IIf(fill, IIf(border, "B", "f"), "S")
+      s = _stringFloat($x * k, "0.00") & " " &
+        _stringFloat(($h - $y) * k, "0.00") & " " &
+        _stringFloat(w * k, "0.00") & " " &
+        _stringFloat(- h * k, "0.00") & " re " & op & " "
+    End If
+    ' [GB2:ISTY] Else If (IsString(border)) Then
+  Else If (TypeOf(border) = gb.String) Then
+    x = $x
+    y = $y
+    If (InStr(border, "L")) Then
+      s &= _stringFloat(x * k, "0.00") & " " &
+        _stringFloat(($h - y) * k, "0.00") & " m " &
+        _stringFloat(x * k, "0.00") & " " &
+        _stringFloat(($h - (y + h)) * k, "0.00") & " l S "
+    End If
+    If (InStr(border, "T")) Then
+      s &= _stringFloat(x * k, "0.00") & " " &
+        _stringFloat(($h - y) * k, "0.00") & " m " &
+        _stringFloat((x + w) * k, "0.00") & " " &
+        _stringFloat(($h - y) * k, "0.00") & " l S "
+    End If
+    If (InStr(border, "R")) Then
+      s &= _stringFloat((x + w) * k, "0.00") & " " &
+        _stringFloat(($h - y) * k, "0.00") & " m " &
+        _stringFloat((x + w) * k, "0.00") & " " &
+        _stringFloat(($h - (y + h)) * k, "0.00") & " l S "
+    End If
+    If (InStr(border, "B")) Then
+      s &= _stringFloat(x * k, "0.00") & " " &
+        _stringFloat(($h - (y + h)) * k, "0.00") & " m " &
+        _stringFloat((x + w) * k, "0.00") & " " &
+        _stringFloat(($h - (y + h)) * k, "0.00") & " l S "
+    End If
+  End If
+  If (txt <> "") Then
+    Select Case align
+      Case "R"
+        dx = w - $cMargin - Me.GetStringWidth(txt)
+      Case "C"
+        dx = (w - Me.GetStringWidth(txt)) / 2
+      Case "FJ" 'Justify
+        'Set word spacing
+        wmax = (w - 2 * $cMargin)
+        $ws = (wmax - Me.GetStringWidth(txt)) / (Split(txt, " ").Count - 1)
+        _out(_stringFloat($ws * $k, "0.000") & " Tw")
+        dx = $cMargin
+      Default
+        dx = $cMargin
+    End Select
+    If ($ColorFlag) Then s &= "q " & $TextColor & " "
+    txt2 = Replace(Replace(Replace(txt, "\\", "\\\\"), "(", "\\("), ")", "\\)")
+    '      txt2 = Replace(txt2, "€", 8364)
+    
+    'txt2 = Conv(txt2, "UTF-8", "ISO-8859-15") ''''''aggiunta
+    
+    'righe aggiunte da golia
+    
+    txt2 = Replace(txt2, "€", Chr(128))
+    txt2 = Replace(txt2, "‚", Chr(130))
+    txt2 = Replace(txt2, "ƒ", Chr(131))
+    txt2 = Replace(txt2, "„", Chr(132))
+    txt2 = Replace(txt2, "…", Chr(133))
+    txt2 = Replace(txt2, "†", Chr(134))
+    txt2 = Replace(txt2, "‡", Chr(135))
+    txt2 = Replace(txt2, "ˆ", Chr(136))
+    txt2 = Replace(txt2, "‰", Chr(137))
+    txt2 = Replace(txt2, "Š", Chr(138))
+    txt2 = Replace(txt2, "‹", Chr(139))
+    txt2 = Replace(txt2, "Œ", Chr(140))
+    txt2 = Replace(txt2, "Ž", Chr(142))
+    txt2 = Replace(txt2, "‘", Chr(145))
+    txt2 = Replace(txt2, "’", Chr(146))
+    txt2 = Replace(txt2, "“", Chr(147))
+    txt2 = Replace(txt2, "”", Chr(148))
+    txt2 = Replace(txt2, "•", Chr(149))
+    txt2 = Replace(txt2, "–", Chr(150))
+    txt2 = Replace(txt2, "—", Chr(151))
+    txt2 = Replace(txt2, "˜", Chr(152))
+    txt2 = Replace(txt2, "™", Chr(153))
+    txt2 = Replace(txt2, "š", Chr(154))
+    txt2 = Replace(txt2, "›", Chr(155))
+    txt2 = Replace(txt2, "œ", Chr(156))
+    txt2 = Replace(txt2, "ž", Chr(158))
+    txt2 = Replace(txt2, "Ÿ", Chr(159))
+    txt2 = Replace(txt2, "é", Chr(233))
+    txt2 = Replace(txt2, "è", Chr(232))
+    txt2 = Replace(txt2, "£", Chr(163))
+    txt2 = Replace(txt2, "à", Chr(224))
+    txt2 = Replace(txt2, "ç", Chr(231))
+    txt2 = Replace(txt2, "ì", Chr(236))
+    txt2 = Replace(txt2, "ò", Chr(242))
+    txt2 = Replace(txt2, "°", Chr(176))
+    txt2 = Replace(txt2, "ù", Chr(249))
+    txt2 = Replace(txt2, "§", Chr(167))
+    
+    'fine righe golia
+    
+    s &= "BT " & _stringFloat(($x + dx) * k, "0.00") & " " &
+      _stringFloat(($h - ($y + 0.5 * h + 0.3 * $FontSize)) * k, "0.00") & " Td (" & txt2 & ") Tj ET"
+    If ($underline) Then s &= " " & _dounderline($x + dx, $y + 0.5 * h + 0.3 * $FontSize, txt)
+    If ($ColorFlag) Then s &= " Q"
+    'IF (slink) THEN ME.Link($x + dx, $y + 0.5 * h - 0.5 * $FontSize, ME.GetStringWidth(txt), $FontSize, slink)
+    If (slink) Then
+      If (align = "FJ") Then
+        wlink = wmax
+      Else
+        wlink = Me.GetStringWidth(txt)
+      End If
+      Me.Link($x + dx, $y + 0.5 * h - 0.5 * $FontSize, wlink, $FontSize, slink)
+    End If
+  End If
+  If (s) Then _out(s)
+  If (align = "FJ") Then
+    'Remove word spacing
+    _out("0 Tw")
+    $ws = 0
+  End If
+  $lasth = h
+  If (ln > 0) Then
+    'Go to next line
+    $y += h
+    If (ln = 1) Then $x = $lMargin
+  Else
+    $x += w
+  End If
+  
+End
+
+Public Sub MultiRiga(w As Float, h As Float, txt As String, Optional border As Variant = False, Optional align As String = "J", Optional fill As Boolean = False)
+  
+  Dim cw As Integer[]
+  Dim wmax As Float
+  Dim s, b, b2, c As String
+  Dim nb, sep, i, j, l, ns, nl, ls As Integer
+  Dim numeroriga As Integer
+  Dim salva$y As Integer
+  Dim hriga As Integer
+  
+  salva$y = $y
+  numeroriga = 0
+  'Output text with automatic or explicit line breaks
+  cw = $CurrentFont["cw"]
+  If (w = 0) Then w = $w - $rMargin - $x
+  wmax = (w - 2 * $cMargin) * 1000 / $FontSize
+  s = Replace(txt, "\r", "")
+  nb = Len(s)
+  If (nb > 0) And If (Mid(s, nb, 1) = "\n") Then Dec nb
+  b = 0
+  ' [GB2:ISTY] If (IsBoolean(border) Or IsInteger(border)) Then
+  If (TypeOf(border) = gb.Boolean Or TypeOf(border) = gb.Integer) Then
+    If (border) Then
+      border = "LTRB"
+      b = "LRT"
+      b2 = "LR"
+    End If
+    ' [GB2:ISTY] Else If (IsString(border)) Then
+  Else If (TypeOf(border) = gb.String) Then
+    b2 = ""
+    If (InStr(border, "L")) Then b2 &= "L"
+    If (InStr(border, "R")) Then b2 &= "R"
+    b = IIf(InStr(border, "T"), b2 & "T", b2)
+  End If
+  sep = -1
+  i = 1
+  j = 1
+  l = 0
+  ns = 0
+  nl = 1
+  While (i <= nb)
+    
+    'Get next character
+    c = Mid(s, i, 1)
+    If (c = "\n") Then
+      'Explicit line break
+      If ($ws > 0) Then
+        $ws = 0
+        _out("0 Tw")
+      End If
+      numeroriga += 1
+      Me.Cell2(w, h, Mid(s, j, i - j), b, 2, align, fill)
+      Inc i
+      sep = -1
+      j = i
+      l = 0
+      ns = 0
+      Inc nl
+      ' [GB2:ISTY] If (IsBoolean(border) Or IsInteger(border)) Then
+      If (TypeOf(border) = gb.Boolean Or TypeOf(border) = gb.Integer) Then
+        If (border And nl = 2) Then b = b2
+        ' [GB2:ISTY] Else If (IsString(border)) Then
+      Else If (TypeOf(border) = gb.String) Then
+        If (Not IsNull(border) And nl = 2) Then b = b2
+      End If
+      Continue
+    End If
+    If (c = " ") Then
+      sep = i
+      ls = l
+      Inc ns
+    End If
+    l += cw[Asc(c)]
+    If (l > wmax) Then
+      'Automatic line break
+      If (sep = -1) Then
+        If (i = j) Then Inc i
+        If ($ws > 0) Then
+          $ws = 0
+          _out("0 Tw")
+        End If
+        numeroriga += 1
+        Me.Cell2(w, h, Mid(s, j, i - j), b, 2, align, fill)
+      Else
+        If (align = "J") Then
+          $ws = IIf(ns > 1, (wmax - ls) / 1000 * $FontSize / (ns - 1), 0)
+          _out(_stringFloat($ws * $k, "0.000") & " Tw")
+        End If
+        numeroriga += 1
+        Me.Cell2(w, h, Mid(s, j, sep - j), b, 2, align, fill)
+        i = sep + 1
+      End If
+      sep = -1
+      j = i
+      l = 0
+      ns = 0
+      Inc nl
+      ' [GB2:ISTY] If (IsBoolean(border) Or IsInteger(border)) Then
+      If (TypeOf(border) = gb.Boolean Or TypeOf(border) = gb.Integer) Then
+        If (border And nl = 2) Then b = b2
+        ' [GB2:ISTY] Else If (IsString(border)) Then
+      Else If (TypeOf(border) = gb.String) Then
+        If (Not IsNull(border) And nl = 2) Then b = b2
+      End If
+    Else
+      Inc i
+    End If
+  Wend
+  'Last chunk
+  If ($ws > 0) Then
+    $ws = 0
+    _out("0 Tw")
+  End If
+  ' [GB2:ISTY] If (IsString(border)) Then
+  If (TypeOf(border) = gb.String) Then
+    If (Not IsNull(border) And InStr(border, "B")) Then b &= "B"
+  End If
+  Me.Cell2(w, h, Mid(s, j, i - j), b, 2, align, fill)
+  
+  If numeroriga = 0 Then
+    hriga = h
+  Else If numeroriga = 1 Then
+    hriga = (h * 2)
+  Else If numeroriga = 2 Then
+    hriga = (h * 3)
+  Else If numeroriga = 3 Then
+    hriga = (h * 4)
+  Else If numeroriga = 4 Then
+    hriga = (h * 5)
+  Endif
+  
+  $lasthmulti = Max($lasthmulti, hriga)
+  
+  $y = salva$y
+  
+  $x += w
+  
+End
+
+Public Sub Lnm()
+  'Line feed; default value is last cell height
+  
+  Dim k, x, y, ws, dx, wmax, wlink As Float
+  
+  If ($y + $lasthmulti > $PageBreakTrigger And Not $InFooter And AcceptPageBreak()) Then
+    'Automatic page break
+    x = $x
+    ws = $ws
+    If (ws > 0) Then
+      $ws = 0
+      _out("0 Tw")
+    End If
+    Me.AddPage($CurOrientation)
+    $x = x
+    If (ws > 0) Then
+      $ws = ws
+      _out(_stringFloat(ws * k, "0.000") & " Tw")
+    End If
+  End If
+  $x = $lMargin
+  $y += $lasthmulti
+  $lasthmulti = 0
+  
+End
+
+Public Sub MultiRect(w1 As Float, w2 As Float, w3 As Float, w4 As Float, w5 As Float, w6 As Float, w7 As Float, w8 As Float, w9 As Float, w10 As Float, w11 As Float)
+  
+  If w1 > 0 Then Me.Rect($lMargin, $y, w1, $lasthmulti, "")
+  If w2 > 0 Then Me.Rect($lMargin + w1, $y, w2, $lasthmulti, "")
+  If w3 > 0 Then Me.Rect($lMargin + w1 + w2, $y, w3, $lasthmulti, "")
+  If w4 > 0 Then Me.Rect($lMargin + w1 + w2 + w3, $y, w4, $lasthmulti, "")
+  If w5 > 0 Then Me.Rect($lMargin + w1 + w2 + w3 + w4, $y, w5, $lasthmulti, "")
+  If w6 > 0 Then Me.Rect($lMargin + w1 + w2 + w3 + w4 + w5, $y, w6, $lasthmulti, "")
+  If w7 > 0 Then Me.Rect($lMargin + w1 + w2 + w3 + w4 + w5 + w6, $y, w7, $lasthmulti, "")
+  If w8 > 0 Then Me.Rect($lMargin + w1 + w2 + w3 + w4 + w5 + w6 + w7, $y, w8, $lasthmulti, "")
+  If w9 > 0 Then Me.Rect($lMargin + w1 + w2 + w3 + w4 + w5 + w6 + w7 + w8, $y, w9, $lasthmulti, "")
+  If w10 > 0 Then Me.Rect($lMargin + w1 + w2 + w3 + w4 + w5 + w6 + w7 + w8 + w9, $y, w10, $lasthmulti, "")
+  If w11 > 0 Then Me.Rect($lMargin + w1 + w2 + w3 + w4 + w5 + w6 + w7 + w8 + w9 + w10, $y, w11, $lasthmulti, "")
+  
+End

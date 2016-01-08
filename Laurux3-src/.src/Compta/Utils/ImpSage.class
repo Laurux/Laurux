@@ -1,0 +1,861 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : ImpSage.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 06/05/2013
+'# Import des écritures Sage dans la base
+'################################################
+
+' Gambas class file
+
+Private son As Integer = Start.Son
+Private Tab As String
+Private Filename As String
+Private rResult As Result
+Private ParaResult As Result
+Private CliResult As Result
+Private SageResult As Result
+Private rnum As Result
+Private code As String
+Private Cv As String
+Private nom As String
+Private Prenom As String
+Private adr1 As String
+Private adr2 As String
+Private cp As String
+Private ville As String
+Private Email As String
+Private Telbur As String
+Private Teldom As String
+Private Poste As String
+Private Portable As String
+Private Fax1 As String
+Private Fax2 As String
+Private Encours As String
+Private codebanque As String
+Private codeguichet As String
+Private Cle As String
+Private numcompte As String
+Private num As String
+Private numf As String
+Private Dom As String
+Private Cent As String
+Private Cacc As String
+Private Tire As String
+Private Idtva As String
+Private Relcompte As String
+Private Relfacture As String
+Private obs As String
+Private collectif As String
+Private colcpt As String
+Private colcptf As String
+Private rmo As String
+Private rart As String
+Private hfile3 As File
+Private Jnl As String
+Private Nfac As String
+Private numecr As String
+Private numr As Integer
+Private Ctrl As String
+Private PosY As Integer
+Private Coulfond As New String[]
+Private pdf As Cclients
+
+Public Sub _New()
+  
+  Coulfond = Utils.Coulfd()
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Music.Load(Start.Musique)
+  Try Chmimport.Text = Settings["/Soc" & Start.Societe & "/Chemin-import"]
+  Me.Center
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Button3_Click()
+      
+    Case 2
+      Import_Sage()
+      
+    Case 3
+      If Exist(filename) Then Try Kill filename
+      Me.Close
+  End Select
+  
+End
+
+Public Sub Svs2_Click()
+  
+  Dialog.Title = "Choisir un repertoire"
+  Dialog.Path = User.home
+  If Not Dialog.SelectDirectory() Then
+    Chmimport.Text = Dialog.Path
+  Else
+    'Chmimport.Text = User.Home
+  Endif
+  
+End
+
+Public Sub Import_Sage()
+  
+  Dim hfile As File
+  Dim Lig As String
+  Dim Filetxt As String
+  Dim Filetxt2 As String
+  Dim Filetxt3 As String
+  Dim cpte As String
+  Dim Tab1 As String
+  Dim Tab2 As String
+  Dim Tab3 As String
+  Dim dte As String
+  Dim Nbc As Integer
+  Dim bcpt As String = 0
+  Dim coll_compte As String
+  
+  Nbc = 0
+  Tab2 = "Corsage"
+  Shell "cd " & User.Home & ""
+  Filename = User.home & "/Edclients.pdf"
+  pdf = New Cclients("Portrait", "mm", "A4")
+  pdf.Open()
+  pdf.AliasNbPages()
+  pdf.Entete("Liste des clients créés lors de l'import du JDV")
+  pdf.Level1()
+  Posy = 30
+  dte = Format$(Now, "dd.mm.yyyy")
+  Tab1 = "Fiches_Cli" 
+  Tab = "Fiches_Parametres" 
+  Tab3 = "Fiches_Comptes"
+  Filetxt = Chmimport.Text & "/clients.pnc"
+  Filetxt2 = Chmimport.Text & "/ecritures" & ".pnm"
+  Filetxt3 = Chmimport.Text & "/Nvcomptes.txt"
+  Sauve()
+  
+  ' On recupere le dernier numero client et fournisseur
+  rNum = Utils.db.Exec("SELECT * FROM " & Tab & " ")
+  If rNum.Available Then
+    Num = rNum!dnc
+    Numf = rnum!dnf
+  Endif
+  Compteur()
+  Compteurf()
+  ' On recupere le collectif client
+  rnum = Utils.db.Exec("SELECT * FROM " & Tab3 & " where coll = '1' order by cast(compte_cc AS char)")
+  If rnum.Available Then
+    Repeat
+      Colcpt = rnum!compte_cc
+      If Left$(Colcpt, 2) = "41" Then Break
+    Until rnum.MoveNext()
+  Endif 
+  ' On recupere le collectif fournisseur
+  rnum = Utils.db.Exec("SELECT * FROM " & Tab3 & " where coll = '1' order by cast(compte_cc AS char)")
+  If rnum.Available Then
+    Repeat
+      Colcptf = rnum!compte_cc
+      If Left$(Colcptf, 2) = "40" Then Break
+    Until rnum.MoveNext()
+  Endif  
+  If Exist(filetxt) And Exist(filetxt2) Then
+    hFile = Open filetxt For Read
+    If Exist(filename) Then Try Kill filename
+    hFile3 = Open filename For Write Create
+    If message.question("Les nouveaux clients & fournisseurs ainsi que les nouvelles écritures \n vont être intégrées dans votre comptabilité.\n Il est impératif d'avoir fait une sauvegarde avant de lancer cette opération. \n Voulez-vous continuer ?", "Oui", "Non") = 1 Then
+      Me.Mouse = Mouse.Wait
+      Line Input #hFile, Lig
+      While Not Eof(hFile)
+        Line Input #hFile, Lig
+        code = Left$(Lig, 13)
+        nom = Mid$(Lig, 14, 24)
+        Coll_compte = Mid$(Lig, 51, 3)
+        adr1 = Mid$(Lig, 64, 24)
+        adr2 = Mid$(Lig, 88, 24)
+        cp = Mid$(Lig, 112, 8)
+        ville = Mid$(Lig, 120, 26)
+        SageResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " where acode = &1", code)
+        If Not SageResult.available Then
+          If Coll_compte = "411" Then
+            Try Utils.db.Exec("insert into " & tab2 & " (acode, ncode) values ( &1,&2)", code, num)
+            CliResult = Utils.db.Exec("SELECT * FROM " & Tab1 & " where cli_code = &1", num)
+            If Not CliResult.Available Then
+              Creation_Client()
+              pdf.Level2S(num, nom, adr1, adr2, cp, ville, "", "", "", code, posy)
+            Endif
+          Endif
+          
+          If Coll_compte = "401" Then
+            Try Utils.db.Exec("insert into " & tab2 & " (acode, ncode) values ( &1,&2)", code, numf)
+            CliResult = Utils.db.Exec("SELECT * FROM " & Tab1 & " where cli_code = &1", numf)
+            If Not CliResult.Available Then
+              Creation_Fournisseur()
+              pdf.Level2S(numf, nom, adr1, adr2, cp, ville, "", "", "", code, posy)
+            Endif
+          Endif
+          
+          If Coll_compte = "403" Then
+            Try Utils.db.Exec("insert into " & tab2 & " (acode, ncode) values ( &1,&2)", code, numf)
+            CliResult = Utils.db.Exec("SELECT * FROM " & Tab1 & " where cli_code = &1", numf)
+            If Not CliResult.Available Then
+              Creation_Fournisseur()
+              pdf.Level2S(numf, nom, adr1, adr2, cp, ville, "", "", "", code, posy)
+            Endif
+          Endif
+          
+          Inc Nbc
+          Posy = Posy + 10
+          pdf.Lines(PosY)
+          Posy = Posy + 2
+          If PosY >= 280 Then
+            pdf.Entete("Liste des clients créés lors de l'import du JDV")
+            pdf.Level1()
+            Posy = 30
+          Endif
+        Else
+          num = Sageresult!ncode
+        Endif
+      Wend
+      Me.Mouse = Mouse.Default
+      If son Then
+        Music.Play
+      Endif
+      If Nbc <> 0 Then
+        Message("Contrôle des client terminé. \n" & Nbc & " nouveau(x) client(s) a (ont) été crée(s). \n Après l'import des écritures vous pourrez consulter et imprimer la liste des nouveaux clients", "Ok")
+      Else
+        Message("Contrôle des client terminé. \n Aucun nouveau client n'a été crée. \n Après l'import des écritures vous pourrez consulter et imprimer la liste des nouveaux clients", "Ok")
+      Endif
+      footer()
+      Close #hFile
+      cpte = Controle(Ctrl)
+      If cpte Then
+        Message("Importation des écritures impossible car il manque des comptes ! \n Veuillez créer les comptes manquant svp.")
+        Editeur.Prog_Editeur(Filetxt3)
+      Else
+        ControleS(bcpt)
+        If bcpt = "0" Then
+          ComptaS()
+        Else
+          Me.mouse = Mouse.Default
+          Return
+        Endif
+      Endif
+      pdf.Baspage()
+      pdf.Output(Filename, False)
+      If Nbc <> 0 Then Visualiseur.Prog_Editeur(Filename)
+    Endif
+  Else
+    Message("Le fichier client ou écritures n'existe pas ! Veuillez verifier vos fichiers SVP")
+  Endif
+  Me.close
+  
+End
+
+Public Sub Sauve()
+  
+  Dim dte4 As String
+  Dim cs As String = Settings["/Soc"]
+  
+  dte4 = Format$(Now, "ddmmyyyy")
+  Me.Mouse = Mouse.Wait
+  If Exist(Chmimport.Text & "/Laurux_dump.sql") Then Kill Chmimport.Text & "/Laurux_dump.sql"
+  Shell "mysqldump -h " & Settings["/dbase/Host"] & " -u " & Utils.db.Login & " " & "-p" & Utils.db.Password & " " & "Laurux" & cs & " " & "--add-drop-table" & " " & ">" & " " & Chmimport.Text & "/Laurux_dump.sql" & dte4 Wait
+  
+End
+
+Public Sub Creation_Fournisseur()
+  
+  Dim Tabf As String
+  Dim Tabd As String
+  
+  Tab = "Fiches_Parametres" 
+  Tabf = "Fiches_Four" 
+  Tabd = "Fiches_Comptes" 
+  ParaResult = Utils.db.Exec("SELECT dnf FROM " & Tab & "")
+  With Utils
+    Utils.db.Exec("INSERT INTO " & tabf & " (fo_code,fo_rs_soc,fo_nom,fo_pnm,fo_adr1,fo_adr2,fo_cd_ptl,fo_ville,fo_email,fo_tel_std,fo_tel_bur,fo_tel_post,fo_pble,fo_fx1,fo_fx2,fo_obs,fo_cd_bq,fo_cd_gch,fo_num_cpt,fo_cle_rib,fo_dom,fo_id_tva,fo_cd_cli,fo_collectif, fo_site, fo_cdech, fo_pays, fo_franco, fo_centrale, fo_ccentrale, fo_copie) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13},&{14},&{15},&{16},&{17},&{18},&{19},&{20},&{21},&{22},&{23},&{24},&{25}, &{26}, &{27}, &{28}, &{29}, &{30}, &{31})", numf, cv, nom, prenom, adr1, adr2, cp, ville, "", "", "", "", "", "", "", code, "", "", "", "", "", "", "", colcptf, "", "", "", 0, 0, "", 0)
+    Utils.db.Exec("insert into " & tabd & " (compte_cc,intitule_cc,type_cc,coll,coll_cc, solde,cent_cc,comptr_cc, gen_tv, gen_ta, soldep) values ( &1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11})", numf, nom, "F", 0, colcptf, 0, 0, 0, 0, 0, 0)
+    If Val(numf) > ParaResult!dnf Then
+      Utils.db.Exec("Update " & Tab & " set dnf = &1", numf)
+    Endif
+    Inc numf
+  End With
+  
+End
+
+Public Sub Creation_Client()
+  
+  Dim Tabc As String
+  Dim Tabd As String
+  
+  Tab = "Fiches_Parametres" 
+  Tabc = "Fiches_Cli" 
+  Tabd = "Fiches_Comptes" 
+  ParaResult = Utils.db.Exec("SELECT dnc FROM " & Tab & "")
+  With Utils
+    Try .db.Exec("INSERT INTO " & Tabc & " (cli_code,cli_rs_soc,cli_nom,cli_pnm,cli_adr1,cli_adr2,cli_cd_ptl,cli_ville,cli_email,cli_tel_bur,cli_tel_dom,cli_tel_poste,cli_pble,cli_fx1,cli_fx2,cli_plaf_ecrs,cli_cd_bq,cli_cd_gch,cli_dmln,cli_cle_rib,cli_num_cpt,cli_cd_ent,cli_cd_acc,cli_ref_tir,cli_id_tva,cli_rlvc,cli_rlvf,cli_obs,cli_collectif,cli_rmo,cli_rart, cli_copie, cli_actif, cli_div) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24}, &{25}, &{26}, &{27}, &{28}, &{29}, &{30}, &{31}, &{32}, &{33}, &{34})", num, CV, nom, Prenom, adr1, adr2, cp, ville, Email, Telbur, Teldom, Poste, Portable, Fax1, Fax2, Encours, codebanque, codeguichet, Cle, numcompte, dom, Cent, Cacc, Tire, Idtva, Relcompte, Relfacture, code, colcpt, rmo, rart, 0, 0, 0)
+    Try Utils.db.Exec("insert into " & tabd & " (compte_cc,intitule_cc,type_cc,coll,coll_cc, solde,cent_cc,comptr_cc, gen_tv, gen_ta, soldep) values ( &1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11})", num, nom, "C", 0, colcpt, 0, 0, 0, 0, 0, 0)
+    If Val(num) > ParaResult!dnc Then
+      Utils.db.Exec("Update " & Tab & " set dnc = &1", num)
+    Endif
+    Inc num
+  End With
+  
+End
+
+Public Sub Maj_Client()
+  
+  Dim Tabc As String
+  Dim Tabd As String
+  
+  Tabc = "Fiches_Cli" 
+  Tabd = "Fiches_Comptes" 
+  With Utils
+    If Not collectif Then
+      rResult = Utils.db.Exec("SELECT * FROM " & Tabd & " where coll = &1 order by cast(compte_cc AS char)", 1)
+      If rResult.Available Then
+        Repeat
+          Colcpt = rResult!compte_cc
+          If Left$(Colcpt, 2) = "41" Then collectif = Colcpt
+        Until rResult.MoveNext()
+      Endif
+    Endif
+    Utils.db.Exec("UPdate  " & Tabc & "  SET  cli_code = &1, cli_rs_soc= &2, cli_nom = &3, cli_pnm = &4, cli_adr1 = &5, cli_adr2 = &6, cli_cd_ptl = &7, cli_ville = &8, cli_email = &9, cli_tel_dom = &{10}, cli_tel_bur = &{11}, cli_tel_poste = &{12}, cli_pble = &{13}, cli_fx1 = &{14}, cli_fx2 = &{15}, cli_plaf_ecrs = &{16}, cli_cd_bq = &{17}, cli_cd_gch = &{18}, cli_cle_rib = &{19}, cli_num_cpt = &{20}, cli_dmln = &{21} , cli_cd_ent = &{22}, cli_cd_acc = &{23},cli_ref_tir = &{24}, cli_id_tva = &{25}, cli_rlvc = &{26}, cli_rlvf = &{27}, cli_obs = &{28}, cli_collectif = &{29} WHERE cli_code = &1", code, CV, nom, Prenom, adr1, adr2, cp, ville, Email, Telbur, Teldom, Poste, Portable, Fax1, Fax2, Encours, codebanque, codeguichet, Cle, numcompte, dom, Cent, Cacc, Tire, Idtva, Relcompte, Relfacture, obs, collectif)
+    Utils.db.Exec("Update " & Tabc & " set cli_rmo = &1, cli_rart = &2 where cli_code = &3", rmo, rart, code)
+    Utils.db.Exec("UPdate " & Tabd & " SET compte_cc = &1, intitule_cc = &2, type_cc = &3, coll = &4, coll_cc = &5, cent_cc = &6, comptr_cc = &7, gen_tv = &8, gen_ta = &9 WHERE compte_cc = &1", code, nom, "C", 0, collectif, 0, 0, 0, 0, 0, 0)
+  End With
+  
+End
+
+Public Function Controle(Ctrl2 As String) As String
+  
+  Dim i As Integer
+  Dim hfile2 As File
+  Dim Filetxt2 As String
+  Dim Lig As String
+  Dim sKey As String
+  Dim iPos As Integer
+  Dim x As Integer
+  Dim compte As String
+  Dim intitule As String
+  Dim rrResult As Result
+  Dim CentResult As Result
+  Dim Tabd As String
+  Dim hfil As File
+  Dim Filetxt3 As String
+  Dim Tabcent As String
+  
+  Tabd = "Fiches_Comptes" 
+  Filetxt3 = Chmimport.Text & "/Nvcomptes.txt"
+  TabCent = "Nvcompte"
+  
+  HFil = Open Filetxt3 For Write Create
+  Utils.db.Exec("drop Table IF exists " & Tabcent & "")
+  Utils.db.Exec("CREATE  TABLE IF NOT EXISTS " & Tabcent &
+    "(cd Char(8) NOT NULL," &
+    "intitule Char(25)," &
+    "PRIMARY KEY (cd))" & "ENGINE = MYISAM")
+  
+  ' on controle que tous les comptes existent dans la compta
+  If Exist(filetxt2) Then
+    hFile2 = Open filetxt2 For Read
+    Me.Mouse = Mouse.Wait
+    While Not Eof(hFile2)
+      Line Input #hFile2, Lig
+      For x = 1 To 3
+        iPos = InStr(Lig, ";")
+        sKey = Left$(Lig, iPos - 1)
+        Lig = Mid$(Lig, iPos + 1)
+        Select Case x
+          Case 1
+            compte = skey
+          Case 2
+            intitule = skey
+        End Select
+      Next
+      If Left(compte, 2) <> "41" Then
+        rrResult = Utils.db.Exec("SELECT * FROM " & Tabd & " Where compte_cc = &1", compte)
+        If rrResult.Count <> 0 Then
+          Ctrl = "O"
+        Else
+          CentResult = Utils.db.Exec("SELECT * FROM " & Tabcent & " WHERE cd = &1", compte)
+          If CentResult.Available Then
+            Utils.db.Exec("UPdate " & Tabcent & " SET cd = '" & compte & "', intitule ='" & intitule & "'WHERE cd = '" & compte & "' ")
+          Else
+            Utils.db.Exec("INSERT INTO " & Tabcent & " (cd, intitule) Values (&1, &2)", compte, intitule)
+          Endif
+          Ctrl = ""
+        Endif
+      Endif
+    Wend
+  Endif
+  CentResult = Utils.db.Exec("SELECT * FROM " & Tabcent & "")
+  If CentResult.Available Then
+    Ctrl = "O"
+    Print #Hfil, ""
+    Print #Hfil, ""
+    Print #Hfil, ""
+    Print #Hfil, "**********************  Liste des comptes à créer   *******************"
+    Print #Hfil, ""
+    Print #Hfil, ""
+    While i < CentResult.count
+      Print #hfil, CentResult!cd, CentResult!intitule
+      CentResult.MoveNext
+      i = i + 1
+    Wend
+  Else
+    Ctrl = ""
+  Endif
+  Close #HFil
+  Return (Ctrl)
+  
+End
+
+Public Function ControleS(Ctrl2 As String) As String
+  
+  Dim i As Integer
+  Dim hfile2 As File
+  Dim Filetxt2 As String
+  Dim Lig As String
+  Dim compte As String
+  Dim rrResult As Result
+  Dim CentResult As Result
+  Dim Tabd As String
+  Dim hfil As File
+  Dim Filetxt3 As String      
+  
+  Dim Tabcent As String
+  Dim Tresorerie, Type As String
+  
+  Tabd = "Fiches_Comptes" 
+  Filetxt2 = Chmimport.Text & "/ecritures.pnm"
+  Filetxt3 = Chmimport.Text & "/Nvcomptes.txt"
+  TabCent = "Nvcompte"
+  
+  HFil = Open Filetxt3 For Write Create
+  Utils.db.Exec("drop Table IF exists " & Tabcent & "")
+  Utils.db.Exec("CREATE  TABLE IF NOT EXISTS " & Tabcent &
+    "(cd Char(8) NOT NULL," &
+    "intitule Char(25)," &
+    "PRIMARY KEY (cd))" & "ENGINE = MYISAM")
+  
+  ' on controle que tous les comptes existent dans la compta
+  If Exist(filetxt2) Then
+    hFile2 = Open filetxt2 For Read
+    Me.Mouse = Mouse.Wait
+    Line Input #hFile2, Lig
+    While Not Eof(hFile2)
+      Line Input #hFile2, Lig
+      compte = Mid$(Lig, 12, 8)
+      If Left(compte, 4) <> "4110" And If Left(compte, 4) <> "4010" Then
+        rrResult = Utils.db.Exec("SELECT * FROM " & Tabd & " Where compte_cc = &1", compte)
+        If rrResult.Count <> 0 Then
+          Ctrl = "0"
+        Else
+          If Mid$(lig, 12, 3) = "512" Or Mid$(lig, 12, 3) = "530" Then
+            Tresorerie = "1"
+          Else
+            Tresorerie = "0"
+          Endif
+          If Mid$(lig, 12, 1) = "1" Or Mid$(lig, 12, 1) = "2" Or Mid$(lig, 12, 1) = "3" Or Mid$(lig, 12, 1) = "4" Or Mid$(lig, 12, 1) = "5" Then Type = "B"
+          If Mid$(lig, 12, 1) = "6" Or Mid$(lig, 12, 1) = "7" Then Type = "G"
+          Try Utils.db.Exec("INSERT INTO " & Tabd & "(compte_cc, intitule_cc, type_cc, coll, cent_cc, comptr_cc, gen_tv, gen_ta, solde, soldep) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10})", compte, " ", Type, 0, 0, Tresorerie, 0, 0, 0, 0)
+          If Not Error Then Print #hfil, "Compte créé : " & compte
+        Endif
+      Endif
+    Wend
+  Endif
+  CentResult = Utils.db.Exec("SELECT * FROM " & Tabcent & "")
+  If CentResult.Available Then
+    Ctrl = "O"
+    Print #Hfil, ""
+    Print #Hfil, ""
+    Print #Hfil, ""
+    Print #Hfil, "**********************  Liste des comptes à créer   *******************"
+    Print #Hfil, ""
+    Print #Hfil, ""
+    While i < CentResult.count
+      Print #hfil, CentResult!cd, CentResult!intitule
+      CentResult.MoveNext
+      i = i + 1
+    Wend
+  Else
+    Ctrl = ""
+  Endif
+  Close #HFil
+  Editeur.Prog_Editeur(Filetxt3)
+  Return (Ctrl)
+  
+End
+
+Public Sub ComptaS()
+  
+  Dim Tabc As String
+  Dim Tabd As String
+  Dim Tabe As String
+  Dim hfile2 As File
+  Dim hfile4 As File
+  Dim Filetxt2 As String
+  Dim Filetxt4 As String
+  Dim Mtc As String
+  Dim Mtd As String
+  Dim Sld As Float
+  Dim Valid As Integer
+  Dim Prov As Integer
+  Dim Tresor As Integer
+  Dim pointee As Integer
+  Dim lettree As Integer
+  Dim cloturee As Integer
+  Dim relance As Integer
+  Dim Lig As String
+  Dim compte, compteG, typeP, Typecpt As String
+  Dim intitule As String
+  Dim dte As String
+  Dim numdoc, numlot As String
+  Dim libelle As String
+  Dim coll As String
+  Dim dnc As String
+  Dim dte1, sens As String
+  Dim jrnal As String
+  Dim rrResult As Result
+  Dim Nbe As Integer
+  Dim Nbetxt As String
+  Dim Nbe2 As Integer
+  Dim Nbe2txt As String
+  Dim tiers As Boolean = False
+  
+  Tab = "Fiches_Parametres" 
+  Tabc = "Fiches_Cli" 
+  Tabd = "Fiches_Comptes" 
+  Tabe = "Fiches_Mvt" 
+  Nbetxt = "Aucune écriture n'a été importée"
+  Nbe2txt = " écriture(s) a (ont) été rejetée(s) car le numéro de facture existe déjà."
+  Valid = 1
+  Prov = 0
+  Tresor = 0
+  pointee = 0
+  lettree = 0
+  If CheckBox1.value = True Then
+    cloturee = 1
+  Else
+    cloturee = 0
+  Endif
+  relance = 0
+  ParaResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
+  dte1 = ParaResult!dteclec1
+  dnc = ParaResult!dnc
+  Filetxt2 = Chmimport.Text & "/ecritures" & ".pnm"
+  Filetxt4 = Chmimport.Text & "/rejets.txt"
+  Parametres()
+  ' numero provisoire pour exercice en cours de bilan
+  numecr = "numecriture"
+  numr = Ecritures(numecr)
+  With Utils
+    If Exist(filetxt4) Then Kill filetxt4
+    hFile4 = Open filetxt4 For Write Create
+    Print #hfile4, ""
+    Print #hfile4, ""
+    Print #hfile4, ""
+    Print #hfile4, ""
+    Print #hfile4, ""
+    Print #hfile4, "*************************** Liste des écritures créées ou rejetées **********************"
+    Print #hfile4, ""
+    Print #hfile4, "   Compte                         date   numero écriture   numero ligne  "
+    Print #hfile4, ""
+    Print #hfile4, ""
+    If Exist(filetxt2) Then
+      hFile2 = Open filetxt2 For Read
+      Me.Mouse = Mouse.Wait
+      Line Input #hFile2, Lig
+      While Not Eof(hFile2)
+        Line Input #hFile2, Lig
+        jrnal = Left$(Lig, 3)
+        jrnal = Controle_journal(jrnal)
+        dte = Mid$(Lig, 4, 6)
+        dte = "20" & Right$(dte, 2) & Mid$(dte, 3, 2) & Left$(dte, 2)
+        typep = Mid$(Lig, 10, 2)
+        compteG = Mid$(Lig, 12, 8)
+        typecpt = Mid$(Lig, 25, 1)
+        If Val(RTrim$(Mid$(Lig, 39, 13))) <> numdoc Then
+          numr = numr + 1
+          Nbe = Nbe + 1
+          Majnum(numecr, numr)
+        Endif
+        numdoc = RTrim$(Mid$(Lig, 39, 13))
+        numlot = LTrim$(Mid$(Lig, 106, 7))
+        If typecpt <> "X" Then
+          If Mid$(lig, 12, 1) = "1" Or Mid$(lig, 12, 1) = "2" Or Mid$(lig, 12, 1) = "3" Or Mid$(lig, 12, 1) = "4" Or Mid$(lig, 12, 1) = "5" Or Mid$(lig, 12, 1) = "8" Then Typecpt = "B"
+          If Mid$(lig, 12, 1) = "6" Or Mid$(lig, 12, 1) = "7" Then Typecpt = "G"
+          tiers = False
+        Endif
+        compte = Mid$(Lig, 26, 8)
+        If Left$(compteG, 3) = "411" And typecpt = "X" Or If Left$(compteG, 3) = "401" And typecpt = "X" Or If Left$(compteG, 3) = "403" And typecpt = "X" Then
+          compte = Controle_tiers(compte)
+          tiers = True
+        Endif
+        If Typecpt = "B" Or If Typecpt = "G" Then compte = compteG
+        libelle = Mid$(Lig, 52, 25) & " " & numlot
+        dte1 = Mid$(Lig, 4, 6)
+        dte1 = "20" & Right$(dte1, 2) & Mid$(dte1, 3, 2) & Left$(dte1, 2)
+        sens = Mid$(Lig, 84, 1)
+        If sens = "D" Then 
+          Mtd = Mid$(Lig, 85, 20)
+          Mtc = "0"
+        Else
+          Mtc = Mid$(Lig, 85, 20)
+          Mtd = "0"
+        Endif
+        If typecpt = "G" Then compte = compteg
+        'If Mtd <> "0" Then
+        rResult = Utils.db.Exec("SELECT * FROM " & Tabe & " Where compte = &1 and numdoc = &2 and jour = &3 and libelle = &4", compte, numdoc, jrnal, libelle, Mtd)
+        'Else
+        'rResult = Utils.db.Exec("SELECT * FROM " & Tabe & " Where compte = &1 and numdoc = &2 and jour = &3 and libelle = &4 and montantc = &5", compte, numdoc, jrnal, libelle, Mtc)
+        'Endif
+        If Not rResult.available Then
+          If Left$(compte, 3) = "411" And typecpt = "X" Or If Left$(compte, 3) = "401" And typecpt = "X" Then
+            
+            rResult = Utils.db.Exec("SELECT * FROM " & Tabd & " Where compte_cc = &1", compte)
+            coll = rResult!coll_cc
+            collectif = "1"
+            Utils.db.Exec("INSERT INTO " & Tabe & "(jour, numero, compte, collectif, intitule, dte, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18})", jrnal, numr, coll, collectif, intitule, dte, numdoc, numlot, libelle, .PointBase(Mtd), .PointBase(Mtc), Valid, Prov, Tresor, pointee, lettree, cloturee, relance)
+            rrResult = Utils.db.Exec("SELECT * FROM " & Tabd & " Where compte_cc = &1", coll)
+            If rrResult.Available Then
+              If rrResult!solde = "" Then
+                Sld = Val(.cpoint(Mtd)) - Val(.cpoint(Mtc))
+              Else
+                Sld = rrResult!solde + Val(.cpoint(Mtd)) - Val(.cpoint(Mtc))
+              Endif
+            Endif
+            Utils.db.Exec("UPdate " & Tabd & " set solde = &2 Where compte_cc = &1", coll, Sld)
+            Utils.db.Exec("INSERT INTO " & Tabe & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, dateech) VALUES (&1, &2, &3, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19})", jrnal, numr, compte, collectif, intitule, dte, numdoc, numdoc, libelle, .PointBase(Mtd), .PointBase(Mtc), Valid, Prov, Tresor, pointee, lettree, cloturee, relance, dte1)
+            rrResult = Utils.db.Exec("SELECT * FROM " & Tabd & " Where compte_cc = &1", compte)
+            If rrResult!solde = "" Then
+              Sld = .cpoint(Val(Mtd)) - .cpoint(Val(Mtc))
+            Else
+              Sld = rrResult!solde + Val(.cpoint(Mtd)) - Val(.cpoint(Mtc))
+            Endif
+            Utils.db.Exec("UPdate " & Tabd & " set solde = &2 Where compte_cc = &1", compte, Sld)
+          Endif
+          If Left$(compte, 4) <> "4110" And If Left$(compte, 4) <> "4010" And If Not IsNull(compte) Then
+            Utils.db.Exec("INSERT INTO " & Tabe & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, dateech) VALUES (&1, &2, &3, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19})", jrnal, numr, compte, collectif, intitule, dte, numdoc, numdoc, libelle, .PointBase(Mtd), .PointBase(Mtc), Valid, Prov, Tresor, pointee, lettree, cloturee, relance, dte1)
+            rrResult = Utils.db.Exec("SELECT * FROM " & Tabd & " Where compte_cc = &1", compte)
+            If rrResult!solde = "" Then
+              Sld = .cpoint(Val(Mtd)) - .cpoint(Val(Mtc))
+            Else
+              Sld = rrResult!solde + Val(.cpoint(Mtd)) - Val(.cpoint(Mtc))
+            Endif
+            Utils.db.Exec("UPdate " & Tabd & " set solde = &2 Where compte_cc = &1", compte, Sld)
+          Else
+            If Left$(compte, 2) = "41" Or If Left$(compte, 2) = "40" Then
+              'Nbe2 = Nbe2 + 1
+              Print #hfile4, compte & String$(20 - Len(compte), " "), intitule, dte, numdoc, "       " & numlot & "    ********* écriture créée *********"
+            Endif
+          Endif
+        Else
+          Print #hfile4, compte & String$(20 - Len(compte), " "), intitule, dte, numdoc, "       " & numlot & "     ********* écriture rejetée *********"
+        Endif
+      Wend
+      Close #hFile2
+      Close #hfile4
+      If Nbe2 = 0 Then Nbe2txt = ""
+      If Nbe = 0 Then
+        Message(Nbetxt & "\n" & Nbe2 & Nbe2txt)
+      Else
+        'Message(Nbe & " écriture(s) a (ont) été importée(s)\n" & Nbe2 & " écriture(s) a (ont) été rejetée(s)")
+        Message("Traitement terminé !")
+      Endif
+    Else
+      Message("Le fichier ecritures.pnm n'existe pas ! Veuillez verifier votre fichier SVP")
+    Endif
+  End With
+  Editeur.Prog_Editeur(Filetxt4)
+  
+End
+
+'**************************Controle compte tiers************************
+Public Sub Controle_tiers(cpt As String) As String
+  
+  Dim rtiers As Result
+  Dim Tabt As String = "Corsage"
+  
+  rtiers = Utils.db.Exec("SELECT * FROM " & Tabt & " Where acode = &1", cpt)
+  If rtiers.Available Then Return rtiers!ncode
+  
+End
+
+'**************************Controle journal************************
+Public Sub Controle_journal(jnal As String) As String
+  
+  Dim journal As String
+  
+  Select Case jnal
+    Case "ACH"
+      journal = "60"
+    Case "VTE"
+      journal = "70"
+    Case "BQ1"
+      journal = "50"
+    Case "RAN"
+      journal = "90"
+    Case "OD " 
+      journal = "10"
+    Case "CAI" 
+      journal = "53"
+  End Select
+  Return journal
+  
+End
+
+'**********************************************************
+'*                   Recup parametres                     *
+'**********************************************************
+Public Sub Parametres()
+  
+  Tab = "Fiches_Parametres" 
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
+  If rResult.Available Then
+    'Nfac = rResult!dnfac
+    Jnl = rResult!jrnal
+  Endif
+  'Nfac = Format$(Val(Nfac) + 1, "000000")
+  
+End
+
+'*****************************************************
+'*  Récuperation du dernier numéro d'écriture        *
+'*****************************************************
+Public Function Ecritures(numecr2 As String) As String
+  
+  Dim Params As Result
+  
+  Tab = "Fiches_Parametres" 
+  Params = Utils.db.Exec("SELECT " & numecr2 & " FROM " & Tab & " ")
+  If Params.Available Then
+    numr = Params["" & numecr2 & ""]
+  Endif
+  Return numr
+  
+End
+
+'**********************************************************
+'*                   Maj parametres                     *
+'**********************************************************
+Public Sub Maj_Parametres()
+  
+  Tab = "Fiches_Parametres" 
+  With Utils
+    'Nfac = Val(Nfac)
+    'Nfac = Format$(Nfac, "000000")
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
+    Utils.db.Exec("UPdate  " & Tab & "  SET  dnfac = &1", Nfac)
+  End With
+  
+End
+
+'************************************************
+'*  Mise a jour du dernier numéro d'écriture    *
+'************************************************
+Public Sub Majnum(numecr2 As String, numr2 As Integer)
+  
+  Tab = "Fiches_Parametres" 
+  Utils.db.Exec("UPdate " & Tab & " set " & numecr2 & " = &1", numr2)
+  
+End
+
+Public Sub header()
+  
+  Print #hFile3, "<!DOCTYPE KugarData ["
+  Print #hFile3, "  <!ELEMENT KugarData (Row* )>"
+  Print #hFile3, "  <!ATTLIST KugarData"
+  Print #hFile3, "      Template CDATA #REQUIRED>"
+  Print #hFile3, "  <!ELEMENT Row EMPTY>"
+  Print #hFile3, "  <!ATTLIST Row>"
+  Print #hFile3, " ]>"
+  Print #hFile3, " <KugarData Template=" & "\"" & "Ednvcli.ktf" & "\"" & ">"
+  
+End
+
+Public Sub content1(p1 As String, p2 As String, p3 As String, p4 As String, p5 As String, p6 As String, p7 As String, p8 As String, p9 As String, p10 As String, p11 As String)
+  
+  Print #hFile3, " <Row " & " level=" & "\"" & "1" & "\"" & "code=" & "\"" & p1 & "\"" & "intitule=" & "\"" & p2 & "\"" & "prenom=" & "\"" & p3 & "\"" & "adr1=" & "\"" & p4 & "\"" & "adr2=" & "\"" & p5 & "\"" & " cp=" & "\"" & p6 & "\"" & "ville=" & "\"" & p7 & "\"" & "telbur=" & "\"" & p8 & "\"" & "telpble=" & "\"" & p9 & "\"" & "rmo=" & "\"" & p10 & "\"" & "rart=" & "\"" & p11 & "\"" "/>"
+  
+End
+
+Public Sub content0(p1 As String)
+  
+  Print #hFile3, " <Row " & " level=" & "\"" & "0" & "\"" & "date=" & "\"" & p1 & "\"" & "/>"
+  
+End
+
+Public Sub footer()
+  
+  Print #hFile3, "</KugarData>"
+  
+End
+
+Public Sub Button3_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Export.html"]
+  
+End
+
+'***************************************************
+'*                 Compteur clients                *
+'***************************************************
+Public Sub Compteur()
+  
+  If IsNull(Num) Or If Val(Num) <= 411000 Then
+    Num = "411001"
+  Else
+    If Val(Num) = 411999 Then
+      Num = 4111000
+    Else
+      If Val(Num) = 4119999 Then
+        Num = 41110000
+      Else
+        Num = Val(Num) + 1
+      Endif
+    Endif
+  Endif
+  
+End
+
+'***************************************************
+'*                 Compteur fournisseurs               *
+'***************************************************
+Public Sub Compteurf()
+  
+  If IsNull(Numf) Or If Val(Numf) <= 401000 Then
+    Numf = "401001"
+  Else
+    If Val(Numf) = 401999 Then
+      Numf = 4011000
+    Else
+      If Val(Numf) = 4019999 Then
+        Numf = 40110000
+      Else
+        Numf = Val(Numf) + 1
+      Endif
+    Endif
+  Endif
+  
+End

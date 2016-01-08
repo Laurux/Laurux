@@ -1,0 +1,119 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Exparticle.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 28/01/2012
+'# Export des articles
+'################################################
+son As Integer = Start.Son
+Num As String
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  Sauves.Text = User.Home
+  
+End
+
+Public Sub Svs_Click()
+  
+  Dialog.Title = "Choisir un repertoire"
+  Dialog.Path = User.home
+  If Not Dialog.SelectDirectory() Then
+    Sauves.Text = Dialog.Path
+  Else
+    Sauves.Text = User.Home
+  Endif
+  
+End
+
+Public Sub Button3_Click()
+  
+  Me.Close
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim rArticle As Result
+  Dim Tab As String
+  Dim hfil As File
+  Dim desg, desg2 As String
+  Dim fam As String
+  Dim four As String
+  Dim pbht, Trem, pauaht, txconv, paht As String
+  Dim coef, frais, prvt, pvht, tva, pvttc, pvcons As String
+  Dim stocke, qte, nbdec As String
+  Dim Cequ, Cfour, cbarre As String
+  
+  Tab = "Fiches_Art" 
+  HFil = Open Sauves.Text & "/Liste_articles.csv" For Write Create
+  ' On recupere les articles
+  rarticle = Utils.db.Exec("SELECT * FROM " & Tab & " order by lpad(art_code,15,' ') ")
+  If rarticle.Available Then
+    Print #HFil, "Code" & ";" & "Désignation 1" & ";" & "Désignation 2" & ";" & "Famille" & ";" & "Fournisseur" & ";" & "Ref fournisseur" & ";" & "Code équivalent" & ";" & "Code barre" & ";" & "Nb dcm" & ";" & "PB HT" & ";" & "Remise" & ";" & "PA UA HT" & ";" & "Tx conv" & ";" & "PA HT" & ";" & "Frais" & ";" & "Px revient" & ";" & "Coef" & ";" & "PV HT" & ";" & "Tva" & ";" & "PV TTC" & ";" & "PV cons" & ";" & "Stocké" & ";" & "Qte" & ";"
+    Repeat
+      Num = rarticle!art_code
+      desg = rarticle!art_design
+      desg2 = rarticle!art_design2
+      fam = rarticle!art_fam
+      four = rarticle!art_four
+      cfour = rarticle!art_cfour
+      cequ = rarticle!art_cequ
+      cbarre = rarticle!art_cbarre
+      nbdec = Utils.Find_nbdec(rarticle!art_nbd)
+      pbht = Format$(rarticle!art_pbht, nbdec)
+      Trem = rarticle!art_tr
+      pauaht = Format$(rarticle!art_pauaht, nbdec)
+      txconv = rarticle!art_txconv
+      paht = Format$(rarticle!art_paht, nbdec)
+      coef = rarticle!art_coef
+      frais = Format$(rarticle!art_frais, nbdec)
+      prvt = Format$(rarticle!art_prvt, nbdec)
+      pvht = Format$(rarticle!art_pvht, nbdec)
+      tva = rarticle!art_tva
+      pvttc = Format$(rarticle!art_pvttc, nbdec)
+      Try pvcons = Format$(rarticle!art_pvcons, nbdec)
+      If Error Then pvcons = ""
+      stocke = rarticle!art_stocke
+      If stocke = "T" Then 
+        stocke = "O"
+      Else
+        stocke = "N"
+      Endif
+      qte = rarticle!art_qte
+      Print #HFil, Num & ";" & desg & ";" & desg2 & ";" & fam & ";" & four & ";" & cfour & ";" & cequ & ";" & cbarre & ";" & nbdec & ";" & pbht & ";" & trem & ";" & pauaht & ";" & txconv & ";" & paht & ";" & frais & ";" & prvt & ";" & coef & ";" & pvht & ";" & tva & ";" & pvttc & ";" & pvcons & ";" & stocke & ";" & qte & ";"
+    Until rarticle.MoveNext()
+    Me.Mouse = Mouse.Default
+    If son Then
+      Music.Play
+    Endif
+    Message.Info("Export terminé.")
+  Else
+    Message.error("Il n'existe aucun article a exporter.")
+  Endif
+  Close #HFil
+  Me.Close
+  
+End

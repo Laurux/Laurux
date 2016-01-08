@@ -1,0 +1,53 @@
+' Gambas class file
+
+Public Sub _new()
+  
+  Me.center
+  
+End
+
+Public Sub Button3_Click()
+  
+  Me.close
+  
+End
+
+Public Sub Button2_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then Button2_Click()
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim Ligbl As Result
+  Dim entfac As Result
+  Dim remmo As String = "0"
+  Dim remart As String = "0"
+  Dim numfac As String
+  
+  Ligbl = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisLigFac") & " order by num_ligfac")
+  Me.Mouse = Mouse.Wait
+  If Ligbl.Available Then
+    numfac = Ligbl!num_ligfac
+    Repeat
+      If numfac <> Ligbl!num_ligfac Then
+        Entfac = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisFac") & " where numfac = &1", numfac)
+        If Entfac.Available Then Utils.db.Exec("update " & Cbase.Table("TabHisFac") & " set remmofac = &1, remartfac = &2 where numfac = &3", Utils.PointBase(Remmo), Utils.PointBase(Remart), numfac)
+        Remmo = "0"
+        remart = "0"
+      Endif
+      numfac = Ligbl!num_ligfac
+      If Ligbl!typel_ligfac = "M" Then
+        Remmo = Val(Utils.cpoint(Remmo)) + Val(Utils.cpoint(Ligbl!brut_ligfac)) - Val(Utils.cpoint(Ligbl!netht_ligfac))
+      Endif
+      If Ligbl!typel_ligfac = "A" Then
+        Remart = Val(Utils.cpoint(Remart)) + Val(Utils.cpoint(Ligbl!brut_ligfac)) - Val(Utils.cpoint(Ligbl!netht_ligfac))
+      Endif
+    Until Ligbl.MoveNext()
+    Music.Play
+    Message.Warning("Traitement terminé !")
+  Endif
+  Me.mouse = Mouse.Default
+  
+End

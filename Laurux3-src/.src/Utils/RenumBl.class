@@ -1,0 +1,52 @@
+' Gambas class file
+
+' Ce programme sert a renuméroter les factures en cas de doublon dans la table des Bl (dans ce cas on a une erreur duplicate en cloture mensuelle)
+Static Public Sub run()
+  
+  Dim Rarts As Result
+  Dim num As String
+  Dim numfac As String
+  Dim numero As String = "0"
+  
+  Rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisLigFac") & " order by numlig_ligfac")
+  If Rarts.Available Then 
+    Repeat
+      Utils.db.Exec("UPdate  " & Cbase.Table("TabHisLigFac") & " SET typel_ligfac = &2 where num_ligfac = &1", Rarts!num_ligfac, "A")
+    Until Rarts.MoveNext()
+  Endif
+  
+  'num = Format$(Val(num) + 1, "000000") 'on met le préfixe de la facture (année + mois)
+  Rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBl") & " order by numfac")
+  If Rarts.Available Then 
+    numfac = Rarts!numfac
+    Repeat
+      If Not IsNull(Rarts!numfac) Then
+        numero = Format$(Val(numero) + 1, "000000")
+        num = "20" & Mid$(Rarts!numfac, 2, 2) & numero
+        Utils.db.Exec("UPdate  " & Cbase.Table("TabBl") & " SET numfac = &3, dtefac = &4 WHERE numfac = &1 and numbl = &2 ", Rarts!numfac, Rarts!numbl, num, Rarts!datebl)
+        'num = Format$("20" & Mid$(Rarts!numfac, 2, 2) & Val(num) + 1, "000000")
+      Endif
+      'numfac = Rarts!numfac
+    Until Rarts.MoveNext()
+  Endif
+  Rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigbl") & " order by numlig_ligbl")
+  If Rarts.Available Then 
+    Repeat
+      Utils.db.Exec("UPdate  " & Cbase.Table("TabLigbl") & " SET tx_ligbl = &2, pu_ligbl = &3, qte_ligbl = &4,brut_ligbl = &5,rem_ligbl = &6,netht_ligbl = &7, nettc_ligbl = &8 where num_ligbl = &1", Rarts!num_ligbl, "4", Format$(Val(Utils.cpoint(Rarts!pu_ligbl)), "0.00"), Format$(Val(Utils.cpoint(Rarts!qte_ligbl)), "0.00"), Format$(Val(Utils.cpoint(Rarts!brut_ligbl)), "0.00"), Format$(Val(Utils.cpoint(Rarts!rem_ligbl)), "0.00"), Format$(Val(Utils.cpoint(Rarts!netht_ligbl)), "0.00"), Format$(Val(Utils.cpoint(Rarts!nettc_ligbl)), "0.00")) 
+    Until Rarts.MoveNext()
+  Endif
+  'Rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBl") & " order by numfac")
+  'If Rarts.Available Then 
+  ' Repeat
+  'numfac = Rarts!numfac
+  'If Not IsNull(numfac) Then
+  'Rarts2 = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisFac") & " where numfac = &1", numfac)
+  'If Rarts2.Available Then 
+  'Utils.db.Exec("UPdate  " & Cbase.Table("TabBl") & " SET numfac = &3 WHERE numfac = &1 and numbl = &2 ", Rarts!numfac, Rarts!numbl, num)
+  'num = Format$(Val(num) + 1, "000000")
+  'Endif
+  'Endif
+  'Until Rarts.MoveNext()
+  'Endif
+  
+End

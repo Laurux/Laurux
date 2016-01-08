@@ -1,0 +1,525 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publi  és par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'################################################
+'# nom du fichier           : Facturefm.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 01/09/2014
+'# Modifications des bons de réceptions
+'################################################
+'
+
+son As Integer = Start.Son
+b As Integer
+Tab As String
+Tab4 As String
+rResult As Result
+numecr As String
+Filename As String
+typeL As String
+Ardi As String
+nbdec As String
+dtex As String
+dte As String
+Devises As String
+Coulfond As New String[]
+sclient As String
+sclient2 As String
+Public Exo As Boolean = True
+Private chkfam As Boolean = False
+Private Famachat As String
+
+'**********************************************************
+'*initialisation écrans et gestion onglet client          *
+'**********************************************************
+Public Sub _New()
+  
+  Dim FamResult As Result
+  
+  Tab = "Fiches_Parametres"
+  rResult = Utils.db.Exec("SELECT * FROM " & tab & "")
+  If rResult.Available Then
+    devises = rResult!devise
+    If IsNull(devises) Then devises = "Euros"
+  Endif
+  Coulfond = Utils.Coulfd()
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  
+  Colbl.Columns.count = 5
+  Colbl.Columns[0].Width = 80
+  Colbl.Columns[0].Background = Color.Red
+  Colbl.Columns[1].Width = 260
+  Colbl.Columns[2].Width = 100
+  Colbl.Columns[3].Width = 100
+  Colbl.Columns[0].Text = "Code"
+  Colbl.Columns[0].Alignment = 1
+  Colbl.Columns[1].Text = "Nom"
+  Colbl.Columns[1].Alignment = 1
+  Colbl.Columns[2].Text = "Total ht"
+  Colbl.Columns[2].Alignment = 2
+  Colbl.Columns[3].Text = "Total ttc"
+  Colbl.Columns[3].Alignment = 2
+  
+  Coldetail.Columns.count = 4
+  Coldetail.Columns[0].Width = 120
+  Coldetail.Columns[2].Alignment = Align.Left
+  Coldetail.Columns[1].Width = 120
+  Coldetail.Columns[2].Width = 120
+  Coldetail.Columns[3].Width = 120
+  Coldetail.Columns[0].Text = "N° BR"
+  Coldetail.Columns[1].Text = "Date BR"
+  Coldetail.Columns[2].Text = "montant HT"
+  Coldetail.Columns[2].Alignment = 2
+  Coldetail.Columns[3].Text = "montant TTC"
+  Coldetail.Columns[3].Alignment = 2
+  datej.Text = Format$(Now, "dd.mm.yyyy")
+  FamResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " WHERE isnull(compt3_fam)")
+  If FamResult.Available Then 
+    chkfam = True
+    Famachat = FamResult!code_fam
+  Endif
+  
+End
+
+'**************************
+'*  On récupère les BR    *
+'**************************
+Public Sub recup_bl()
+  
+  Dim Tab1 As String
+  Dim Tab3 As String
+  Dim Tab4 As String
+  Dim Client As Result
+  Dim totf As Result
+  Dim Total As String
+  Dim Totalttc As String
+  Dim dteN As String
+  
+  Tab = "Fiches_Entrecpt"
+  Tab1 = "Fiches_Ligrecpt"
+  Tab3 = "BRfm"
+  Tab4 = "Br"
+  Total = "0"
+  Utils.db.Exec("drop Table IF exists " & Tab3 & "")
+  Utils.db.Exec("CREATE TABLE " & Tab3 &
+    "(code Char(8) NOT NULL," &
+    "nom Char(35)," &
+    "cp Char(5)," &
+    "ville Char(35)," &
+    "totf Char(12)," &
+    "tottc Char(12)," &
+    "PRIMARY KEY (code))" & "ENGINE = MYISAM")
+  Utils.db.Exec("drop Table IF exists " & Tab4 & "")
+  Utils.db.Exec("CREATE TABLE " & Tab4 &
+    "(num Char(15) NOT NULL," &
+    "code Char(10)," &
+    "date date," &
+    "ht Char(12)," &
+    "ttc Char(12)," &
+    "anomalie TINYINT(1)," &
+    "PRIMARY KEY (num, code))" & "ENGINE = MYISAM")
+  Colbl.Clear
+  Coldetail.clear
+  dteN = Right$(datej.Text, 4) & Mid$(datej.Text, 4, 2) & Left$(datej.Text, 2)
+  Client = Utils.db.Exec("SELECT * FROM " & Tab & "  left join " & Cbase.Table("TabFour") & " on fo_code = four  where four = &1 and montant <> &2 and ddate <= &3  and validee <> &4 order by four", codeclient.Text, 0, dteN, True)
+  If Client.Available Then
+    Repeat
+      Exo = Client!fo_exo
+      totf = Utils.db.Exec("SELECT * FROM " & Tab3 & " WHERE code = &1", Client!four)
+      If totf.Available Then
+        Try Total = Val(Utils.cpoint(totf!totf)) + Val(Utils.cpoint(Client!montant))
+        If Exo = False Then
+          Try Totalttc = Val(Utils.cpoint(totf!tottc)) + Val(Utils.cpoint(Client!mttc))
+        Else
+          Totalttc = Total
+        Endif
+        If Error Then Totalttc = "0,00"
+        Utils.db.Exec("UPdate " & Tab3 & " SET totf = &1, tottc = &2 WHERE code = &3", total, Totalttc, Client!four)
+      Else
+        Try Total = Format$(Val(Utils.cpoint(Client!montant)), "0.00")
+        If Exo = False Then
+          Try Totalttc = Format$(Val(Utils.cpoint(Client!mttc)), "0.00")
+        Else
+          Totalttc = Total
+        Endif
+        If Error Then Totalttc = "0,00"
+        If exo = False Then
+          Utils.db.Exec("INSERT INTO " & Tab3 & " (code, nom, cp, ville, totf, tottc) Values (&1, &2, &3,&4,&5,&6)", Client!four, Client!fo_nom, "", "", Client!montant, Client!mttc)
+        Else
+          Utils.db.Exec("INSERT INTO " & Tab3 & " (code, nom, cp, ville, totf, tottc) Values (&1, &2, &3,&4,&5,&6)", Client!four, Client!fo_nom, "", "", Client!montant, Client!montant)
+        Endif
+      Endif
+      Total = 0
+      If exo = False Then
+        Try Utils.db.Exec("INSERT INTO " & Tab4 & " (num, code, date, ht, ttc, anomalie) Values (&1, &2, &3, &4, &5, &6)", Client!numrecpt, Client!four, Client!ddate, Client!montant, Client!mttc, Client!anomalie)
+      Else
+        Try Utils.db.Exec("INSERT INTO " & Tab4 & " (num, code, date, ht, ttc, anomalie) Values (&1, &2, &3, &4, &5, &6)", Client!numrecpt, Client!four, Client!ddate, Client!montant, Client!montant, Client!anomalie)
+      Endif
+    Until Client.MoveNext()
+  Endif
+  Client = Utils.db.Exec("SELECT * FROM " & Tab3 & " order by nom")
+  If Client.Available Then
+    Repeat
+      Colbl.Add(Client!code, Client!code)
+      Colbl.Item[0] = Client!code
+      Colbl.Item[1] = Client!nom
+      Colbl.Item[2] = Format$(Val(Utils.cpoint(Client!totf)), "0.00")
+      If exo = False Then
+        Try Colbl.Item[3] = Format$(Val(Utils.cpoint(Client!tottc)), "0.00")
+      Else
+        Try Colbl.Item[3] = Format$(Val(Utils.cpoint(Client!ht)), "0.00") 
+      Endif
+      If Error Then Colbl.Item[3] = "0,00"
+    Until Client.MoveNext()
+  Endif
+  
+End
+
+Public Sub Colbl_Click()
+  
+  Dim Client As Result
+  
+  Tab4 = "Br"
+  Coldetail.clear
+  With Utils
+    If Colbl.count > 0 Then
+      Client = Utils.db.Exec("SELECT * FROM " & Tab4 & " where code = &1 order by num", Colbl.Item[0], "B", "F", 0)
+      sclient = Colbl.Item[0]
+      If Client.Available Then
+        Repeat
+          Coldetail.Add(Client!num, Client!num)
+          Coldetail.Item[0] = Client!num
+          Coldetail.Item[1] = .Cdate_Aff(Client!date)
+          Coldetail.Item[2] = Format$(Val(.cpoint(Client!ht)), "0.00")
+          If exo = False Then
+            Try Coldetail.Item[3] = Format$(Val(.cpoint(Client!ttc)), "0.00")
+          Else
+            Try Coldetail.Item[3] = Format$(Val(.cpoint(Client!ht)), "0.00") 
+          Endif
+          If Client!anomalie Then Try Coldetail.Item[4] = "T"
+        Until Client.MoveNext()
+      Endif
+    Endif
+  End With
+  
+End
+
+Public Sub Colbl_Keypress()
+  
+  Dim Client As Result
+  
+  Tab4 = "Br"
+  If Key.code = Key.Delete And Colbl.Count <> 0 Then
+    Utils.db.Exec("delete from " & Tab4 & " WHERE code = &1 ", sclient)
+    Colbl.Clear
+    Coldetail.Clear
+    Client = Utils.db.Exec("SELECT * FROM " & Tab4 & "  left join " & Cbase.Table("TabFour") & " on fo_code = code order by code")
+    If Client.Available Then
+      Repeat
+        Try Colbl.Add(Client!code, Client!code)
+        If Not Error Then
+          Colbl.Item[0] = Client!code
+          Colbl.Item[1] = Client!fo_nom
+          Colbl.Item[2] = Client!ht
+          Colbl.Item[3] = Client!ttc
+          Try Coldetail.Item[4] = Client!anomalie
+        Endif
+      Until Client.MoveNext()
+    Endif
+  Endif
+  
+End
+
+Public Sub Coldetail_Activate()
+  
+  Dim hForm As ModifCom
+  
+  hForm = New ModifCom(Coldetail.Item[0], Colbl.item[0], Coldetail.Item[1], Coldetail.Item[4])
+  hForm.Showmodal
+  recup_bl()
+  Colbl_Click()
+  
+End
+
+Public Sub Coldetail_Click()
+  
+  sclient2 = Coldetail.Item[0]
+  
+End
+
+Public Sub Coldetail_Keypress()
+  
+  Dim Client As Result
+  Dim Total As String = "0"
+  
+  Tab4 = "Br"
+  With Utils
+    If Key.code = Key.Delete And Coldetail.Count <> 0 Then
+      Utils.db.Exec("delete from " & Tab4 & " WHERE num = &1 ", sclient2)
+    Endif
+    Client = Utils.db.Exec("SELECT * FROM " & Tab4 & " where code = &1 order by num", sclient)
+    Coldetail.Clear
+    If Client.Available Then
+      Repeat
+        Coldetail.Add(Client!num, Client!num)
+        Coldetail.Item[0] = Client!num
+        Coldetail.Item[1] = .Cdate_Aff(Client!date)
+        Coldetail.Item[2] = Client!ht
+        Try Coldetail.Item[3] = Client!ttc
+        Try Coldetail.Item[4] = Client!anomalie
+        Total = Format$(Val(.cpoint(Total)) + Val(.cpoint(Client!ht)), "0.00")
+      Until Client.MoveNext()
+    Endif
+    Colbl.MoveFirst()
+    Repeat
+      Try Colbl.Item.Selected = True
+      If Not Error Then
+        If Colbl.Item[0] = sclient Then
+          Colbl.Item[4] = Total
+          Break
+        Endif
+      Endif
+    Until Colbl.MoveNext()
+    
+  End With
+  
+End
+
+'**********************************************************
+'*  On controle si la date saisie est dans les bornes     *
+'**********************************************************
+Public Sub Quittedate()
+  
+  Dim dte2 As String
+  Dim dte3 As String
+  Dim ye As String
+  
+  Tab = "Fiches_Parametres"
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
+  dtex = rResult!dteclec ' On recupere la date de fin d'exercice
+  dte = rResult!dtepc
+  dte3 = Right$(dte, 4) & Left$(dte, 2)
+  dte2 = rResult!dteclec1
+  ye = Right$(dte2, 4)
+  Ye = Val(Ye) + 1
+  With utils
+    datej.text = .Cdate_calc(datej.text)
+    datej.Text = .Cdate_aff(datej.Text)
+    b = 0
+    If datej.Text = "00.00.0:00" Then
+      datej.Text = Format$(Now, "dd.mm.yyyy")
+      b = 1
+      datej.SetFocus
+    Else
+      dte3 = rResult!dtepec
+      dte3 = Right$(dte3, 4) & Left$(dte3, 2)
+      If Right$(datej.text, 4) & Mid$(datej.text, 4, 2) < dte3 Then
+        If son Then
+          Music.Play
+        Endif
+        If Message.Warning("Attention ! La date saisie est inférieure au début de la période en cours.", "Ok") = 1 Then
+          datej.SetFocus
+          B = 1
+        Endif
+      Else
+        If Right$(datej.text, 4) & Mid$(datej.text, 4, 2) > dte3 Then
+          If son Then
+            Music.Play
+          Endif
+          If Message.Warning("Attention ! La date saisie est supérieure à la période en cours.", "Ok") = 1 Then
+            datej.SetFocus
+            B = 1
+          Endif
+        Else
+        Endif
+      Endif
+    Endif
+    Try numecr = "numecriture"
+  End With
+  
+End
+
+Public Sub Button5_Click()
+  
+  If Exist(filename) Then Try Kill filename
+  Me.close
+  
+End
+
+Public Sub Radiobutton1_Click()
+  
+  codeclient.Background = &HD4D0C8& '&HF9F9BD&
+  codeclient.ReadOnly = True
+  Colbl.clear
+  Coldetail.clear
+  
+End
+
+Public Sub Radiobutton2_Click()
+  
+  Dim Frmt As New String[]
+  
+  Frmt = Utils.FColr(Settings["/Coul/Znss"])
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then codeclient.Background = Val(Frmt[0])
+  codeclient.ReadOnly = False
+  Colbl.clear
+  Coldetail.clear
+  codeclient.SetFocus
+  
+End
+
+Public Sub codeclient_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    rResult = Utils.db.Exec("select * from " & Cbase.Table("TabFour") & " where fo_code = &1", codeclient.Text)
+    If Not rResult.Available Then
+      Message.Error("Ce client n'existe pas !")
+      codeclient.Select
+      codeclient.SetFocus
+    Endif
+  Endif
+  
+End
+
+Public Sub Togglebutton1_Click()
+  
+  Dim MyForm As Trifours
+  
+  Variables.bsel = False
+  MyForm = New Trifours("ModifBR")
+  MyForm.Showmodal()
+  If Variables.Bsel = True Then
+    codeclient.Text = Variables.Cfour
+  Else
+    Codeclient.SetFocus
+  Endif
+  
+  If chkfam = True Then
+    Message.Warning("Traitement impossible ! La famille " & Famachat & " n'a pas de compte d'achat")
+    Return
+  Else
+    Colbl.Clear
+    Coldetail.Clear
+    datej.text = Utils.Cdate_calc(datej.text)
+    datej.Text = Utils.Cdate_aff(datej.Text)
+    'Quittedate()
+    If B <> 1 Then
+      recup_bl()
+      Colbl_Click()
+    Else
+      b = 0
+    Endif
+  Endif
+  
+End
+
+'***********************************
+'*        On gère l' arrondi       *
+'***********************************
+Public Function ard(Puttc As String) As String
+  
+  If Not PuTTc Then PuTTc = "0,00"
+  If ardi = "0,05" Then
+    If Right$(Puttc) Like "[34567]*" Then
+      Puttc = Left$(Puttc, (Len(Puttc) - 1)) & "5"
+    Else
+      Puttc = Round(Val(Puttc), -1)
+      If typeL = "A" Then Puttc = Format$(Puttc, nbdec)
+    Endif
+  Endif
+  
+  If ardi = "0,10" Then
+    Puttc = Round(Val(Puttc), -1)
+    If typeL = "A" Then Puttc = Format$(Puttc, nbdec)
+  Endif
+  
+  If ardi = "0,50" Then
+    If Abs(Val(Puttc)) <= Abs(Val(Left$(Puttc, (Len(Puttc) - 2)) & 25)) Then
+      Puttc = Left$(Puttc, (Len(Puttc) - 2)) & "00"
+    Else
+      If Abs(Val(Puttc)) <= Abs(Val(Left$(Puttc, (Len(Puttc) - 2)) & 75)) Then
+        Puttc = Left$(Puttc, (Len(Puttc) - 2)) & "50"
+      Endif
+      If Abs(Val(Puttc)) >= Abs(Val(Left$(Puttc, (Len(Puttc) - 2)) & 76)) Then
+        Puttc = Round(Val(Puttc))
+        If typeL = "A" Then Puttc = Format$(Puttc, nbdec)
+      Endif
+    Endif
+  Endif
+  
+  If ardi = "1,00" Then
+    Puttc = Round(Val(Puttc))
+    If typeL = "A" Then Puttc = Format$(Puttc, nbdec)
+  Endif
+  Return Puttc
+  
+End
+
+Public Sub Button16_Click()
+  
+  Me.Close
+  
+End
+
+Public Sub Datej_DblClick()
+  
+  If DateChooser1.visible = False Then
+    DateChooser1.visible = True
+  Else
+    DateChooser1.Visible = False
+  Endif
+  
+End
+
+Public Sub Datej_KeyPress()
+  
+  If Key.code = Key.Escape Then  
+    If DateChooser1.Visible = True Then DateChooser1.Visible = False
+  Endif
+  If Key.code = Key.F2 Then  
+    If DateChooser1.Visible = True Then 
+      DateChooser1.Visible = False
+    Else
+      DateChooser1.Visible = True 
+    Endif
+  Endif
+  If Key.code = Key.Return Or If Key.code = Key.Enter Then
+    datej.text = Utils.Cdate_calc(datej.text)
+    datej.Text = Utils.Cdate_aff(datej.Text)
+  Endif
+  
+End
+
+Public Sub DateChooser1_Activate()
+  
+  Datej.text = Format$(DateChooser1.Value, "dd.mm.yyyy")
+  DateChooser1.Visible = False
+  
+End
+
+'**********************************************
+'*     Affichage de la documentation Html     *
+'**********************************************
+Public Sub Button7_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Br.html"]
+  
+End

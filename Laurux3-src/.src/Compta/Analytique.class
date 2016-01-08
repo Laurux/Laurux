@@ -1,0 +1,225 @@
+' Gambas class file
+
+Private Compte As String
+Private Montant As String
+Private Pourcent As String
+Private $Necrit As String
+Private Total As String
+Private Journal As String 
+Private Libelle As String
+Private intitule As String
+Private $sens As String
+Private $date As String
+Private Numdoc As String
+Private Enrgt As Boolean = False
+Private Poste As New String[20]
+
+Public Sub _new(Code As String, Mtd As String, Necrit As String, sens As String, Jour As String, dte As String, $intitule As String, Nmdoc As String, $libel As String)
+  
+  Dim pResult As Result
+  Dim p As Integer = 0
+  
+  Compte = Code
+  Montant = Mtd
+  $Necrit = necrit
+  $sens = sens
+  Journal = Jour
+  $Date = dte
+  Libelle = $libel
+  Intitule = $intitule
+  numdoc = nmdoc
+  Tbrem.Columns.Count = 3
+  Tbrem.Rows.Count = 7
+  Tbrem.Rows.Height = 25
+  Tbrem.Columns[0].text = String$(20, " ") & "Poste"
+  Tbrem.Columns[0].width = 450
+  'Tbrem.Columns[1].text = String$(15, " ") & "Libellé poste"
+  'Tbrem.Columns[1].width = 240
+  Tbrem.Columns[1].text = "%"
+  Tbrem.Columns[1].width = 80
+  Tbrem.Columns[1].Alignment = 3
+  Tbrem.Columns[2].text = "Montant" & String$(8, " ")
+  Tbrem.Columns[2].Alignment = 3
+  Tbrem.Columns[2].width = 100
+  pResult = Utils.db.Exec("select * from " & Cbase.Table("TabPostes") & " order by code")
+  If pResult.Available Then
+    Repeat
+      Poste[p] = pResult!code & " - " & pResult!intitulep
+      Inc p
+    Until pResult.MoveNext()
+  Endif
+  
+End
+
+Public Sub Form_Open()
+  
+  Me.Center
+  Deb1()
+  Button2.SetFocus
+  
+End
+
+Public Sub Button3_Click()
+  
+  If Not Enrgt Then
+    If Message.Question("L'écriture n'a pas été enregistrée !\n Quitter ?", "Oui", "Non") = 1 Then
+      Me.close
+    Endif
+  Else
+    Me.close
+  Endif
+  
+End
+
+Public Sub Tbrem_Click()
+  
+  If Tbrem.Column = 0 Then
+    Tbrem.Edit(poste)
+  Else
+    Tbrem.Edit
+  Endif
+  
+End
+
+Public Sub Tbrem_Save(Ligne As Integer, Colonne As Integer, Valeur As String)
+  
+  Dim i As Integer = 0
+  Dim pResult As Result
+  Dim Mtant As String = "0"
+  
+  Label3.Text = "0,00"
+  Label5.Text = "0,00"
+  Label6.Text = "0,00"
+  If IsNull(valeur) Then valeur = "0,00"
+  Tbrem[Ligne, Colonne].text = Valeur
+  If colonne = 0 Then
+    pResult = Utils.db.Exec("select pourcent from " & Cbase.Table("TabAna") & " where compte = &1 and code = &2", Compte, Left$(Tbrem[Ligne, 0].text, 2))
+    If pResult.Available Then
+      Tbrem[Ligne, 1].text = Format$(Val(Utils.cpoint(pResult!pourcent)), "0.00")
+      Total = Format$(Val(Utils.cpoint(Montant)) * Val(Utils.cpoint(Tbrem[ligne, 1].Text)) / 100, "0.00")
+      Tbrem[ligne, 2].Text = Total
+    Else
+      Tbrem[Ligne, 1].text = "0,00"
+      Tbrem[Ligne, 2].text = "0,00"
+    Endif
+  Endif
+  If colonne = 1 Then
+    Tbrem[ligne, 1].Text = Format$(Val(Utils.cpoint(Tbrem[ligne, 1].Text)), "0.00")
+    Tbrem[ligne, 2].Text = Format$(Val(Utils.cpoint(Montant)) * Val(Utils.cpoint(Tbrem[ligne, 1].Text)) / 100, "0.00")
+  Endif
+  If colonne = 2 Then
+    Total = Format$(Val(Utils.cpoint(Tbrem[ligne, 2].Text)) / Val(Utils.cpoint(Montant)) * 100, "0.00")
+    Tbrem[ligne, 2].Text = Format$(Val(Utils.cpoint(Tbrem[ligne, 2].Text)), "0.00")
+    Tbrem[ligne, 1].Text = Total
+  Endif
+  While Tbrem[i, 0].text <> ""
+    Total = Format$(Val(Utils.cpoint(Montant)) * Val(Utils.cpoint(Tbrem[i, 1].Text)) / 100, "0.00")
+    Label3.Text = Left$(Label3.Text, Len(Label3.Text) - 2)
+    Label3.Text = Format$(Val(Utils.cpoint(Label3.Text)) + Val(Utils.cpoint(Tbrem[i, 1].Text)), "0.00") & " %"
+    Label4.Text = Format$(100 - Val(Utils.cpoint(Left$(Label3.Text, Len(Label3.Text) - 1))), "0.00") & " %"
+    Label5.Text = Format$(Val(Utils.cpoint(Label5.Text)) + Val(Utils.cpoint(Total)), "0.00")
+    Mtant = Val(Utils.cpoint(Mtant)) + Val(Utils.cpoint(Tbrem[i, 2].Text))
+    Label6.Text = Format$(Val(Utils.cpoint(Montant)) - Val(Utils.cpoint(Mtant)), "0.00")
+    Inc i
+  Wend
+  
+End
+
+Public Sub Deb1()
+  
+  Dim rResult As Result
+  Dim Tri As String = Compte
+  Dim ligne As Integer = 0
+  
+  With Utils
+    rResult = Utils.db.Exec("select * from " & Cbase.Table("TabMvtA") & " a inner join " & Cbase.Table("TabPostes") & " p on p.code = a.poste where a.compte = &1 and a.numero = &2", Tri, $Necrit)
+    'rResult = Utils.db.Exec("select pourcent from " & Cbase.Table("TabAna") & " where compte = &1 and code = &2", Compte, Left$(Tbrem[Ligne, 0].text, 2))
+    If rResult.Available Then
+      Tbrem.Rows.Count = rResult.count
+      Repeat
+        Tbrem[ligne, 0].Text = rResult!code & " - " & rResult!intitulep
+        'Tbrem[ligne, 1].Text = rResult!intitule
+        Tbrem[ligne, 1].Text = Format$(Val(.cpoint(rResult!pourcent)), "0.00")
+        Total = Format$(Val(.cpoint(Montant)) * Val(.cpoint(rResult!pourcent)) / 100, "0.00")
+        Tbrem[ligne, 2].Text = Total
+        Label3.Text = Left$(Label3.Text, Len(Label3.Text) - 2)
+        Label3.Text = Format$(Val(.cpoint(Label3.Text)) + Val(.cpoint(rResult!pourcent)), "0.00") & " %"
+        Label5.Text = Format$(Val(.cpoint(Label5.Text)) + Val(.cpoint(Total)), "0.00")
+        Inc ligne
+      Until rResult.MoveNext()
+    Else
+      rResult = Utils.db.Exec("select * from " & Cbase.Table("TabAna") & " a inner join " & Cbase.Table("TabPostes") & " p on p.code = a.code where a.compte = " & Tri & " ")
+      Tbrem.Rows.Count = rResult.count
+      Repeat
+        Tbrem[ligne, 0].Text = rResult!code & " - " & rResult!intitulep
+        'Tbrem[ligne, 1].Text = rResult!intitule
+        Tbrem[ligne, 1].Text = Format$(Val(.cpoint(rResult!pourcent)), "0.00")
+        Total = Format$(Val(.cpoint(Montant)) * Val(.cpoint(rResult!pourcent)) / 100, "0.00")
+        Tbrem[ligne, 2].Text = Total
+        Label3.Text = Left$(Label3.Text, Len(Label3.Text) - 2)
+        Label3.Text = Format$(Val(.cpoint(Label3.Text)) + Val(.cpoint(rResult!pourcent)), "0.00") & " %"
+        Label5.Text = Format$(Val(.cpoint(Label5.Text)) + Val(.cpoint(Total)), "0.00")
+        Inc ligne
+      Until rResult.MoveNext()
+    Endif
+    Label11.Text = Format$(Val(.cpoint(Montant)), "0.00") & "    "
+  End With
+  
+End
+
+Public Sub Button2_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then Button2_Click()
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim ligne As Integer = 0
+  Dim Poste2 As String
+  Dim Montantd, Montantc As Float
+  Dim nResult As Result
+  
+  nResult = Utils.db.Exec("select * from " & Cbase.Table("TabMvtA") & " where numero = &1 ", $Necrit)
+  Utils.db.Exec("delete FROM " & Cbase.Table("TabMvtA") & " WHERE numero = &1", $Necrit)
+  If Label4.Text = "0,00 %" Then
+    While Tbrem[Ligne, 0].text <> ""
+      Poste2 = Left$(Tbrem[Ligne, 0].text, 2)
+      Pourcent = Tbrem[Ligne, 1].text
+      If $sens = "T" Then
+        Montantd = Val(Utils.cpoint(Tbrem[Ligne, 2].text))
+        Montantc = "0.00"
+      Else
+        Montantc = Val(Utils.cpoint(Tbrem[Ligne, 2].text))
+        Montantd = "0.00"
+      Endif
+      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvtA") & "(poste, jour, numero,compte,intitule,dte,numdoc, libelle, pourcent, montantd, montantc, validee) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12})", Poste2, Journal, $Necrit, compte, intitule, Utils.Cdate_Dbase($Date), numdoc, Libelle, Pourcent, montantd, montantc, 0)
+      Enrgt = True
+      Inc Ligne
+      If ligne >= nResult.count Then Break
+    Wend
+    Me.Close()
+  Else
+    Message.Warning("Enregistrement impossible ! L'écriture n'est pas équilibrée")
+  Endif
+  
+End
+
+Public Sub Form_KeyPress()
+  
+  If Key.code = Key.F1 Then Button1_Click()
+  
+End
+
+'***************************
+'*  On affiche la doc htML *
+'***************************
+Public Sub Button1_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Analytique.html"]
+  
+End
+
+Public Sub Btn_Click()
+  
+End

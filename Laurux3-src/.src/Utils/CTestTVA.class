@@ -1,0 +1,48 @@
+' Gambas class file
+
+' Module de vérification du code de TVA Intra Communautaire
+
+'Détermination de la clé du code TVA
+Static Public Function CleTVAIntra(numsiren As String) As Integer
+  
+  Return (12 + 3 * (CInt(numsiren) Mod 97)) Mod 97
+  
+End
+
+'Vérification du code TVA
+Static Public Function isIntraComValide(num As String, Optional siren As String) As Boolean
+
+  Dim cle As String
+  Dim fin As Variant
+  Dim finLength As Integer
+  Dim CleTVAorig As Variant
+  Dim CleTVA As Integer
+  
+  'Nettoyer la chaine
+  num = UCase(Replace(num, " ", ""))
+  
+  ' Découpage des données
+  cle = Mid(num, 1, 2)
+  CleTVAorig = Mid(num, 3, 2)
+  fin = Mid(num, 3)
+  finLength = Len(fin)
+  
+  If siren <> "" Then
+    siren = UCase(Replace(siren, " ", ""))
+  Else
+    siren = Mid(fin, 3)
+  End If
+  
+  If Len(num) < 3 Then ' Il n'existe pas de code de moins de 3 char
+    Message.Warning("Pas de code de moins de 3 caractères")
+    Return False
+  End If
+  
+  ' Vérifier à partir de la clé Pays France
+  Select Case cle
+    Case "FR"
+      CleTVA = (12 + 3 * (CInt(siren) Mod 97)) Mod 97
+      Return (finLength = 11) And Mid(fin, 3) = siren And (CleTVAorig = CleTVA) ' France
+  End Select
+
+End Function

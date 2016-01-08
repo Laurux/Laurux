@@ -1,0 +1,97 @@
+' Gambas class file
+
+Private numbl As String
+
+Public Sub _new($num As String, $code As String, $nom As String, $date As String)
+  
+  Me.Center
+  numbl = $num
+  Codecli.Text = $code
+  Nomcli.Text = $nom
+  Numfac.text = numbl
+  Datef.Text = $date
+  Docventes()
+  
+End
+
+Public Sub DocVentes()
+  
+  Dim Rcli As Result
+  Dim rart As Result
+  Dim sline As String
+  Dim Lg As Integer = 1
+  
+  Totalfac.Text = "0,00"
+  Colrcp3.clear
+  Colrcp3.Columns.count = 7
+  Colrcp3.Columns[0].Width = 50
+  Colrcp3.Columns[1].Width = 140
+  Colrcp3.Columns[2].Width = 310
+  Colrcp3.Columns[3].Width = 60
+  Colrcp3.Columns[4].Width = 80
+  Colrcp3.Columns[5].Width = 80
+  Colrcp3.Columns[6].Width = 80
+  Colrcp3.Columns[0].Text = "Ligne"
+  Colrcp3.Columns[1].Text = "Code"
+  Colrcp3.Columns[2].Text = "Designation"
+  Colrcp3.Columns[3].Text = "Qté "
+  Colrcp3.Columns[3].Alignment = 2
+  Colrcp3.Columns[4].Text = "Px brut ht"
+  Colrcp3.Columns[4].Alignment = 2
+  Colrcp3.Columns[5].Text = "Remise"
+  Colrcp3.Columns[5].Alignment = 2
+  Colrcp3.Columns[6].Text = "Px net ht"
+  Colrcp3.Columns[6].Alignment = 2
+  With Utils
+    Rcli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigbl") & " WHERE num_ligbl = &1", numbl)
+    'Try codecli.Text = Rcli!cli_code
+    'If Error Then codecli.Text = Colhisto.Item[1]
+    'Try nomcli.Text = Rcli!cli_nom
+    If Not Error Then
+      Repeat
+        'datef.Text = .Cdate_Aff()
+        If Rcli!typel_ligbl <> "C"
+          Colrcp3.Add(Rcli!numlig_ligbl, Rcli!numlig_ligbl)
+          rart = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_code = &1", Rcli!code_ligbl)
+          If rart.Available Then
+            Colrcp3.Item[1] = Rcli!code_ligbl
+            Colrcp3.Item[2] = .CDec(rart!art_dec, Rcli!qte_ligbl)
+          Endif
+          If Not Colrcp3.Item[3] Then Colrcp3.Item[3] = Rcli!qte_ligbl
+          Colrcp3.Item[2] = Rcli!libel_ligbl
+          Colrcp3.Item[4] = Rcli!brut_ligbl
+          If Not Colrcp3.Item[3] Then Colrcp3.Item[3] = 0
+          Colrcp3.Item[5] = Rcli!rem_ligbl
+          Colrcp3.Item[6] = Rcli!netht_ligbl
+          If Not IsNull(Colrcp3.Item[6]) Then Totalfac.Text = Format$(Val(Totalfac.Text) + (Val(Rcli!netht_ligbl)), "0.00")
+        Else
+          If Rcli!typel_ligbl = "C"
+            For Each sline In Split(Rcli!com_ligbl, "\n")
+              Colrcp3.Add(Rcli!numlig_ligbl & Lg, Rcli!numlig_ligbl & Lg)
+              Colrcp3.Item[0] = Rcli!numlig_ligbl
+              Colrcp3.Item[2] = sline
+              Inc lg
+            Next
+          Endif
+        Endif
+        Nlgf.Text = Colrcp3.count
+      Until Rcli.MoveNext()
+      Nlgf.Text = Colrcp3.count
+    Endif
+    Panel4.visible = True
+  End With
+  
+End
+
+Public Sub Codecli_KeyPress()
+  
+  If Key.code = Key.Esc Or If Key.code = Key.Escape Or If Key.code = Key.F2 Then Button3_Click()
+  
+End
+
+Public Sub Button3_Click()
+  
+  Colrcp3.Clear
+  Me.Close()
+  
+End

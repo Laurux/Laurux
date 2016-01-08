@@ -1,0 +1,53 @@
+' Gambas class file
+
+Public Sub _new()
+  
+  Me.center
+  If Settings["/Soc" & Start.Societe & "/Materiel"] Then CheckBox1.Visible = True
+  
+End
+
+Public Sub Button2_Click()
+  
+  CheckBox1.value = False
+  Me.close
+  
+End
+
+'**********************************************On lance le traitement**************************************
+Public Sub Button1_Click()
+  
+  Dim rResult As Result
+  Dim chemin As String = "/Sauve"
+  Dim Nb As Integer = 0
+  Dim cs As String = Settings["/Soc"]
+  
+  If Start.son Then Music.play
+  If Message.Question("Ce programme va effacer les devis\nantérieurs à la date saisie !\nEtes-vous d'accord pour lancer le traitement ?", "Oui", "Non") = 1 Then
+    Me.mouse = mouse.Wait
+    If Not Exist(User.home & chemin) Then Mkdir User.home & chemin
+    Shell "mysqldump --lock-tables=0 -h " & Settings["/dbase/Host"] & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " Laurux" & cs & " --add-drop-table > " & User.home & "/Sauve/Laurux" & cs & "EffaceD.sql" Wait
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBl") & " where datebl < &1 and type = &2", Format$(DateChooser1.Value, "yyyymmdd"), "D")
+    If rResult.Available Then
+      Repeat
+        Utils.db.Exec("delete FROM " & Cbase.Table("TabLigbl") & " where num_ligbl = &1", rResult!numbl)
+        Utils.db.Exec("delete FROM " & Cbase.Table("TabBl") & " where numbl = &1", rResult!numbl)
+        Inc nb
+      Until rResult.MoveNext()
+    Endif
+    If CheckBox1.Value = True Then
+      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBlM") & " where datebl < &1 and type = &2", Format$(DateChooser1.Value, "yyyymmdd"), "D")
+      If rResult.Available Then
+        Repeat
+          Utils.db.Exec("delete FROM " & Cbase.Table("TabLigblM") & " where num_ligbl = &1", rResult!numbl)
+          Utils.db.Exec("delete FROM " & Cbase.Table("TabBlM") & " where numbl = &1", rResult!numbl)
+          Inc nb
+        Until rResult.MoveNext()
+      Endif
+    Endif
+    Me.mouse = mouse.Default
+    Syntheses.Message("Traitement terminé ! " & nb & " devis ont été effacés.")
+    Message.Info("Traitement terminé ! " & nb & " devis ont été effacés.")
+  Endif
+  
+End

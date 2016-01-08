@@ -1,0 +1,517 @@
+' Gambas class file
+
+Org As String = "1"
+Cptl As Integer
+sel As String
+Type As String
+Coulfc As Integer
+Coulfond As New String[]
+Dbl As String = ""
+son As Integer = Start.Son
+Public Codearticle As String
+Public Bsel As Boolean = False
+Private Origine As String = ""
+Private b As Integer = 0
+Private Tri As String
+Private filename As String
+
+Public Sub _new()
+  
+  Dim rResult As Result
+  Dim Frmt As New String[]
+  
+  Frmt = Utils.FColr(Settings["/Coul/Focus"])
+  Coulfc = Val(Frmt[0])
+  Frmt = Utils.FColr(Settings["/Coul/Fnets"])
+  Coulfond = Utils.Coulfd()
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabParam") & "")
+  Dte1.Text = Utils.Cdate_Aff(rResult!dteclec5)
+  type = "F"
+  Me.Center
+  
+End
+
+Public Sub Liste_Click()
+  
+  Dim Tab As String
+  Dim rResult As Result
+  
+  Tab = "Artsup"
+  Frame7.visible = False
+  ListArt.Visible = True
+  Panel1.Visible = False
+  Panel2.Visible = False
+  Panel3.Visible = False
+  Panel4.Visible = True
+  Art.SetFocus
+  Try rResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
+  If Not Error Then
+    If rResult.Available Then
+      If message.Question("Une liste existe déjà ! Que voulez-vous faire ?\n", " 1- La supprimer", " 2- Ajouter des articles") = 1 Then
+        Utils.db.Exec("drop Table IF exists " & Tab & "")
+        Utils.db.Exec("CREATE TABLE " & Tab & 
+          "(art_code Char(15) NOT NULL," &
+          "PRIMARY KEY (art_code))" & "ENGINE = MYISAM")
+        ListArt.Text = ""
+      Else
+        Repeat
+          ListArt.Text = ListArt.Text & " " & rResult!art_code
+        Until rResult.MoveNext()
+      Endif
+    Endif
+  Else
+    Utils.db.Exec("CREATE TABLE " & Tab & 
+      "(art_code Char(15) NOT NULL," &
+      "PRIMARY KEY (art_code))" & "ENGINE = MYISAM")
+    ListArt.Text = ""
+  Endif
+  
+End
+
+Public Sub Fichier_Click()
+  
+  Frame7.visible = True
+  ListArt.Visible = False
+  Panel4.Visible = False
+  
+End
+
+Public Sub CheckSpd_Click()
+  
+  Frame7.visible = False
+  ListArt.Visible = False
+  Panel1.Visible = False
+  Panel2.Visible = False
+  Panel3.Visible = False
+  Panel4.Visible = False
+  
+End
+
+Public Sub Selection_Click()
+  
+  Frame7.visible = False
+  ListArt.Visible = False
+  Panel1.Visible = True
+  Panel2.Visible = True
+  Panel3.Visible = True
+  Panel4.Visible = False
+  
+End
+
+Public Sub Choisir_Click()
+  
+  Dialog.Path = User.home
+  Dialog.Title = "Choix du fichier texte"
+  If Dialog.OpenFile() Then Return
+  Fic.Text = Dialog.Path
+Catch
+  Message.Warning(ERROR.Text)
+  
+End
+
+'*************************************** Gestion des champs de saisie **************************************************
+
+Public Sub Suppr_KeyPress()
+  
+  If key.code = key.F2 Then
+    Select Case Last.tag
+      Case 3
+        Button3_click()
+        Stop Event
+        
+      Case 4
+        Button4_click()
+        Stop Event
+        
+      Case 7
+        Button10_Click()
+        
+        Stop Event
+    End Select
+  Endif
+  If Key.code = Key.enter Or Key.code = Key.return Then
+    Select Case Last.tag
+        
+      Case 7
+        art_man()
+    End Select
+  Endif
+  
+End
+
+'*************************************** Gestion du choix de la date ****************************************************
+
+Public Sub Button5_Click()
+  
+  If DateChooser1.Visible = False Then
+    DateChooser1.visible = True
+  Else
+    DateChooser1.Visible = False
+  Endif
+  
+End
+
+Public Sub DateChooser1_Activate()
+  
+  Dte1.text = Format$(DateChooser1.Value, "dd.mm.yyyy")
+  DateChooser1.Visible = False
+  
+End
+
+'******************************************* Gestion du choix des fournisseurs *********************************************
+
+'***************************************
+'* On selectionne le début de la liste *
+'***************************************
+Public Sub Button3_Click()
+  
+  Dim MyForm As TriComptes
+  
+  Tri = "cast(compte_cc AS char)"
+  MyForm = New TriComptes(Tri, Type, "", "D4", "")
+  MyForm.Showmodal()
+  If Comptabilite.Bsel = True Then
+    Cp1.text = Comptabilite.sCmpt
+    Cp2.SetFocus
+  Endif
+  
+End
+
+'***************************************
+'* On selectionne la fin de la liste   *
+'***************************************
+Public Sub Button4_Click()
+  
+  Dim MyForm As TriComptes
+  
+  Tri = "cast(compte_cc AS char)"
+  MyForm = New TriComptes(Tri, Type, "", "D4", "")
+  MyForm.Showmodal()
+  If Comptabilite.Bsel = True Then
+    Cp2.text = Comptabilite.sCmpt
+    Cp1.SetFocus
+  Endif
+  
+End
+
+'*********************************************** On gère l'affichage des familles *************************************
+
+'************************************
+'* Affichage du columnview Colfam  *
+'************************************
+Public Sub Button1_Click()
+  
+  Org = "1"
+  Aff()
+  
+End
+
+Public Sub Button2_Click()
+  
+  Org = "2"
+  Aff()
+  
+End
+
+Public Sub Aff()
+  
+  Dim Rfams As Result
+  
+  With Utils
+    If Colfam.visible Then
+      Colfam.clear
+      Colfam.visible = False
+    Else
+      Colfam.visible = True
+      Colfam.Columns.count = 2
+      Colfam.Columns[0].Width = 65
+      Colfam.Columns[1].Width = 280
+      Colfam.Columns[0].Text = "code"
+      Colfam.Columns[1].Text = "Intitulé"
+      Rfams = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " order by code_fam")
+      If Rfams.Available Then
+        Repeat
+          Colfam.Add(Rfams!code_fam, Rfams!code_fam)
+          Colfam.Item[0] = Rfams!code_fam
+          Colfam.Item[1] = Rfams!libell_fam
+        Until Rfams.MoveNext()
+      Endif
+      If Colfam.Count Then
+        Colfam.MoveFirst
+        Colfam.SetFocus
+        Colfam.Item.Selected = True
+      Endif
+    Endif
+  End With
+  
+End
+
+'***********************************************************
+'* Gestion du columnview Colfam lors d'une saisie manuelle *
+'***********************************************************
+Public Sub Colfam_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Colfam.MoveCurrent
+    Colfam_Click()
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Colfam.visible = False
+    Colfam.clear
+    fam1.SetFocus
+    fam1.Select
+    Stop Event
+  Endif
+  
+End
+
+'*************************************
+'*      Selection de la famille      *
+'*************************************
+Public Sub Colfam_Click()
+  
+  If org = "1" Then
+    Fam1.Text = Colfam.Item[0]
+  Else
+    Fam2.Text = Colfam.Item[0]
+  Endif
+  Colfam.clear
+  Colfam.visible = False
+  fam2.Select
+  fam2.SetFocus
+  
+End
+
+'****************************************Gestion des articles**************************************************
+Public Sub SelectionArt()
+  
+  Dim sel As String = ""
+  Dim MyForm As TriArticles
+  Dim sFour As String = ""
+  Dim $centrale As String = ""
+  
+  sel = ""
+  Tri = "art_code"
+  MyForm = New TriArticles(True, "", Tri, "SupprArt", "", "")
+  MyForm.Showmodal()
+  If Bsel = True Then
+    Art.text = Codearticle
+    art_man()
+  Endif
+  
+End
+
+Public Sub ChkPrx()
+  
+  If InStr("0123456789,.", Key.Text) = 0 Then
+    If key.code <> key.BackSpace And Key.Code <> Key.tab And Key.Code <> Key.Delete And Key.code <> Key.enter And Key.code <> Key.return Then
+      Stop Event
+    Endif
+  Endif
+  
+End
+
+'***************************************************
+'* Saisie d'un code article manuellement en direct *
+'***************************************************
+Public Sub art_man()
+  
+  Dim rarts As Result
+  Dim Rtvaav As Result
+  Dim Rligcom As Result
+  Dim Rfours As Result
+  Dim Tab As String
+  
+  Tab = "Artsup"
+  With utils
+    If Art.text <> "" Then
+      rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", Art.Text)
+      If Not rarts.Available Then
+        rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_cfour = &1", Art.Text)
+        If Not rarts.Available Then
+          rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_cbarre = &1", Art.Text)
+        Endif
+      Endif
+      If rarts.Available Then
+        Art.Text = rarts!art_code
+        Try Utils.db.Exec("INSERT INTO " & Tab & " (art_code) Values (&1)", Art.Text)
+        If Not Error Then
+          ListArt.Text = ListArt.Text & " " & Art.Text
+        Else
+          message.Error("Ce produit a déjà été saisi !")
+        Endif
+        Art.Clear
+        Design.Text = ""
+        Art.SetFocus
+      Else
+        If son Then
+          Music.Play
+        Endif
+        message.Warning(" Cette référence n'existe pas! ")
+        Art.SetFocus
+        Art.Select
+      Endif
+    Endif
+  End With
+  
+End
+
+Public Sub button8_Click()
+  
+  Dim aResult As Result
+  Dim hResult As Result
+  Dim lResult As Result
+  Dim blResult As Result
+  Dim cmResult As Result
+  Dim Tab As String
+  Dim i As Integer = 0
+  Dim s As Integer = 0
+  Dim Sp As Boolean = False
+  Dim hfil As File
+  Dim filename As String
+  Dim Lecfic As Boolean = False
+  
+  Tab = "Artsup"
+  filename = User.Home & "/Artsuppr.txt"
+  Hfil = Open filename For Write Create
+  If Message.Question("Attention ! Seuls les produits séléctionnés ayant un stock inférieur ou égal à zéro\n seront supprimés. OK ?", "Oui", "Non") = 1 Then
+    Me.mouse = Mouse.wait
+    If Not fichier Then
+      Try hResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisFac") & " where datefac >= &1 union SELECT * FROM " & Cbase.Table("TabHisFacm") & " where datefac >= &1", Utils.Cdate_Dbase(dte1.Text))
+      If Error Then hResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisFac") & " where datefac >= &1", Utils.Cdate_Dbase(dte1.Text))
+      If hResult.Available Then
+        If CheckSpd.value = True Then aResult = Utils.db.Exec("SELECT art_code FROM " & Cbase.Table("TabArt") & " where art_suspendu = &1 and art_fam > &2 and art_fam < &3 and art_four > &4 and art_four < &5 and art_stocke <= &6", True, Fam1.text, Fam2.Text, Cp1.text, Cp2.Text, 0)
+        If Liste.Value = True Then aResult = Utils.db.Exec("SELECT * from " & Tab & "")
+        If Liste.value = False And CheckSpd.value = False Then aResult = Utils.db.Exec("SELECT art_code FROM " & Cbase.Table("TabArt") & " where art_fam > &1 and art_fam < &2 and art_four > &3 and art_four < &4 and art_stocke <= &5", Fam1.text, Fam2.Text, Cp1.text, Cp2.Text, 0)
+        If aResult.Available Then
+          Repeat
+            blResult = Utils.db.Exec("SELECT num_ligbl FROM " & Cbase.Table("TabLigbl") & " where code_ligbl = &1", aResult!art_code)
+            If Not blResult.Available Then
+              cmResult = Utils.db.Exec("SELECT code FROM " & Cbase.Table("TabLigcom") & " where code = &1", aResult!art_code)
+              If Not blResult.Available Then
+                Try lResult = Utils.db.Exec("SELECT num_ligfac FROM " & Cbase.Table("TabHisLigFac") & " where code_ligfac = &1 and typel_ligfac = &2 union SELECT num_ligfac and typel_ligfac = &2  FROM " & Cbase.Table("TabHisLigFacm") & " where code_ligfac = &1 ", aResult!art_code, "A")
+                If Error Then lResult = Utils.db.Exec("SELECT num_ligfac, numlig_ligfac FROM " & Cbase.Table("TabHisLigFac") & " where code_ligfac = &1 and typel_ligfac = &2 ", aResult!art_code, "A")
+                If lResult.Available Then
+                  Repeat
+                    Try hResult = Utils.db.Exec("SELECT numfac FROM " & Cbase.Table("TabHisFac") & " where numfac = &1 and datefac >= &2 union SELECT numfac FROM " & Cbase.Table("TabHisFacm") & " where numfac = &1  and datefac >= &2 ", lResult!num_ligfac, Utils.Cdate_Dbase(dte1.Text))
+                    If Error Then hResult = Utils.db.Exec("SELECT numfac FROM " & Cbase.Table("TabHisFac") & " where numfac = &1 and datefac >= &2 ", lResult!num_ligfac, Utils.Cdate_Dbase(dte1.Text))
+                    If Not hResult.Available Then Sp = True
+                  Until lResult.MoveNext()
+                Endif
+                If sp = True Then
+                  Inc i
+                  Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabArt") & " WHERE art_code = &1", aResult!art_code)
+                  If Not Error Then Utils.db.Exec("DELETE FROM " & Tab & " WHERE art_code = &1", aResult!art_code)
+                  Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabCdBarre") & " WHERE codep = &1", aResult!art_code)
+                  Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabCequ") & " WHERE codep = &1", aResult!art_code)
+                  Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabRpl1") & " WHERE codep = &1", aResult!art_code)
+                  Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabRpl2") & " WHERE codep = &1", aResult!art_code)
+                  sp = False
+                Else
+                  Inc s
+                  Try Print #Hfil, "Impossible de supprimer le produit " & aResult!art_code & " car il est présent dans un historique plus récent que la date séléctionnée !"
+                  LecFic = True
+                Endif
+              Else
+                Inc s
+                Try Print #Hfil, "Impossible de supprimer le produit " & aResult!art_code & " car il est présent dans une commande !"
+                LecFic = True
+              Endif
+            Else
+              Inc s
+              Try Print #Hfil, "Impossible de supprimer le produit " & aResult!art_code & " car il est présent dans un bon de livraison !"
+              LecFic = True
+            Endif
+          Until aResult.MoveNext()
+          Close #hfil
+          If i = 0 Then message.info("Traitement terminé ! aucun article a supprimer.")
+          If i = 1 Then message.info("Traitement terminé ! " & i & " article a été supprimé.")
+          If i > 1 Then message.info("Traitement terminé ! " & i & " articles ont été supprimés.")
+          If s = 1 Then
+            message.info("Attention ! " & s & " article n'a pas pu être supprimé.")
+            Editeur.Prog_Editeur(Filename)
+          Endif
+          If s > 1 Then
+            message.info("Attention ! " & s & " articles n'ont pas pu être supprimés.")
+            Editeur.Prog_Editeur(Filename)
+          Endif
+        Endif
+      Else
+        Message.info("Aucun traitement a effectuer pour cette date !")
+      Endif
+    Else
+      Suppression()
+    Endif
+  Endif
+  Me.mouse = mouse.Default
+  
+End
+'***********************************************
+'*     Suppression a partir d'un fichier       *
+'***********************************************
+
+Public Sub Suppression()
+  
+  Dim hfil, hfile As File
+  Dim lig As String
+  Dim blResult, cmResult As Result
+  Dim i, s As Integer = 0
+  
+  filename = User.Home & "/Artsuppr.txt"
+  hFile = Open fic.Text For Read
+  Me.Mouse = Mouse.Wait
+  While Not Eof(hFile)
+    Line Input #hFile, Lig
+    blResult = Utils.db.Exec("SELECT num_ligbl FROM " & Cbase.Table("TabLigbl") & " where code_ligbl = &1", lig)
+    If Not blResult.Available Then
+      cmResult = Utils.db.Exec("SELECT code FROM " & Cbase.Table("TabLigcom") & " where code = &1", lig)
+      If Not blResult.Available Then
+        Inc i
+        Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabArt") & " WHERE art_code = &1", lig)
+        Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabCdBarre") & " WHERE codep = &1", lig)
+        Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabCequ") & " WHERE codep = &1", lig)
+        Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabRpl1") & " WHERE codep = &1", lig)
+        Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabRpl2") & " WHERE codep = &1", lig)
+      Else
+        Inc s
+        Try Print #Hfil, "Impossible de supprimer le produit " & lig & " car il est présent dans une commande !"
+      Endif
+    Else
+      Inc s
+      Try Print #Hfil, "Impossible de supprimer le produit " & lig & " car il est présent dans un bon de livraison !"
+    Endif
+  Wend
+  Close #hfil
+  Close #hfile
+  If i = 0 Then message.info("Traitement terminé ! aucun article a supprimer.")
+  If i = 1 Then message.info("Traitement terminé ! " & i & " article a été supprimé.")
+  If i > 1 Then message.info("Traitement terminé ! " & i & " articles ont été supprimés.")
+  If s = 1 Then
+    message.info("Attention ! " & s & " article n'a pas pu être supprimé.")
+    Editeur.Prog_Editeur(Filename)
+  Endif
+  If s > 1 Then
+    message.info("Attention ! " & s & " articles n'ont pas pu être supprimés.")
+    Editeur.Prog_Editeur(Filename)
+  Endif
+  
+End
+
+Public Sub button9_Click()
+  
+  If Exist(filename) Then Try Kill filename
+  Me.close
+  
+End
+
+Public Sub Button10_Click()
+  
+  SelectionArt()
+  
+End

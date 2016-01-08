@@ -1,0 +1,243 @@
+' Gambas class file
+
+' ----------------------------------------------------------------------------
+'
+'
+' Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+' le modifier selon les termes de la GNU General PUBLIC License publiés par
+' la Free Software Foundation.
+' Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+' License pour plus de details.
+' Vous devez lire la GNU General PUBLIC Licence.
+' Si vous ne disposez pas d'un exemplaire, veuillez écrire
+' à " The Free Software Foundation
+' INC, 59 Temple place - Suite 33, Boston
+' MA 02111-1307 USA
+' ----------------------------------------------------------------------------
+' ################################################
+' # nom du fichier           : Fcollectif.class
+' # Auteur                   : Jacky Tripoteau
+' # date de création         : 01/11/2004
+' #
+' ################################################
+'
+
+Private n As Integer
+Private son As Integer = Start.Son
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Music.Load(Start.Musique)
+  Me.Center
+  Colcol.Columns.count = 8
+  Colcol.Columns[0].Width = 100
+  Colcol.Columns[1].Width = 265
+  Colcol.Columns[2].Width = 60
+  Colcol.Columns[3].Width = 180
+  Colcol.Columns[0].Text = "Code"
+  Colcol.Columns[1].Text = "Intitulé"
+  Colcol.Columns[2].Text = "Type"
+  
+End
+
+Public Sub Form_Open()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  
+  Tab = "Fiches_Comptes" 
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where coll = '1' order by cast(compte_cc AS char)")
+  If rResult.Available Then
+    Repeat
+      Colcol.add(rResult!compte_cc, rResult!compte_cc)
+      Colcol.Item[1] = rResult!intitule_cc
+      Colcol.Item[2] = rResult!type_cc
+      Inc n
+    Until rResult.MoveNext()
+  Endif
+  typeco.Text = "B"
+  typeco.ReadOnly = True
+  
+End
+
+Public Sub Maj_Zones()
+  
+  Cdcol.text = Colcol.Current[0]
+  Libelcol.text = Colcol.Current[1]
+  typeco.text = Colcol.Current[2]
+  Cdcol.SetFocus
+  
+End
+
+Public Sub CleanChamps()
+  
+  Cdcol.Clear
+  Libelcol.Clear
+  typeco.Text = "B"
+  
+End
+
+Public Sub Refresh()
+  
+  Colcol.Clear
+  form_Open()
+  
+End
+
+Public Sub Col_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+      Case 1
+        Libelcol.SetFocus
+        cptMan()
+        Stop Event
+      Case 2
+        typeco.SetFocus
+        Stop Event
+      Case 3
+        Button2_Click()
+        Stop Event
+    End Select
+  Endif
+  
+  If key.code = key.F1 Then
+    Button4_Click()
+    Stop Event
+  Endif
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Col_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+    Case 1
+      Button4_Click()
+    Case 2
+      Button1_Click()
+    Case 3
+      Button2_Click()
+    Case 4
+      Me.Close
+  End Select
+  
+End
+
+Public Sub Colcol_Click()
+  
+  If n = 0 Then
+  Else
+    Maj_Zones()
+  Endif
+  
+End
+
+Public Sub cptman()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  
+  Tab = "Fiches_Comptes" 
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where compte_cc = &1", Cdcol.Text)
+  If rResult.Available Then
+    Cdcol.Text = rResult!compte_cc
+    Libelcol.Text = rResult!intitule_cc
+    typeco.Text = rResult!type_cc
+  Endif
+  
+End
+
+Public Sub Button1_Click()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  Dim Tab2 As String
+  
+  Tab = "Fiches_Comptes" 
+  Tab2 = "Fiches_Mvt" 
+  If son Then
+    Music.Play
+  Endif
+  If Message.Question("Etes vous sur de vouloir effacer cet enregistrement", "Oui", "Non") = 1 Then
+    rResult = Utils.db.Exec("Select * FROM " & Tab2 & " WHERE compte = &1", Cdcol.Text)
+    If Not rResult.Available Then
+      rResult = Utils.db.Exec("Select * FROM " & Tab & " WHERE coll_cc = &1", Cdcol.Text)
+      If Not rResult.Available Then
+        Utils.db.Exec("DELETE FROM " & Tab & " WHERE compte_cc = &1", Cdcol.Text)
+        Refresh()
+        CleanChamps()
+      Else
+        If son Then
+          Music.Play
+        Endif
+        message.Warning(" Attention ! Suppression impossible, compte utilisé.", "OK")
+      Endif
+    Else
+      If son Then
+        Music.Play
+      Endif
+      message.Warning(" Attention ! Suppression impossible car ce compte est mouvementé.", "OK")
+    Endif
+  Endif
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim rResult As Result
+  Dim collectif As String
+  Dim centralise As String
+  Dim Tab As String
+  
+  Tab = "Fiches_Comptes" 
+  collectif = "1"
+  centralise = "1"
+  If Left$(Cdcol.text, 3) <> "401" And Left$(Cdcol.text, 3) <> "411" And Left$(Cdcol.text, 3) <> "453" Then
+    If son Then
+      Music.Play
+    Endif
+    message.warning(" Attention ! Vos comptes collectifs doivent commencer par 401 ou 411 ou 453 ou 456 SVP", "OK")
+  Else
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE compte_cc = &1", Cdcol.Text)
+    If Not rResult.Available Then
+      Utils.db.Exec("INSERT INTO " & Tab & "(compte_cc,intitule_cc, type_cc,coll, cent_cc, solde) VALUES ('" & Cdcol.Text & "', '" & Libelcol.Text & "', '" & typeco.Text & "','" & collectif & "','" & Centralise & "', '0,00')")
+    Else
+      If rResult!coll Then
+        If rResult!intitule_cc <> libelcol.Text Then
+          Utils.db.Exec("UPdate  " & Tab & "  SET  compte_cc = '" & Cdcol.Text & "' , intitule_cc = '" & libelcol.Text & "'  , type_cc = '" & typeco.Text & "', coll='" & collectif & "', cent_cc='" & Centralise & "', solde = '0,00' WHERE compte_cc = '" & Cdcol.Text & "'")
+        Endif
+      Else
+        Message.Error("Ce compte est déjà utilisé par un compte client!")
+      Endif
+    Endif
+    Cleanchamps()
+  Endif
+  Refresh()
+Finally
+  Cdcol.SetFocus
+  CdCol.Select
+Catch
+  If son Then
+    Music.Play
+  Endif
+  message.Error(Error.Text & " " & Error.where)
+  
+End
+
+Public Sub Button4_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Collectif.html"]
+  
+End

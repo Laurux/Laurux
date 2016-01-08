@@ -1,0 +1,54 @@
+' Gambas class file
+
+Public Sub _new()
+  
+  Me.Center
+  
+End
+
+Public Sub Button1_Click()
+  
+  Dim Rpost As Result
+  Dim hfil As File
+  Dim Lig As String
+  Dim Key As String
+  Dim iPos As Integer
+  Dim x As Integer
+  Dim ville, cp As String
+  
+  Me.mouse = Mouse.Wait
+  Try HFil = Open Application.Path & "/Cpostaux.csv" For Read
+  If Not Error Then
+    While Not Eof(hFil)
+      Line Input #hFil, Lig
+      For x = 1 To 2
+        iPos = InStr(Lig, ";")
+        Key = Left$(Lig, iPos - 1)
+        Lig = Mid$(Lig, iPos + 1)
+        Select Case x
+          Case 1
+            ville = key
+          Case 2
+            cp = key
+            If Len(cp) = 4 Then cp = "0" & cp
+        End Select
+      Next
+      Rpost = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCpostaux") & " WHERE cp = &1 and burdist = &2", Cp, Ville)
+      If Not Rpost.Available Then Utils.db.Exec("INSERT INTO " & Cbase.Table("TabCpostaux") & "(cp,burdist) VALUES (&1, &2)", cp, ville)
+    Wend
+    Music.Play
+    Message.Warning("Traitement terminé")
+    Me.mouse = mouse.Default
+  Else
+    Music.Play
+    Me.mouse = mouse.Default
+    Message.Warning("Le fichier Cpostaux.csv n'existe pas !")
+  Endif
+  
+End
+
+Public Sub Button2_Click()
+  
+  Me.Close
+  
+End

@@ -1,0 +1,614 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Cielimp.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 05/12/2008
+'# Import des écritures Ciel dans la base Laurux
+'################################################
+
+Private Tab As String
+Private rResult As Result
+Private ParaResult As Result
+Private collectif As String
+Private Jnl As String
+Private numecr As String
+Private numr As Integer
+Private b As Integer = 0
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Me.Center
+  
+End
+
+Public Sub Btn_Click()
+  
+  Dim params As Result
+  
+  Select Case Last.tag
+      
+    Case 1
+      Button3_Click()
+      
+    Case 2
+      Tab = "Ciel_Lrx" 
+      Try Utils.db.EXEC("CREATE TABLE " & Tab &
+        " (Cciel Char(10)," &
+        "Intitule Char(30), " &
+        "Clrx Char(10), " &
+        "PRIMARY KEY (Cciel))" & "ENGINE = MYISAM")
+      Tab = "Ciel_Lrx_Jo" 
+      Try Utils.db.EXEC("CREATE TABLE " & Tab & 
+        " (Cciel Char(10)," &
+        "Intitule Char(30), " &
+        "Clrx Char(2), " &
+        "PRIMARY KEY (Cciel))" & "ENGINE = MYISAM")
+      Tab = "Fiches_Parametres" 
+      Try params = Utils.db.Exec("SELECT imp_ciel FROM " & Tab & "")
+      If Error Then
+        Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (imp_ciel char(1))")
+        Try params = Utils.db.Exec("SELECT imp_ciel FROM " & Tab & "")
+      Endif
+      If params!imp_ciel <> "1" Then
+        Controle_comptes()
+      Else
+        Message.Warning("Import impossible ! Vous avez déjà effectué l'import des écritures Ciel.")
+      Endif
+      
+    Case 3
+      Me.Close
+  End Select
+  
+End
+
+Public Sub controle_comptes()
+  
+  Dim hfile As File
+  Dim hfile2 As File
+  Dim hfile3 As File
+  Dim hfile4 As File
+  Dim Filename As String
+  Dim Filename2 As String
+  Dim Filename3 As String
+  Dim Lig As String
+  Dim Tcpt As String
+  Dim Tcpt2 As String
+  Dim Tcpt3 As String
+  Dim Tjo As String
+  Dim Cpt As Result
+  Dim Type As String
+  Dim Tresorerie As String
+  Dim Ncpt As Integer = 0
+  Dim Njo As Integer = 0
+  Dim N As Integer = 0
+  Dim C As Integer = 0
+  Dim Tot As String = "0"
+  Dim num As String
+  Dim Eq As Integer = 0
+  
+  Tab = "Fiches_Comptes" 
+  Tjo = "Fiches_Journaux" 
+  Tcpt = "Ciel_Lrx" 
+  Tcpt2 = "Cptabs"
+  Tcpt3 = "Ciel_Lrx_Jo" 
+  Filename = User.home & "/FCompte"
+  Filename2 = User.home & "/FJournaux"
+  Filename3 = User.home & "/FClients"
+  If Exist(filename) Then Try Kill filename
+  hFile2 = Open filename For Write Create
+  If Exist(filename2) Then Try Kill filename2
+  hFile3 = Open filename2 For Write Create
+  If Exist(filename3) Then Try Kill filename3
+  hFile4 = Open filename3 For Write Create
+  Utils.db.Exec("drop Table IF exists " & Tcpt2 & "")
+  Utils.db.Exec("CREATE TABLE " & Tcpt2 &
+    "(code Char(8) NOT NULL," &
+    "PRIMARY KEY (code))" & "ENGINE = MYISAM")
+  Try hFile = Open Fimport.Text For Read
+  If Not Error Then
+    Me.Mouse = Mouse.Wait
+    With Utils
+      Print #Hfile2, ""
+      Print #Hfile2, ""
+      Print #Hfile2, ""
+      Print #Hfile2, "**********************  Liste des comptes créés   *******************"
+      Print #Hfile2, ""
+      Print #Hfile2, ""
+      Print #Hfile3, ""
+      Print #Hfile3, ""
+      Print #Hfile3, ""
+      Print #Hfile3, "**********************  Liste des journaux à créer   *******************"
+      Print #Hfile3, ""
+      Print #Hfile3, ""
+      While Not Eof(hFile)
+        Line Input #hFile, Lig
+        If num <> Left$(lig, 5) Then
+          If Tot <> "0" Then 
+            Try Me.Mouse = Mouse.Default
+            Message.Warning("Importation impossible ! L' écriture numero " & Num & " du journal " & Mid$(lig, 6, 2) & " n'est pas équilibrée ")
+            Return
+          Endif
+          Num = Left$(lig, 5)
+        Endif
+        If Mid$(lig, 36, 1) = "1" Or Mid$(lig, 36, 1) = "2" Or Mid$(lig, 36, 1) = "3" Or Mid$(lig, 36, 1) = "4" Or Mid$(lig, 36, 1) = "5" Then Type = "B"
+        If Mid$(lig, 36, 1) = "6" Or Mid$(lig, 36, 1) = "7" Then Type = "G"
+        If Mid$(lig, 36, 3) = "401" Then type = "F"
+        If Mid$(lig, 36, 3) = "411" Then type = "C"
+        If Mid$(lig, 36, 3) = "512" Or Mid$(lig, 36, 3) = "530" Then
+          Tresorerie = "1"
+        Else
+          Tresorerie = "0"
+        Endif
+        If Mid$(lig, 36, 3) = "401" Or If Mid$(lig, 36, 3) = "411" Then
+          Cpt = Utils.db.Exec("SELECT * FROM " & Tcpt & " where Cciel = &1", RTrim$(Mid$(lig, 36, Lcpt.Text)))
+          If Not Cpt.Available Then
+            Print #Hfile4, Mid$(lig, 36, Lcpt.Text) & " " & Mid$(lig, 104, 30)
+            C = 1
+          Endif
+        Else
+          Cpt = Utils.db.Exec("SELECT * FROM " & Tab & " where compte_cc = &1", Mid$(lig, 36, Lcpt.Text))
+          If Not Cpt.Available Then
+            Utils.db.Exec("INSERT INTO " & Tab & "(compte_cc, intitule_cc, type_cc, coll, cent_cc, comptr_cc, gen_tv, gen_ta, solde, soldep) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10})", Mid$(lig, 36, Lcpt.Text), Mid$(lig, 104, 30), Type, 0, 0, Tresorerie, 0, 0, 0, 0)
+            Inc Ncpt
+            b = 1
+            Print #Hfile2, Mid$(lig, 36, Lcpt.Text) & " " & Mid$(lig, 104, 30)
+          Endif
+        Endif
+        If Mid$(lig, 85, 1) = "D" Then
+          Tot = Tot + Val(.cpoint(Mid$(lig, 75, 10)))
+        Else
+          Tot = Tot - Val(.cpoint(Mid$(lig, 75, 10)))
+        Endif
+        Tot = Val(Format$(tot, "0.00"))
+        Cpt = Utils.db.Exec("SELECT * FROM " & Tjo & " where code_jo = &1", Mid$(lig, 6, 2))
+        If Not Cpt.Available Then
+          Cpt = Utils.db.Exec("SELECT * FROM " & Tcpt3 & " where Cciel = &1", Mid$(lig, 6, 2))
+          If Not Cpt.Available Then
+            Try Utils.db.Exec("INSERT INTO " & Tcpt2 & "(code) VALUES (&1)", Mid$(lig, 6, 2))
+            N = 1
+          Endif
+        Endif
+      Wend
+      If Tot <> "0" Then 
+        Eq = 1
+      Else
+        Eq = 0
+      Endif
+      Cpt = Utils.db.Exec("SELECT * FROM " & Tcpt2 & "")
+      If Cpt.Available Then
+        Repeat
+          Inc Njo
+          Print #Hfile3, Cpt!code
+        Until Cpt.MoveNext()
+      Endif
+      
+      Me.Mouse = Mouse.Default
+      
+      If b = 1 Then
+        If Ncpt > 0 Then
+          Message.Info("Contrôle terminé ! " & Ncpt & " comptes ont été créés!\n Une fenêtre va s'ouvrir avec la liste des comptes créés !")
+          Editeur.Prog_Editeur(Filename)
+        Endif
+      Else
+        If C = 1 Then
+          Message.Info("Intégration impossible ! Des comptes clients ou fournisseurs manquent dans la table de correspondance. !")
+          Editeur.Prog_Editeur(Filename3)
+          Me.Close
+        Else
+          If b = 0 Then Message.Info("Contrôle terminé! Aucun compte n'a été créé !")
+          If N = 1 Then
+            Message.Info("Intégration impossible, il manque " & Njo & " journal(ux) dans la table de correspondance !\n Veuillez créer les journaux manquants avant de poursuivre l'import SVP !")
+            Editeur.Prog_Editeur(Filename2)
+            Me.Close
+          Endif
+          If Eq = 1 Then
+            Message.Warning("Importation impossible ! L' écriture numero " & Num & " n'est pas équilibrée ")
+          Else
+            If N = 0 Then
+              If Message.Warning("Attention! Vous allez lancer l'import des écritures", " Oui ", " Non ") = 1 Then
+                Compta()
+                If Exist(filename) Then Try Kill filename
+                If Exist(filename2) Then Try Kill filename2
+                If Exist(filename3) Then Try Kill filename3
+              Endif
+            Endif
+          Endif
+        Endif
+      Endif
+      Close #hFile4
+      Close #hFile3
+      Close #hfile2
+    End With
+  Else
+    Message.Warning("Importation impossible ! Le fichier défini n'existe pas.")
+  Endif
+  
+End
+
+Public Sub Svs2_Click()
+  
+  Dialog.Path = User.home
+  Dialog.Filter = ["*.csv", "Fichiers csv", "*.txt", "Fichiers texte", "*", "Tous les fichiers"]
+  Dialog.Title = "Sélection du fichier d'import"
+  If Dialog.OpenFile() Then Return
+  Fimport.Text = Dialog.Path
+Catch
+  Message.Warning(ERROR.Text)
+  
+End
+
+Public Sub Compta()
+  
+  Dim Tabc As String
+  Dim Tabd As String
+  Dim Tabe As String
+  Dim Tabj As String
+  Dim Tcpt As String
+  Dim Tcptj As String
+  Dim hfile As File
+  Dim Filetxt4 As String
+  Dim Mtc As Float
+  Dim Mtd As Float
+  Dim Sld As Float
+  Dim Valid As Integer = 1
+  Dim Prov As Integer = 0
+  Dim pointee As Integer = 0
+  Dim lettree As Integer = 0
+  Dim cloturee As Integer = 1
+  Dim relance As Integer = 0
+  Dim Tresor As Boolean = False
+  Dim Lig As String
+  Dim compte As String
+  Dim intitule As String
+  Dim dte As String
+  Dim numdoc As String
+  Dim libelle As String
+  Dim coll As String
+  Dim dnc As String
+  Dim dte1 As String
+  Dim jrnal As String
+  Dim rrResult As Result
+  Dim Nbe As Integer
+  Dim Nbetxt As String
+  Dim Nbe2 As Integer
+  Dim Nbe2txt As String
+  Dim Numecrit As String
+  
+  Tab = "Fiches_Parametres" 
+  Tabc = "Fiches_Cli" 
+  Tabd = "Fiches_Comptes" 
+  Tabe = "Fiches_Mvt" 
+  Tabj = "Fiches_Journaux" 
+  Tcpt = "Ciel_Lrx" 
+  Tcptj = "Ciel_Lrx_Jo" 
+  Nbetxt = "Aucune écriture n'a été importée"
+  Nbe2txt = " écriture(s) a (ont) été rejetée(s)."
+  ParaResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
+  dte1 = ParaResult!dteclec1
+  dnc = ParaResult!dnc
+  hFile = Open Fimport.Text For Read
+  With Utils
+    Me.Mouse = Mouse.Wait
+    Parametres()
+    numecr = "numecriture"
+    numr = Ecritures(numecr)
+    While Not Eof(hFile)
+      Line Input #hFile, Lig
+      jrnal = Mid$(lig, 6, 2)
+      compte = Mid$(lig, 36, Lcpt.Text)
+      intitule = Mid$(lig, 104, 30)
+      dte = Mid$(lig, 8, 8)
+      libelle = Mid$(lig, 47, 30)
+      If Mid$(lig, 1, 5) <> Numecrit Then
+        numr = numr + 1
+        Nbe = Nbe + 1
+        Numecrit = Mid$(lig, 1, 5)
+      Endif
+      numdoc = Numr & Mid$(lig, 24, 12)
+      If Mid$(lig, 85, 1) = "D" Then
+        Mtd = Mid$(lig, 75, 10)
+        If IsNull(Mid$(lig, 75, 10)) Then Mtd = 0
+      Else
+        Mtc = Val(.cpoint(Mid$(lig, 75, 10)))
+        If IsNull(Mid$(lig, 75, 10)) Then Mtc = 0
+      Endif
+      rResult = Utils.db.Exec("SELECT * FROM " & Tcptj & " Where Cciel = &1", jrnal)
+      If rResult.Available Then jrnal = rResult!Clrx
+      rResult = Utils.db.Exec("SELECT * FROM " & Tabj & " Where code_jo = &1", jrnal)
+      Tresor = rResult!type_jo
+      If Tresor = "TR" Then
+        Tresor = True
+      Else
+        Tresor = False
+      Endif
+      If Left$(compte, 3) = "411" Or If Left$(compte, 3) = "401" Then
+        rResult = Utils.db.Exec("SELECT * FROM " & Tcpt & " Where Cciel = &1", compte)
+        If rResult.Available Then compte = rResult!Clrx
+      Endif
+      rResult = Utils.db.Exec("SELECT * FROM " & Tabe & " Where compte = &1 and numdoc = &2", compte, numdoc)
+      'If Not rResult.available Then
+      If Left$(compte, 3) = "411" Or If Left$(compte, 3) = "401" Then
+        rResult = Utils.db.Exec("SELECT * FROM " & Tabd & " Where compte_cc = &1", compte)
+        coll = rResult!coll_cc
+        collectif = "1"
+        Utils.db.Exec("INSERT INTO " & Tabe & "(jour, numero, compte, collectif, intitule, dte, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19})", jrnal, numr, coll, collectif, intitule, dte, numdoc, numdoc, libelle, .PointBase(Mtd), .PointBase(Mtc), Valid, Prov, Tresor, pointee, lettree, cloturee, relance, numr)
+        rrResult = Utils.db.Exec("SELECT * FROM " & Tabd & " Where compte_cc = &1", coll)
+        If rrResult.Available Then
+          If rrResult!solde = "" Then
+            Sld = Mtd - Mtc
+          Else
+            Sld = rrResult!solde + Mtd - Mtc
+          Endif
+        Endif
+        Utils.db.Exec("UPdate " & Tabd & " set solde = &2 Where compte_cc = &1", coll, Sld)
+      Endif
+      Utils.db.Exec("INSERT INTO " & Tabe & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, numerodef) VALUES (&1, &2, &3, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19})", jrnal, numr, compte, collectif, intitule, dte, numdoc, numdoc, libelle, Mtd, .PointBase(Mtc), Valid, Prov, Tresor, pointee, lettree, cloturee, relance, numr)
+      rrResult = Utils.db.Exec("SELECT * FROM " & Tabd & " Where compte_cc = &1", compte)
+      If rrResult!solde = "" Then
+        Sld = Mtd - Mtc
+      Else
+        Sld = rrResult!solde + Mtd - Mtc
+      Endif
+      Utils.db.Exec("UPdate " & Tabd & " set solde = &2 Where compte_cc = &1", compte, Sld)
+      'Endif
+      Mtc = 0
+      Mtd = 0
+      Sld = 0
+    Wend
+    Majnum(numecr, numr)
+    Maj_Parametres()
+    ' On remet les ecritures de tresorerie a true suite import ciel
+    rResult = Utils.db.Exec("SELECT * from  " & Tabe & " where compte = &1", "51210000")
+    If rResult.Available Then
+      Repeat
+        Utils.db.Exec("Update " & Tabe & " set tresorerie = &1, datee = &2 where numero= &3", 1, rResult!dte, rResult!numero)
+      Until rResult.MoveNext()
+    Endif
+    Me.Mouse = Mouse.Default
+    If Nbe2 = 0 Then Nbe2txt = ""
+    If Nbe = 0 Then
+      Message(Nbetxt & "\n" & Nbe2 & Nbe2txt)
+    Else
+      Message(Nbe & " écriture(s) a (ont) été importée(s)\n" & Nbe2 & " écriture(s) a (ont) été rejetée(s).")
+    Endif
+  End With
+  If Nbe2 <> 0 Then Editeur.Prog_Editeur(Filetxt4)
+  
+End
+
+'******************************* Import d'écritures générées par sage au format ciel expert ***************************
+Public Sub Compta2()
+  
+  Dim Tabc As String
+  Dim Tabd As String
+  Dim Tabe As String
+  Dim Tabj As String
+  Dim Tcpt As String
+  Dim Tcptj As String
+  Dim hfile As File
+  Dim Filetxt4 As String
+  Dim Mtc As Float
+  Dim Mtd As Float
+  Dim Sld As Float
+  Dim Valid As Integer = 1
+  Dim Prov As Integer = 0
+  Dim pointee As Integer = 0
+  Dim lettree As Integer = 0
+  Dim cloturee As Integer = 1
+  Dim relance As Integer = 0
+  Dim Tresor As Boolean = False
+  Dim Lig As String
+  Dim compte As String
+  Dim intitule As String
+  Dim dte As String
+  Dim numdoc As String
+  Dim libelle As String
+  Dim coll As String
+  Dim dnc As String
+  Dim dte1 As String
+  Dim jrnal As String
+  Dim jrnal2 As String
+  Dim rrResult As Result
+  Dim Nbe As Integer
+  Dim Nbetxt As String
+  Dim Nbe2 As Integer
+  Dim Nbe2txt As String
+  Dim Numecrit As String
+  Dim type As String
+  
+  Tab = "Fiches_Parametres" 
+  Tabc = "Fiches_Cli" 
+  Tabd = "Fiches_Comptes" 
+  Tabe = "Fiches_Mvt" 
+  Tabj = "Fiches_Journaux" 
+  Tcpt = "Ciel_Lrx" 
+  Tcptj = "Ciel_Lrx_Jo" 
+  Nbetxt = "Aucune écriture n'a été importée"
+  Nbe2txt = " écriture(s) a (ont) été rejetée(s)."
+  ParaResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
+  dte1 = ParaResult!dteclec1
+  dnc = ParaResult!dnc
+  hFile = Open Fimport.Text For Read
+  With Utils
+    Me.Mouse = Mouse.Wait
+    Parametres()
+    numecr = "numecriture"
+    numr = Ecritures(numecr)
+    While Not Eof(hFile)
+      Line Input #hFile, Lig
+      jrnal = Mid$(lig, 6, 2)
+      compte = Mid$(lig, 36, Lcpt.Text)
+      intitule = Mid$(lig, 104, 34)
+      dte = Mid$(lig, 8, 8)
+      libelle = Mid$(lig, 47, 25)
+      If Mid$(lig, 1, 5) & jrnal <> Numecrit & jrnal2 Then
+        numr = numr + 1
+        Nbe = Nbe + 1
+        Numecrit = Mid$(lig, 1, 5)
+        jrnal2 = jrnal
+      Endif
+      numdoc = Numr & Mid$(lig, 24, 12)
+      If Mid$(lig, 85, 1) = "D" Then
+        Mtd = Mid$(lig, 75, 10)
+        If IsNull(Mid$(lig, 75, 10)) Then Mtd = 0
+      Else
+        Mtc = Mid$(lig, 75, 10)
+        If IsNull(Mid$(lig, 75, 10)) Then Mtc = 0
+      Endif
+      rResult = Utils.db.Exec("SELECT * FROM " & Tcptj & " Where Cciel = &1", jrnal)
+      If rResult.Available Then jrnal = rResult!Clrx
+      rResult = Utils.db.Exec("SELECT * FROM " & Tabj & " Where code_jo = &1", jrnal)
+      If rResult!type_jo = "TR" Then
+        Tresor = True
+      Else
+        Tresor = False
+      Endif
+      'IF Left$(compte, 3) = "411" OR IF Left$(compte, 3) = "401" THEN
+      'rResult = Utils.db.Exec("SELECT * FROM " & Tcpt & " Where Cciel = &1", compte)
+      'IF rResult.Available THEN compte = rResult!Clrx
+      'ENDIF
+      'rResult = Utils.db.Exec("SELECT * FROM " & Tabe & " Where compte = &1 and numdoc = &2", compte, numdoc)
+      'IF NOT rResult.available THEN
+      If Left$(compte, 3) = "411" Or If Left$(compte, 3) = "401" Then
+        If Left$(compte, 3) = "411" Then
+          coll = "411000"
+          compte = "411001"
+        Endif
+        If Left$(compte, 3) = "401" Then
+          coll = "401000"
+          compte = "401001"
+        Endif
+        rResult = Utils.db.Exec("SELECT * FROM " & Tabd & " Where compte_cc = &1", compte)
+        If Not rResult.Available Then
+          Utils.db.Exec("INSERT INTO " & tabd & " (compte_cc,intitule_cc,type_cc,cent_cc,comptr_cc,coll,code_tvente,taux_tvente,gen_tv,code_tachat,taux_tachat,gen_ta,solde ) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13})", Compte, intitule, type, 0, tresor, 0, "", "", 0, "", "", 0, .PointBase("0,00"))
+        Endif
+        coll = rResult!coll_cc
+        collectif = "1"
+        Utils.db.Exec("INSERT INTO " & Tabe & "(jour, numero, compte, collectif, intitule, dte, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19})", jrnal, numr, coll, collectif, intitule, dte, numdoc, numdoc, libelle, .PointBase(Mtd), .PointBase(Mtc), Valid, Prov, Tresor, pointee, lettree, cloturee, relance, numr)
+        rrResult = Utils.db.Exec("SELECT * FROM " & Tabd & " Where compte_cc = &1", coll)
+        If rrResult.Available Then
+          If rrResult!solde = "" Then
+            Sld = Mtd - Mtc
+          Else
+            Sld = rrResult!solde + Mtd - Mtc
+          Endif
+        Endif
+        Utils.db.Exec("UPdate " & Tabd & " set solde = &2 Where compte_cc = &1", coll, Sld)
+      Endif
+      If Left$(compte, 1) = "6" Or If Left$(compte, 1) = "7" Then type = "G"
+      If Left$(compte, 1) = "1" Or If Left$(compte, 1) = "2" Or If Left$(compte, 1) = "3" Or If Left$(compte, 1) = "5" Or If compte > "41199999" And compte > "49999999" Then type = "B"
+      If Left$(compte, 3) = "512" Or If Left$(compte, 2) = "53" Then tresor = True
+      Utils.db.Exec("INSERT INTO " & Tabe & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, numerodef) VALUES (&1, &2, &3, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19})", jrnal, numr, compte, collectif, intitule, dte, numdoc, numdoc, libelle, Mtd, .PointBase(Mtc), Valid, Prov, Tresor, pointee, lettree, cloturee, relance, numr)
+      rrResult = Utils.db.Exec("SELECT * FROM " & Tabd & " Where compte_cc = &1", compte)
+      If Not rrResult.Available Then
+        Utils.db.Exec("INSERT INTO " & tabd & " (compte_cc,intitule_cc,type_cc,cent_cc,comptr_cc,coll,code_tvente,taux_tvente,gen_tv,code_tachat,taux_tachat,gen_ta,solde ) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13})", Compte, intitule, type, 0, tresor, 0, "", "", 0, "", "", 0, .PointBase("0,00"))
+      Endif
+      rrResult = Utils.db.Exec("SELECT * FROM " & Tabd & " Where compte_cc = &1", compte)
+      If rrResult!solde = "" Then
+        Sld = Mtd - Mtc
+      Else
+        Sld = rrResult!solde + Mtd - Mtc
+      Endif
+      Utils.db.Exec("UPdate " & Tabd & " set solde = &2 Where compte_cc = &1", compte, Sld)
+      'ENDIF
+      Mtc = 0
+      Mtd = 0
+      Sld = 0
+    Wend
+    Majnum(numecr, numr)
+    Maj_Parametres()
+    ' On remet les ecritures de tresorerie a true suite import ciel
+    rResult = Utils.db.Exec("SELECT * from  " & Tabe & " where compte = &1", "51210000")
+    If rResult.Available Then
+      Repeat
+        Utils.db.Exec("Update " & Tabe & " set tresorerie = &1, datee = &2 where numero= &3", 1, rResult!dte, rResult!numero)
+      Until rResult.MoveNext()
+    Endif
+    Me.Mouse = Mouse.Default
+    If Nbe2 = 0 Then Nbe2txt = ""
+    If Nbe = 0 Then
+      Message(Nbetxt & "\n" & Nbe2 & Nbe2txt)
+    Else
+      Message(Nbe & " écriture(s) a (ont) été importée(s)\n" & Nbe2 & " écriture(s) a (ont) été rejetée(s).")
+    Endif
+  End With
+  If Nbe2 <> 0 Then Editeur.Prog_Editeur(Filetxt4)
+  
+End
+
+'**********************************************************
+'*                   Recup parametres                     *
+'**********************************************************
+Public Sub Parametres()
+  
+  Dim rResult2 As Result
+  
+  Tab = "Fiches_Parametres" 
+  rResult2 = Utils.db.Exec("SELECT * FROM " & Tab & " ")
+  If rResult.Available Then Jnl = rResult!jrnal
+  
+End
+
+'*****************************************************
+'*  Récuperation du dernier numéro d'écriture        *
+'*****************************************************
+Public Function Ecritures(numecr2 As String) As String
+  
+  Dim Params As Result
+  
+  Tab = "Fiches_Parametres" 
+  Params = Utils.db.Exec("SELECT " & numecr2 & " FROM " & Tab & " ")
+  If Params.Available Then
+    numr = Params["" & numecr2 & ""]
+  Endif
+  Return numr
+  
+End
+
+'**********************************************************
+'*                   Maj parametres                     *
+'**********************************************************
+Public Sub Maj_Parametres()
+  
+  Tab = "Fiches_Parametres" 
+  With Utils
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
+    Utils.db.Exec("UPdate  " & Tab & "  SET  imp_ciel = &1", 1)
+  End With
+  
+End
+
+'************************************************
+'*  Mise a jour du dernier numéro d'écriture    *
+'************************************************
+Public Sub Majnum(numecr2 As String, numr2 As Integer)
+  
+  Tab = "Fiches_Parametres" 
+  Utils.db.Exec("UPdate " & Tab & " set " & numecr2 & " = &1", numr2)
+  
+End
+
+Public Sub Button3_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Cielimport.html"]
+  
+End

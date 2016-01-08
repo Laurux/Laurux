@@ -1,0 +1,151 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Lettragemontant.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 15/11/2006
+'# Lettrage des écritures par le montant
+'################################################
+'
+
+Private TT As Float
+Private TD As String
+Private TC As String
+Private type As String
+Private Tab2 As String
+Private son As Integer = Start.Son
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Button1_Click()
+      
+    Case 2
+      Button2_Click()
+      
+    Case 3
+      Me.Close
+  End Select
+  
+End
+
+Public Sub clear()
+  
+  Td = 0
+  Tc = 0
+  TT = 0
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim cptResult As Result
+  Dim EResult As Result
+  Dim EcrResult As Result
+  Dim Compt As String
+  Dim num As String
+  Dim Mnum As String
+  Dim Tab As String
+  Dim Totd As Float
+  Dim Totc As Float
+  Dim TotE As Float
+  Dim Deb As Float
+  Dim cred As Float
+  Dim Mnt As Float
+  Dim b As Integer
+  Dim I As Integer
+  
+  Tab = "Fiches_Comptes" 
+  Tab2 = "Fiches_Mvt" 
+  If Bclient.Value Then
+    type = "C"
+  Else
+    type = "F"
+  Endif
+  Me.Mouse = Mouse.wait
+  cptResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE type_cc = &1 order by cast(compte_cc AS char)", type)
+  If cptResult.Available Then
+    Repeat
+      Compt = cptResult!compte_cc
+      For i = 1 To 2
+        EResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE compte = &1 and lettree = &2 and validee = &3 order by compte, numlot", Compt, 0, 1)
+        If EResult.Available Then
+          num = EResult!numlot
+          If type = "C" And EResult!montantd <> "" Then
+            Mnt = EResult!montantd
+            EcrResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE compte = &1 and montantd = &2 and lettree = &3 and validee = &4 or compte = &1 and montantc = &2 and lettree = &3 and validee = &4 order by compte, numlot", Compt, EResult!montantd, 0, 1)
+          Endif
+          If type = "F" And EResult!montantc <> "" Then
+            Mnt = EResult!montantc
+            EcrResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE compte = &1 and montantd = &2 and lettree = &3 and validee = &4 or compte = &1 and montantc = &2 and lettree = &3 and validee = &4 order by compte, numlot", Compt, EResult!montantc, 0, 1)
+          Endif
+          If EcrResult.Available Then
+            Repeat
+              Deb = EcrResult!montantd
+              Cred = EcrResult!montantc
+              Totd = Totd + Deb
+              Totc = Totc + Cred
+            Until EcrResult.MoveNext()
+          Endif
+          Tote = Totd - Totc
+          If Tote = 0 Then
+            EcrResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE compte = &1 and montantd = &2 and lettree = &3 and validee = &4 or compte = &1 and montantc = &2 and lettree = &3 and validee = &4 order by compte, numlot", Compt, Mnt, 0, 1)
+            If EcrResult.Available Then
+              Mnum = "M" & Right$(num, 9)
+              Repeat
+                B = B + 1
+                Utils.db.Exec("UPdate " & Tab2 & " SET numlot = &1, lettree = &2 WHERE compte = &3 and montantd = &4 and lettree = &5 and validee = &6 or compte = &3 and montantc = &4 and lettree = &5 and validee = &6", Mnum, 1, Compt, Mnt, 0, 1)
+              Until EcrResult.MoveNext()
+            Endif
+          Endif
+          Totd = 0
+          Totc = 0
+          TotE = 0
+        Endif
+        'ENDIF
+      Next
+      totd = 0
+      Totc = 0
+    Until cptResult.MoveNext()
+  Endif
+  Me.mouse = mouse.Default
+  If son Then
+    Music.Play
+  Endif
+  Message.Info("Traitement terminé !\n" & B & " écriture(s) lettrée(s)")
+  
+End
+
+Public Sub Button1_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Lettragem.html"]
+  
+End

@@ -1,0 +1,308 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Etiquettes.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 28/05/2008
+'# Paramétrage des étiquettes
+'################################################
+'
+Etiqr As Result
+tab As String
+CoulZns As Integer ' Variable pour la couleur du background des zones de saisie et des columnviews
+CoulZnaf As Integer ' Variable pour la couleur du background des columnviews
+CoulFc As Integer ' Variable pour la couleur du focus
+Err As String
+
+Public Sub _New()
+  
+  Dim Frmt As New String[]
+  
+  Me.Center
+  Music.Load(Start.Musique)
+  Frmt = Utils.FColr(Settings["/Coul/Znaff"])
+  CoulZnaf = Val(Frmt[0])
+  Frmt = Utils.FColr(Settings["/Coul/Focus"])
+  Coulfc = Val(Frmt[0])
+  Frmt = Utils.FColr(Settings["/Coul/Znss"])
+  CoulZns = Val(Frmt[0])
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Me.Center
+  SetObservers(Me, Me)
+  init_ComboBox()
+  
+End
+
+Public Sub init_ComboBox()
+  
+  Dim retiq As Result
+  
+  Tab = "Fiches_Etiquettes"
+  
+  Code_etiq.clear
+  Try rEtiq = Utils.db.Exec("SELECT * FROM " & Tab & " ")
+  If Not Error Then
+    If rEtiq.Available Then
+      Do
+        Code_etiq.Add(rEtiq!code & "- " & rEtiq!libelle)
+      Loop Until rEtiq.MoveNext()
+    Endif
+    Code_etiq.Text = ""
+  Endif
+  
+End
+
+'**********************************************
+'*    Gestion du focus par Fabien Bodard      *
+'**********************************************
+Public Sub OBS_GotFocus()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then
+    Try Last.Background = CoulFc
+  Endif
+  Try Last.SetFocus
+  Try Last.SELECT
+  
+End
+
+Public Sub OBS_LostFocus() 
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then
+    Try Last.Background = CoulZns
+  Else
+    Try Last.Background = Color.TextBackground
+  Endif
+  
+End
+
+Public Sub SetObservers(hClass As Object, hCont As Container)
+  
+  Dim hCtrl As Object
+  Dim hOBS As Observer
+  
+  For Each hCtrl In hCont.Children
+    If hCtrl Is TextBox Then
+      hOBS = New Observer(hCtrl) As "OBS"
+    Endif
+    If hCtrl Is Container Then SetObservers(hClass, hCtrl)
+  Next
+  
+End
+
+Public Function IsValidKey() As Boolean
+  '  IF Key.Code = Key.F1 THEN Button1_Click()
+  
+  Return key.code = key.Return Or key.code = key.Enter Or key.code = key.Tab Or key.code = key.BackTab
+  
+End
+
+Public Sub Button4_Click()
+  
+  Me.Close
+  
+End
+
+Public Sub Button3_Click()
+  
+  Observers2(Param)
+  If err <> "1" Then
+    Tab = "Fiches_Etiquettes"
+    Etiqr = Utils.db.Exec("SELECT * FROM " & tab & " WHERE code = &1", Left$(Code_etiq.Text, 1))
+    If Etiqr.Available Then
+      Utils.db.Exec("UPdate  " & tab & "  SET  code = &1 , nblargeur = &2 , nbhauteur = &3, largeur = &4, hauteur = &5, mrghaut = &6, mrgauche = &7 , esplargeur = &8 , esphauteur = &9, libelle = &{10} WHERE code = &1", Left$(Code_etiq.Text, 1), nblargeur.Text, nbhauteur.Text, largeur.Text, hauteur.Text, mrghaut.Text, mrgauche.Text, esplargeur.Text, esphauteur.Text, Mid$(Code_etiq.Text, 4, Len(Code_etiq.Text)))
+    Else
+      Utils.db.Exec("INSERT INTO " & tab & "(code, nblargeur, nbhauteur, largeur, hauteur, mrghaut, mrgauche, esplargeur, esphauteur, libelle) VALUES(&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10})", Left$(Code_etiq.Text, 1), nblargeur.Text, nbhauteur.Text, largeur.Text, hauteur.Text, mrghaut.Text, mrgauche.Text, esplargeur.Text, esphauteur.TexT, Mid$(Code_etiq.Text, 4, Len(Code_etiq.Text)))
+    Endif
+    Code_etiq.Clear
+    init_ComboBox()
+    Button2_Click()
+  Else
+    Err = "0"
+  Endif
+  
+End
+
+Public Sub Code_etiq_Click()
+  
+  Button2_Click()
+  Nblargeur.SetFocus
+  Nblargeur.Select
+  Tab = "Fiches_Etiquettes"
+  Etiqr = Utils.db.Exec("SELECT * FROM " & tab & " WHERE code = &1", Left$(Code_etiq.Text, 1))
+  If Etiqr.Available Then
+    Nblargeur.Text = Etiqr!nblargeur
+    Nbhauteur.Text = Etiqr!nbhauteur
+    Largeur.Text = Etiqr!largeur
+    Hauteur.Text = Etiqr!hauteur
+    Mrghaut.Text = Etiqr!mrghaut
+    Mrgauche.Text = Etiqr!mrgauche
+    Esplargeur.Text = Etiqr!esphauteur
+    Esphauteur.Text = Etiqr!esphauteur
+  Endif
+  
+End
+
+Public Sub Button2_Click()
+  
+  Nblargeur.Clear
+  Nbhauteur.Clear
+  Largeur.Clear
+  Hauteur.Clear
+  Mrghaut.Clear
+  Mrgauche.Clear
+  Esplargeur.Clear
+  Esphauteur.Clear
+  
+End
+
+Public Sub Button3_KeyPress()
+  
+  If key.code = key.Return Or key.code = key.Enter Then Button3_Click()
+  
+End
+
+Public Sub Nblargeur_KeyPress()
+  
+  ChkInput()
+  If Not IsValidKey() Then Return
+  Stop Event
+  If Not IsNull(Last.Text) Then
+    Nbhauteur.SetFocus
+    Nbhauteur.Select
+  Endif
+  
+End
+
+Public Sub Nbhauteur_KeyPress()
+  
+  ChkInput()
+  If Not IsValidKey() Then Return
+  Stop Event
+  If Not IsNull(Last.Text) Then
+    Largeur.SetFocus
+    largeur.Select
+  Endif
+  
+End
+
+Public Sub Largeur_KeyPress()
+  
+  ChkInput()
+  If Not IsValidKey() Then Return
+  Stop Event
+  If Not IsNull(Last.Text) Then
+    Hauteur.SetFocus
+    Hauteur.Select
+  Endif
+  
+End
+
+Public Sub Hauteur_KeyPress()
+  
+  ChkInput()
+  If Not IsValidKey() Then Return
+  Stop Event
+  If Not IsNull(Last.Text) Then
+    Mrghaut.SetFocus
+    Mrghaut.Select
+  Endif
+  
+End
+
+Public Sub Mrghaut_KeyPress()
+  
+  ChkInput()
+  If Not IsValidKey() Then Return
+  Stop Event
+  If Not IsNull(Last.Text) Then
+    Mrgauche.SetFocus
+    Mrgauche.Select
+  Endif
+  
+End
+
+Public Sub Mrgauche_KeyPress()
+  
+  ChkInput()
+  If Not IsValidKey() Then Return
+  Stop Event
+  If Not IsNull(Last.Text) Then
+    Esplargeur.SetFocus
+    Esplargeur.Select
+  Endif
+  
+End
+
+Public Sub Esplargeur_KeyPress()
+  
+  ChkInput()
+  If Not IsValidKey() Then Return
+  Stop Event
+  If Not IsNull(Last.Text) Then
+    Esphauteur.SetFocus
+    Esphauteur.Select
+  Endif
+  
+End
+
+Public Sub Esphauteur_KeyPress()
+  
+  ChkInput()
+  If Not IsValidKey() Then Return
+  Stop Event
+  If Not IsNull(Last.Text) Then
+    Button3.SetFocus
+  Endif
+  
+End
+
+Public Sub ChkInput()
+  
+  If InStr("0123456789", Key.Text) = 0 Then
+    If key.code <> key.BackSpace And Key.Code <> Key.tab And Key.Code <> Key.Delete And Key.code <> Key.enter And Key.code <> Key.return Then
+      Stop Event
+    Endif
+  Endif
+  
+End
+
+Public Sub Observers2(hCont As Container)
+  
+  Dim hCtrl As Object
+  
+  For Each hCtrl In hCont.Children
+    If hCtrl Is TextBox Then
+      If IsNull(hCtrl.Text) Then
+        Message.Warning("Vous devez remplir toutes les zones SVP")
+        hCtrl.SetFocus
+        hCtrl.SELECT
+        Err = "1"
+        Break
+      Endif
+    Endif
+  Next
+  
+End
+
+Public Sub Button1_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Etiquette.html"]
+  
+End

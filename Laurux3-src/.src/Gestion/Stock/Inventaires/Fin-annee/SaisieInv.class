@@ -1,0 +1,542 @@
+' Gambas class file
+
+hfil As File
+Lig As String
+iPos As Integer
+son As Integer = Start.Son
+Dcem As String
+Private Lgrappel As Boolean = False
+Private filename As String
+
+'*********************************
+'*   On initialise notre écran   *
+'*********************************
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  Colinv.Columns.count = 6
+  Colinv.Columns[0].Width = 70
+  Colinv.Columns[1].Width = 115
+  Colinv.Columns[2].Width = 340
+  Colinv.Columns[3].Width = 110
+  Colinv.Columns[4].Width = 100
+  Colinv.Columns[5].Width = 92
+  Colinv.Columns[0].Text = "   N°"
+  Colinv.Columns[0].Alignment = 4
+  Colinv.Columns[1].Text = "code"
+  'Colinv.Columns[1].Alignment = 2
+  Colinv.Columns[2].Text = "Désignation"
+  Colinv.Columns[2].Alignment = 1
+  Colinv.Columns[3].Text = "Qté Théorique"
+  Colinv.Columns[3].Alignment = 2
+  Colinv.Columns[4].Text = "Qté comptée"
+  Colinv.Columns[4].Alignment = 2
+  Colinv.Columns[5].Text = "Ecart"
+  Colinv.Columns[5].Alignment = 2
+  Nseq.SetFocus
+  Nseq.Select
+  Saisie_Inv("1")
+  
+End
+
+'************************************
+'*  Affichage des produits saisis   *
+'************************************
+Public Sub Saisie_Inv(Type As String)
+  
+  Dim rarts As Result
+  Dim Rinv As Result
+  Dim Decm As String
+  
+  With Utils
+    Colinv.Clear
+    If Type = "1" Then
+      Try Rinv = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabInv") & " where inv_comptee = &1", 1)
+    Else
+      Try Rinv = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabInv") & " where inv_comptee = &1", 0)
+    Endif
+    If Not Error Then
+      If Rinv.Available Then
+        Repeat
+          rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", Rinv!inv_code)
+          Colinv.Add(Rinv!inv_nlig, Rinv!inv_nlig)
+          Colinv.Item[0] = Rinv!inv_nlig
+          Colinv.Item[1] = Rinv!inv_code
+          Decm = rarts!art_dec
+          Colinv.Item[2] = rarts!art_design
+          Colinv.Item[3] = Rinv!inv_qtestock
+          Colinv.Item[4] = .CDec(decm, Rinv!inv_qtecomptee)
+          If Val(.cpoint(Rinv!inv_qtecomptee)) <> 0 Then
+            Colinv.Item[5] = Rinv!inv_qtecomptee - Rinv!inv_qtestock
+          Else
+            Colinv.Item[5] = Rinv!inv_qtestock
+          Endif
+        Until Rinv.MoveNext()
+      Endif
+    Else
+      If son Then
+        Music.Play
+      Endif
+      Message.Warning("Attention! Il n'existe aucun inventaire\n Veuillez passer par la procédure d'initialisation d'inventaire SVP")
+      Me.Close
+    Endif
+  End With
+  
+End
+
+'******************************************
+'* gestion des clicks sur les boutons     *
+'******************************************
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+    Case 1
+      If Nseq.Text And Cart.Text And qtecomptee.Text Then
+        Valigne()
+        If Lgrappel = False Then
+          If Nl.Value = True Then
+            Nseq.Text = Val(Nseq.Text) + 1
+            Nseq_LostFocus()
+            Qtecomptee.SetFocus
+            Qtecomptee.Select
+          Else
+            Cart.SetFocus
+          Endif
+        Else
+          Lgrappel = False
+          If Nl.Value = True Then
+            Nseq.Clear
+            Nseq.SetFocus
+          Else
+            Cart.Clear
+            Cart.SetFocus
+          Endif
+        Endif
+      Endif
+      
+    Case 3
+      Me.Close
+      
+    Case 4
+      Import_Portable()
+      
+  End Select
+  
+End
+
+'*****************************************************
+'*      Gestion des pressions sur les boutons        *
+'*****************************************************
+Public Sub Btn_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+      Case 1
+        Btn_Click()
+    End Select
+  Endif
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Rcpt_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  
+End
+
+'*********************************************
+'*      On affiche l'article demandé         *
+'*********************************************
+Public Sub Nseq_LostFocus()
+  
+  Dim rarts As Result
+  Dim Rinv As Result
+  Dim Tab As String
+  Dim Tab2 As String
+  
+  Tab = "Fiches_Art" 
+  Tab2 = "Fiches_Inv" 
+  ' On récupère le code article lié au n° sequentiel
+  Rinv = Utils.db.Exec("SELECT * FROM " & tab2 & " where inv_nlig = &1", Nseq.Text)
+  If Rinv.Count Then
+    ' On récupère les données du produits
+    rarts = Utils.db.Exec("SELECT art_code, art_design, art_qte, art_dec FROM " & Cbase.Table("TabArt") & " where art_code = &1", Rinv!inv_code)
+    ' On affiche
+    Cart.Text = Rinv!inv_code
+    Dart.Text = rarts!art_design
+    Dcem = rarts!art_dec
+    Artstock.Text = rarts!art_qte
+    If IsNull(Artstock.Text) Then Artstock.Text = "0"
+  Else
+    Message.Warning("Ce numéro de ligne n'existe pas !")
+    Nseq.Clear
+  Endif
+  
+End
+
+Public Sub Cart_LostFocus()
+  
+  If Left$(Cart.Text) = "*" Then
+    Cart.Text = Mid$(Cart.Text, 2, Len(Cart.Text))
+    Cart.Text = "*" & Utils.Find_Cbarre(Cart.Text)
+    Wait 0.2
+    Art_Man(Cart.Text)
+  Else
+    Art_Man(Cart.Text)
+  Endif
+  
+End
+
+'**************************************
+'* On Selectionne l'article saisi     *
+'**************************************
+Public Sub Art_man(Prod As String)
+  
+  Dim Rinv As Result
+  Dim Rarts As Result
+  Dim Tab As String
+  
+  Tab = "Fiches_Inv" 
+  If Left$(Cart.Text, 1) = "*" Then
+    Rarts = Utils.db.Exec("SELECT art_code, art_design, art_qte, art_dec FROM " & Cbase.Table("TabArt") & " where art_code = &1", Mid$(Cart.Text, 2, Len(Cart.Text)))
+  Else
+    Rarts = Utils.db.Exec("SELECT art_code, art_design, art_qte, art_dec FROM " & Cbase.Table("TabArt") & " where art_code = &1", Cart.Text)
+  Endif
+  If Not Rarts.Available Then
+    Rarts = Utils.db.Exec("SELECT art_code, art_design, art_qte, art_dec FROM " & Cbase.Table("TabArt") & " where art_cequ = &1", Cart.Text)
+  Endif
+  If Not Rarts.Available Then
+    Rarts = Utils.db.Exec("SELECT art_code, art_design, art_qte, art_dec FROM " & Cbase.Table("TabArt") & " where art_refcentrale = &1", Cart.Text)
+  Endif
+  If Rarts.Available Then
+    Rinv = Utils.db.Exec("SELECT inv_nlig FROM " & tab & " where Inv_code = &1", Rarts!art_code)
+    If Rinv.Available Then
+      Cart.Text = Rarts!art_code
+      Dart.Text = rarts!art_design
+      Dcem = rarts!art_dec
+      Artstock.Text = rarts!art_qte
+      Nseq.Text = Rinv!inv_nlig
+    Else
+      Message.Warning("Ce produit est absent du fichier inventaire ! Peut-être n'est-il pas stocké.")
+    Endif
+  Else
+    Message.Warning("Ce code n'existe pas !")
+    Cart.SetFocus
+  Endif
+Catch
+  If start.son Then
+    Music.Play
+  Endif
+  Try message.Error(Error.Text & " " & Error.where)
+  
+End
+
+'*********************************
+'* gestion des champs de saisie  *
+'*********************************
+Public Sub Rcpt_KeyPress()
+  
+  With utils
+    If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+      Select Case Last.tag
+          
+        Case 1
+          If Nseq.Text Then
+            Nseq_LostFocus()
+            If Nseq.Text Then
+              qtecomptee.SetFocus
+            Else
+              Nseq.SetFocus
+            Endif
+          End If
+          Stop Event
+          
+        Case 2
+          If qtecomptee.Text Then
+            qtecomptee.Text = .cpoint(qtecomptee.Text)
+            If Val(qtecomptee.Text) < 0 Then
+              If son Then
+                Music.Play
+              Endif
+              Message.Error("Attention ! Vous ne pouvez pas saisir de quantité négative.", "Ok")
+              qtecomptee.SetFocus
+              qtecomptee.Select
+            Else
+              If Val(qtecomptee.Text) <> Null Then
+                qtecomptee.Text = .Cdec(Dcem, qtecomptee.Text)
+                Button1.SetFocus
+              Else
+                If son Then
+                  Music.Play
+                Endif
+                Message.Error("Attention ! Votre saisie est erronée.", "Ok")
+                qtecomptee.SetFocus
+                qtecomptee.Select
+              Endif
+            Endif
+          Endif
+          Stop Event
+          
+        Case 3
+          If Cart.Text Then
+            Cart_LostFocus()
+            If Cart.Text Then
+              qtecomptee.SetFocus
+            Else
+              Cart.SetFocus
+            Endif
+          End If
+          Stop Event
+          
+      End Select
+    Endif
+  End With
+  
+  If key.code = key.F1 Then
+    Button2_Click()
+    Stop Event
+  Endif
+  
+End
+
+'*****************************************************
+'*          Validation de la ligne saisie            *
+'*****************************************************
+Public Sub Valigne()
+  
+  Dim Tab2 As String
+  
+  Tab2 = "Fiches_Inv" 
+  With utils
+    ' Mise à jour de la table
+    Utils.db.Exec("UPdate  " & Tab2 & "  SET  inv_qtecomptee = &2, inv_comptee = &3 WHERE inv_nlig = &1", Nseq.Text, Val(.cpoint(qtecomptee.Text)), 1)
+    ' Mise à jour du columnview
+    Colinv.Add(Nseq.Text, Nseq.Text)
+    Colinv.Item[0] = Nseq.Text
+    Colinv.Item[1] = Cart.Text
+    Colinv.Item[2] = Dart.Text
+    Colinv.Item[3] = Artstock.Text
+    Colinv.Item[4] = qtecomptee.Text
+    Colinv.Item[5] = Val(.cpoint(qtecomptee.Text)) - Val(.cpoint(Artstock.Text))
+    ' Nettoyage des champs de saisie
+    Cart.Clear
+    Dart.Clear
+    Artstock.Clear
+    qtecomptee.Clear
+  Catch
+    Colinv.MoveFirst
+    Repeat
+      Colinv.Item.Selected = True
+      If Colinv.Item[1] = Cart.Text Then
+        If son Then
+          Music.Play
+        Endif
+        If message.Question("L' article " & Cart.Text & " a déjà été saisit dans l'inventaire ! \nQuantité inventaire : " & Colinv.Item[4] & "        Quantité portable : " & qtecomptee.Text & "\n\nVoulez - vous ?\n 1 - cumuler \n 2 - remplacer ", "1", "2") = "1" Then
+          Colinv.Item[4] = Val(.cpoint(Colinv.Item[4])) + Val(.cpoint(qtecomptee.Text))
+          Colinv.Item[5] = Val(.cpoint(Colinv.Item[4])) - Val(.cpoint(Colinv.Item[3]))
+          ' Mise à jour de la table
+          Utils.db.Exec("UPdate  " & Tab2 & "  SET  inv_qtecomptee = &2, inv_comptee = &3 WHERE inv_nlig = &1", Nseq.Text, Val(.cpoint(Colinv.Item[4])), 1)
+          Break
+        Else
+          Colinv.Item[4] = qtecomptee.Text
+          Colinv.Item[5] = Val(.cpoint(Colinv.Item[4])) - Val(.cpoint(Colinv.Item[3]))
+          ' Mise à jour de la table
+          Utils.db.Exec("UPdate  " & Tab2 & "  SET  inv_qtecomptee = &2, inv_comptee = &3 WHERE inv_nlig = &1", Nseq.Text, Val(.cpoint(Colinv.Item[4])), 1)
+          Break
+        Endif
+      Endif
+    Until Colinv.MoveNext()
+    Cart.Clear
+    Dart.Clear
+    Artstock.Clear
+    qtecomptee.Clear
+  End With
+  
+End
+
+'*****************************************************
+'*    On rappelle une ligne pour modification        *
+'*****************************************************
+Public Sub Colinv_Activate()
+  
+  Dim Tab As String
+  
+  Tab = "Fiches_Inv" 
+  Nseq.Clear
+  Cart.Clear
+  Dart.Clear
+  Artstock.Clear
+  qtecomptee.Clear
+  Nseq.Text = Colinv.Item[0]
+  Cart.Text = Colinv.Item[1]
+  Dart.Text = Colinv.Item[2]
+  Artstock.Text = Colinv.Item[3]
+  qtecomptee.Text = Colinv.Item[4]
+  Colinv.Current.Delete
+  ' Mise à jour de la table
+  Utils.db.Exec("UPdate  " & Tab & "  SET  inv_qtecomptee = &2, inv_comptee = &3 WHERE inv_nlig = &1", Nseq.Text, 0, 0)
+  qtecomptee.SetFocus
+  qtecomptee.Select
+  Lgrappel = True
+  
+End
+
+'*************************************
+'*      On supprime une ligne        *
+'*************************************
+Public Sub Colinv_Keypress()
+  
+  Dim Tab As String
+  
+  Tab = "Fiches_Inv" 
+  If Key.code = Key.Delete And Colinv.Count <> 0 Then
+    If son Then
+      Music.Play
+    Endif
+    If Message.Question("Etes-vous sur de vouloir supprimer cette ligne ?", "Oui", "Non") = 1 Then
+      Utils.db.Exec("delete from " & Tab & " WHERE inv_nlig = &1 ", Colinv.Current[0])
+      Colinv.Current.Delete
+    Endif
+  Endif
+  
+  If key.code = key.F1 Then
+    Button2_Click()
+    Stop Event
+  Endif
+  
+End
+
+Public Sub RadioButton1_Click()
+  
+  Saisie_Inv("1")
+  
+End
+
+Public Sub RadioButton2_Click()
+  
+  Saisie_Inv("2")
+  
+End
+
+Public Sub Nl_Click()
+  
+  TextLabel1.Visible = True
+  Nseq.Visible = True
+  Cart.X = 84
+  Cart.Width = 128
+  Cart.ReadOnly = True
+  ' [GB2:BCOL] Cart.BackColor = &HD4D0C8&
+  Cart.Background = &HD4D0C8&
+  Nseq.SetFocus
+  
+End
+
+Public Sub Ca_Click()
+  
+  TextLabel1.Visible = False
+  Nseq.Visible = False
+  Cart.X = 0
+  Cart.Width = 216
+  Cart.ReadOnly = False
+  ' [GB2:BCOL] Cart.BackColor = &FFFFFF&
+  Cart.Background = &FFFFFF&
+  Cart.SetFocus
+  
+End
+
+'******************************************
+'          Import des données             *
+'******************************************
+Public Sub Import_Portable()
+  
+  Dim x As Integer
+  Dim Code As String
+  Dim Codeb As String
+  Dim Qte As String
+  Dim cle As String
+  Dim cpt2 As Integer = 0
+  Dim Cpt As Integer = 0
+  Dim Hnew As File
+  Dim Rarts As Result
+  
+  filename = User.Home & "/Inv.txt"
+  If Exist(filename) Then Try Kill filename
+  Hnew = Open filename For Write Create
+  Try HFil = Open User.Home & "/Portable/inventaire.txt" For Read Write
+  Print #Hnew, "Les références suivantes n'ont pas pu être mises à jour car :"
+  Print #Hnew, "Soit parce qu'elles n'existent pas dans la table des produits"
+  Print #Hnew, "soit parce qu'elles ont déjà été saisies."
+  '***************************************On travaille avec un cipher 8001*********************************************
+  Me.Mouse = Mouse.Wait
+  While Not Eof(hFil)
+    Line Input #hFil, Lig
+    If Not IsNull(Lig) And If InStr(Lig, ";") <> 0 Then
+      For x = 1 To 2
+        iPos = InStr(Lig, ";")
+        If iPos = 0 Then
+          cle = Lig
+        Else
+          cle = Left$(Lig, iPos - 1)
+          Lig = Mid$(Lig, iPos + 1)
+        Endif
+        Select Case x
+          Case 1
+            If Not IsNull(cle) Then
+              Codeb = Trim(cle)
+              Code = Utils.Find_cbarre(Codeb)
+            Else
+              Print #Hnew, "Une saisie a été rejetée car elle ne possède pas de code barre."
+              Inc cpt2
+            Endif
+            If IsNull(Code) Then
+              Print #Hnew, "Une saisie a été rejetée car le code barre " & Codeb & " n'existe pas."
+              Inc cpt2
+            Endif
+          Case 2
+            If cle <> 0 Then
+              Qte = Format$(Val(Utils.cpoint(cle)), "#.###")
+            Else
+              Qte = "0"
+            Endif
+        End Select
+      Next
+      If Not IsNull(code) Then
+        Rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabInv") & " where inv_code = &1", Code)
+        If Rarts.Available Then
+          If Rarts!inv_comptee = 0 Then
+            Utils.db.Exec("UPDATE  " & Cbase.Table("TabInv") & "  SET  inv_qtecomptee = &2, inv_comptee = &3 where inv_code = &1", Code, Val(Utils.cpoint(qte)), 1)
+            Inc cpt
+          Else
+            Inc cpt2
+            Print #Hnew, code & " " & Code & " Déjà saisit"
+          Endif
+        Else
+          Inc cpt2
+          Print #Hnew, code & " " & Codeb & " Code barre inexistant"
+        Endif
+      Endif
+    Endif
+  Wend
+  Me.Mouse = Mouse.Default
+  Me.Raise
+  Try Close #HFil
+  Try Close #Hnew
+  If cpt2 <> 0 Then Editeur.Prog_Editeur(Filename)
+  Saisie_Inv("1")
+  Message.Info("Traitement terminé : " & cpt & " produits ont été importés !")
+  
+End
+
+Public Sub Button2_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Saisieinv.html"]
+  
+End

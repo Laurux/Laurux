@@ -1,0 +1,3199 @@
+' Gambas class file
+
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Receipta.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 10/10/2005
+'# Reception automatique des marchandises
+'################################################
+'
+
+B As Integer ' flag pour gestion du champ
+Tab As String
+Tab2 As String
+Tmat As String = "Fiches_Materiels" 'table des materiels
+Tmats As String = "Fiches_Mats"  'table temporaire des materiels
+Decm As String ' nombre de décimales
+nbd As String
+nbdec As String ' nombre de décimales pour les prix
+Stocke As Boolean ' Si article est stocké ?
+montante As String ' Flag de controle si modif du prix
+montantPb As String
+montantr As String
+Txtva As String
+Pmp As String
+Dpa As String
+Dfour As String
+qter As String
+Arts As String
+qtes As Float
+Aqte As String
+Dsgn As String ' Recherche produit par F3
+Txconv As Float ' Taux de conversion
+Nlg As Integer ' Flag pour gestion des modifs
+Nlgn As String ' numero de ligne
+Nl As String ' numero de ligne rappelée
+Modif As String ' Flag pour savoir si la ligne est en modification
+NlgModif As String ' Flag pour récuperer le numéro de ligne modifiée
+Totcom As Float ' Montant de la commande lors du rappel
+son As Integer = Start.Son
+Cop As String ' montant copie privée
+Ect As String ' montant eco-taxe
+hForm As FCalc
+Etiqa As Boolean ' Si etiquette gondole suite a modif prix
+Etiqb As Boolean
+Datecom As String
+ref_four As String
+Coulfond As New String[]
+Nblf As String
+Codef As String
+Dater As String
+i As Integer = 1 ' gestion du numero de série
+Gmateriel As Boolean 'si gestion du materiel dans les preferences
+Materiel As Boolean ' si le produit est un materiel
+Fam As String
+CEquivalent As String
+CBarre As String
+CFournisseur As String
+Desg2 As String
+rmats As Result
+rmat As Result
+Tri As String
+bCentrale As Boolean = False
+sCentraleF As String 'code centrale du fournisseur
+ref_centrale As String
+Public Codearticle As String
+Private Qtecomc As String ' Quantité en commande pour la ligne rappelée pour modification.
+Private hfil As File
+Private Lig As String
+Private iPos As Integer
+Private cpt As Integer
+Private Dcem As String
+Private nombre As String
+Private casier As String
+Private pttc As String = "0"
+Private exo As Boolean
+
+Public Sub _New()
+  
+  Dim Frmt As New String[]
+  Dim WidthCol As String
+  Dim s As String
+  Dim spl As New String[9]
+  
+  Balloon.Delay = 1000
+  Try WidthCol = Settings["/Soc" & Start.Societe & "/Col/LcolRA"]
+  
+  If son Then
+    Music.Load(Start.Musique)
+  Endif
+  Me.center
+  Try Gmateriel = Settings["/Soc" & Start.Societe & "/Materiel"]
+  If Error Then Gmateriel = False
+  Frmt = Utils.FColr(Settings["/Coul/Fnets"])
+  Coulfond = Utils.Coulfd()
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  b = 0
+  Nlg = 1
+  Dsgn = ""
+  Totalrcpt.Text = "0,00"
+  datej.Text = Format$(Now, "dd.mm.yyyy")
+  Colrcp.Columns.count = 14
+  If Not IsNull(WidthCol) Then
+    WidthCol = Trim(WidthCol)
+    If Right(WidthCol, 1) = ";" Then WidthCol = Left(WidthCol, Len(WidthCol) - 1)
+    For Each s In Split(LCase(WidthCol), ";")
+      spl = Scan(s, "*:*")
+      Select Case Trim(spl[0])
+        Case "col0"
+          Try Colrcp.Columns[0].Width = spl[1]
+        Case "col1"
+          Try Colrcp.Columns[1].Width = Val(spl[1])
+        Case "col2"
+          Try Colrcp.Columns[2].Width = spl[1]
+        Case "col3"
+          Try Colrcp.Columns[3].Width = spl[1]
+        Case "col4"
+          Try Colrcp.Columns[4].Width = spl[1]
+        Case "col5"
+          Try Colrcp.Columns[5].Width = spl[1]
+        Case "col6"
+          Try Colrcp.Columns[6].Width = spl[1]
+        Case "col7"
+          Try Colrcp.Columns[7].Width = spl[1]
+        Case "col8"
+          Try Colrcp.Columns[8].Width = spl[1]
+      End Select
+    Next
+  Else
+    Colrcp.Columns[0].Width = 40
+    Colrcp.Columns[1].Width = 130
+    Colrcp.Columns[2].Width = 240
+    Colrcp.Columns[3].Width = 60
+    Colrcp.Columns[4].Width = 100
+    Colrcp.Columns[5].Width = 60
+    Colrcp.Columns[6].Width = 100
+    Colrcp.Columns[7].Width = 60
+    Colrcp.Columns[8].Width = 100
+  Endif
+  Colrcp.Columns[0].Text = "Ligne"
+  Colrcp.Columns[1].Text = "Code"
+  Colrcp.Columns[2].Text = "Designation"
+  Colrcp.Columns[3].Text = "Q comm"
+  Colrcp.Columns[3].Alignment = 2
+  Colrcp.Columns[4].Text = "PB ht"
+  Colrcp.Columns[4].Alignment = 2
+  Colrcp.Columns[5].Text = "Remise"
+  Colrcp.Columns[5].Alignment = 2
+  Colrcp.Columns[6].Text = "PA ht"
+  Colrcp.Columns[6].Alignment = 2
+  Colrcp.Columns[7].Text = "Q recue"
+  Colrcp.Columns[7].Alignment = 2
+  Colrcp.Columns[8].Text = "Px total ht"
+  Colrcp.Columns[8].Alignment = 2
+  If Settings["/Soc" & Start.Societe & "/Coef"] Then
+    Coef.Visible = True
+    TMQ.Visible = False
+    TextLabel10.Text = "Coef"
+  Else
+    Coef.Visible = False
+    TMQ.Visible = True
+    TextLabel10.Text = "Tmq"
+  Endif
+  Etiqa = False
+  Utils.db.Exec("DROP TABLE IF EXISTS " & Tmats & "")
+  Try Utils.db.EXEC("CREATE Temporary TABLE " & Tmats &
+    " (mat_serie char(30) NOT NULL," &
+    "mat_code char(15)NOT NULL," &
+    "mat_design char(50) ," &
+    "mat_design2 char(50) ," &
+    "mat_fam char(5) ," &
+    "mat_four char(8) ," &
+    "mat_cequ char(15) ," &
+    "mat_cbarre char(15) ," &
+    "mat_cfour char(25) ," &
+    "mat_paht Decimal(12,3) ," &
+    "mat_frais Decimal(7,3) , " &
+    "mat_prvt Decimal(7,3) , " &
+    "mat_coef Decimal(6,3) ," &
+    "mat_pvht Decimal(12,3) ," &
+    "mat_tva Decimal(10,3) ," &
+    "mat_pvttc Decimal(12,3) ," &
+    "mat_cdarr Char(4), " &
+    "mat_pvar Decimal(12,3), " &
+    "mat_dec Char(1), " &
+    "mat_nbd Char(1), " &
+    "mat_qte Char(1) , " &
+    "mat_dpa Decimal(10,2) , " &
+    "mat_dfour Char(8) , " &
+    "mat_pmp Decimal(10,2) , " &
+    "mat_ddate Char(10) , " &
+    "mat_com Decimal(12,3) ," &
+    "mat_ect Integer(1) ," &
+    "mat_eco Decimal(5,2) ," &
+    "mat_poids decimal(11, 3)," &
+    "mat_poids2 decimal(11,3)," &
+    "mat_qterecue text," &
+    "mat_rcpt char(15)," &
+    "PRIMARY KEY (mat_serie))" & "ENGINE = MYISAM")
+  TextLabel12.Text = Settings["/Soc" & Start.Societe & "/Taxe"]
+  
+End
+
+'**********************************************************
+'*        On remet a blanc les zones de saisies           *
+'**********************************************************
+Public Sub CleanChamps()
+  
+  Cart.Clear
+  Dart.Clear
+  Refourn.Clear
+  Artstock.Clear
+  Txcnv.clear
+  qterecue.Clear
+  qtecom.Clear
+  pbht.Clear
+  Tva.Clear
+  Tr.Clear
+  Rem1.text = "0,00"
+  Rem2.text = "0,00"
+  Rem3.text = "0,00"
+  Panel6.visible = False
+  paht.Clear
+  Pauv.Clear
+  Coef.Clear
+  Tmq.Clear
+  Frais.Clear
+  Prvt.clear
+  Pvht.Clear
+  Pvttc.Clear
+  Arr.Text = ""
+  Totht.Clear
+  
+End
+
+'**********************************************************
+'*        On remet a blanc toute les zones du bl          *
+'**********************************************************
+Public Sub RazBl()
+  
+  CleanChamps()
+  codefour.Clear
+  nomfour.Clear
+  numcom.Clear
+  numbl.Clear
+  An.value = False
+  datej.Text = Format$(Now, "dd.mm.yyyy")
+  Colrcp.Clear
+  Nbligne.Text = ""
+  Totalrcpt.Text = ""
+  Tfrais.Text = "0,00"
+  Nlgn = "0000"
+  
+End
+
+'**********************************************************
+'*      Gestion des touches sur le panel Entete           *
+'**********************************************************
+Public Sub Rcpt_KeyPress()
+  
+  Dim EntResult As Result
+  
+  b = 0
+  Tab = "Fiches_Entcom" 
+  If key.Code = key.F4 Then
+    Articles.ShowModal()
+  Endif
+  
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    With Utils
+      Select Case Last.tag
+          
+        Case 1
+          fourMan()
+          If b = 1 Then
+            codefour.SetFocus
+            codefour.select
+            Stop Event
+          Else
+            b = 0
+            numcom.SetFocus
+            numcom.Select
+          Endif
+          Stop Event
+          
+        Case 2
+          If codefour.Text = "" Then
+            If son Then
+              Music.Play
+            Endif
+            message.Warning(" Veuillez saisir un code fournisseur SVP ! ")
+            codefour.SetFocus
+            codefour.select
+          Else
+            If numcom.Text = "" Then
+              If son Then
+                Music.Play
+              Endif
+              message.Warning(" Veuillez saisir un numéro de commande SVP ! ")
+              numcom.SetFocus
+              numcom.select
+            Else
+              EntResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE numcom = &1 and four = &2", numcom.Text, codefour.Text)
+              If EntResult.Count Then
+                datej.Text = .Cdate_Aff(EntResult!ddate)
+                RecupLig()
+                numbl.SetFocus
+                numbl.select
+              Else
+                message.Warning(" Ce numero de commande n'existe pas chez ce fournisseur ! ")
+                numcom.SetFocus
+                numcom.select
+              Endif
+            Endif
+          Endif
+          Stop Event
+          
+        Case 3
+          'EntResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE numcom = &1 and four = &2", numcom.Text, codefour.Text)
+          'IF EntResult.count <> 0 THEN
+          If numbl.Text = "" Then
+            If son Then
+              Music.Play
+            Endif
+            message.Warning(" Veuillez saisir un numéro de BL SVP ! ")
+            numbl.SetFocus
+            numbl.select
+          Else
+            Ver_comm()
+            If b <> 1 Then
+              Verifbl()
+              If B = 1 Then
+                b = 0
+                numbl.SetFocus
+                numbl.select
+              Else
+                If datej.Text = "" Then datej.Text = Format$(Now, "dd.mm.yyyy")
+                datej.SetFocus
+                datej.Select
+              Endif
+            Endif
+          Endif
+          
+          Stop Event
+          
+        Case 4
+          Quittedate()
+          If Left$(datej.Text, 5) = "00.00" Then
+            datej.Text = Format$(Now, "dd.mm.yyyy")
+            datej.SetFocus
+            datej.Select
+          Else
+            Cart.SetFocus
+            Cart.Select
+          Endif
+          Stop Event
+          
+        Case 5
+          If Cart.Text = "" Then
+            If son Then
+              Music.Play
+            Endif
+            Message.Warning("Veuillez saisir un article SVP", "Ok")
+            Cart.SetFocus
+            Cart.Select
+          Else
+            Ver_comm()
+            If datej.Text = "" Then
+              If son Then
+                Music.Play
+              Endif
+              message.Warning(" Veuillez saisir une date SVP ! ")
+              Cart.Text = ""
+              datej.Text = Format$(Now, "dd.mm.yyyy")
+              datej.SetFocus
+              datej.select
+            Else
+              If codefour.Text = "" Then
+                If son Then
+                  Music.Play
+                Endif
+                message.Warning(" Veuillez saisir un code fournisseur SVP ! ")
+                Cart.Text = ""
+                codefour.SetFocus
+                codefour.select
+              Else
+                If numcom.Text = "" Then
+                  If son Then
+                    Music.Play
+                  Endif
+                  message.Warning(" Veuillez saisir un numéro de commande SVP ! ")
+                  Cart.Text = ""
+                  numcom.SetFocus
+                  numcom.select
+                Else
+                  If numbl.Text = "" Then
+                    If son Then
+                      Music.Play
+                    Endif
+                    message.Warning(" Veuillez saisir un numéro de Bl SVP ! ")
+                    Cart.Text = ""
+                    numbl.SetFocus
+                    numbl.select
+                  Else
+                    If b = 1 Then
+                      Cart.SetFocus
+                      Cart.Select
+                      b = 0
+                    Else
+                      If Left$(Cart.Text) = "*" Then
+                        Cart.Text = Mid$(Cart.Text, 2, Len(Cart.Text))
+                        Cart.Text = Utils.Find_cbarre(Cart.Text)
+                      Endif
+                      art_Man()
+                    Endif
+                  Endif
+                Endif
+              Endif
+            Endif
+          Endif
+          Stop Event
+          
+        Case 6
+          qterecue.Text = "1"
+          qterecue.SetFocus
+          qterecue.Select
+          Stop Event
+          
+        Case 7
+          qterecue_LF()
+          If Val(paht.Text) = 0 Then
+            If b <> 1 Then
+              pbhtC()
+              'arrondi()
+              pbht.SetFocus
+              pbht.Select
+              b = 0
+            Else
+              qterecue.SetFocus
+              qterecue.Select
+              b = 0
+            Endif
+          Else
+            Panel6.visible = False
+            Button1.SetFocus
+          Endif
+          Stop Event
+          
+        Case 8
+          pbhtLF()
+          If b <> 1 Then
+            If pbht.Text = montante Then
+              Button1.SetFocus
+            Else
+              TrC()
+              Coeff()
+              Pvht.SetFocus
+              Pvht.Select
+              b = 0
+            Endif
+          Else
+            pbht.SetFocus
+            pbht.Select
+            b = 0
+            montantr = Tr.Text
+          Endif
+          Stop Event
+          
+        Case 9
+          TrC()
+          If b <> 1 Then
+            pahtLF()
+            Coeff()
+            If Val(Utils.cpoint(paht.Text)) > 0 Then
+              Panel6.Visible = True
+              Rem1.SetFocus
+              Rem1.Select
+            Else
+              paht.SetFocus
+              paht.Select
+            Endif
+          Else
+            Tr.SetFocus
+            Tr.Select
+            b = 0
+          Endif
+          Stop Event
+          
+        Case 10
+          pahtLF()
+          If b <> 1 Then
+            Coeff()
+            Button1.SetFocus
+            b = 0
+          Else
+            paht.SetFocus
+            paht.Select
+            b = 0
+          Endif
+          Stop Event
+          
+        Case 11
+          FraisLF()
+          If b <> 1 Then
+            Coef.SetFocus
+            Coef.Select
+          Else
+            Frais.SetFocus
+            Frais.Select
+            B = 0
+          Endif
+          Stop Event
+          
+        Case 12
+          If Settings["/Soc" & Start.Societe & "/Coef"] Then
+            Coeff()
+            If b <> 1 Then
+              Calc_Marge()
+              Pvht.SetFocus
+              Pvht.Select
+              b = 0
+            Else
+              Coef.SetFocus
+              Coef.Select
+            Endif
+          Else
+            Pourcent()
+            If b = 1 Then
+              Tmq.SetFocus
+              Tmq.Select
+            Else
+              Calc_coeff()
+              Pvht.Text = Format$(Val(prvt.Text) * Val(Coef.Text), nbdec)
+              Tvav_calcul()
+              Arrondi()
+              Calc_Marge()
+              Pvht.SetFocus
+              Pvht.Select
+            Endif
+          Endif
+          b = 0
+          Stop Event
+          
+        Case 13
+          PvhtLF()
+          If b <> 1 Then
+            Arrondi()
+            Calc_Marge()
+            Pvttc.SetFocus
+            Pvttc.Select
+            b = 0
+          Else
+            Pvht.SetFocus
+            Pvht.Select
+            B = 0
+          Endif
+          Stop Event
+          
+        Case 14
+          arrondi()
+          Stop Event
+          
+        Case 15
+          PvttcLF()
+          If b <> 1 Then
+            Calc_Marge()
+            Button1.SetFocus
+            b = 0
+          Else
+            Pvttc.SetFocus
+            Pvttc.Select
+            b = 0
+          Endif
+          Stop Event
+          
+        Case 16
+          Button9.SetFocus
+          Stop Event
+      End Select
+    End With
+  Endif
+  
+  If key.code = key.F1 Then
+    Button4_Click()
+    Stop Event
+  Endif
+  
+  If key.code = key.F2 Then
+    Select Case Last.tag
+      Case 1
+        ToggleButton1_Click()
+        Stop Event
+        
+      Case 2
+        ToggleButton4_Click()
+        Stop Event
+        
+      Case 5
+        SelectionArt()
+        Stop Event
+    End Select
+  Endif
+  
+  If Key.code = Key.F3 Then
+    Select Case Last.tag
+        
+      Case 6
+        Dsgn = "1"
+        SelectionArt()
+        Stop Event
+    End Select
+  Endif
+  
+  If Key.code = Key.F5 Then
+    hForm = New FCalc
+    hForm.Showmodal()
+    If Not IsNull(FCalc.Resultat) Then Last.Text = Format$(Val(FCalc.Resultat), "0.000")
+  Endif
+  
+End
+
+'********************************************
+'*      Verification du numero de commande  *
+'********************************************
+Public Sub Ver_comm()
+  
+  Dim EntResult As Result
+  
+  Tab = "Fiches_Entcom"
+  EntResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE numcom = &1 and four = &2", numcom.Text, codefour.Text)
+  If EntResult.count = 0 Then
+    b = 1
+    If son Then
+      Music.Play
+    Endif
+    message.Warning(" Ce numero de commande n'existe pas chez ce fournisseur ! \n Veuillez saisir un numéro de commande existant SVP ! ")
+    Numcom.SetFocus
+    Numcom.Select
+  Endif
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Rcpt_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  Select Case Last.tag
+      'CASE 2
+      '  EntResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE numcom = &1 and four = &2", numcom.Text, codefour.Text)
+      '  IF EntResult.count = 0 THEN
+      '    b = 1
+      '    IF son THEN
+      '      Music.Play
+      '    ENDIF
+      '    IF Numcom.Text THEN message.Warning(" Ce numero de commande n'existe pas chez ce fournisseur ! \n Veuillez saisir un numéro de commande existant SVP ! ")
+      'Numcom.SetFocus
+      'Numcom.Select
+      '    STOP EVENT
+      '  ENDIF
+    Case 10
+      pahtGF()
+      Stop Event
+  End Select
+  
+End
+
+'***************************************
+'*   On gère les remises en cascades   *
+'***************************************
+Public Sub Rcpt_dblclick()
+  
+  Select Last.tag
+      
+    Case 9
+      If Panel6.visible = True Then
+        Panel6.Visible = False
+        Tr.SetFocus
+        Tr.select
+      Else
+        Panel6.visible = True
+        Rem1.SetFocus
+        Rem1.select
+      Endif
+      Stop Event
+      
+    Case 11
+      Balloon.Warning(("Eco-taxe = " & ect & "\n" & "Copie privée = " & cop & "\n" & "Frais = " & Frais.text), Frais)
+      Button1.SetFocus
+      Stop Event
+  End Select
+  
+End
+
+Public Sub Rem_KeyPress()
+  
+  Select Last.tag
+    Case 1
+      ChkPrx()
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        Tr.Text = Format$(Val(Tr.Text), "0.00")
+        PaHt.Text = Format$(Val(pbht.Text) - (Val(pbht.Text) * Val(Tr.Text) / 100), nbdec)
+        PaHt.Text = Format$(CPrix.Cascade(paht.text, Rem1.text), nbdec)
+        Try montante = Format$(Val(Utils.cpoint(paht.Text)), nbdec)
+        If Paht.Text Then Totht.Text = Format$(Val(Utils.cpoint(qtecom.Text)) * Val(Paht.Text), nbdec)
+        PahtLF()
+        Rem2.SetFocus
+        Rem2.Select
+      Endif
+      
+    Case 2
+      ChkPrx()
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        PaHt.Text = Format$(CPrix.Cascade(paht.text, Rem2.text), nbdec)
+        Try montante = Format$(Val(Utils.cpoint(paht.Text)), nbdec)
+        If Paht.Text Then Totht.Text = Format$(Val(Utils.cpoint(qtecom.Text)) * Val(Paht.Text), nbdec)
+        PahtLF()
+        Rem3.SetFocus
+        Rem3.Select
+      Endif
+      
+    Case 3
+      ChkPrx()
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        PaHt.Text = Format$(CPrix.Cascade(paht.text, Rem3.text), nbdec)
+        Try montante = Format$(Val(Utils.cpoint(paht.Text)), nbdec)
+        If Paht.Text Then Totht.Text = Format$(Val(Utils.cpoint(qtecom.Text)) * Val(Paht.Text), nbdec)
+        PahtLF()
+        Panel6.Visible = False
+        Button1.SetFocus
+      Endif
+      
+  End Select
+  
+End
+
+Public Sub ChkPrx()
+  
+  If InStr("0123456789,.", Key.Text) = 0 Then
+    If key.code <> key.BackSpace And Key.Code <> Key.tab And Key.Code <> Key.Delete And Key.code <> Key.enter And Key.code <> Key.return Then
+      Stop Event
+    Endif
+  Endif
+  
+End
+
+'*****************************************************
+'*      Gestion des touches sur les boutons          *
+'*****************************************************
+Public Sub Btn_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Then
+    
+    Select Case Last.tag
+        
+      Case 1
+        If Not Cart.Text Then
+          If son Then
+            Music.Play
+          Endif
+          Message.Warning("Veuillez saisir un code article Svp !", "Ok")
+          Cart.SetFocus
+          Cart.Select
+        Endif
+        If Not qterecue.Text Then
+          If son Then
+            Music.Play
+          Endif
+          Message.Warning("Veuillez saisir une quantité Svp !", "Ok")
+          qterecue.SetFocus
+          qterecue.Select
+        Endif
+        If Cart.Text And qterecue.Text Then
+          qterecue_LF()
+          'Trc()
+          'pahtGF()
+          'pahtLF()
+          Maj_colrcp()
+          If Materiel And Gmateriel Then
+            Num_serie()
+            Numero.SetFocus
+          Else
+            CleanChamps()
+            Cart.SetFocus
+            Cart.Select
+          Endif
+        Endif
+        Stop Event
+        
+      Case 2
+        Enrgcoml()
+        If b = 0 Then
+          codefour.SetFocus
+          codefour.Select
+        Else
+          If b = 1 Then
+            numbl.SetFocus
+            numbl.Select
+          Else
+            If b = 2 Then
+              datej.SetFocus
+              datej.Select
+            Endif
+          Endif
+        Endif
+        Stop Event
+        
+    End Select
+  Endif
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      If Not Cart.Text Then
+        If son Then
+          Music.Play
+        Endif
+        Message.Warning("Veuillez saisir un code article Svp !", "Ok")
+        Cart.SetFocus
+        Cart.Select
+      Endif
+      If Not qterecue.Text Then
+        If son Then
+          Music.Play
+        Endif
+        Message.Warning("Veuillez saisir une quantité Svp !", "Ok")
+        qterecue.SetFocus
+        qterecue.Select
+      Endif
+      If Cart.Text And qterecue.Text Then
+        qterecue_LF()
+        Maj_colrcp()
+        If Materiel And Gmateriel Then
+          Num_serie()
+          Numero.SetFocus
+        Else
+          CleanChamps()
+          Cart.SetFocus
+          Cart.Select
+        Endif
+      Endif
+      Stop Event
+      
+    Case 2
+      Nblf = Numbl.Text
+      Codef = Codefour.Text
+      Dater = Datej.text
+      Enrgcoml()
+      If b = 0 Then
+        codefour.SetFocus
+        codefour.Select
+      Else
+        If b = 1 Then
+          numbl.SetFocus
+          numbl.Select
+        Else
+          If b = 2 Then
+            datej.SetFocus
+            datej.Select
+          Endif
+        Endif
+      Endif
+      Stop Event
+      
+    Case 3
+      If Colrcp.Count Then
+        If son Then
+          Music.Play
+        Endif
+        If Message.question("Attention, voulez-vous enregistrer votre réception avant de sortir!", "Oui", "Non") = 1 Then
+          Enrgcoml()
+          If b = 0 Then
+            codefour.SetFocus
+            codefour.Select
+          Else
+            If b = 1 Then
+              numbl.SetFocus
+              numbl.Select
+            Else
+              If b = 2 Then
+                datej.SetFocus
+                datej.Select
+              Endif
+            Endif
+          Endif
+        Endif
+      Endif
+      b = 4
+      If Exist(User.home & "/Edbl.ps") Then Try Kill User.home & "/Edbl.ps"
+      Me.Close
+      Stop Event
+      
+    Case 4
+      If datej.Text = "" Then
+        If son Then
+          Music.Play
+        Endif
+        message.Warning(" Veuillez saisir une date SVP ! ")
+        Cart.Text = ""
+        datej.Text = Format$(Now, "dd.mm.yyyy")
+        datej.SetFocus
+        datej.select
+        Return
+      Else
+        If codefour.Text = "" Then
+          If son Then
+            Music.Play
+          Endif
+          message.Warning(" Veuillez saisir un code fournisseur SVP ! ")
+          Cart.Text = ""
+          codefour.SetFocus
+          codefour.select
+          Return
+        Else
+          If numcom.Text = "" Then
+            If son Then
+              Music.Play
+            Endif
+            message.Warning(" Veuillez saisir un numéro de commande SVP ! ")
+            Cart.Text = ""
+            numcom.SetFocus
+            numcom.select
+            Return
+          Else
+            If numbl.Text = "" Then
+              If son Then
+                Music.Play
+              Endif
+              message.Warning(" Veuillez saisir un numéro de Bl SVP ! ")
+              Cart.Text = ""
+              numbl.SetFocus
+              numbl.select
+              Return
+            Endif
+          Endif
+        Endif
+      Endif
+      Stop Event
+      If message.Question("Attention ! Le fichier 'inventaire.txt' du portable doit être vidé dans le repertoire " & "~/Portable !") = 1 Then
+        Import_Portable()
+      Endif
+  End Select
+  
+End
+
+Public Sub form_close()
+  
+  If Colrcp.Count And b <> 4 Then
+    If son Then
+      Music.Play
+    Endif
+    If Message.question("Attention, voulez-vous enregistrer votre réception avant de sortir!", "Oui", "Non") = 1 Then
+      Enrgcoml()
+    Endif
+  Endif
+  Settings["/Soc" & Start.Societe & "/Col/LcolRA"] = "col0:" & Colrcp.Columns[0].Width & ";" & "col1:" & Colrcp.Columns[1].Width & ";" & "col2:" & Colrcp.Columns[2].Width & ";" & "col3:" & Colrcp.Columns[3].Width & ";" & "col4:" & Colrcp.Columns[4].Width & ";" & "col5:" & Colrcp.Columns[5].Width & ";" & "col6:" & Colrcp.Columns[6].Width & ";" & "col7:" & Colrcp.Columns[7].Width & ";" & "col8:" & Colrcp.Columns[8].Width
+  Settings.Save
+  
+End
+
+'******************************************
+'*      Gestion du click sur rcpt         *
+'******************************************
+Public Sub Rcpt_MouseDown()
+  
+  Select Case Last.tag
+    Case 11
+      Frais.Tooltip = "Eco-taxe = " & ect & "\n" & "Copie privée = " & cop & "\n" & "Frais = " & Frais.text
+      frais.Select
+      Stop Event
+      
+    Case 13
+      Coeff()
+      Stop Event
+  End Select
+  
+End
+
+'************************************************
+'* On appelle la liste des fournisseurs         *
+'************************************************
+Public Sub ToggleButton1_Click()
+  
+  Dim MyForm As Trifours
+  
+  Variables.bsel = False
+  MyForm = New Trifours("Receipta")
+  MyForm.Showmodal()
+  If Variables.Bsel = True Then
+    CodeFour.Text = Variables.Cfour
+  Else
+    CodeFour.SetFocus
+  Endif
+  Fourman()  
+  Nbl.SetFocus
+  Nbl.Select
+  
+End
+
+'**************************************************
+'* Selection d'un fournisseur a la souris         *
+'**************************************************
+Public Sub fourList_Click()
+  
+  codefour.text = fourList.Item[0]
+  nomfour.text = fourList.Item[1]
+  fourList.clear
+  fourList.visible = False
+  fourMan()
+  numcom.SetFocus
+  numcom.Select
+  
+End
+
+'***************************************************
+'* Selection d'un fournisseur manuellement         *
+'***************************************************
+Public Sub fourList_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    fourList_Click()
+    Stop Event
+  Endif
+  
+  If key.code = key.F1 Then
+    Button4_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    fourList.visible = False
+    fourList.clear
+    codefour.SetFocus
+    Stop Event
+  Endif
+  
+End
+
+'********************************************
+'* Saisie d'un fournisseur manuellement     *
+'********************************************
+Public Sub fourMan()
+  
+  Dim rResult As Result
+  
+  Tab = "Fiches_Four"
+  rResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE fo_code = &1", codefour.Text)
+  nomfour.Text = rResult!fo_nom
+  bCentrale = rResult!fo_centrale
+  If bCentrale = True Then
+    Refcentrale.value = True
+    TextLabel27.text = "Ref centrale"
+    Tartfourn2.Visible = False
+  Endif
+  scentraleF = rResult!fo_ccentrale
+  b = 0
+Catch
+  B = 1
+  If son Then
+    Music.Play
+  Endif
+  Message.Warning("Ce fournisseur n'existe pas !", "OK")
+  
+End
+
+'************************************************
+'* On verifie si le bl a deja ete saisit        *
+'************************************************
+Public Sub Verifbl()
+  
+  Dim rResult As Result
+  
+  Tab = "Fiches_Entrecpt"
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where numrecpt = &1", numbl.Text)
+  If rResult.Available Then
+    B = 1
+    If son Then
+      Music.Play
+    Endif
+    message.Warning("Ce Bl a deja ete saisit chez ce fournisseur", "OK")
+  Else
+    B = 0
+  Endif
+  
+End
+
+'********************************************************
+'*  On controle si la date de la reception est bonne    *
+'********************************************************
+Public Sub Quittedate()
+  
+  With utils
+    datej.text = .Cdate_calc(datej.text)
+    datej.Text = .Cdate_aff(datej.Text)
+  End With
+  
+End
+
+'********************************************
+'* Saisie d'un article manuellement         *
+'********************************************
+Public Sub art_man()
+  
+  Dim rarts As Result
+  Dim Rligcom As Result
+  Dim qtec As String
+  Dim fourn As String
+  
+  qtecom.Text = "0"
+  Stocke = ""
+  Tab = "Fiches_Art"
+  Tab2 = "Fiches_Tvaav"
+  With utils
+    If codefour.Text And numbl.Text Then
+      If Tartfourn2.Value = True Then
+        rarts = Utils.db.Exec("SELECT * FROM " & Tab & " where art_code = &1 and art_four = &2", Cart.Text, Codefour.Text)
+      Else
+        rarts = Utils.db.Exec("SELECT * FROM " & Tab & " where art_code = &1", Cart.Text)
+      Endif
+      If Not rarts.Available Then
+        'If Tartfourn2.Value = True Then
+        rarts = Utils.db.Exec("SELECT * FROM " & Tab & " where art_cfour = &1 and art_four = &2", Cart.Text, Codefour.Text)
+        'Else
+        'rarts = Utils.db.Exec("SELECT * FROM " & Tab & " where art_cfour = &1", Cart.Text)
+      Endif
+      If Not rarts.Available Then
+        If Tartfourn2.Value = True Then
+          rarts = Utils.db.Exec("SELECT * FROM " & Tab & " where art_cbarre = &1 and art_four = &2", Cart.Text, Codefour.Text)
+        Else
+          rarts = Utils.db.Exec("SELECT * FROM " & Tab & " where art_cbarre = &1", Cart.Text)
+        Endif
+      Endif
+      If Not rarts.Available Then
+        If Tartfourn2.Value = True Then
+          rarts = Utils.db.Exec("SELECT * FROM " & Tab & " where art_refcentrale = &1 and art_four = &2", Cart.Text, Codefour.Text)
+        Else
+          rarts = Utils.db.Exec("SELECT * FROM " & Tab & " where art_refcentrale = &1", Cart.Text)
+        Endif
+      Else
+        If rarts!art_four <> Codefour.Text And Tartfourn2.value Then 
+          Message.Warning("La saisie de cette référence pour le fournisseur " & rarts!art_four & " n'est pas possible!")
+          b = 1
+          Return
+        Endif
+      Endif
+      If rarts.Available Then
+        Stocke = rarts!art_stocke
+        If Not Stocke Then
+          If son Then
+            Music.Play
+          Endif
+          Balloon.Warning(" Cet article n'est pas stocké ! ", cart)
+        Endif
+        If rarts!art_suspendu = False Or If IsNull(rarts!art_suspendu) Then
+          Cart.Text = rarts!art_code
+          If IsNull(rarts!art_casier) Then
+            Dart.text = rarts!art_design
+            casier = ""
+          Else
+            Dart.text = rarts!art_casier & "- " & rarts!art_design
+            casier = rarts!art_casier & "- "
+          Endif
+          Refourn.Text = rarts!art_cfour
+          If bCentrale = True Then Refourn.Text = rarts!art_refcentrale
+          Fourn = Rarts!art_four
+          Fam = Rarts!art_fam
+          Materiel = Rarts!art_mat
+          Cfournisseur = rarts!art_cfour
+          Cbarre = rarts!art_cbarre
+          Cequivalent = rarts!art_cequ
+          nbd = rarts!art_nbd
+          nbdec = Utils.Find_nbdec(nbd)
+          pbht.Text = Format$(rarts!art_pbht, nbdec)
+          Tr.Text = Format$(rarts!art_tr, "0.00")
+          Try Rem1.Text = Format$(Rarts!art_remcas1, "0.00")
+          Try Rem2.Text = Format$(Rarts!art_remcas2, "0.00")
+          Try Rem3.Text = Format$(Rarts!art_remcas3, "0.00")
+          If Val(Utils.cpoint(Rem1.text)) > 0 Then
+            Panel6.Visible = True
+          Else
+            Panel6.visible = False
+          Endif
+          montantr = Tr.Text
+          paht.Text = Format$(rarts!art_pauaht, nbdec)
+          Pauv.Text = Format$(rarts!art_paht, nbdec)
+          Txconv = rarts!art_txconv
+          Txcnv.Text = Txconv
+          If Txconv = 0 Then Txconv = 1
+          Frais.Text = Format$(rarts!art_frais, nbdec)
+          Prvt.Text = Format$(rarts!art_prvt, nbdec)
+          Coef.Text = Format$(rarts!art_coef, "0.0000")
+          Pvht.Text = Format$(rarts!art_pvht, nbdec)
+          Tva.Text = rarts!art_tva
+          Txtva = CPrix.CTva(Tva.Text)
+          PvTTc.Text = Format$(rarts!art_pvttc, nbdec)
+          Try Ect = Format$(rarts!art_eco, nbdec)
+          If Error Then Ect = "0,00"
+          Try Cop = Format$(rarts!art_copp, nbdec)
+          If Error Then Cop = "0,00"
+          Calc_Percent()
+          Calc_coeff()
+          Tvaac_Calcul()
+          Arrondi()
+          Arr.Text = rarts!art_cdarr
+          Decm = rarts!art_dec
+          Artstock.text = .cpoint(rarts!art_qte)
+          Dfour = rarts!art_dfour
+          Frais.Tooltip = "Eco-taxe = " & ect & "\n" & "Copie privée = " & cop & "\n" & "Frais = " & Frais.text
+          If rarts!art_pmp Then
+            Pmp = rarts!art_pmp
+          Endif
+          If Not Artstock.Text And Not Stocke Then
+            Artstock.Text = ""
+          Else
+            If Not Artstock.Text And Stocke Then
+              Artstock.Text = "0"
+            Else
+              Artstock.Text = .Cdec(Decm, Artstock.Text)
+            Endif
+          Endif
+          Qtecom.Text = .Commande(Cart.text, Decm, 1, "Four")
+          Totht.Text = paht.Text
+          Tab = "Fiches_Ligcom"
+          Rligcom = Utils.db.Exec("SELECT * FROM " & tab & " WHERE code = &1", Cart.Text)
+          If Rligcom.Available Then
+            qtecom.text = "0"
+            Do
+              Try qtec = Rligcom!qte
+              If Error Then Qtec = 0
+              qtecom.Text = Val(Utils.cpoint(qtecom.Text)) + Val(Utils.cpoint(qtec))
+              qtecom.Text = .CDec(Decm, qtecom.Text)
+            Loop Until Rligcom.MoveNext()
+          Endif
+          qterecue.Text = "1"
+          qterecue.SetFocus
+          qterecue.Select
+        Else
+          Message.Warning(" Saisie impossible ! Cet article est suspendu. ")
+          b = 1
+        Endif
+      Else
+        If son Then
+          Music.Play
+        Endif
+        message.Warning(" Cette référence n'existe pas ou elle n'est référencée pas chez ce fournisseur!! ")
+        b = 1
+      Endif
+    Else
+      If son Then
+        Music.Play
+      Endif
+      message.Warning(" Veuillez saisir le fournisseur et le numéro de BL SVP !! ")
+      b = 1
+      Cart.SetFocus
+      Cart.Select
+    Endif
+  End With
+  
+End
+
+'**********************************************************
+'*           Affichage des quantites en stock             *
+'**********************************************************
+Public Sub Quantite()
+  
+  Dim rResult As Result
+  
+  Tab = "Fiches_Art"
+  With utils
+    rResult = Utils.db.Exec("select * from " & Tab & " where art_code = &1", Cart.text)
+    If rResult.Available Then
+      Stocke = rResult!art_stocke
+      Artstock.Text = Format$(rResult!art_qte, "0.000")
+      
+    Endif
+    If Stocke Then
+      Artstock.Text = .Cdec(Decm, Artstock.Text)
+      If Val(Artstock.Text) < 1 Then
+        Artstock.Background = &D47C0A&
+      Else
+        Artstock.Background = &HD4D0C8&
+      Endif
+    Endif
+  End With
+  
+End
+
+'**********************************************************
+'*        Controle de la saisie des quantites             *
+'**********************************************************
+Public Sub qterecue_LF()
+  
+  With utils
+    If qterecue.Text Then
+      qterecue.Text = .cpoint(qterecue.Text)
+      If Val(qterecue.Text) = Null Then
+        If son Then
+          Music.Play
+        Endif
+        message.Warning("Veuillez verifier votre saisie SVP !")
+        b = 1
+      Else
+        qterecue.Text = .Cdec(Decm, qterecue.Text)
+        b = 0
+        If paht.Text Then Totht.Text = Format$(Val(paht.Text) * Val(qterecue.Text), nbdec)
+      Endif
+    Else
+      b = 0
+    Endif
+  End With
+  
+End
+
+'***************************************************
+'*    Maj de la quantite du stock en plus          *
+'***************************************************
+Public Sub Maj_qte()
+  
+  Dim Aqte As String
+  
+  If Not pmp Then pmp = "0"
+  With utils
+    Aqte = Artstock.text
+    qterecue.Text = .Cdec(Decm, qterecue.Text)
+    If qtes = 0 Then qtes = 1
+    Artstock.text = Val(.cpoint(Artstock.text)) + Val(.cpoint(qterecue.text))
+    If Val(Artstock.text) <> 0 Then
+      Pmp = (Val(.cpoint(qterecue.Text)) * Val(.cpoint(Pauv.Text)) + (Val(.cpoint(Aqte)) * Val(.cpoint(Pmp)))) / Val(.cpoint(Artstock.Text))
+      Pmp = Format$(Pmp, "0.00")
+    Endif
+  End With
+  
+End
+
+'**************************************************
+'* Maj de la quantite du stock en plus automatique *
+'**************************************************
+Public Sub Maj_Qta()
+  
+  Arts = "0"
+  If Not pmp Then pmp = "0"
+  qter = Colrcp.Item[7]
+  With utils
+    Arts = Val(.cpoint(Aqte)) + (Val(.cpoint(Colrcp.Item[7])) * Txconv)
+    Pmp = (Val(.cpoint(qter)) / Txconv * Val(.cpoint(Dpa)) * Txconv) + (Val(.cpoint(Aqte)) * Val(.cpoint(Pmp)))
+    If Arts = "0" Then
+      Try pmp = Val(.cpoint(pmp)) / 1
+    Else
+      Try pmp = Val(.cpoint(pmp)) / Val(.cpoint(Arts))
+    Endif
+    If Error Then
+      Pmp = Format$(Val(.cpoint(Colrcp.Item[6])) / Txconv, nbdec)
+    Else
+      Pmp = Format$(Val(.cpoint(Pmp)), nbdec)
+    Endif
+  End With
+  
+End
+
+'***************************************************
+'*    Maj de la quantite du stock en moins         *
+'***************************************************
+Public Sub Maj_qtem()
+  
+  Dim Aqte As String
+  
+  If Not pmp Then pmp = "0"
+  With utils
+    qterecue.Text = .Cdec(Decm, qterecue.Text)
+    Aqte = Artstock.text
+    Artstock.text = Val(.cpoint(Artstock.text)) - Val(.cpoint(qterecue.text))
+    If Val(Artstock.text) <> 0 Then
+      Pmp = (Val(.cpoint(Aqte)) * Val(.cpoint(Pmp)) - (Val(.cpoint(qterecue.Text)) * Val(.cpoint(Pauv.Text)))) / Val(.cpoint(Artstock.Text))
+      Pmp = Format$(Pmp, "0.00")
+    Endif
+  End With
+  
+End
+
+Public Sub pbhtC()
+  
+  With Utils
+    pbht.Text = .cpoint(pbht.Text)
+    If Val(pbht.Text) = Null Then
+      If son Then
+        Music.Play
+      Endif
+      message.Warning("Veuillez verifier votre saisie SVP !")
+      b = 1
+    Else
+      montantPb = Val(.cpoint(pbht.Text))
+      pbht.Text = Format$(montantPb, nbdec)
+      montantPb = pbht.Text
+      b = 0
+    End If
+  End With
+  
+End
+
+Public Sub pbhtLF()
+  
+  With Utils
+    pbht.Text = .cpoint(pbht.Text)
+    If Val(pbht.Text) = Null Then
+      If son Then
+        Music.Play
+      Endif
+      message.Warning("Veuillez verifier votre saisie du prix de base SVP !")
+      b = 1
+    Else
+      pbht.Text = Format$(Val(.cpoint(pbht.Text)), nbdec)
+      b = 0
+    End If
+    TrC()
+    Pauv.Text = Format$(Val(paht.Text) / Txconv, nbdec)
+    pahtGF()
+    pahtLF()
+  End With
+  montante = 0
+  
+End
+
+Public Sub TrC()
+  
+  With Utils
+    If IsNull(Tr.Text) Then Tr.Text = "0,00"
+    Tr.Text = .cpoint(Tr.Text)
+    If Val(Tr.Text) = Null Then
+      If son Then
+        Music.Play
+      Endif
+      message.Warning("Veuillez verifier votre saisie de la remise SVP !")
+      b = 1
+      paht.Text = pbht.Text
+    Else
+      Tr.Text = Format$(Val(.cpoint(Tr.Text)), "0.00")
+      paht.Text = Format$(Val(.cpoint(pbht.Text)) - (Val(.cpoint(pbht.Text)) * Val(Tr.Text) / 100), Nbdec)
+      If Val(.cpoint(Rem1.text)) > 0 Then
+        PaHt.Text = Format$(CPrix.Cascade(paht.text, Rem1.text), nbdec)
+        PaHt.Text = Format$(CPrix.Cascade(paht.text, Rem2.text), nbdec)
+        PaHt.Text = Format$(CPrix.Cascade(paht.text, Rem3.text), nbdec)
+      Endif
+      b = 0
+      Try montante = Format$(Val(.cpoint(paht.Text)), nbdec)
+      If paht.Text Then Try Totht.Text = Format$(Val(.cpoint(qterecue.Text)) * Val(Paht.Text), nbdec)
+    Endif
+    
+  End With
+  
+End
+
+Public Sub pahtGF()
+  
+  With utils
+    paht.Text = .cpoint(paht.Text)
+    If Val(paht.Text) <> Null Then
+      montante = Format$(Val(.cpoint(paht.Text)), nbdec)
+    Endif
+  End With
+  
+End
+
+Public Sub pahtLF()
+  
+  With Utils
+    If IsNull(Paht.Text) Then Paht.Text = "0,00"
+    If Val(.cpoint(paht.Text)) = Null Then
+      If son Then
+        Music.Play
+      Endif
+      message.Warning("Veuillez verifier votre saisie SVP !")
+      b = 1
+    Else
+      paht.Text = Format$(Val(.cpoint(paht.Text)), nbdec)
+      Pauv.Text = Format$(Val(paht.Text) / Txconv, nbdec)
+      FraisLF()
+      If Val(.cpoint(paht.Text)) <> "0" Then
+        If montante <> paht.Text Then
+          If message.Question(" Vous venez de modifier le prix net ht. Voulez-vous \n 1- Modifier la remise \n 2- Modifier le prix de base ", " 1 ", " 2 ") = "1" Then
+            Tr.Text = Format(Val(pbht.Text) - Val(paht.Text), "0.00")
+            Tr.Text = Format$((Val(Tr.Text) * 100) / Val(pbht.Text), "0.00")
+          Else
+            pbht.Text = Format$(Val(paht.Text) / (1 - (Val(Tr.Text) / 100)), nbdec)
+          Endif
+        Endif
+        If prvt.Text Then Totht.Text = Format$(Val(.cpoint(qterecue.Text)) * Val(PaHt.Text), nbdec)
+      Else
+        pbht.Text = "0.00"
+        Tr.Text = "0.000"
+      Endif
+      b = 0
+    Endif
+    montante = 0
+    'IF paht.Text THEN Totht.Text = Format$(Val(.cpoint(qtecom.Text)) * Val(paht.Text), nbdec)
+  End With
+  
+End
+
+'***************************************
+'*     On gère les frais du produit    *
+'***************************************
+Public Sub FraisLF()
+  
+  With Utils
+    If IsNull(Frais.Text) Then Frais.Text = "0,00"
+    If Val(.cpoint(Frais.Text)) = Null Then
+      If son Then
+        Music.Play
+      Endif
+      message.Warning("Veuillez verifier votre saisie des frais SVP !")
+      b = 1
+    Else
+      Frais.Text = Format$(Val(.cpoint(Frais.Text)), nbdec)
+      Prvt.Text = Format$(Val(pauv.text) + Val(Frais.Text), nbdec)
+      Pvht.Text = Format$(Val(prvt.Text) * (Val(Coef.Text)), nbdec)
+      Tvav_Calcul()
+      arrondi()
+      Calc_Marge()
+      PvTTcLF()
+      Frais.Tooltip = "Eco-taxe = " & ect & "\n" & "Copie privée = " & cop & "\n" & "Frais = " & Frais.text
+      b = 0
+    Endif
+    'montante = 0
+  End With
+  
+End
+
+'***************************************
+'*   On gère le coefficient de vente   *
+'***************************************
+Public Sub Coeff()
+  
+  With Utils
+    If Not IsNull(Coef.Text) Then
+      Try Coef.Text = Format$(Val(.cpoint(Coef.Text)), "0.0000")
+      If Val(Coef.Text) = Null Then
+        If son Then
+          Music.Play
+        Endif
+        message.Warning("Veuillez verifier votre saisie du coefficient SVP !")
+        b = 1
+      Else
+        b = 0
+        Coef.text = Format$(Val(.cpoint(Coef.text)), "0.0000")
+        Pvht.Text = Format$(Val(Prvt.Text) * Val(Coef.Text), nbdec)
+        Tvav_Calcul()
+        PvTTcLF()
+        'Calc_Marge()
+      End If
+    Endif
+  End With
+  
+End
+
+'***************************************
+'*   On gère le pourcentage de vente   *
+'***************************************
+Public Sub Pourcent()
+  
+  With Utils
+    Tmq.Text = .cpoint(Tmq.Text)
+    If Val(Tmq.Text) = Null Then
+      If son Then
+        Music.Play
+      Endif
+      Message.Warning("Veuillez verifier votre saisie SVP !", "OK")
+      Tmq.Text = "0.000"
+      b = 1
+    Else
+      Tmq.text = Format$(Val(Tmq.text), "0.000")
+      b = 0
+    Endif
+  End With
+Catch
+  message.Error(Error.Text & " " & Error.where)
+  
+End
+
+'***************************************************
+'*        On calcule le coefficient de marge       *
+'***************************************************
+Public Sub Calc_coeff()
+  
+  Try Coef.Text = Format$(1 / (1 - (Val(Tmq.Text)) / 100), "0.0000")
+  
+End
+
+'********************************************
+'*       On calcule le taux de marque       *
+'********************************************
+Public Sub Calc_Percent()
+  
+  Try Tmq.Text = Format$((Val(Pvht.Text) - Val(prvt.Text)) / Val(Pvht.Text) * 100, "0.000")
+  
+End
+
+'***********************************
+'*       On calcule la marge       *
+'***********************************
+Public Sub Calc_Marge()
+  
+  Dim Margem As String
+  Dim Margep As String
+  
+  Margem = Format$(Val(Pvht.Text) - Val(Prvt.Text), nbdec)
+  Try Margep = Format$((Val(Margem) * 100) / Val(Prvt.Text), nbdec)
+  Pvht.Tooltip = "Marge en montant = " & margem & "\n" & "Marge en % = " & margep
+  'Button1.SetFocus
+  Stop Event
+  
+End
+
+Public Sub PvhtLF()
+  
+  With Utils
+    Pvht.Text = .cpoint(Pvht.Text)
+    If Val(Pvht.Text) = Null Then
+      If son Then
+        Music.Play
+      Endif
+      message.Warning("Veuillez verifier votre saisie SVP !")
+      b = 1
+    Else
+      Pvht.Text = Format$(Val(Pvht.Text), nbdec)
+      If Val(Pvht.Text) < Val(pauv.Text) Then
+        If son Then
+          Music.Play
+        Endif
+        message.warning("ATTENTION ! Le Prix de vente est inférieur au prix d'achat", "OK !")
+      Endif
+      Try Coef.Text = Format$(Val(Pvht.Text) / (Val(pauv.Text)), "0.0000")
+      Pvht.Background = Color.TextBackground
+      Tvav_Calcul()
+      PvTTcLF()
+    Endif
+  End With
+  
+End
+
+Public Sub PvTTcLF()
+  
+  Dim tx As Float
+  
+  With Utils
+    PvTTc.Text = .cpoint(PvTTc.Text)
+    If Val(Pvttc.Text) = Null Then
+      If son Then
+        Music.Play
+      Endif
+      message.Warning("Veuillez verifier votre saisie SVP !")
+      b = 1
+    Else
+      PvTTC.Text = Format$(Val(PvTTC.Text), nbdec)
+      arrondi()
+      tx = (1 + (Val(.cpoint(Txtva)) / 100))
+      Pvht.Text = Format$(Val(PvTTc.Text) / tx, nbdec)
+      PvTTc.Text = Format$(Val(PvTTc.Text), nbdec)
+      Calc_Percent()
+      Calc_Coeff()
+      Arrondi()
+      Calc_Marge()
+      If Val(Pvht.Text) < Val(pauv.Text) Then
+        If son Then
+          Music.Play
+        Endif
+        message.warning("ATTENTION ! Le Prix de vente est inférieur au prix d'achat", "OK !")
+        PvTTC.SetFocus
+        PvTTC.Select
+      Endif
+    Endif
+  End With
+  
+End
+
+Public Sub arrondi()
+  
+  If arr.Text = "0,05" Then
+    If Right$(pvTTc.Text) Like "[34567]*" Then
+      PvTTC.Text = Left$(PvTTC.Text, (Len(PvTTC.Text) - 1)) & "5"
+      PvTTC.Text = Format$(Val(PvTTC.Text), nbdec)
+    Else
+      PvTTC.Text = Round(Val(PvTTC.Text), -1)
+      PvTTC.Text = Format$(PvTTC.Text, nbdec)
+    Endif
+  Endif
+  
+  If arr.Text = "0,10" Then
+    PvTTC.Text = Round(Val(PvTTC.Text), -1)
+    PvTTC.Text = Format$(PvTTC.Text, nbdec)
+  Endif
+  
+  If arr.Text = "0,50" Then
+    If Abs(Val(pvTTc.Text)) <= Abs(Val(Left$(pvTTc.Text, (Len(pvTTc.Text) - 2)) & 25)) Then
+      PvTTC.Text = Left$(PvTTC.Text, (Len(PvTTC.Text) - 2)) & "00"
+      PvTTC.Text = Format$(Val(PvTTC.Text), nbdec)
+    Else
+      If Abs(Val(pvTTc.Text)) <= Abs(Val(Left$(pvTTc.Text, (Len(pvTTc.Text) - 2)) & 75)) Then
+        PvTTC.Text = Left$(PvTTC.Text, (Len(PvTTC.Text) - 2)) & "50"
+        PvTTC.Text = Format$(Val(PvTTC.Text), nbdec)
+      Endif
+      If Abs(Val(pvTTc.Text)) >= Abs(Val(Left$(pvTTc.Text, (Len(pvTTc.Text) - 2)) & 76)) Then
+        PvTTC.Text = Round(Val(PvTTC.Text))
+        PvTTC.Text = Format$(Val(PvTTC.Text), nbdec)
+      Endif
+    Endif
+  Endif
+  
+  If arr.Text = "1,00" Then
+    PvTTC.Text = Round(Val(PvTTC.Text))
+    PvTTC.Text = Format$(PvTTC.Text, nbdec)
+  Endif
+  
+End
+
+Public Sub Arr_GotFocus()
+  
+  Arr.Background = &HAAFF7F&
+  
+End
+
+Public Sub Arr_LostFocus()
+  
+  Arr.Background = Color.TextBackground
+  Coeff()
+  
+End
+
+Public Sub Tvav_Calcul()
+  
+  With Utils
+    If PvTTc.Text <> "" Or Pvht.Text <> "" Then
+      PvTTc.Text = Format$(Val(Pvht.Text) + (Val(Pvht.Text) * Val(.cpoint(Txtva)) / 100), nbdec)
+    End If
+  End With
+Catch
+  
+End
+
+Public Sub Tvaac_Calcul()
+  
+  With Utils
+    If Paht.Text <> "" Or Paht.Text <> "" Then
+      Pattc = Format$(Val(Paht.Text) + (Val(Paht.Text) * Val(.cpoint(Txtva)) / 100), nbdec)
+    End If
+  End With
+Catch
+  
+End
+
+Public Sub ToggleButton2_Click()
+  
+  SelectionArt()
+  
+End
+
+'**************************************
+'*   On mouvemente le panel Colrcp    *
+'**************************************
+Public Sub Maj_colrcp()
+  
+  Dim rResult As Result
+  Dim qte, $dart As String
+  Dim Patot As String
+  
+  Tab = "Fiches_Art"
+  With utils
+    Dpa = paht.Text
+    Totalrcpt.Text = Format$(Val(Totalrcpt.Text) + (Val(paht.Text) * Val(qterecue.Text)), "0.00")
+    Tfrais.Text = Format$(Val(Tfrais.Text) + (Val(Frais.Text) * Val(qterecue.Text)), "0.00")
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", Cart.Text)
+    If rResult.Available Then
+      nbd = rResult!art_nbd
+      nbdec = Utils.Find_nbdec(nbd)
+      Ref_four = rResult!art_cfour
+      Ref_centrale = rResult!art_refcentrale
+      If Format$(Val(paht.Text), Nbdec) <> Format$(rResult!art_pauaht, Nbdec) Or If Format$(Val(pvht.Text), Nbdec) <> Format$(rResult!art_pvht, Nbdec) Or If Format$(Val(Frais.Text), Nbdec) <> Format$(rResult!art_frais, Nbdec) Then
+        If son Then
+          Music.Play
+        Endif
+        If Message.question("Le prix du produit a été modifié ! \n Voulez-vous mettre à jour la fiche article ?", "Oui", "Non") = 1 Then
+          Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabArt") & " WRITE")
+          'Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET  art_code = &1, art_pbht = &2 , art_tr = &3 , art_paht = &4 , art_coef = &5, art_pvht = &6, art_pvttc = &7 where art_code = &1", Cart.Text, Val(pbht.Text), Val(Tr.Text), Val(paht.Text), Val(Coef.Text), Val(Pvht.Text), Val(Pvttc.Text))
+          If Not IsNull(casier) Then 
+            $Dart = Right$(dart.Text, Len(Dart.Text) - Len(casier))
+          Else
+            $dart = Dart.Text
+          Endif
+          Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET  art_code = &1, art_pbht = &2 , art_tr = &3 , art_pauaht = &4 , art_coef = &5, art_pvht = &6, art_pvttc = &7, art_paht = &8, art_frais = &9, art_prvt = &{10}, art_cdarr = &{11}, art_design = &{12} where art_code = &1", Cart.Text, Val(pbht.Text), Val(Tr.Text), Val(paht.Text), Val(Coef.Text), Val(Pvht.Text), Val(Pvttc.Text), Val(Pauv.Text), Val(frais.Text), Val(prvt.Text), arr.text, $Dart)
+          Utils.db.Exec("UNLOCK TABLES")
+          Etiqa = True
+        Endif
+      Endif
+    Endif
+    If modif = "1" Then
+      Colrcp.MoveFirst
+      Repeat
+        Colrcp.Item.Selected = True
+        If Colrcp.Item[0] = NlgModif Then
+          Break
+        Endif
+      Until Colrcp.MoveNext()
+    Else
+      Nlgn = Format$(Colrcp.count + 1, "000")
+      If Nlg = 1 Then
+        If Refart.value = True Then
+          Colrcp.Add(Nlgn, Nlgn)
+        Else
+          If Reffour.Value = True Then
+            If Not IsNull(Ref_four) Then
+              Colrcp.Item[1] = Ref_four
+            Else
+              Colrcp.Item[1] = Cart.text
+            Endif
+          Else
+            If Refcentrale.value = True Then
+              If Not IsNull(Ref_centrale) Then
+                Colrcp.Item[1] = Ref_centrale
+              Else
+                Colrcp.Item[1] = Cart.text
+              Endif
+            Endif
+          Endif
+        Endif
+        Colrcp.Item[0] = Nlgn
+      Else
+        If Nlg = 0 Then
+          Colrcp.Add(Nl & "-", Nl & "-")
+          Colrcp.Item[0] = Nl
+        Endif
+      Endif
+    Endif
+    Nlg = 1
+    If Refart.value = True Then
+      Colrcp.Item[1] = Cart.text
+    Else
+      If Not IsNull(Refourn.text) Then
+        Colrcp.Item[1] = Refourn.text
+      Else
+        Colrcp.Item[1] = Cart.text
+      Endif
+    Endif
+    Colrcp.Item[2] = Dart.text
+    Colrcp.Item[3] = qtecomC
+    If IsNull(Colrcp.Item[3]) Then Colrcp.Item[3] = 0
+    If Len(pbht.text) - InStr(pbht.text, ",") = 2 Then
+      Colrcp.Item[4] = pbht.text & "  "
+    Else
+      Colrcp.Item[4] = pbht.text
+    Endif
+    Colrcp.Item[5] = Tr.text
+    If Len(paht.text) - InStr(paht.text, ",") = 2 Then
+      Colrcp.Item[6] = paht.text & "  "
+    Else
+      Colrcp.Item[6] = paht.text
+    Endif
+    Colrcp.Item[7] = qterecue.text
+    Colrcp.Item[8] = Totht.Text
+    Colrcp.Item[9] = Frais.Text
+    Colrcp.Item[10] = Prvt.Text
+    Colrcp.Item[12] = PvTTc.Text
+    Pattc.Text = Format$(Val(Totht.Text) + (Val(Totht.Text) * Val(.cpoint(Txtva)) / 100), nbdec)
+    If exo = False Then
+      Colrcp.Item[13] = Pattc.text
+    Else
+      Colrcp.Item[13] = Totht.Text
+    Endif
+    Colrcp.MoveFirst
+    Totalrcpt.Text = "0,00"
+    bas_doc()
+    Colrcp.MoveFirst
+    Do
+      Colrcp.Item.Selected = True
+      If Colrcp.Item[1] = Cart.text Or If Colrcp.Item[1] = Refourn.Text Then Break
+    Loop Until Colrcp.MoveNext()
+    Cart.SetFocus
+  Catch
+    Colrcp.MoveFirst
+    Totalrcpt.Text = "0,00"
+    Do
+      Colrcp.Item.Selected = True
+      If Colrcp.Item[1] = Cart.text Or If Colrcp.Item[1] = Refourn.Text Then
+        If son Then
+          Music.Play
+        Endif
+        Select Case Message.Question("Cet article a déjà été saisit ! Voulez-vous ? \n 1- Cumuler \n 2- Remplacer \n 3- Créer une nouvelle ligne", "1", "2", "3")
+          Case 1
+            qte = Format$(Val(Colrcp.Item[7]) + Val(qterecue.text), "0.000")
+            qte = .Cdec(Decm, qte)
+            Colrcp.Item[7] = qte
+            Colrcp.Item[8] = Format$(Val(paht.text) * Val(.cpoint(Colrcp.Item[7])), nbdec)
+            Break
+          Case 2
+            If Len(pbht.text) - InStr(pbht.text, ",") = 2 Then
+              Colrcp.Item[4] = pbht.text & "  "
+            Else
+              Colrcp.Item[4] = pbht.text
+            Endif
+            Colrcp.Item[5] = Tr.text
+            If Len(paht.text) - InStr(paht.text, ",") = 2 Then
+              Colrcp.Item[6] = paht.text & "  "
+            Else
+              Colrcp.Item[6] = paht.text
+            Endif
+            Colrcp.Item[7] = qterecue.text
+            If stocke Then
+              Utils.db.Exec("Update  " & tab & "  SET art_qte = &2, art_pmp = &3, art_dpa = &4, art_dfour = &5, art_coef = &6 WHERE art_code = &1", Cart.Text, Artstock.Text, Val(.cpoint(Pmp)), Val(.cpoint(paht.Text)), Codefour.Text, Coef.Text)
+            Endif
+            Colrcp.Item[8] = Format$(Val(paht.text) * Val(.cpoint(Colrcp.Item[7])), nbdec)
+            Break
+          Case 3
+            Try Colrcp.Add(Nlgn, Nlgn & "-")
+            If Error Then Colrcp.Add(Nlgn & "-", Nlgn & "-")
+            Colrcp.Item[0] = Nlgn
+            Colrcp.Item[1] = Cart.text
+            Colrcp.Item[2] = Dart.text
+            Colrcp.Item[3] = qtecom.text
+            If Len(pbht.text) - InStr(pbht.text, ",") = 2 Then
+              Colrcp.Item[4] = pbht.text & "  "
+            Else
+              Colrcp.Item[4] = pbht.text
+            Endif
+            Colrcp.Item[5] = Tr.text
+            If Len(paht.text) - InStr(paht.text, ",") = 2 Then
+              Colrcp.Item[6] = paht.text & "  "
+            Else
+              Colrcp.Item[6] = paht.text
+            Endif
+            Colrcp.Item[7] = qterecue.text
+            Patot = Format$(Val(paht.text) * Val(qterecue.text), nbdec)
+            If Len(Patot) - InStr(Patot, ",") = 2 Then
+              Colrcp.Item[8] = Patot & "  "
+            Else
+              Colrcp.Item[8] = Patot
+            Endif
+            Colrcp.Item[9] = Frais.Text
+            Colrcp.Item[10] = Prvt.Text
+            Colrcp.Item[12] = Pvttc.Text
+            Pattc.Text = Format$(Val(Totht.Text) + (Val(Totht.Text) * Val(.cpoint(Txtva)) / 100), nbdec)
+            If exo = False Then
+              Colrcp.Item[13] = Pattc.text
+            Else
+              Colrcp.Item[13] = Patot
+            Endif
+            Break
+        End Select
+      Else
+        If Left$(error.text, 16) = "Key already used" Then
+          Nlgn = Format$(Colrcp.count + 1, "000")
+          Try Colrcp.Add(Nlgn, Nlgn)
+          If Error Then Colrcp.Add(Nlgn & "-", Nlgn & "-")
+          Colrcp.Item[0] = Nlgn
+          Colrcp.Item[1] = Cart.text
+          Colrcp.Item[2] = Dart.text
+          Colrcp.Item[3] = qtecom.text
+          If Len(pbht.text) - InStr(pbht.text, ",") = 2 Then
+            Colrcp.Item[4] = pbht.text & "  "
+          Else
+            Colrcp.Item[4] = pbht.text
+          Endif
+          Colrcp.Item[5] = Tr.text
+          If Len(paht.text) - InStr(paht.text, ",") = 2 Then
+            Colrcp.Item[6] = paht.text & "  "
+          Else
+            Colrcp.Item[6] = paht.text
+          Endif
+          Colrcp.Item[7] = qterecue.text
+          Patot = Format$(Val(paht.text) * Val(qterecue.text), nbdec)
+          If Len(Patot) - InStr(Patot, ",") = 2 Then
+            Colrcp.Item[8] = Patot & "  "
+          Else
+            Colrcp.Item[8] = Patot
+          Endif
+          Colrcp.Item[9] = Frais.Text
+          Colrcp.Item[10] = Prvt.Text
+          Colrcp.Item[12] = Pvttc.Text
+          Pattc.Text = Format$(Val(Totht.Text) + (Val(Totht.Text) * Val(.cpoint(Txtva)) / 100), nbdec)
+          If exo = False Then
+            Colrcp.Item[13] = Pattc.text
+          Else
+            Colrcp.Item[13] = Patot
+          Endif
+        Endif
+      Endif
+    Loop Until Colrcp.MoveNext()
+    bas_doc()
+    Cart.SetFocus
+  End With
+  
+End
+
+'*******************************************
+'*       On calcule le bas de document     *
+'*******************************************
+Public Sub bas_doc()
+  
+  Totalrcpt.Text = "0,00"
+  Tfrais.Text = "0,00"
+  totalttc.text = "0,00"
+  Colrcp.MoveFirst
+  Do
+    Colrcp.Item.Selected = True
+    Totalrcpt.Text = Format$(Val(Totalrcpt.Text) + (Val(Colrcp.Item[6]) * Val(Colrcp.Item[7])), "0.00")
+    Tfrais.Text = Format$(Val(Tfrais.Text) + (Val(Colrcp.Item[9]) * Val(Colrcp.Item[7]) * Txconv), "0.00")
+    Try Totalttc.Text = Format$(Val(Totalttc.Text) + (Val(Colrcp.Item[13])), "0.00")
+  Loop Until Colrcp.MoveNext()
+  Nbligne.Text = Colrcp.count
+  modif = "0"
+  
+End
+
+'******************************************************
+'*       On rappelle un article pour modification     *
+'******************************************************
+Public Sub Colrcp_Activate()
+  
+  Dim Rligcom As Result
+  Dim qtec As Float
+  Dim Mtl As Integer = 0
+  
+  Tab = "Fiches_Art"
+  Tab2 = "Fiches_Tvaav"
+  Totalrcpt.Text = "0,00"
+  Tfrais.Text = "0,00"
+  With Utils
+    If key.Code <> "4100" And If key.code <> "4101" Then
+    Finally
+      If Not Colrcp.Available Then
+      Else
+        If Numbl.text Then
+          Nl = Colrcp.Current[0]
+          Nlg = 0
+          NlgModif = Colrcp.Current[0]
+          Cart.text = Colrcp.Current[1]
+          art_man()
+          If Materiel And Gmateriel Then
+            If Message.Question("Attention ! La ligne rappelée est un matériel ! \n les numéros de série devront être ressaisis.\n Voulez-vous continuer ?", "Oui", "Non") = 1 Then
+              Mtl = 0
+            Else
+              Mtl = 1
+            Endif
+          Endif
+          If b = 0
+            Dart.text = Colrcp.Current[2]
+            qtecom.text = Colrcp.Current[3]
+            Qtecomc = Colrcp.Current[3]
+            pbht.text = Colrcp.Current[4]
+            Tr.text = Colrcp.Current[5]
+            paht.text = Colrcp.Current[6]
+            qterecue.Text = Colrcp.Current[7]
+            Totht.Text = Colrcp.Item[8]
+            Frais.Text = Colrcp.Item[9]
+            Prvt.Text = Colrcp.Item[10]
+            Colrcp.Item[12] = 0
+            Totht.text = Format(Val(.cpoint(paht.text)) * Val(.cpoint(qterecue.text)), nbdec)
+            Tab = "Fiches_Art"
+            montantr = Tr.Text
+            If Settings["/Soc" & Start.Societe & "/Tmq"] Then
+              Calc_Percent()
+            Endif
+            Tab = "Fiches_Ligcom"
+            Rligcom = Utils.db.Exec("SELECT * FROM " & tab & " WHERE code = &1", Cart.Text)
+            If Rligcom.Available Then
+              Do
+                qtec = qtec + Val(.cpoint(Rligcom!qte))
+              Loop Until Rligcom.MoveNext()
+              qtecom.Text = qtec
+              qtecom.Text = .CDec(Decm, qtecom.Text)
+            Endif
+            pbhtLF()
+            Totht.text = Format(Val(paht.text) * Val(qterecue.text), nbdec)
+            Modif = "1"
+            Colrcp.MoveFirst
+            Do
+              Colrcp.Item.Selected = True
+              If Colrcp.Item[1] = Cart.text Then Break
+            Loop Until Colrcp.MoveNext()
+            Nbligne.Text = Colrcp.count
+            qterecue.SetFocus
+            qterecue.Select
+            qtes = 0
+          Endif
+        Else
+          message.warning("Veuillez saisir un numéro de Bl SVP!", "OK !")
+          Numbl.SetFocus
+          Numbl.Select
+        Endif
+      Endif
+    Endif
+  End With
+  
+End
+
+'**********************************************************
+'*     Rappel et Suppression  de ligne manuellement       *
+'**********************************************************
+Public Sub Colrcp_Keypress()
+  
+  Dim skey As String
+  
+  With Utils
+    If Key.code = Key.Delete And Colrcp.Count <> 0 Then
+      skey = Colrcp.Key
+      If son Then
+        Music.Play
+      Endif
+      If Message.Question("Etes-vous sur de vouloir supprimer cette ligne ?", "Oui", "Non") = 1 Then
+        Tab = "Fiches_Ligcom"
+        'Utils.db.Exec("delete from " & Tab & " WHERE code = &1 and numcom = &2 and four = &3 and nligne = &4", Colrcp.current[1], Numcom.Text, Codefour.Text, Colrcp.current[0])
+        Utils.db.Exec("delete from " & Tab & " WHERE lind = &1", Colrcp.current[11])
+        CleanChamps()
+        Colrcp.Current.Delete
+        Ren_ligbon()
+        'Tab = "Fiches_Ligcom" 
+        'Utils.db.Exec("DELETE FROM " & tab & " where numcom = &1", numcom.Text)
+        'Repeat
+        'Try Colrcp.Item.Selected = True
+        'Utils.db.Exec("UPdate  " & tab & "  SET nligne = &2 WHERE nligne = &1", Colrcp.Item[0], qtec)
+        'Try Utils.db.Exec("INSERT INTO " & Tab & "(code,design,numcom,four,pbht,rm,paht,qte,frais,prvt, datecom, nligne, coda, pattc) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14})", Colrcp.Item[1], Colrcp.Item[2], Numcom.Text, codefour.Text, Colrcp.Item[3], Colrcp.Item[4], Colrcp.Item[5], Colrcp.Item[6], Colrcp.Item[9], Colrcp.Item[8], .Cdate_Dbase(datej.Text), Colrcp.Item[0], Colrcp.Item[14], Colrcp.Item[16])
+        'Until Colrcp.Movenext()
+        Colrcp.Clear
+        RecupLig()
+      Endif
+      Stop Event
+    Endif
+    If Key.code = 48 And Colrcp.Count <> 0 Then
+      Colrcp.current[7] = 0
+      Colrcp.current[13] = 0
+      bas_doc()
+      CleanChamps()
+      skey = Colrcp.Key
+    Endif
+    Stop Event
+    'If Colrcp.count Then
+    'Colrcp.MoveFirst
+    'Totalrcpt.Text = "0,00"
+    'Tfrais.text = "0,00"
+    'Nlgn = Format$(0, "000")
+    'Do
+    'Colrcp.Item.Selected = True
+    'Nlgn = Format$(Val(Nlgn) + 1, "000")
+    'Colrcp.Item[0] = Nlgn
+    'Totalrcpt.Text = Format$(Val(Totalrcpt.Text) + (Val(Colrcp.Item[6]) * Val(Colrcp.Item[7])), "0.00")
+    'Tfrais.Text = Format$(Val(Tfrais.Text) + (Val(Colrcp.Current[9]) * Val(Colrcp.Current[6])), "0.00")
+    'Loop Until Colrcp.MoveNext()
+    'Else
+    'Totalrcpt.Text = "0,00"
+    'Tfrais.text = "0,00"
+    'Endif
+  End With
+  Nbligne.Text = Colrcp.count
+  Nlg = 1
+  CArt.SetFocus
+  Cart.Select
+  If Not IsNull(skey) Then
+    If Val(skey) > Colrcp.count Then
+      Colrcp.MoveLast()
+    Else
+      Colrcp.MoveFirst()
+      Try Colrcp.item.Selected = True
+      If Not Error Then
+        If Not Error Then
+          While Colrcp.Key <> skey And Val(Colrcp.Key) < Val(skey)
+            Try Colrcp.item.Selected = True
+            If Not Error Then Colrcp.MoveNext()
+          Wend
+        Else
+          Colrcp.MoveLast()
+          Try Colrcp.item.Selected = True
+        Endif
+        Try Colrcp.current.EnsureVisible
+      Endif
+    Endif
+  Endif
+  If key.code = key.F1 Then
+    Button4_Click()
+    Stop Event
+  Endif
+  
+End
+
+'**********************************************************
+'*    Renumerotation lignes Bon apres suppression          *
+'**********************************************************
+Public Sub Ren_ligbon()
+  
+  If Colrcp.Count <> 0 Then
+    Colrcp.MoveFirst
+    Nlgn = "0"
+    Repeat
+      Colrcp.item.Selected = True
+      Nlgn = Format$(Val(Nlgn) + 1, "000")
+      Colrcp.current[0] = Format$(Val(Nlgn), "000")
+    Until Colrcp.MoveNext()
+  Endif
+  
+End
+
+'************************************************
+'*    On enregistre le bl dans la table         *
+'************************************************
+Public Sub Enrgcoml()
+  
+  Dim rResult As Result
+  Dim ArtResult As Result
+  Dim Mtl As Integer = 0
+  Dim Ncode As String
+  
+  With Utils
+    Etiqb = False
+    Refart.value = True
+    If Gmateriel Then
+      Colrcp.MoveFirst
+      Repeat
+        Colrcp.Item.Selected = True
+        ArtResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", Colrcp.Item[1])
+        If Not ArtResult.Available Then ArtResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_cfour = &1 and art_four = &2", Colrcp.Item[1], codefour.text)
+        If ArtResult.Available Then
+          Ncode = Artresult!art_code
+          Materiel = ArtResult!art_mat
+          If materiel Then
+            Rmats = Utils.db.Exec("SELECT * FROM " & Tmats & " where mat_code = &1", Ncode)
+            If Not Rmats.Available Then
+              Ncode = Colrcp.Item[1]
+              Message.Warning("Attention, vous n'avez pas saisis les numéros de série pour l' article " & Ncode & " Validation impossible.")
+              Mtl = 1
+              Break
+            Endif
+          Endif
+        Endif
+      Until Colrcp.Movenext()
+    Endif
+    If Mtl = 0 Then
+      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntcom") & " where numcom = &1 and four = &2", numcom.Text, codefour.Text)
+      If rResult.Available Then
+        If totalrcpt.Text <> "0,00" Then
+          If datej.Text <> "" Or Left$(datej.Text, 2) = "00" Then
+            If numbl.Text <> "" Then
+              Totcom = Totcom - Val(totalrcpt.Text)
+              rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntrecpt") & " where numrecpt = &1 and four = &2", numbl.Text, codefour.Text)
+              If Not rResult.Available Then
+                If Colrcp.Count <> 0 Then
+                  Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabArt") & " WRITE, " & Cbase.Table("TabLigrecpt") & " WRITE, " & Cbase.Table("TabEtiqp") & " WRITE, " & Cbase.Table("TabEtiqg") & " WRITE, " & Cbase.Table("TabEntrecpt") & " WRITE, " & Cbase.Table("TabMat") & " WRITE, " & Tmats & " write ")
+                  Utils.db.Exec("INSERT INTO " & Cbase.Table("TabEntrecpt") & "(four,numrecpt,ddate,montant,validee, mttc, anomalie, commentaire) VALUES (&1, &2, &3, &4, &5, &6, &7, &8)", codefour.text, numbl.text, .Cdate_Dbase(datej.text), Val(Totalrcpt.text), False, Val(Totalttc.text), An.value, Comments.text)
+                  Colrcp.MoveFirst
+                  Repeat
+                    Colrcp.Item.Selected = True
+                    If Val(utils.cpoint(Colrcp.Item[7])) <> 0 Then
+                      Dpa = Colrcp.Item[6]
+                      ArtResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", Colrcp.Item[1])
+                      If Not ArtResult.Available Then ArtResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_cfour = &1 and art_four = &2", Colrcp.Item[1], Codefour.text)
+                      If Not ArtResult.Available Then ArtResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_cfour = &1", Colrcp.Item[1])
+                      If ArtResult.Available Then
+                        If ArtResult!art_stocke Then
+                          Aqte = ArtResult!art_qte
+                          Pmp = ArtResult!art_pmp
+                          Txconv = ArtResult!art_txconv
+                          Materiel = ArtResult!art_mat
+                          Maj_Qta()
+                          If ArtResult!art_etiq And Val(.cpoint(Colrcp.Item[7])) > 0 Then Maj_Etiqp()
+                          If Etiqa = True And Val(.cpoint(Colrcp.Item[7])) > 0 Then Maj_Etiqg()
+                          Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET art_qte = &2, art_pmp = &3, art_dpa = &4, art_dfour = &5, art_ddate = &6 WHERE art_code = &1", ArtResult!art_code, Arts, Val(.cpoint(Pmp)), Colrcp.Item[6], codefour.text, datej.text)
+                        Else
+                          Materiel = False
+                          Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET art_dpa = &2, art_dfour = &3, art_ddate = &4 WHERE art_code = &1", ArtResult!art_code, Colrcp.Item[6], codefour.text, datej.text)
+                        Endif
+                      Endif
+                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigrecpt") & "(code,design,numrecpt,four,daterecpt,qte,pbht,rm,paht,nligne, frais, prvt, pattc) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13})", Colrcp.Item[1], Colrcp.Item[2], numbl.Text, codefour.Text, .Cdate_Dbase(datej.Text), Colrcp.Item[7], Colrcp.Item[4], Colrcp.Item[5], Colrcp.Item[6], Colrcp.Item[0], Colrcp.Item[9], Colrcp.Item[10], Colrcp.Item[13])
+                      If Materiel And Gmateriel Then Enrgnum()
+                    Endif
+                  Until Colrcp.Movenext()
+                  Utils.db.Exec("UNLOCK TABLES")
+                Endif
+                Maj_Com()
+                b = 1
+              Else
+                If son Then
+                  Music.Play
+                Endif
+                message.Warning("Ce N° de Bl existe déjà, veuillez en saisir un autre SVP !", "Ok")
+                b = 1
+              Endif
+            Else
+              If son Then
+                Music.Play
+              Endif
+              message.Warning("Veuillez saisir un N° de Bl SVP !", "Ok")
+              b = 1
+            Endif
+          Else
+            If son Then Music.Play
+            message.Warning("Veuillez saisir une date SVP !", "Ok")
+            b = 2
+          Endif
+        Else
+          RazBl()
+        Endif
+        
+        If Etiqb = True Then
+          Syntheses.Message("Des étiquettes ont été préparées ! Voulez-vous les imprimer ?")
+          If Message.Warning("Des étiquettes ont été préparées ! Voulez-vous les imprimer ?", "Oui", "Non") = 1 Then
+            EtiqRecpt.Show
+          Endif
+        Endif
+      Else
+        If son Then Music.Play
+        message.Warning("Ce numero de commande n'existe pas ! Veuillez saisir une commande existante SVP  !", "Ok")
+        Numcom.SetFocus
+        Numcom.Select
+      Endif
+    Endif
+  End With
+  
+End
+
+'******************Gestion des numéros de série**********************************
+
+'*******************************************
+'*      On saisit les numéros de série     *
+'*******************************************
+Public Sub Num_serie()
+  
+  Dim qte As String
+  
+  Panel5.Visible = True
+  If Val(qterecue.Text) = 1 Then
+    Label2.Text = "Saisie du numéro de série"
+  Else
+    qte = Posnum.Pos(i)
+    Label2.Text = "Saisie du " & qte & " numéro de série"
+  Endif
+  numero.SetFocus
+  
+End
+
+'*******************************************
+'*        On enregistre le materiel        *
+'*******************************************
+Public Sub Button9_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Then Button9_Click()
+  
+End
+
+Public Sub del_serie()
+  
+  ' on efface les numéros de série saisis
+  rmats = Utils.db.Exec("SELECT * FROM " & Tmats & " where mat_code = &1", Cart.Text)
+  If rmats.count > 0 Then
+    Utils.db.Exec("delete from " & Tmats & " WHERE mat_code = &1", Cart.Text)
+  Endif
+  
+End
+
+'*************************************************************
+'*    On enregistre le materiel dans la table temporaire     *
+'*************************************************************
+Public Sub Button9_Click()
+  
+  If Not IsNull(numero.text) Then
+    rmats = Utils.db.Exec("SELECT * FROM " & Tmats & " where mat_code = &1 and mat_serie = &2", Cart.Text, numero.text)
+    If Not rmats.Available Then
+      rmat = Utils.db.Exec("SELECT * FROM " & Tmat & " where mat_code = &1 and mat_serie = &2", Cart.Text, numero.text)
+      If Not rmat.Available Then
+        Utils.db.Exec("INSERT INTO " & Tmats & "(mat_serie,mat_code,mat_design, mat_fam,mat_four,mat_cequ,mat_cbarre,mat_cfour,mat_paht,mat_dpa,mat_dfour,mat_ddate,mat_frais,mat_prvt,mat_eco,mat_cdarr,mat_nbd,mat_design2,mat_qte) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19})", Numero.text, Cart.text, Dart.Text, fam, codefour.text, Cequivalent, Cbarre, Cfournisseur, Val(Pauv.text), Val(Pauv.text), CodeFour.text, datej.text, Val(Frais.text), Val(Prvt.text), Val(Ect), Arr.Text, Nbd, Desg2, "1", Nbl.Text)
+        numero.Clear
+        Inc i
+        If i <= Val(qterecue.Text) Then
+          Num_serie()
+        Else
+          numero.Clear
+          i = 1
+          Panel5.Visible = False
+          CleanChamps()
+          Cart.SetFocus
+        Endif
+      Else
+        Message.Warning("Création impossible, ce materiel existe déjà !")
+        Numero.SetFocus
+        Numero.Select
+      Endif
+    Else
+      Message.Warning("Création impossible, vous avez déjà saisi ce numéro de série !")
+      Numero.SetFocus
+      Numero.Select
+    Endif
+  Else
+    Message.Warning("Veuillez saisir un numéro de série SVP !")
+    Numero.SetFocus
+    Numero.Select
+  Endif
+  
+End
+
+'*******************************************
+'*   On ferme la saisie du materiel        *
+'*******************************************
+Public Sub Button8_Click()
+  
+  If Message.Question("Attention ! Vous n'avez pas saisi l'ensemble des numéros de série. Voulez-vous quand même fermer ?", "Oui", "Non") = 1 Then
+    numero.Clear
+    i = 1
+    Panel5.Visible = False
+    CleanChamps()
+    Cart.SetFocus
+  Endif
+  
+End
+
+'************************************************************************
+'* On enregistre le materiel dans la table temporaire des materiels     *
+'************************************************************************
+Public Sub Enrgnum()
+  
+  rmats = Utils.db.Exec("SELECT * FROM " & Tmats & " where mat_code = &1", Colrcp.current[1])
+  If Not rmats.Available Then rmats = Utils.db.Exec("SELECT * FROM " & Tmats & " where mat_cfour = &1", Colrcp.current[1])
+  If rmats.Available Then
+    Repeat
+      rmat = Utils.db.Exec("SELECT * FROM " & Tmat & " where mat_code = &1 and mat_serie = &2", Cart.Text, numero.text)
+      If Not rmat.Available Then
+        Utils.db.Exec("INSERT INTO " & Tmat & "(mat_serie,mat_code,mat_design, mat_fam,mat_four,mat_cequ,mat_cbarre,mat_cfour,mat_paht,mat_dpa,mat_dfour,mat_ddate,mat_frais,mat_prvt,mat_eco,mat_cdarr,mat_nbd,mat_design2,mat_qte, mat_vendu, mat_rcpt) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21})", rmats!mat_serie, rmats!mat_code, rmats!mat_design, rmats!mat_fam, rmats!mat_four, rmats!mat_cequ, rmats!mat_cbarre, rmats!mat_cfour, rmats!mat_paht, rmats!mat_dpa, rmats!mat_dfour, rmats!mat_ddate, rmats!mat_frais, rmats!mat_prvt, rmats!mat_eco, rmats!mat_cdarr, rmats!mat_nbd, rmats!mat_design2, 1, 0, numbl.Text)
+      Endif
+    Until rmats.MoveNext()
+  Endif
+  
+End
+
+Public Sub Maj_Etiqp()
+  
+  Dim Tabp As String
+  Dim Qteetiq As Integer
+  Dim Etiqp As Result
+  
+  Tabp = "Fiches_EtiProd" 
+  Etiqp = Utils.db.Exec("SELECT * FROM " & Tabp & " where code = &1", Colrcp.Item[1])
+  If Etiqp.Available Then
+    Qteetiq = Etiqp!nombre + Val(Colrcp.Item[7])
+    Utils.db.Exec("UPdate  " & tabp & "  SET code = &1, nombre = &2 WHERE code = &1", Colrcp.Item[1], Qteetiq)
+  Else
+    Qteetiq = Val(Colrcp.Item[7])
+    Utils.db.Exec("INSERT INTO " & Tabp & "(code,nombre) VALUES (&1, &2)", Colrcp.Item[1], Qteetiq)
+  Endif
+  Etiqb = True
+  
+End
+
+Public Sub Maj_Etiqg()
+  
+  Dim Tabp As String
+  Dim Etiqg As Result
+  
+  Tabp = "Fiches_EtiGond"
+  Etiqg = Utils.db.Exec("SELECT * FROM " & Tabp & " where code = &1", Colrcp.Item[1])
+  If Etiqg.Available Then
+    Utils.db.Exec("UPdate  " & tabp & "  SET code = &1, nombre = &2 WHERE code = &1", Colrcp.Item[1], 1)
+  Else
+    Utils.db.Exec("INSERT INTO " & Tabp & "(code,nombre) VALUES (&1, &2)", Colrcp.Item[1], 1)
+  Endif
+  Etiqa = False
+  Etiqb = True
+  
+End
+
+'************************************************
+'*  On supprime les lignes réceptionnées        *
+'************************************************
+Public Sub Maj_Com()
+  
+  Dim qtec As String
+  Dim Entcm As String
+  
+  Tab = "Fiches_Ligcom"
+  Entcm = "Fiches_Entcom"
+  With utils
+    If Colrcp.Count <> 0 Then
+      Colrcp.MoveFirst
+      Repeat
+        Colrcp.Item.Selected = True
+        If Val(.cpoint(Colrcp.Item[3])) <= Val(.cpoint(Colrcp.Item[7])) Then
+          'Utils.db.Exec("delete from " & Tab & " WHERE numcom = &1 and four = &2 and code = &3 and nligne = &4 and lind = &5", numcom.Text, codefour.Text, Colrcp.Item[1], Colrcp.Item[0], Colrcp.Item[11])
+          Utils.db.Exec("delete from " & Tab & " WHERE lind = &1", Colrcp.Item[11])
+        Else
+          qtec = Val(.cpoint(Colrcp.Item[3])) - Val(.cpoint(Colrcp.Item[7]))
+          Tab = "Fiches_Art"
+          Utils.db.Exec("UPdate  " & tab & "  SET art_com = &2 WHERE art_code = &1", Colrcp.Item[1], qtec)
+          Tab = "Fiches_Ligcom"
+          Utils.db.Exec("UPdate  " & tab & "  SET qte = &2 WHERE lind = &1", Colrcp.Item[11], qtec)
+        Endif
+      Until Colrcp.MoveNext()
+    Endif
+    Utils.db.Exec("UPdate  " & Entcm & "  SET montant = &1, anomalie = &4, commentaire = &5 WHERE four = &2 and numcom = &3", Totcom, codefour.Text, numcom.text, An.value, Comments.Text)
+    RecupLig()
+    Delcom()
+    Recomp()
+    Enrgcom()
+  End With
+  
+End
+
+'***************************************
+'*     On renumerote les lignes        *
+'***************************************
+Public Sub Recomp()
+  
+  With Utils
+    If Colrcp.count Then
+      Colrcp.MoveFirst
+      Totalrcpt.Text = "0,00"
+      Nlgn = "000"
+      Do
+        Colrcp.Item.Selected = True
+        Nlgn = Format$(Val(Nlgn) + 1, "000")
+        Colrcp.Item[0] = Nlgn
+        Totalrcpt.Text = Format$(Val(Totalrcpt.Text) + (Val(.cpoint(Colrcp.Item[6])) * Val(.cpoint(Colrcp.Item[7]))), "0.00")
+      Loop Until Colrcp.MoveNext()
+    Else
+      Totalrcpt.Text = "0,00"
+    Endif
+  End With
+  
+End
+
+'**************************************
+'*     Suppression  de commande       *
+'**************************************
+Public Sub Delcom()
+  
+  With Utils
+    Tab = "Fiches_Ligcom"
+    Utils.db.Exec("delete  from " & Tab & " WHERE numcom = &1 and four = &2 and datecom = &3", Numcom.Text, codefour.Text, .Cdate_Dbase(datecom))
+    Tab = "Fiches_Entcom"
+    Utils.db.Exec("delete  from " & Tab & " WHERE numcom = &1 and four = &2", Numcom.Text, Codefour.Text)
+  End With
+  
+End
+
+'**********************************
+'*    On enregistre les reliquats *
+'**********************************
+Public Sub Enrgcom()
+  
+  Dim LigResult As Result
+  
+  Tab = "Fiches_Entcom"
+  With Utils
+    If Codefour.Text Then
+      If Colrcp.Count <> 0 Then
+        Utils.db.Exec("INSERT INTO " & Tab & "(four,numcom,ddate,montant, reliquat, anomalie, commentaire) VALUES (&1, &2, &3, &4, &5, &6, &7)", Codefour.text, Numcom.text, .Cdate_Dbase(datej.text), Val(Totalrcpt.text), 1, An.value, Comments.Text)
+        Tab = "Fiches_Ligcom"
+        Colrcp.MoveFirst
+        Repeat
+          Colrcp.Item.Selected = True
+          LigResult = Utils.db.Exec("select *  from " & Tab & " WHERE numcom = &1 and four = &2 and code = &3", Numcom.Text, codefour.Text, Colrcp.Item[1])
+          If LigResult.Available Then
+            If LigResult!qte = Colrcp.Item[7] Then
+              Utils.db.Exec("UPdate  " & tab & "  SET qte = &4 WHERE numcom = &1 and four = &2 and code = &3", Numcom.Text, codefour.Text, Colrcp.Item[1], Colrcp.Item[7])
+            Else
+              Utils.db.Exec("delete from " & Tab & " WHERE numcom = &1 and four = &2 and code = &3", numcom.Text, codefour.Text, Colrcp.Item[1])
+            Endif
+          Else
+            Utils.db.Exec("INSERT INTO " & Tab & "(code,design,numcom,four,pbht,rm,paht,qte,frais,prvt, datecom, nligne) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12})", Colrcp.Item[1], Colrcp.Item[2], Numcom.Text, Codefour.Text, Colrcp.Item[4], Colrcp.Item[5], Colrcp.Item[6], Colrcp.Item[7], Colrcp.Item[9], Colrcp.Item[10], .Cdate_Dbase(datej.Text), Colrcp.Item[0])
+          Endif
+        Until Colrcp.Movenext()
+      Endif
+      RazBl()
+      Colrcp.Clear
+      b = 0
+    Else
+      If son Then
+        Music.Play
+      Endif
+      Message.Warning("Veuillez saisir un code fournisseur SVP !")
+      b = 1
+      Stop Event
+    Endif
+  End With
+  
+End
+
+'************************************************
+'*     On appelle la liste des commandes        *
+'************************************************
+Public Sub ToggleButton4_Click()
+  
+  Dim ComResult As Result
+  Dim Tab1 As String
+  Dim NmF As Result
+  
+  Tab = "Fiches_Entcom"
+  Tab1 = "Fiches_Four"
+  With Utils
+    If fourlist.visible Then
+      fourlist.clear
+      fourlist.visible = False
+    Endif
+    If Colcom.visible Then
+      Colcom.clear
+      Colcom.visible = False
+    Else
+      Colcom.visible = True
+      Colcom.Columns.count = 6
+      Colcom.Columns[0].Width = 74
+      Colcom.Columns[1].Width = 260
+      Colcom.Columns[2].Width = 100
+      Colcom.Columns[3].Width = 100
+      Colcom.Columns[4].Width = 100
+      Colcom.Columns[0].Text = "Code"
+      Colcom.Columns[1].Text = "Nom"
+      Colcom.Columns[2].Text = "N° Com"
+      Colcom.Columns[3].Text = "Date"
+      Colcom.Columns[4].Alignment = 2
+      Colcom.Columns[4].Text = "Montant"
+      Colcom.Columns[5].Width = 20
+      Colcom.Columns[5].Text = "A"
+      Colcom.Columns[5].Alignment = 3
+      If Codefour.text Then
+        ComResult = Utils.db.Exec("SELECT * FROM " & Tab & " where four = &1", Codefour.Text)
+      Else
+        ComResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
+      Endif
+      If ComResult.Available Then
+        Do
+          Colcom.Add(ComResult!numcom & ComResult!four, ComResult!numcom & ComResult!four) 
+          Colcom.Item[0] = ComResult!four
+          NmF = Utils.db.Exec("SELECT * FROM " & Tab1 & " where fo_code = &1", ComResult!four)
+          Colcom.Item[1] = Nmf!fo_nom
+          Colcom.Item[2] = ComResult!numcom
+          Colcom.Item[3] = .Cdate_Com(ComResult!ddate)
+          Datecom = Colcom.Item[3]
+          Colcom.Item[4] = Format$(ComResult!montant, "0.00")
+          If ComResult!anomalie Then Colcom.Item[5] = "X"
+        Loop Until ComResult.MoveNext()
+        Colcom.MoveFirst
+        Colcom.SetFocus
+        Colcom.Item.Selected = True
+      Endif
+    Endif
+  End With
+  
+End
+
+'**************************************************
+'*     Selection d'une commande a la souris       *
+'**************************************************
+Public Sub Colcom_Click()
+  
+  Dim rResult As Result
+  Dim LigResult As Result
+  Dim ArtResult As Result
+  Dim EntResult As Result
+  Dim Tab3 As String
+  Dim Mat As Boolean = False
+  Dim Commentaire As String
+  
+  Tab = "Fiches_Four"
+  Tab2 = "Fiches_Art"
+  Tab3 = "Fiches_Entcom"
+  Totalrcpt.Text = "0,00"
+  Totalttc.Text = "0,00"
+  Tfrais.text = "0,00"
+  pttc = "0"
+  Nlgn = "0"
+  With Utils
+    If Colrcp.Count = 0 Then
+      rResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE fo_code = &1", Colcom.Item[0])
+      codefour.Text = rResult!fo_code
+      nomfour.Text = rResult!fo_nom
+      Tab = "Fiches_Ligcom"
+      LigResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE numcom = &1 and four = &2 order by nligne", Colcom.Item[2], codefour.Text)
+      If LigResult.Available Then
+        EntResult = Utils.db.Exec("SELECT * FROM " & tab3 & " WHERE numcom = &1 and four = &2", Colcom.Item[2], codefour.Text)
+        datej.Text = Format$(Now, "dd.mm.yyyy")
+        numcom.Text = LigResult!numcom
+        numbl.Text = ""
+        Try An.value = EntResult!anomalie
+        If Error Then An.value = False
+        Commentaire = EntResult!commentaire
+        Do
+          Nlgn = Format$(nlgn + 1, "000")
+          Try Colrcp.Add(nlgn, nlgn)
+          'If Error Then Try Colrcp.Add(LigResult!nligne, LigResult!nligne)
+          Colrcp.Item[0] = nlgn
+          'Utils.db.Exec("UPdate  " & tab & "  SET nligne = &4 WHERE numcom = &1 and four = &2 and nligne = &3 ", Colcom.Item[2], codefour.Text, LigResult!nligne, Nlgn)
+          Utils.db.Exec("UPdate  " & tab & "  SET nligne = &2 WHERE lind = &1", Colcom.Item[2], LigResult!lind)
+          ArtResult = Utils.db.Exec("SELECT * FROM " & tab2 & " WHERE art_code = &1", LigResult!code)
+          If ArtResult.Available Then
+            Colrcp.Item[1] = LigResult!code
+          Else
+            ArtResult = Utils.db.Exec("SELECT * FROM " & tab2 & " WHERE art_cfour = &1", LigResult!code)
+            Colrcp.Item[1] = ArtResult!art_cfour
+          Endif
+          If ArtResult.Available Then
+            Pmp = ArtResult!art_pmp
+            nbd = ArtResult!art_nbd
+            nbdec = Utils.Find_nbdec(nbd)
+            If Artresult!art_mat Then Mat = True
+          End If
+          Colrcp.Item[7] = LigResult!qte
+          Colrcp.Item[3] = Colrcp.Item[7]
+          If IsNull(ArtResult!art_casier) Then
+            Colrcp.Item[2] = LigResult!design
+          Else
+            Colrcp.Item[2] = ArtResult!art_casier & "- " & LigResult!design
+          Endif
+          If Len(LigResult!pbht) - InStr(LigResult!pbht, ",") = 2 Then
+            Colrcp.Item[4] = LigResult!pbht & "  "
+          Else
+            Colrcp.Item[4] = LigResult!pbht
+          Endif
+          Colrcp.Item[5] = LigResult!rm
+          If Len(LigResult!paht) - InStr(LigResult!paht, ",") = 2 Then
+            Colrcp.Item[6] = LigResult!paht & "  "
+          Else
+            Colrcp.Item[6] = LigResult!paht
+          Endif
+          Colrcp.Item[6] = Format(Val(Utils.cpoint(Colrcp.Item[6])), nbdec)
+          Colrcp.Item[8] = Format(Val(.cpoint(Colrcp.Item[6])) * Val(.cpoint(Colrcp.Item[7])), nbdec)
+          If Len(Colrcp.Item[8]) - InStr(Colrcp.Item[8], ",") = 2 Then Colrcp.Item[8] = Colrcp.Item[8] & "  "
+          Colrcp.Item[9] = LigResult!frais
+          If Len(LigResult!prvt) - InStr(LigResult!prvt, ",") = 2 Then
+            Colrcp.Item[10] = LigResult!prvt & " "
+          Else
+            Colrcp.Item[10] = LigResult!prvt
+          Endif
+          Colrcp.Item[11] = LigResult!lind
+          'Colrcp.Item[12] = Format$(Val(.cpoint(ArtResult!art_paht)) + (Val(.cpoint(ArtResult!art_paht)) * CPrix.CTva(ArtResult!art_tva) / 100), nbdec)
+          Colrcp.Item[12] = Format$(Val(.cpoint(LigResult!paht)) + (Val(.cpoint(LigResult!paht)) * CPrix.CTva(ArtResult!art_tva) / 100), nbdec)
+          Colrcp.Item[13] = LigResult!pattc
+          Totalrcpt.Text = Format$(Val(Totalrcpt.Text) + (Val(LigResult!paht) * Val(.cpoint(Colrcp.Item[7]))), "0.00")
+          Tfrais.Text = Format$(Val(Tfrais.Text) + (Val(.cpoint(Colrcp.Item[9])) * Val(.cpoint(Colrcp.Item[7])) * ArtResult!art_txconv), "0.00")
+          Totalttc.Text = Format$(Val(Totalttc.Text) + (Val(.cpoint(Colrcp.Item[12])) * Val(.cpoint(Colrcp.Item[7]))), "0.00")
+          Totcom = Val(Totalrcpt.Text)
+          Try Pttc = Format$(Val(.cpoint(Pttc)) + Val(.cpoint(Colrcp.Item[13])), "0.00")
+        Loop Until LigResult.MoveNext()
+        Nbligne.Text = Colrcp.count
+        Nlgn = Format$(Colrcp.count + 1, "000")
+        Nl = Nlgn
+        Nlg = 1
+      Endif
+      Colcom.clear
+      Colcom.visible = False
+      Coef.Clear
+      Tmq.Clear
+      If An.Value Then 
+        Comments.Visible = True
+        Comments.text = Commentaire
+      Endif
+      If mat = True Then Message.Warning("Attention ! Il y a un matériel dans cette réception ! Veillez a saisir les numéros de série avant de valider SVP")
+      Numbl.SetFocus
+      Numbl.Select
+    Else
+      If son Then
+        Music.Play
+      Endif
+      Message.Warning("Veuillez valider votre saisie en cours SVP !", "Ok")
+      Colcom.clear
+      Colcom.visible = False
+    Endif
+  End With
+  
+End
+
+'***************************************************
+'*     Selection d'une commande  manuellement      *
+'***************************************************
+Public Sub Colcom_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Colcom_Click()
+    Stop Event
+  Endif
+  
+  If key.code = key.F1 Then
+    Button4_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Colcom.visible = False
+    Colcom.clear
+    Stop Event
+  Endif
+  
+End
+
+'**************************************************
+'*     On affiche les lignes de commandes      *
+'**************************************************
+Public Sub RecupLig()
+  
+  Dim LigResult As Result
+  Dim ArtResult As Result
+  Dim Tab3 As String
+  
+  With Utils
+    Tab = "Fiches_Ligcom"
+    Tab2 = "Fiches_Art"
+    Tab3 = "Fiches_Entcom"
+    Colrcp.Clear
+    LigResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE numcom = &1 and four = &2", numcom.Text, codefour.Text)
+    If LigResult.Available Then
+      Do
+        ArtResult = Utils.db.Exec("SELECT * FROM " & tab2 & " WHERE art_code = &1", LigResult!code)
+        Colrcp.Add(LigResult!nligne, LigResult!nligne)
+        Colrcp.Item[0] = LigResult!nligne
+        Colrcp.Item[1] = LigResult!code
+        If ArtResult.Available Then
+          Pmp = ArtResult!art_pmp
+          nbd = ArtResult!art_nbd
+          nbdec = Utils.Find_nbdec(nbd)
+        End If
+        Colrcp.Item[7] = LigResult!qte
+        Colrcp.Item[3] = Colrcp.Item[7]
+        Colrcp.Item[2] = LigResult!design
+        If Len(LigResult!pbht) - InStr(LigResult!pbht, ",") = 2 Then
+          Colrcp.Item[4] = LigResult!pbht & "  "
+        Else
+          Colrcp.Item[4] = LigResult!pbht
+        Endif
+        Colrcp.Item[5] = LigResult!rm
+        If Len(LigResult!paht) - InStr(LigResult!paht, ",") = 2 Then
+          Colrcp.Item[6] = LigResult!paht & "  "
+        Else
+          Colrcp.Item[6] = LigResult!paht
+        Endif
+        Colrcp.Item[6] = Format(Val(Utils.cpoint(Colrcp.Item[6])), nbdec)
+        Colrcp.Item[8] = Format(Val(.cpoint(Colrcp.Item[6])) * Val(.cpoint(Colrcp.Item[7])), nbdec)
+        If Len(Colrcp.Item[8]) - InStr(Colrcp.Item[8], ",") = 2 Then Colrcp.Item[8] = Colrcp.Item[8] & "  "
+        Colrcp.Item[9] = LigResult!frais
+        Colrcp.Item[10] = LigResult!prvt
+        Colrcp.Item[11] = LigResult!lind
+        Colrcp.Item[12] = Format$(Val(.cpoint(LigResult!paht)) + (Val(.cpoint(LigResult!paht)) * CPrix.CTva(ArtResult!art_tva) / 100), nbdec)
+        Colrcp.Item[13] = LigResult!pattc
+      Loop Until LigResult.MoveNext()
+      bas_doc()
+    Endif
+  End With
+  
+End
+
+Public Sub Reaff_bl()
+  
+  Dim Reaff As Result
+  
+  Tab = "Fiches_Art"
+  If Colrcp.count Then
+    Colrcp.MoveFirst
+    Do
+      Colrcp.Item.Selected = True
+      If Refart.value = True Then
+        reaff = Utils.db.Exec("SELECT * FROM " & Tab & " where art_cfour = &1", Colrcp.Item[1])
+        Try Colrcp.Item[1] = reaff!art_code
+        If Error Then
+          reaff = Utils.db.Exec("SELECT * FROM " & Tab & " where art_refcentrale = &1", Colrcp.Item[1])
+          Try Colrcp.Item[1] = reaff!art_code
+        Endif
+      Else
+        If Reffour.value = True Then
+          reaff = Utils.db.Exec("SELECT * FROM " & Tab & " where art_code = &1", Colrcp.Item[1])
+          If Reaff.Available Then
+            If Not IsNull(reaff!art_cfour) Then
+              Colrcp.Item[1] = reaff!art_cfour
+            Else
+              Colrcp.Item[1] = reaff!art_code
+            Endif
+          Endif
+        Else
+          If Refcentrale.value = True Then
+            reaff = Utils.db.Exec("SELECT * FROM " & Tab & " where art_code = &1", Colrcp.Item[1])
+            If Reaff.Available Then
+              If Not IsNull(reaff!art_refcentrale) Then
+                Colrcp.Item[1] = reaff!art_refcentrale
+              Else
+                Colrcp.Item[1] = reaff!art_code
+              Endif
+            Endif
+          Endif
+        Endif
+      Endif
+    Loop Until Colrcp.MoveNext()
+  Endif
+  
+End
+
+Public Sub Refart_Click()
+  
+  Reaff_bl()
+  
+End
+
+Public Sub Reffour_Click()
+  
+  Reaff_bl()
+  
+End
+
+Public Sub Refcentrale_Click()
+  
+  Reaff_bl()
+  
+End
+
+Public Sub Button6_Click()
+  
+  If Colrcp.count = 0 Then
+    Panel4.Visible = True
+    Nbl.Text = Nblf
+  Else
+    Message.Warning("Veuillez enregistrer votre réception avant d'imprimer votre BR SVP !")
+  Endif
+  
+End
+
+Public Sub Button5_Click()
+  
+  Me.Mouse = Mouse.Wait
+  Edbr.Ed(Nbl.Text, codef, dater, coulfond, "")
+  Me.Mouse = Mouse.Pointing
+  
+End
+
+'************************************
+'* Affichage du columnview Colbl    *
+'************************************
+Public Sub ToggleButton3_Click()
+  
+  Tri = "four desc, ddate"
+  b = 0
+  Colbl.clear
+  If Colbl.visible Then
+    Colbl.visible = False
+  Else
+    Colbl.visible = True
+    Aff_Data
+  Endif
+  
+End
+
+Public Sub Aff_Data()
+  
+  Dim rResult As Result
+  Dim FoResult As Result
+  
+  Tab = "Fiches_Entrecpt"
+  Tab2 = "Fiches_Four"
+  Colbl.Columns.count = 4
+  Colbl.Columns[0].Width = 180
+  Colbl.Columns[1].Width = 65
+  Colbl.Columns[2].Width = 100
+  Colbl.Columns[3].Width = 100
+  With Utils
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by " & Tri & "")
+    If rResult.Available Then
+      Repeat
+        Colbl.Add(rResult!numrecpt & rResult!four, rResult!numrecpt & rResult!four)
+        Colbl.Item[1] = rResult!four
+        FoResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " where  fo_code = &1", rResult!four)
+        Colbl.Item[0] = FoResult!fo_nom
+        Colbl.Item[2] = rResult!numrecpt
+        Colbl.Item[3] = .Cdate_Com(rResult!ddate)
+      Until rResult.MoveNext()
+    Endif
+    If Colbl.Count Then
+      Colbl.MoveFirst
+      Colbl.SetFocus
+      Colbl.Item.Selected = True
+    Endif
+  End With
+  
+End
+
+'***********************************************************
+'* Gestion du columnview Colbl lors d'une saisie manuelle *
+'***********************************************************
+Public Sub Colbl_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Colbl.MoveCurrent
+    Nbl.Text = Colbl.Current[2]
+    codef = Colbl.Current[1]
+  Endif
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Nbl.SetFocus
+    Nbl.Select
+    Stop Event
+  Endif
+  Colbl.visible = False
+  Colbl.clear
+  
+End
+
+'****************************************************************
+'* Gestion du columnview Colbl lors d'une saisie avec la souris *
+'****************************************************************
+Public Sub Colbl_Click()
+  
+  Nbl.Text = Colbl.Current[2]
+  codef = Colbl.Current[1]
+  dater = Right$(Colbl.Current[3], 2) & Mid$(Colbl.Current[3], 5, 3) & "." & Left$(Colbl.Current[3], 4)
+  Colbl.visible = False
+  Colbl.clear
+  
+End
+
+'****************************************Gestion des articles**************************************************
+Public Sub SelectionArt()
+  
+  Dim sel As String = ""
+  Dim MyForm As TriArticles
+  Dim sFour As String = ""
+  Dim $centrale As String = ""
+  
+  Tab = "Fiches_Art"
+  sel = ""
+  Tri = "art_code"
+  Variables.Bsel = False
+  If Tartfourn2.Value = True Then sFour = Codefour.Text
+  If Not IsNull(sCentraleF) And If Tartfourn2.Value = True Then
+    sFour = sCentraleF
+    $centrale = "Centrale"
+  Endif
+  MyForm = New TriArticles("", "", Tri, "Receipta", sFour, $centrale)
+  MyForm.Showmodal()
+  If Variables.Bsel = True Then
+    Cart.text = Variables.ArtCode
+    Art_Man()
+    Qterecue.SetFocus
+    Qterecue.Select
+  Endif
+  
+End
+
+'*****************************************************
+'          Import des données  du portable           *
+'*****************************************************
+Public Sub Import_Portable()
+  
+  Dim x As Integer
+  Dim Code As String
+  Dim Codeb As String
+  Dim cle As String
+  Dim hfile As File
+  Dim cpt2 As Integer = 0
+  Dim Hnew As File
+  Dim filename As String
+  
+  cpt = 0
+  Tab2 = "Etiquettes"
+  Shell "cd " & User.Home & ""
+  filename = User.Home & "/ImpT.txt"
+  If Exist(filename) Then Try Kill filename
+  Hnew = Open filename For Write Create
+  Try HFil = Open User.Home & "/Portable/inventaire.txt" For Read Write
+  If Not Error Then
+    Print #Hnew, "Les références suivantes n'ont pas pu être importées car elles n'existent pas dans la table des produits."
+    
+    '****************************************On travaille avec le portable inventaire***************************************
+    Me.Mouse = Mouse.Wait
+    
+    '****************On met toutes les lignes du bon de commande à Zéro *********************
+    If Colrcp.count Then
+      Colrcp.MoveFirst
+      Do
+        Colrcp.Item.Selected = True
+        Colrcp.Item[7] = "0"
+      Loop Until Colrcp.MoveNext()
+    Endif
+    With utils
+      While Not Eof(hFil)
+        Line Input #hFil, Lig
+        If Not IsNull(Lig) Then
+          For x = 1 To 2
+            iPos = InStr(Lig, ";")
+            If iPos = 0 Then
+              cle = Lig
+            Else
+              cle = Left$(Lig, iPos - 1)
+              Lig = Mid$(Lig, iPos + 1)
+            Endif
+            Select Case x
+              Case 1
+                If Not IsNull(cle) Then
+                  Codeb = Trim(cle)
+                  Code = Utils.Find_cbarre(Codeb)
+                Else
+                  Print #Hnew, "Une saisie a été rejetée car elle ne possède pas de code barre."
+                  Inc cpt2
+                Endif
+                If IsNull(Code) Then
+                  Print #Hnew, "Une saisie a été rejetée car le code barre " & Codeb & " n'existe pas."
+                  Inc cpt2
+                Endif
+              Case 2
+                Nombre = Format$(Val(Utils.cpoint(cle)), "#.###")
+            End Select
+          Next
+          If Not IsNull(code) Then Maj_Ligcom(Code, Nombre)
+        Endif
+      Wend
+    End With
+    Me.Mouse = Mouse.Default
+    Panel4.Visible = False
+    Me.Raise
+    Try Close #Hnew
+    Try Close #HFil
+    Try Close #hfile
+    Music.Play
+    Message.Info("Importation terminée. " & Cpt & " réfèrences  ont été importées. ", "Ok")
+    If cpt2 <> 0 Then Editeur.Prog_Editeur(Filename)
+  Else
+    Message.Info("Problème d'import ! Vérifiez la présence du fichier inventaire.txt sous le repertoire " & "~/Portable !")
+  Endif
+Catch
+  Me.Mouse = Mouse.Default
+  Music.Play
+  message.Error(Error.Text & " " & Error.where)
+  
+End
+
+Public Sub Maj_Ligcom(code As String, nombre As String)
+  
+  Dim Refa As Result
+  
+  Tab = "Fiches_Art" 
+  
+  '**************** on fait la mise à jour ***************************
+  Refa = Utils.db.Exec("SELECT * FROM " & Tab & " where art_code = &1", Code)
+  If Refa.Available Then
+    If Reffour.value Then Code = Refa!art_cfour
+    If Refcentrale.value Then Code = Refa!art_centrale
+    Decm = Refa!art_dec
+    nombre = Utils.CDec(Decm, nombre)
+  Endif
+  If Colrcp.count Then
+    Colrcp.MoveFirst
+    Do
+      Colrcp.Item.Selected = True
+      If Colrcp.Item[1] = Code Then
+        Colrcp.Item[7] = Format$(Val(Utils.cpoint(nombre)), Dcem)
+        Inc cpt
+        Return
+      Endif
+    Loop Until Colrcp.MoveNext()
+  Endif
+  
+End
+
+'********************
+'* On lance la doc  *
+'********************
+
+Public Sub Button4_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Receipta.html"]
+  
+End
+
+Public Sub Button7_Click()
+  
+  Panel4.visible = False
+  
+End
+
+Public Sub An_Click()
+  
+  If an.Value Then
+    Comments.visible = True
+  Else
+    Comments.visible = False
+  Endif
+  
+End
+
+Public Sub Comments_DblClick()
+  
+  Utils.db.Exec("UPdate  " & Cbase.Table("TabEntcom") & "  SET commentaire = &1, anomalie = &2 WHERE four = &3 and numcom = &4", Comments.Text, An.Value, codefour.Text, numcom.text)
+  Comments.visible = False
+  
+End

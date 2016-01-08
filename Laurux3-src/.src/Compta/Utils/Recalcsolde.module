@@ -1,0 +1,57 @@
+' Gambas module file
+
+Private TotSldHP As Float
+Private TotDeb As Float
+Private TotCred As Float
+Private TotSld As Float
+Private debit As Float
+Private credit As Float
+
+'******************
+'*   On calcule   *
+'******************
+Public Function Calc()
+  
+  Dim i As Integer
+  Dim rResult As Result
+  Dim rrResult As Result
+  Dim Tab As String
+  Dim Tab2 As String
+  Dim Intit As String
+  Dim Compt As String
+  
+  totsldhp = 0.00
+  Tab = "Fiches_Mvt"
+  Tab2 = "Fiches_Comptes"
+  With Utils
+    rrResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " order by cast(compte_cc AS char)")
+    If rrResult.Available Then
+      Repeat
+        compt = rrResult!compte_cc
+        Intit = rrResult!intitule_cc
+        rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE compte = &1  and validee = &2  order by dte ", compt, 1)
+        If rResult.count <> 0 Then
+          i = 0
+          While i < rResult.count
+            debit = rResult!montantd
+            credit = rResult!montantc
+            totdeb = totdeb + debit
+            totcred = totcred + credit
+            totsld = totdeb - totcred
+            Inc i
+            rResult.MoveNext()
+          Wend
+          Utils.db.Exec("UPdate " & Tab2 & "  SET solde = &2 where compte_cc = &1", Compt, .PointBase(Totsld))
+        Else
+          totsld = 0
+          Utils.db.Exec("UPdate " & Tab2 & "  SET solde = &2 where compte_cc = &1", Compt, .PointBase(Totsld))
+        Endif
+        totdeb = 0
+        totcred = 0
+        totsld = 0
+      Until rrResult.MoveNext()
+    Else
+    Endif
+  End With
+  
+End

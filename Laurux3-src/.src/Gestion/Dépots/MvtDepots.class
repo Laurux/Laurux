@@ -1,0 +1,526 @@
+' Gambas class file
+
+Private Tri As String
+Public Codearticle As String
+Public Bsel As Boolean = False
+Public B As Boolean = False
+Private Decm As String
+Private Org As String
+
+Public Sub _new()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Me.Center
+  Coldep.Columns.count = 2
+  Coldep.Columns[0].Width = 60
+  Coldep.Columns[1].Width = 280
+  Coldep.Columns[0].Text = "Code"
+  Coldep.Columns[1].Text = "Libellé"
+  Coldepa.Columns.count = 3
+  Coldepa.Columns[0].Width = 140
+  Coldepa.Columns[1].Width = 280
+  Coldepa.Columns[2].Width = 60
+  Coldepa.Columns[2].Alignment = 2
+  Coldepa.Columns[0].Text = "Code"
+  Coldepa.Columns[1].Text = "Libellé"
+  Coldepa.Columns[2].Text = "Qté"
+  Colrcp.Columns.count = 3
+  Colrcp.Columns[0].Width = 180
+  Colrcp.Columns[1].Width = 440
+  Colrcp.Columns[2].Width = 100
+  Colrcp.Columns[2].Alignment = 2
+  Colrcp.Columns[0].Text = "Code"
+  Colrcp.Columns[1].Text = "Libellé"
+  Colrcp.Columns[2].Text = "Qté"
+  Datej.text = Format$(Now, "dd.mm.yyyy")
+  Code.SetFocus
+  
+End
+
+Public Sub Button1_Click()
+  
+  Me.Close
+  
+End
+
+'******************************************** Gestion du code dépot ***********************************************
+Public Sub ToggleButton2_Click()
+  
+  Org = "1"
+  If Coldep.visible Then
+    Coldep.Clear
+    Coldep.Visible = False
+  Else
+    Coldep.visible = True
+    aff_Depot()
+  Endif
+  
+End
+
+Public Sub ToggleButton3_Click()
+  
+  Org = "2"
+  If Coldep.visible Then
+    Coldep.Clear
+    Coldep.Visible = False
+  Else
+    Coldep.visible = True
+    aff_Depot()
+  Endif
+  
+End
+
+Public Sub aff_Depot()
+  
+  Dim CpResult As Result
+  
+  CpResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabDepots") & " order by code")
+  If CpResult.Available Then
+    Repeat
+      Coldep.Add(CpResult!code, CpResult!code)
+      Coldep.Item[0] = CpResult!code
+      Coldep.Item[1] = CpResult!libelle
+    Until CpResult.MoveNext()
+  Endif
+  Coldep.SetFocus
+  
+End
+
+Public Sub Coldep_Click()
+  
+  If Org = "1" Then
+    Code.Text = Coldep.Item[0]
+    Libelle.Text = Coldep.Item[1]
+    Coldep.clear
+    Coldep.visible = False
+    Code2.SetFocus
+  Else
+    If Coldep.Item[0] <> code.text Then
+      Code2.Text = Coldep.Item[0]
+      Libelle3.Text = Coldep.Item[1]
+      Coldep.clear
+      Coldep.visible = False
+      Cart.SetFocus
+    Else
+      If Start.son Then
+        Music.Play
+      Endif
+      Message.Warning("Le dépot d'arrivée ne peux pas être égal au dépôt de départ !")
+      Coldep.clear
+      Coldep.visible = False
+    Endif
+  Endif
+  
+End
+
+Public Sub Code_KeyPress()
+  
+  If Key.code = Key.F2 Then
+    ToggleButton2_Click()
+    Stop Event
+  Endif
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    Org = "1"
+    Cman(Org)
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Code2_KeyPress()
+  
+  If Key.code = Key.F2 Then
+    ToggleButton3_Click()
+    Stop Event
+  Endif
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    If code2.text <> code.text Then
+      Org = "2"
+      Cman(Org)
+    Else
+      If Start.son Then
+        Music.Play
+      Endif
+      Message.Warning("Le dépot d'arrivée ne peux pas être égal au dépôt de départ !")
+    Endif
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Code_GotFocus()
+  
+  Try Utils.ObsGotf(Code)
+  
+End
+
+Public Sub Code_LostFocus()
+  
+  Try Utils.ObsLstf(Code)
+  
+End
+
+Public Sub Cman(Orgn As String)
+  
+  Dim Rdep As Result
+  
+  Rdep = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabDepots") & " where code = &1", Code.Text)
+  If Rdep.count >= 1 Then
+    If Orgn = "1" Then
+      Libelle.Text = Rdep!libelle
+      Code2.SetFocus
+    Else
+      Libelle3.Text = Rdep!libelle
+      Cart.SetFocus
+    Endif
+  Endif
+  
+End
+
+'****************************************** Gestion du transfert Magasin vers dépots ******************************************
+
+Public Sub Button2_Click()
+  
+End
+
+'****************************************** Gestion produits ******************************************************************
+
+Public Sub ToggleButton1_Click()
+  
+  Dim $hres As Result
+  Dim Tab As String
+  Dim MyForm As TriArticles
+  
+  Tab = "Fiches_Art" 
+  Tri = "art_code"
+  If Not IsNull(code.text) Then
+    If Code.Text = "01" Then
+      MyForm = New TriArticles("True", "", Tri, "Depots", "", "")
+      MyForm.Showmodal()
+      If Bsel = True Then
+        Cart.text = Codearticle
+        Art_Man()
+        Qte.SetFocus
+        Qte.Select
+      Endif
+    Else
+      If Coldepa.Visible = True Then
+        Coldepa.Clear
+        Coldepa.visible = False
+      Else
+        Coldepa.Visible = True
+        $hres = Utils.db.Exec("SELECT * From " & Cbase.Table("TabArt") & " Left join " & Cbase.Table("TabStkDepots") & " on art_code = codea where coded = &1", Code.text)
+        If $hres.Available Then
+          Repeat
+            Coldepa.Add($hres!art_code, $hres!art_code)
+            Coldepa.Item[0] = $hres!art_code
+            Coldepa.Item[1] = $hres!art_design
+            Coldepa.Item[2] = $hres!qte
+          Until $hres.MoveNext()
+        Endif
+      Endif
+    Endif
+  Else
+    If Start.son Then
+      Music.Play
+    Endif
+    message.Warning("Veuillez saisir un code dépôt SVP ! ")
+  Endif
+  
+End
+
+Public Sub Coldepa_Click()
+  
+  Cart.Text = Coldepa.Item[0]
+  Coldepa.Clear
+  Coldepa.Visible = False
+  art_man()
+  
+End
+
+'***************************************************
+'* Saisie d'un code article manuellement en direct *
+'***************************************************
+Public Sub art_man()
+  
+  Dim rarts As Result
+  
+  With utils
+    If Code.Text = "01" Then
+      rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", Cart.Text)
+      If Not rarts.Available Then
+        rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_cfour = &1", Cart.Text)
+      Else
+        If Not rarts.Available Then
+          rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_cbarre = &1", Cart.Text)
+        Else
+          If Not rarts.Available Then
+            rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_refcentrale = &1", Cart.Text)
+          Endif
+        Endif
+      Endif
+      If rarts.Available Then
+        Cart.Text = rarts!art_code
+        Libelle2.Text = rarts!art_design
+        Decm = rarts!art_dec
+        b = False
+        Qte.Text = "1"
+        Qte.SetFocus
+        Qte.Select
+      Else
+        If Start.son Then
+          Music.Play
+        Endif
+        message.Warning(" Cette réfèrence n'existe pas ! ")
+        b = True
+      Endif
+    Else
+      rarts = db.Exec("SELECT " & Cbase.Table("TabArt") & ".* From " & Cbase.Table("TabArt") & " Left join " & Cbase.Table("TabStkDepots") & " on art_code = codea where codea = &1 and coded = &2", Cart.Text, Code.Text)
+      If rarts.Available Then
+        Libelle2.Text = rarts!art_design
+        Decm = rarts!art_dec
+        b = False
+        Qte.Text = "1"
+        Qte.SetFocus
+        Qte.Select
+      Else
+        If Start.son Then
+          Music.Play
+        Endif
+        message.Warning(" Cette réfèrence n'est pas dans ce dépot ! ")
+        b = True
+      Endif
+    Endif
+  End With
+  
+End
+
+Public Sub Dep_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Select Case Last.tag
+      Case 1
+        If Not IsNull(Cart.text) Then Art_Man()
+        
+      Case 2
+        If Not IsNull(Qte.Text) Then Button3.SetFocus
+    End Select
+  Endif
+  If Key.code = Key.f2 Then
+    If Coldepa.Visible = True Then
+      Coldepa.Clear
+      Coldepa.visible = False
+    Else
+      ToggleButton1_Click()
+    Endif
+  Endif
+  If Key.code = Key.Esc Then
+    If Coldepa.Visible = True Then
+      Coldepa.Clear
+      Coldepa.visible = False
+    Endif
+  Endif
+  
+End
+
+Public Sub button3_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then Button3_Click()
+  
+End
+
+Public Sub Button3_Click()
+  
+  If Not IsNull(Code.text) Then
+    Maj_Colrcp()
+    If b = True Then
+      If Code.text = "01" Or If Code2.text = "01" Then Maj_QteArt()
+      Maj_QteArr()
+      Maj_Qtedep()
+      Maj_Sdepots()
+    Endif
+    Cart.Clear
+    Libelle2.Clear
+    Qte.Clear
+    Cart.SetFocus
+  Else
+    If Start.son Then
+      Music.Play
+    Endif
+    message.Error("Veuillez saisir un code dépot SVP !")
+  Endif
+  
+End
+
+Public Sub Maj_Colrcp()
+  
+  Dim qted As String
+  
+  Colrcp.Add(Cart.text, Cart.text)
+  Colrcp.Item[0] = Cart.Text
+  Colrcp.Item[1] = Libelle2.Text
+  Colrcp.Item[2] = Utils.Cdec(Decm, Qte.text)
+  b = True
+Catch
+  Colrcp.MoveFirst
+  Do
+    Try Colrcp.Item.Selected = True
+    If Not Error
+      If Colrcp.Item[0] = Cart.text
+        If Start.son Then
+          Music.Play
+        Endif
+        Select Case Message.Question("Cet article a déjà été saisit ! Voulez-vous ? \n 1- Cumuler \n 2- Abandonner ", "1", "2")
+          Case 1
+            qted = Format$(Val(Colrcp.Item[2]) + Val(Utils.cpoint(Qte.text)), "0.000")
+            qted = Utils.Cdec(Decm, qted)
+            Colrcp.Item[2] = Utils.Cdec(Decm, Qted)
+            b = True
+            Break
+          Case 2
+            b = False
+        End Select
+      Endif
+    Endif
+  Loop Until Colrcp.MoveNext()
+  
+End
+
+'**********************************************
+'* Maj de la quantite en stock fiche produit  *
+'**********************************************
+Public Sub Maj_QteArt()
+  
+  Dim rResult As Result
+  Dim Qline As Float
+  Dim Qtec As Float
+  
+  Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabArt") & " WRITE")
+  With utils
+    rResult = Utils.db.Exec("select * from " & Cbase.Table("TabArt") & " where art_code = &1", Cart.Text)
+    If rResult.Available Then
+      Try Qtec = rResult!art_qte
+      If Error Then Qtec = 0
+      If rResult!art_stocke = True Then
+        Qline = Val(.cpoint(Qte.text))
+        If Code.text = "01" Then
+          Qtec = Qtec - Qline
+        Else
+          Qtec = Qtec + Qline
+        Endif
+        Utils.db.Exec("UPDATE  " & Cbase.Table("TabArt") & "  SET art_qte = &2 WHERE art_code = &1", Cart.text, Qtec)
+      Endif
+    Endif
+  End With
+  Utils.db.Exec("UNLOCK TABLES")
+  
+End
+
+'***********************************************
+'* Maj de la quantite en stock dépot de départ *
+'***********************************************
+Public Sub Maj_Qtedep()
+  
+  Dim rResult As Result
+  Dim Qline As Float
+  Dim Qtec As Float = 0
+  
+  Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabStkDepots") & " WRITE")
+  With utils
+    rResult = Utils.db.Exec("select * from " & Cbase.Table("TabStkDepots") & " where codea = &1 and coded = &2", Cart.Text, Code.text)
+    If rResult.Available Then
+      Try Qtec = rResult!qte
+      If Error Then Qtec = 0
+      Qline = Val(.cpoint(Qte.text))
+      Qtec = Qtec - Qline
+      'If qtec > 0 Then
+      Utils.db.Exec("UPDATE  " & Cbase.Table("TabStkDepots") & "  SET qte = &3 WHERE codea = &1 and coded = &2", Cart.text, code.text, Qtec)
+      'Else
+      Utils.db.Exec("DELETE FROM " & Cbase.Table("TabStkDepots") & "  WHERE codea = &1 and coded = &2", Cart.text, code.text, Qtec)
+      'Endif
+    Else
+      Qline = Val(.cpoint(Qte.text))
+      Qtec = Qtec - Qline
+      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabStkDepots") & "(codea,coded,qte) VALUES (&1, &2, &3)", Cart.text, code.text, Qtec)
+    Endif
+  End With
+  Utils.db.Exec("UNLOCK TABLES")
+  
+End
+
+'***********************************************
+'* Maj de la quantite en stock dépot d'arrivée *
+'***********************************************
+Public Sub Maj_Qtearr()
+  
+  Dim rResult As Result
+  Dim Qline As Float
+  Dim Qtec As Float
+  
+  Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabStkDepots") & " WRITE")
+  With utils
+    rResult = Utils.db.Exec("select * from " & Cbase.Table("TabStkDepots") & " where codea = &1 and coded = &2", Cart.Text, Code2.text)
+    If rResult.Available Then
+      Try Qtec = rResult!qte
+      If Error Then Qtec = 0
+      Qline = Val(.cpoint(Qte.text))
+      Qtec = Qtec + Qline
+      If qtec > 0 Then
+        Utils.db.Exec("UPDATE  " & Cbase.Table("TabStkDepots") & "  SET qte = &3 WHERE codea = &1 and coded = &2", Cart.text, code2.text, Qtec)
+      Else
+        Utils.db.Exec("DELETE FROM " & Cbase.Table("TabStkDepots") & "  WHERE codea = &1 and coded = &2", Cart.text, code2.text, Qtec)
+      Endif
+    Else
+      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabStkDepots") & "(codea,coded,qte) VALUES (&1, &2, &3)", Cart.text, code2.text, Val(.cpoint(Qte.text)))
+    Endif
+  End With
+  Utils.db.Exec("UNLOCK TABLES")
+  
+End
+
+'***********************
+'* Maj de l'historique *
+'***********************
+Public Sub Maj_Sdepots()
+  
+  Dim com As String
+  
+  Com = "Mvt du dépôt " & Code.Text & " vers dépôt " & code2.Text
+  Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabSdepots") & " WRITE")
+  Utils.db.Exec("INSERT INTO " & Cbase.Table("TabSdepots") & "(code, cart, date, type, qte, com) VALUES (&1, &2, &3, &4, &5, &6)", Code.text, Cart.text, Utils.Cdate_Dbase(datej.Text), "S", Val(Utils.cpoint(Qte.text)), com)
+  Utils.db.Exec("INSERT INTO " & Cbase.Table("TabSdepots") & "(code, cart, date, type, qte, com) VALUES (&1, &2, &3, &4, &5, &6)", Code2.text, Cart.text, Utils.Cdate_Dbase(datej.Text), "E", Val(Utils.cpoint(Qte.text)), com)
+  Utils.db.Exec("UNLOCK TABLES")
+  
+End
+
+' ****************************************** Gestion de la date  **************************************
+
+Public Sub DateChooser1_Activate()
+  
+  Datej.text = Format$(DateChooser1.Value, "dd.mm.yyyy")
+  DateChooser1.Visible = False
+  
+End
+
+Public Sub Datej_DblClick()
+  
+  If DateChooser1.visible = False Then
+    DateChooser1.Visible = True
+  Else
+    DateChooser1.Visible = False
+  Endif
+  
+End
+
+Public Sub Datej_keypress()
+  
+  If Key.code = Key.F2 Then
+    
+    If DateChooser1.visible = False Then
+      DateChooser1.Visible = True
+    Else
+      DateChooser1.Visible = False
+    Endif
+  Endif
+  
+End

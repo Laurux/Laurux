@@ -1,0 +1,1648 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Mo.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 27/01/2005
+'# Gestion de la table de la main d'oeuvre
+'################################################
+'
+
+Tri As String
+tab As String
+sel As String
+Motable[5] As String
+montante As Float
+B As Integer
+rResult As Result
+son As Integer = Start.Son
+Dne As String 'texte recherché par F2 ou clic sur bouton
+sKey As String
+Dbl As String
+CoulB As Integer ' Variable pour la couleur du background
+CoulF As Integer ' Variable pour la couleur du Foreground
+Fnt As String ' Variable pour la police
+CoulZns As Integer ' Variable pour la couleur du background des zones de saisie
+CoulZnaf As Integer ' Variable pour la couleur du background des columnviews
+Coulfc As Integer ' Variable pour la couleur du focus
+nv As Boolean = True
+ComboTest As Boolean = False
+Private hColMo As Boolean = False
+
+Public Sub _New()
+  
+  Dim rResult As Result
+  Dim Frmt As New String[]
+  
+  Frmt = Utils.FColr(Settings["/Coul/Znaff"])
+  CoulZnaf = Val(Frmt[0])
+  Frmt = Utils.FColr(Settings["/Coul/Znss"])
+  CoulZns = Val(Frmt[0])
+  Frmt = Utils.FColr(Settings["/Coul/Focus"])
+  Coulfc = Val(Frmt[0])
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  CO.Text = "Code Mo"
+  Inte.Text = "Designation"
+  FO.Text = "Fournisseur"
+  FA.Text = "Famille"
+  Arr.ReadOnly = True
+  TextLabel10.Text = Settings["/Soc" & Start.Societe & "/Taxe"]
+  
+End
+
+Public Sub Tabstrip1_click()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+End
+
+Public Sub Form_Open()
+  
+  Tab = "Fiches_Mo" 
+  Tri = "mo_code"
+  Tris()
+  Deb2()
+  code.SetFocus
+  code.Select
+  
+End
+
+Public Sub Colmo_Data(Row As Integer, Column As Integer)
+  
+  Dim Motemps As String
+  Dim Momontant As String
+  Dim Frmt As New String[]
+  
+  With Utils
+    Motemps = Settings["/Coul/Motps"]
+    If IsNull(Motemps) Then
+      If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then
+        Motemps = CoulZns
+      Else
+        Motemps = &HF9F9BD&
+      Endif
+    Endif
+    Momontant = Settings["/Coul/Momnt"]
+    If IsNull(Momontant) Then
+      If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then
+        Momontant = CoulZns
+      Else
+        Momontant = &HF9F9BD&
+      Endif
+    Endif
+    MoTable[0] = "mo_tempmont"
+    MoTable[1] = "mo_code"
+    MoTable[2] = "mo_four"
+    MoTable[3] = "mo_fam"
+    MoTable[4] = "mo_design"
+    Try .rs1.MoveTo(Row)
+    Try ColMo.data.Text = Str(.rs1[MoTable[Column]])
+    If Not Error Then
+      If column = 0 Then
+        If Val(Colmo.data.text) = 0 Then
+          Frmt = Utils.FColr(Motemps)
+          Try CoulB = Val(Frmt[0])
+          Try CoulF = Val(Frmt[2])
+          Try Fnt = Frmt[1]
+        Else
+          Frmt = Utils.FColr(Momontant)
+          Try CoulB = Val(Frmt[0])
+          Try CoulF = Val(Frmt[2])
+          Try Fnt = Frmt[1]
+        Endif
+      Endif
+      If Error Then
+        If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then
+          CoulB = Val("&HFAFAFA&")
+        Else
+          CoulB = Val("&HF9F9BD&")
+        Endif
+        CoulF = Val("&H000000&")
+        Fnt = "serif 10"
+      Endif
+      Colmo.Data.Background = CoulB
+      Colmo.Data.Foreground = CoulF
+      Colmo.Data.Font = Font[Fnt]
+    Endif
+  End With
+  
+End
+
+Public Sub Tris()
+  
+  Dim rResult As Result
+  
+  With ColMo
+    .Columns.count = 5
+    .Columns[0].Width = 1
+    .Columns[1].Width = CO.Width
+    .Columns[2].Width = FO.Width
+    .Columns[3].Width = FA.Width
+    .Columns[4].Width = Inte.Width 
+    
+  End With
+  
+End
+
+Public Sub Deb2()
+  
+  Utils.Base(ColMo, "select * from " & Cbase.Table("TabMo") & " where " & Tri & " like  \"" & sel & "%\" order by " & Tri & "")
+  ColMo.Refresh
+  
+End
+
+Public Sub Deb3()
+  
+  Utils.Base(ColMo, "select * from " & Cbase.Table("TabMo") & " where " & Tri & " like  \"" & sel & "%\" order by " & Tri & " Desc")
+  ColMo.Refresh
+  
+End
+
+Public Sub Maj_Zones()
+  
+  Dim rmo As Result
+  Dim Txmo As Result
+  
+  Tab = "Fiches_Mo" 
+  With Utils
+    code.Text = ColMo[ColMo.row, 1].Text
+    rmo = .db.Exec("select * from " & Cbase.Table("TabMo") & " where mo_code = &1", Code.Text)
+    four.Text = rmo!mo_four
+    Fam.Text = rmo!mo_fam
+    Desg.Text = rmo!mo_design
+    TxCmo.Text = rmo!mo_txcd
+    Try Txht.Text = Format$(rmo!mo_txht, "0.00")
+    Tva.Text = rmo!mo_tva
+    FamMan()
+    fourMan()
+    Tvaman()
+    If rmo!mo_tempmont = "1" Then
+      Temps.Value = True
+      Valeur.Text = Format$(rmo!mo_montant, "0.00")
+    Else
+      montant.Value = True
+      Valeur2.Text = Format$(rmo!mo_valeurht, "0.00")
+      Arr.Text = rmo!mo_cdarr
+      If Not Arr.Text Then Arr.Text = "0,01"
+      Valeur2TTC.Text = Format$(rmo!mo_valeurttc, "0.00")
+    Endif
+    Try Prvt.Text = Format$(rmo!mo_prvt, "0.00")
+    Crst.Text = rmo!mo_crst
+    ImpCar.Value = rmo!mo_impcar
+    Calc_MargeMo()
+  End With
+Catch
+  
+End
+
+Public Sub Refresh()
+  
+  form_Open()
+  
+End
+
+Public Sub CleanChamps()
+  
+  ComboTest = False
+  code.Clear
+  Desg.Clear
+  four.Clear
+  fournom.Clear
+  Fam.Clear
+  Tva.Clear
+  Txht.Clear
+  TxCmo.Clear
+  Txtva.Text = ""
+  Temps.Value = True
+  Valeur.Clear
+  Valeur2.Clear
+  Valeur2TTC.Clear
+  Arr.List = ["0,01", "0,05", "0,10", "0,50", "1,00"]
+  Arr.Text = "0,01"
+  Temps_click()
+  Valeur2.Background = &HD4D0C8&
+  Valeur2TTC.Background = &HD4D0C8&
+  nv = True
+  ComboTest = True
+  Prvt.Text = "0,00"
+  MargeMo.Text = "0,00"
+  Crst.Clear
+  Impcar.value = False
+  
+End
+
+Public Sub Colmo_Click()
+  
+  CleanChamps()
+  Maj_Zones()
+  CO.Text = "Code Mo"
+  Inte.Text = "Designation"
+  FO.Text = "Fournisseur"
+  FA.Text = "Famille"
+  code.SetFocus
+  code.Select
+  nv = False
+  If hColmo Then
+    Colmo.Height = Me.Window.Height / 2.7
+    hColmo = False
+  Endif
+  
+End
+
+Public Sub Colmo_KeyPress()
+  
+  If Key.code = key.Esc Or Key.code = key.f2 Then
+    RdimColmo()
+    Stop Event
+  Endif
+  
+End
+
+Public Sub RdimColmo()
+  
+  If Not hColmo Then
+    Colmo.Height = Me.Window.Height / 1.08
+    hColmo = True
+    Deb2()
+  Else
+    Colmo.Height = Me.Window.Height / 2.7
+    hColmo = False
+  Endif
+  
+End
+
+Public Sub Cmpt_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    
+    Select Case Last.tag
+      Case 1
+        If nv = False Then code_LF()
+        If B = 1 Then
+          code.SetFocus
+          code.Select
+          Stop Event
+        Else
+          Desg.SetFocus
+          Desg.Select
+        Endif
+        Stop Event
+        
+      Case 2
+        Desg.Text = Utils.Remplace(Desg.Text)
+        Fam.SetFocus
+        Fam.Select
+        Stop Event
+        
+      Case 3
+        Famman()
+        If b = 1 Then
+          Fam.SetFocus
+          Fam.Select
+          Stop Event
+        Else
+          b = 0
+          four.SetFocus
+          four.Select
+        Endif
+        Stop Event
+        
+      Case 4
+        fourman()
+        If b = 1 Then
+          four.SetFocus
+          four.Select
+          Stop Event
+        Else
+          b = 0
+          TxCmo.SetFocus
+          TxCmo.Select
+        Endif
+        Stop Event
+        
+      Case 5
+        Txmoman()
+        If b = 1 Then
+          TxCmo.SetFocus
+          TxCmo.Select
+          Stop Event
+        Else
+          b = 0
+          Prvt.SetFocus
+          Prvt.Select
+        Endif
+        Stop Event
+        
+      Case 6
+        Prvt_LF()
+        If b = 1 Then
+          Prvt.SetFocus
+          Prvt.Select
+          Stop Event
+        Else
+          b = 0
+          If Temps.Value = True Then
+            Valeur.SetFocus
+            Valeur.Select
+          Else
+            Valeur2.SetFocus
+            Valeur2.Select
+          Endif
+        Endif
+        Stop Event
+        
+      Case 7
+        Valeur_LF()
+        If b = 1 Then
+          Valeur.SetFocus
+          Valeur.Select
+        Else
+          Valeur2.SetFocus
+          Valeur2.Select
+        Endif
+        Stop Event
+        
+      Case 8
+        Valeur2_LF()
+        If b = 1 Then
+          Valeur2.SetFocus
+          Valeur2.Select
+        Else
+          Valeur2TTC.SetFocus
+          Valeur2TTC.Select
+        Endif
+        Stop Event
+        
+      Case 9
+        Valeur2TTC_LostFocus()
+        If b = 1 Then
+          Valeur2TTC.SetFocus
+          Valeur2TTC.Select
+        Else
+          code.SetFocus
+          code.Select
+        Endif
+        Stop Event
+    End Select
+  Endif
+  
+  If key.code = key.F1 Then
+    Button7_Click()
+    Stop Event
+  Endif
+  
+  If key.code = key.F2 Then
+    Select Case Last.tag
+      Case 3
+        Dne = Fam.Text
+        ToggleButton3_Click()
+        Stop Event
+        
+      Case 4
+        Dne = four.Text
+        ToggleButton1_Click()
+        Stop Event
+        
+      Case 5
+        Dne = TxCmo.Text
+        ToggleButton5_Click()
+        Stop Event
+        
+    End Select
+  Endif
+  If Key.code = Key.F2 Then
+    Select Case Last.tag
+      Case 1
+        If Key.code = key.Esc Or Key.code = key.f2 Then
+          RdimColmo()
+          Stop Event
+        Endif
+      Case 2
+        If Key.code = key.Esc Or Key.code = key.f2 Then
+          RdimColmo()
+          Stop Event
+        Endif
+    End Select
+  Endif
+  
+End
+
+Public Sub Cmpt_Click()
+  
+  If ComboTest Then
+    Select Case Last.tag
+        
+      Case 8
+        arrondi()
+        Valeur2TTC_LostFocus()
+        Stop Event
+    End Select
+  Endif
+  ComboTest = True
+  
+End
+
+'*****************************
+'*      Gestion du focus.    *
+'*****************************
+Public Sub Cmpt_GotFocus()
+  
+  Try Utils.ObsGotf(Last)
+  If Temps.Value Then
+    Valeur2.Background = &HD4D0C8&
+    Valeur2TTC.Background = &HD4D0C8&
+  Else
+    Valeur.Background = &HD4D0C8&
+  Endif
+  
+End
+
+Public Sub Btn_keyPress()
+  
+  If key.code = key.enter Or key.code = key.return Then
+    Select Case Last.tag
+      Case 3
+        Button4_Click()
+        code.SetFocus
+        code.Select
+        Stop Event
+    End Select
+  Endif
+  
+  If key.code = key.F1 Then
+    Button7_Click()
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+    Case 1
+      Button7_Click()
+      
+    Case 2
+      Button3_Click()
+      
+    Case 3
+      Button4_Click()
+      
+    Case 4
+      Me.Close
+      
+  End Select
+  
+End
+
+Public Sub Cmpt_Lostfocus()
+  
+  Try Utils.ObsLstf(Last)
+  Select Case Last.tag
+    Case 1
+      If Not IsNull(code.text) Then
+        'IF nv = FALSE THEN
+        code_LF()
+        If B = 1 Then
+          code.SetFocus
+          code.Select
+        Endif
+        'ELSE
+        ' Message.Warning("Veuillez saisir un code MO SVP !")
+        ' code.SetFocus
+        ' code.Select
+        'ENDIF
+      Endif
+      Stop Event
+      
+    Case 2
+      Desg.Text = Utils.Remplace(Desg.Text)
+      Stop Event
+      
+    Case 3
+      If nv = True And IsNull(Fam.text) Then
+      Else
+        If Not IsNull(Fam.text) Then
+          Famman()
+          If b = 1 Then
+            Fam.SetFocus
+            Fam.Select
+            Stop Event
+          Endif
+        Endif
+      Endif
+      Stop Event
+      
+    Case 4
+      If nv = True And IsNull(Four.Text) Then
+      Else
+        If Not IsNull(Four.text) Then
+          Fourman()
+          If b = 1 Then
+            four.SetFocus
+            four.Select
+            Stop Event
+          Endif
+        Endif
+      Endif
+      Stop Event
+      
+    Case 5
+      If nv = True And IsNull(Txcmo.Text) Then
+      Else
+        Txmoman()
+        If b = 1 Then
+          TxCmo.SetFocus
+          TxCmo.Select
+        Endif
+      Endif
+      Stop Event
+      
+    Case 6
+      Prvt_LF()
+      If b = 1 Then
+        Prvt.SetFocus
+        Prvt.Select
+      Endif
+      
+      Stop Event
+      
+    Case 7
+      Valeur_LF()
+      If b = 1 Then
+        Valeur.SetFocus
+        Valeur.Select
+      Endif
+      
+      Stop Event
+      
+    Case 8
+      Valeur2_LF()
+      If b = 1 Then
+        Valeur2.SetFocus
+        Valeur2.Select
+      Endif
+      Stop Event
+      
+    Case 9
+      Valeur2TTC_LostFocus()
+      If b = 1 Then
+        Valeur2TTC.SetFocus
+        Valeur2TTC.Select
+      Endif
+      Stop Event
+      
+    Case 10
+      arrondi()
+      Valeur2TTC_LostFocus()
+      Stop Event
+  End Select
+  
+End
+
+Public Sub code_LF()
+  
+  If code.Text <> "" Then
+    mo_Man()
+  Else
+    b = 1
+  Endif
+  
+End
+
+Public Sub Co_GotFocus()
+  
+  Try Utils.ObsGotf(Co)
+  Co_Click()
+  
+End
+
+Public Sub Co_LostFocus()
+  
+  Try Utils.ObsLstf(CO)
+  
+End
+
+Public Sub Inte_GotFocus()
+  
+  Try Utils.ObsGotf(inte)
+  Inte_Click()
+  
+End
+
+Public Sub Inte_LostFocus()
+  
+  Try Utils.ObsLstf(Inte)
+  
+End
+
+Public Sub fo_GotFocus()
+  
+  Try Utils.ObsGotf(fo)
+  fo_Click()
+  
+End
+
+Public Sub fo_LostFocus()
+  
+  Try Utils.ObsLstf(Fo)
+  
+End
+
+Public Sub Fa_GotFocus()
+  
+  Try Utils.ObsGotf(fa)
+  Fa_Click()
+  
+End
+
+Public Sub Fa_LostFocus()
+  
+  Try Utils.ObsLstf(Fa)
+  
+End
+
+Public Sub Dbclk()
+  
+  If Not Dbl Then
+    Deb3()
+    Dbl = "1"
+  Else
+    Deb2()
+    Dbl = ""
+  Endif
+  
+End
+
+Public Sub Co_Click()
+  
+  Dim mo_code As String
+  
+  sel = ""
+  Dbl = ""
+  ref()
+  Co.Text = ""
+  Inte.Text = "Designation"
+  Fo.Text = "Fournisseur"
+  Fa.Text = "Famille"
+  Tri = "mo_code"
+  Deb2()
+  
+End
+
+Public Sub Co_Dblclick()
+  
+  Dim mo_code As String
+  
+  sel = ""
+  ref()
+  Co.Text = ""
+  Inte.Text = "Designation"
+  Fo.Text = "Fournisseur"
+  Fa.Text = "Famille"
+  Tri = "mo_code"
+  Dbclk()
+  
+End
+
+Public Sub Co_KeyPress()
+  
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    Deb2()
+  Endif
+  
+End
+
+Public Sub Inte_Click()
+  
+  Dim mo_design As String
+  
+  sel = ""
+  Dbl = ""
+  ref()
+  Co.Text = "Code Mo"
+  Inte.Text = ""
+  Fo.Text = "Fournisseur"
+  Fa.Text = "Famille"
+  Tri = "mo_design"
+  Deb2()
+  
+End
+
+Public Sub Inte_Dblclick()
+  
+  Dim mo_design As String
+  
+  sel = ""
+  ref()
+  Co.Text = "Code Mo"
+  Inte.Text = ""
+  Fo.Text = "Fournisseur"
+  Fa.Text = "Famille"
+  Tri = "mo_design"
+  Dbclk()
+  
+End
+
+Public Sub Inte_KeyPress()
+  
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    Deb2()
+  Endif
+Catch
+  
+End
+
+Public Sub Fo_Click()
+  
+  Dim mo_four As String
+  
+  sel = ""
+  Dbl = ""
+  ref()
+  Co.Text = "Code Mo"
+  Inte.Text = "Designation"
+  Fo.Text = ""
+  Fa.Text = "Famille"
+  Tri = "mo_four"
+  Deb2()
+  
+End
+
+Public Sub Fo_Dblclick()
+  
+  Dim mo_four As String
+  
+  sel = ""
+  ref()
+  Co.Text = "Code Mo"
+  Inte.Text = "Designation"
+  Fo.Text = ""
+  Fa.Text = "Famille"
+  Tri = "mo_four"
+  Dbclk()
+  
+End
+
+Public Sub fo_KeyPress()
+  
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    Deb2()
+  Endif
+Catch
+  
+End
+
+Public Sub Fa_Click()
+  
+  Dim mo_fam As String
+  
+  sel = ""
+  Dbl = ""
+  ref()
+  Co.Text = "Code Mo"
+  Inte.Text = "Designation"
+  Fo.Text = "Fournisseur"
+  Fa.Text = ""
+  Tri = "mo_fam"
+  Deb2()
+  
+End
+
+Public Sub Fa_Dblclick()
+  
+  Dim mo_fam As String
+  
+  sel = ""
+  ref()
+  Co.Text = "Code Mo"
+  Inte.Text = "Designation"
+  Fo.Text = "Fournisseur"
+  Fa.Text = ""
+  Tri = "mo_fam"
+  Dbclk()
+  
+End
+
+Public Sub Fa_KeyPress()
+  
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    Deb2()
+  Endif
+Catch
+  
+End
+
+Public Sub Ref()
+  
+  Tab = "Fiches_Mo" 
+  Tri = "mo_code"
+  CleanChamps()
+  Tris()
+  'Deb2()
+  
+End
+
+'**************************************************
+'* Selection d'un fournisseur a la souris         *
+'**************************************************
+Public Sub ToggleButton1_Click()
+  
+  Dim rfour As Result
+  Dim Tab As String
+  
+  Tab = "Fiches_Four" 
+  If fourlist.visible Then
+    fourlist.clear
+    fourlist.visible = False
+  Else
+    fourlist.visible = True
+    fourlist.Columns.count = 2
+    fourlist.Columns[0].Width = 65
+    fourlist.Columns[1].Width = 180
+    fourlist.Columns[0].Text = "code"
+    fourlist.Columns[1].Text = "designation"
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
+    If Not Dne Then
+      Rfour = Utils.db.Exec("SELECT * FROM " & Tab & " ")
+    Else
+      Rfour = Utils.db.Exec("SELECT * FROM " & Tab & " where left(fo_code,'" & Len(four.Text) & "') = '" & four.Text & "'")
+    Endif
+    If rfour.Available Then
+      Repeat
+        fourlist.Add(rfour!fo_code, rfour!fo_code)
+        fourlist.Item[0] = rfour!fo_code
+        fourlist.Item[1] = rfour!fo_nom
+      Until rfour.MoveNext()
+      fourList.MoveFirst
+      fourList.SetFocus
+      fourList.Item.Selected = True
+    Endif
+  Endif
+  
+End
+
+Public Sub fourList_Click()
+  
+  four.text = fourList.Item[0]
+  fournom.text = fourList.Item[1]
+  fourList.clear
+  fourList.visible = False
+  b = 0
+  Valeur.SetFocus
+  Valeur.Select
+  
+End
+
+'***************************************************
+'* Selection d'un fournisseur manuellement         *
+'***************************************************
+Public Sub fourList_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    fourList.MoveCurrent
+    fourList.Item.Selected = True
+    four.text = fourList.Item[0]
+    fournom.text = fourList.Item[1]
+    fourList.visible = False
+    fourList.clear
+    Txcmo.Select
+    Txcmo.SetFocus
+    Stop Event
+  Endif
+  
+  If key.code = key.F1 Then
+    Button7_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    fourList.visible = False
+    fourList.clear
+    four.Select
+    four.SetFocus
+    Stop Event
+  Endif
+  
+End
+
+'***************************************************
+'* Saisie d'une main d'oeuvre manuellement         *
+'***************************************************
+Public Sub mo_man()
+  
+  Dim rResult As Result
+  
+  Tab = "Fiches_Mo" 
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where mo_code = &1", code.Text)
+  If rResult.Available Then
+    With utils
+      code.Text = rResult!mo_code
+      Desg.text = rResult!mo_design
+      Fam.Text = rResult!mo_fam
+      four.Text = rResult!mo_four
+      TxCmo.Text = rResult!mo_txcd
+      Try Txht.Text = Format$(rResult!mo_txht, "0.00")
+      If Error Then 
+        Try message.Error("Veuillez vérifier le taux horaire SVP !")
+        Return
+      Endif
+      ' Tva.Text = rResult!mo_tva
+      If rResult!mo_tempmont <> 0 Then Temps.Value = True
+      If Temps.Value = True Then
+        Try Valeur.Text = Format$(rResult!mo_montant, "0.00")
+        If Error Then 
+          Try message.Error("Veuillez vérifier le temps SVP !")
+          Return
+        Endif
+      Endif
+      FamMan()
+      fourMan()
+    End With
+  Endif
+  
+End
+
+'*****************************************
+'* Saisie d'une Tva manuellement         *
+'*****************************************
+Public Sub TvaMan()
+  
+  Dim Selection As Result
+  
+  Tab = "Fiches_Tvaav" 
+  With utils
+    selection = Utils.db.Exec("SELECT * FROM " & tab & " WHERE code_tva = &1", Tva.Text)
+    If selection.Available Then
+      Tva.Text = selection!code_tva
+      TxTva.Text = selection!taux_tva
+    Endif
+    montante = Val(.cpoint(Txtva.Text))
+    Try Txtva.Text = Format$(montante, "0.00")
+    If Error Then 
+      message.Error("Veuillez vérifier la tva SVP !")
+      Return
+    Endif
+    b = 0
+  End With
+Catch
+  If son Then
+    Music.Play
+  Endif
+  Try Message.Warning("Ce code Tva n'existe pas !", "OK")
+  B = 1
+  
+End
+
+'********************************************
+'* Saisie d'une famille manuellement        *
+'********************************************
+Public Sub FamMan()
+  
+  Dim Selection As Result
+  
+  Tab = "Fiches_Fam" 
+  Selection = Utils.db.Exec("SELECT * FROM " & tab & " WHERE code_fam = &1", Fam.Text)
+  LibelFam.Text = Selection!libell_fam
+  Tva.Text = Selection!cdtva_fam
+  Try TxTva.Text = Format$(Selection!txtva_fam, "0.00")
+  If Error Then 
+    message.Error("Veuillez vérifier la tva SVP !")
+    Return
+  Endif
+  b = 0
+Catch
+  If son Then
+    Music.Play
+  Endif
+  Try Message.Warning("Cette famille n'existe pas !", "OK")
+  B = 1
+  
+End
+
+'********************************************
+'* Saisie d'un fournisseur manuellement     *
+'********************************************
+Public Sub fourMan()
+  
+  Tab = "Fiches_Four" 
+  rResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE fo_code = &1", four.Text)
+  fournom.Text = rResult!fo_nom
+  B = 0
+Catch
+  If son Then
+    Music.Play
+  Endif
+  Try Message.Warning("Ce fournisseur n'existe pas !", "OK")
+  B = 1
+  
+End
+
+'****************************************************
+'* Saisie du taux de main d'oeuvre manuellement     *
+'****************************************************
+Public Sub TxMoMan()
+  
+  Dim Selection As Result
+  
+  Tab = "Fiches_Txtmo" 
+  Selection = Utils.db.Exec("SELECT * FROM " & tab & " WHERE code_txtmo = &1", TxCmo.Text)
+  TxCmo.Text = Selection!code_txtmo
+  Try Txht.Text = Format$(Selection!tx_txtmo, "0.00")
+  If Error Then 
+    message.Error("Veuillez vérifier le taux de MO SVP !")
+    Return
+  Endif
+  B = 0
+Catch
+  If son Then
+    Music.Play
+  Endif
+  Try Message.Warning("Ce taux de Mo n'existe pas !", "OK")
+  B = 1
+  
+End
+
+Public Sub Txht_LostFocus()
+  
+  With Utils
+    If Not Txht.Text Then Txht.Text = "0.00"
+    Txht.Text = .cpoint(Txht.Text)
+    If Val(Txht.Text) = Null Then
+      message.Warning("Veuillez verifier votre saisie SVP !")
+      Txht.Text = "0.00"
+      b = 1
+    Else
+      Try Txht.Text = Format$(Val(.cpoint(Txht.Text)), "0.00")
+      If Error Then 
+        message.Error("Veuillez vérifier le taux de la tva SVP !")
+        Return
+      Endif
+      b = 0
+    End If
+  End With
+  
+End
+
+'*********************************************
+'*Appel de la liste des familles a la souris *
+'*********************************************
+Public Sub ToggleButton3_Click()
+  
+  Dim rResult As Result
+  
+  Tab = "Fiches_Fam" 
+  If FamList.visible Then
+    FamList.clear
+    FamList.visible = False
+  Else
+    FamList.visible = True
+    FamList.Columns.count = 2
+    FamList.Columns[0].Width = 65
+    FamList.Columns[1].Width = 310
+    FamList.Columns[0].Text = "code"
+    FamList.Columns[1].Text = "designation"
+    If Not Dne Then
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
+    Else
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where left(code,'" & Len(Fam.Text) & "') = '" & Fam.Text & "'")
+    Endif
+    
+    If rResult.Available Then
+      Repeat
+        FamList.Add(rResult!code_fam, rResult!code_fam)
+        FamList.Item[0] = rResult!code_fam
+        FamList.Item[1] = rResult!libell_fam
+        FamList.Item[2] = rResult!coef_fam
+        FamList.Item[3] = rResult!cdtva_fam
+        FamList.Item[4] = rResult!txtva_fam
+      Until rResult.MoveNext()
+      FamList.MoveFirst
+      FamList.SetFocus
+      FamList.Item.Selected = True
+    Endif
+  Endif
+  
+End
+
+'************************************
+'* Saisie d'une famille a la souris *
+'************************************
+Public Sub FamList_Click()
+  
+  Fam.text = FamList.Item[0]
+  LibelFam.text = FamList.Item[1]
+  Tva.Text = Famlist.Item[3]
+  Try TxTva.Text = Format$(Famlist.Item[4], "00.00")
+  If Error Then 
+    message.Error("Veuillez vérifier le taux de la tva SVP !")
+    Return
+  Endif
+  FamList.clear
+  FamList.visible = False
+  b = 0
+  four.SetFocus
+  four.Select
+  
+End
+
+'***************************************************
+'* Saisie d'une famille manuellement        *
+'***************************************************
+Public Sub FamList_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    FamList.MoveCurrent
+    FamList.Item.Selected = True
+    Fam.text = FamList.Item[0]
+    LibelFam.Text = FamList.Item[1]
+    Tva.Text = Famlist.Item[3]
+    Try TxTva.Text = Format$(Famlist.Item[4], "00.00")
+    If Error Then 
+      message.Error("Veuillez vérifier le taux de la tva SVP !")
+      Return
+    Endif
+    FamList.visible = False
+    FamList.clear
+    four.Select
+    four.SetFocus
+    Stop Event
+  Endif
+  
+  If key.code = key.F1 Then
+    Button7_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    FamList.visible = False
+    FamList.clear
+    Fam.Select
+    Fam.SetFocus
+    Stop Event
+  Endif
+  
+End
+
+Public Sub ToggleButton5_Click()
+  
+  Dim rResult As Result
+  Dim tab As String
+  
+  Tab = "Fiches_Txtmo" 
+  If Cmolist.visible Then
+    Cmolist.clear
+    Cmolist.visible = False
+  Else
+    Cmolist.visible = True
+    Cmolist.Columns.count = 3
+    Cmolist.Columns[0].Width = 65
+    Cmolist.Columns[1].Width = 80
+    Cmolist.Columns[2].Width = 190
+    Cmolist.Columns[0].Text = "code"
+    Cmolist.Columns[1].Text = "Taux"
+    Cmolist.Columns[2].Text = "libellé"
+    If Not Dne Then
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
+    Else
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where left(code_txtmo,'" & Len(TxCmo.Text) & "') = '" & TxCmo.Text & "'")
+    Endif
+    If rResult.Available Then
+      Repeat
+        Cmolist.Add(rResult!code_txtmo, rResult!code_txtmo)
+        Cmolist.Item[0] = rResult!code_txtmo
+        Cmolist.Item[1] = rResult!tx_txtmo
+        Cmolist.Item[2] = rResult!libell_txtmo
+      Until rResult.MoveNext()
+      CmoList.MoveFirst
+      CmoList.SetFocus
+      CmoList.Item.Selected = True
+    Endif
+  Endif
+  
+End
+
+Public Sub CmoList_Click()
+  
+  TxCmo.Text = Cmolist.Item[0]
+  Try Txht.text = Format$(Cmolist.Item[1], "00.00")
+  If Error Then 
+    message.Error("Veuillez vérifier le taux de la tvae SVP !")
+    Return
+  Endif
+  Cmolist.visible = False
+  Cmolist.clear
+  Prvt.SetFocus
+  Prvt.Select
+  
+End
+
+'***********************************************
+'* Selection d'un code MO manuellement         *
+'***********************************************
+Public Sub CmoList_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    CmoList.MoveCurrent
+    CmoList.Item.Selected = True
+    TxCmo.text = CmoList.Item[0]
+    Txht.text = CmoList.Item[1]
+    CmoList.visible = False
+    CmoList.clear
+    Stop Event
+  Endif
+  
+  If key.code = key.F1 Then
+    Button7_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    CmoList.visible = False
+    CmoList.clear
+    TxCmo.Select
+    TxCmo.SetFocus
+    Stop Event
+  Endif
+  
+End
+
+'**********************************
+'* Suppression du code MO         *
+'**********************************
+Public Sub Button3_Click()
+  
+  Dim rResult As Result
+  Dim Suppr As Integer
+  Dim Tabligbl As String
+  
+  Tabligbl = "Fiches_Ligbl" 
+  Suppr = 1
+  If son Then
+    Music.Play
+  Endif
+  If Message.Question("Etes vous sur de vouloir effacer cet enregistrement", "Oui", "Non") = 1 Then
+    Me.Mouse = Mouse.wait
+    rResult = Utils.db.Exec("SELECT * FROM " & Tabligbl & " WHERE  code_ligbl = &1 and typel_ligbl = 'M'", code.Text)
+    If rResult.Available Then
+      Message.Warning(" Suppression impossible ! Main d'oeuvre utilisée en facturation")
+      Suppr = 0
+    Endif
+    If Suppr = 1 Then
+      Tab = "Fiches_Mo" 
+      Utils.db.Exec("DELETE FROM " & Cbase.Table("TabMo") & " WHERE mo_code = &1", code.Text)
+    Endif
+  Endif
+  sKey = Colmo.row
+  Refresh()
+  cleanchamps()
+  Colmo.MoveTo(skey, 0)
+  Me.mouse = mouse.pointing
+  
+End
+
+Public Sub Prvt_LF()
+  
+  With Utils
+    If Not Prvt.Text Then Prvt.Text = "0.00"
+    Prvt.Text = .cpoint(Prvt.Text)
+    If Val(Prvt.Text) = Null Then
+      message.Warning("Veuillez verifier votre saisie SVP !")
+      Prvt.Text = "0.00"
+      b = 1
+    Else
+      Try Prvt.Text = Format$(Val(.cpoint(Prvt.Text)), "0.00")
+      If Error Then 
+        message.Error("Veuillez vérifier le prix de revient SVP !")
+        Return
+      Endif
+      b = 0
+    End If
+  End With
+  
+End
+
+Public Sub Valeur_LF()
+  
+  With Utils
+    If Not Valeur.Text Then Valeur.Text = "0.00"
+    Valeur.Text = .cpoint(Valeur.Text)
+    If Val(Valeur.Text) = Null Then
+      message.Warning("Veuillez verifier votre saisie SVP !")
+      Valeur.Text = "0.00"
+      b = 1
+    Else
+      Try Valeur.Text = Format$(Val(.cpoint(Valeur.Text)), "0.00")
+      If Error Then 
+        message.Error("Veuillez vérifier le temps de la MO SVP !")
+        Return
+      Endif
+      b = 0
+      Calc_MargeMo()
+    End If
+  End With
+  
+End
+
+Public Sub Valeur2_LF()
+  
+  With Utils
+    If Not Valeur2.Text Then Valeur2.Text = "0.00"
+    Valeur2.Text = .cpoint(Valeur2.Text)
+    If Val(Valeur2.Text) = Null Then
+      Try message.Warning("Veuillez verifier votre saisie SVP !")
+      Valeur2.Text = "0.00"
+      b = 1
+    Else
+      Try Valeur2.Text = Format$(Val(.cpoint(Valeur2.Text)), "0.00")
+      If Error Then 
+        message.Error("Veuillez vérifier la valeur HT de la MO SVP !")
+        Return
+      Endif
+      b = 0
+      Valeur2TTC_Calcul()
+      Arrondi()
+      Calc_MargeMo()
+    End If
+  End With
+  
+End
+
+Public Sub Valeur2TTC_LF()
+  
+  With Utils
+    If Not Valeur2TTC.Text Then Valeur2TTC.Text = "0.00"
+    Valeur2TTC.Text = .cpoint(Valeur2TTC.Text)
+    If Val(Valeur2TTC.Text) = Null Then
+      message.Warning("Veuillez verifier votre saisie SVP !")
+      Valeur2TTC.Text = "0.00"
+      b = 1
+    Else
+      Try Valeur2TTC.Text = Format$(Val(.cpoint(Valeur2TTC.Text)), "0.00")
+      If Error Then 
+        message.Error("Veuillez vérifier la valeur TTC de la MO SVP !")
+        Return
+      Endif
+      b = 0
+    End If
+  End With
+  
+End
+
+Public Sub Calc_MargeMo()
+  
+  Dim Tx As Float
+  Dim txh As Float
+  Dim Txf As Float
+  
+  If Temps.value = True Then
+    'On calcule le montant du taux horaire
+    Txh = Val(Utils.cpoint(Txht.Text)) * Val(Utils.cpoint(Valeur.Text))
+    'Puis le montant du prix de revient
+    Txf = Val(Utils.cpoint(Prvt.Text)) * Val(Utils.cpoint(Valeur.Text))
+    'On calcule la marge en valeur pour finir.
+    Try MargeMo.text = Format$(Txh - Txf, "0.00")
+    If Error Then message.Warning("Il y a un problème sur le calcul de la marge !")
+  Else
+    'On calcule à quoi correspond le montant du forfait
+    Tx = Val(Utils.cpoint(Valeur2.Text)) / Val(Utils.cpoint(Txht.Text))
+    'Puis on calcule le montant du taux horaire
+    Txh = Val(Utils.cpoint(Txht.Text)) * tx
+    'Puis le montant du prix de revient
+    Txf = Val(Utils.cpoint(Prvt.Text)) * tx
+    'On calcule la marge en valeur pour finir.
+    Try MargeMo.text = Format$(Txh - Txf, "0.00")
+    If Error Then message.Warning("Il y a un problème sur le calcul de la marge !")
+  Endif
+Catch
+  MargeMo.text = "0,00"
+  
+End
+
+'**********************************
+'*  Validation du code MO         *
+'**********************************
+Public Sub Button4_Click()
+  
+  Dim rResult As Result
+  Dim CountRow As Integer
+  
+  With Utils
+    Desg.Text = .Remplace(Desg.Text)
+    If montant.Value Then Valeur2TTC_LostFocus()
+    If code.TEXT = "" Or Fam.TEXT = "" Or four.TEXT = "" Then
+      Message("VOUS DEVEZ D'ABORD REMPLIR LES CHAMPS OBLIGATOIRES(code, Famille, fournisseur ...)", "OK")
+    Else
+      If Temps.Value Then Valeur_LF()
+      If montant.Value Then Valeur2TTC_LostFocus()
+      If b <> 1 Then
+        rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMo") & " where mo_code = &1 ", code.Text)
+        If Not rResult.Available Then
+          Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMo") & " (mo_code,mo_design,mo_fam,mo_four,mo_txcd, mo_txht,mo_tva,mo_tempmont,mo_montant,mo_valeurht,mo_valeurttc, mo_cdarr, mo_prvt, mo_marge, mo_crst, mo_impcar) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", code.Text, Desg.Text, Fam.Text, four.Text, TxCmo.Text, .PointBase(Txht.Text), Tva.Text, Temps.Value, .PointBase(Valeur.Text), .PointBase(Valeur2.Text), .PointBase(Valeur2TTC.Text), Arr.Text, .PointBase(Prvt.Text), .PointBase(MargeMo.Text), Crst.Text, Impcar.value)
+          skey = code.Text
+          Refresh()
+          Cleanchamps()
+          nv = False
+          For CountRow = 0 To (Colmo.Rows.Count - 1)
+            If Colmo[CountRow, 1].Text = skey Then
+              Colmo.Rows[CountRow].Selected = True
+              Break
+            Endif
+          Next
+        Else
+          Utils.db.Exec("UPdate  " & Cbase.Table("TabMo") & "  SET  mo_code = &1 , mo_design = &2 , mo_fam = &3 , mo_four = &4, mo_txcd = &5, mo_txht = &6, mo_tva = &7, mo_tempmont = &8, mo_montant = &9, mo_valeurht = &{10}, mo_valeurttc = &{11}, mo_cdarr = &{12}, mo_prvt = &{13}, mo_marge = &{14}, mo_crst = &{15}, mo_impcar = &{16} where mo_code = &1", code.Text, Desg.Text, Fam.Text, four.Text, TxCmo.Text, .PointBase(Txht.Text), Tva.Text, Temps.Value, .PointBase(Valeur.Text), .PointBase(Valeur2.Text), .PointBase(Valeur2TTC.Text), Arr.Text, .PointBase(Prvt.Text), .PointBase(MargeMo.Text), Crst.Text, Impcar.value)
+          sKey = Colmo.row
+          Cleanchamps()
+          Refresh()
+          Colmo.MoveTo(skey, 0)
+        Endif
+      Else
+        Valeur.SetFocus
+        Valeur.Select
+      Endif
+    Endif
+  End With
+Catch
+  If son Then
+    Music.Play
+  Endif
+  message.Error(Error.Text & " " & Error.where)
+  
+End
+
+'**********************************
+'*    Appel de la doc html        *
+'**********************************
+Public Sub Button7_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Mo.html"]
+  
+End
+
+Public Sub Temps_Click()
+  
+  Valeur.Background = Color.TextBackground
+  Valeur.ReadOnly = False
+  Valeur2.Background = &HD4D0C8&
+  Valeur2.ReadOnly = True
+  Valeur2.Text = ""
+  Valeur2TTC.Text = ""
+  Arr.Enabled = False
+  
+End
+
+Public Sub montant_Click()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then
+    Valeur2.Background = CoulZns
+  Else
+    Valeur2.Background = Color.TextBackground
+  Endif
+  Valeur2.ReadOnly = False
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then
+    Valeur2TTC.Background = CoulZns
+  Else
+    Valeur2TTC.Background = Color.TextBackground
+  Endif
+  Valeur2TTC.ReadOnly = False
+  Arr.Enabled = True
+  Valeur.Background = &HD4D0C8&
+  Valeur.ReadOnly = True
+  Valeur.Text = ""
+  
+End
+
+'***********************************
+'* On gère le prix de vente TTC    *
+'***********************************
+Public Sub Valeur2TTC_LostFocus()
+  
+  Dim tx As Float
+  
+  With Utils
+    Valeur2TTc.Text = .cpoint(Valeur2TTC.Text)
+    If Val(Valeur2TTc.Text) = Null Then
+      If son Then
+        Music.Play
+      Endif
+      message.Warning("Veuillez verifier votre saisie SVP !")
+      b = 1
+    Else
+      Try tx = (1 + (Val(Utils.cpoint(Txtva.Text)) / 100))
+      If Error Then 
+        message.Warning("Il y a un problème sur le calcul du taux de Tva !")
+      Endif
+      If Val(Valeur2TTc.Text) <> 0 Then
+        Try Valeur2.Text = Format$(Val(Valeur2TTc.Text) / tx, "0.00")
+        Try Valeur2TTc.Text = Format$(Val(Valeur2TTc.Text), "0.00")
+        If Error Then message.Warning("Il y a un problème sur le calcul de la MO !")
+      Endif
+      b = 0
+    Endif
+  End With
+Catch
+  Try message.Error(Error.Text & " " & Error.where)
+  
+End
+
+'**************************************************
+'*   On calcule le montant du prix de vente TTC   *
+'**************************************************
+Public Sub Valeur2TTC_Calcul()
+  
+  Dim Mtva As Float
+  
+  Try Mtva = Val(Utils.cpoint(Txtva.Text))
+  If Error Then
+    Try message.Error("Veuillez vérifier le taux de TVA SVP !")
+    Return
+  Endif
+  Valeur2TTC.Text = Format$(Val(Valeur2.Text) + (Val(Valeur2.Text) * Mtva / 100))
+  Valeur2TTC.Text = Format$(Val(Valeur2TTC.Text), "0.00")
+  
+End
+
+'***********************************
+'*        On gère l' arrondi       *
+'***********************************
+Public Sub arrondi()
+  
+  If Not Valeur2TTC.Text Then Valeur2TTC.Text = "0,00"
+  If arr.Text = "0,05" Then
+    If Right$(Valeur2TTC.Text) Like "[34567]*" Then
+      Valeur2TTC.Text = Left$(Valeur2TTC.Text, (Len(Valeur2TTC.Text) - 1)) & "5"
+    Else
+      Valeur2TTC.Text = Round(Val(Valeur2TTC.Text), -1)
+      Valeur2TTC.Text = Format$(Valeur2TTC.Text, "0.00")
+    Endif
+  Endif
+  
+  If arr.Text = "0,10" Then
+    Valeur2TTC.Text = Round(Val(Valeur2TTC.Text), -1)
+    Valeur2TTC.Text = Format$(Valeur2TTC.Text, "0.00")
+  Endif
+  
+  If arr.Text = "0,50" Then
+    If Val(Valeur2TTC.Text) <= Val(Left$(Valeur2TTC.Text, (Len(Valeur2TTC.Text) - 2)) & 25) Then
+      Valeur2TTC.Text = Left$(Valeur2TTC.Text, (Len(Valeur2TTC.Text) - 2)) & "00"
+    Else
+      If Val(Valeur2TTC.Text) <= Val(Left$(Valeur2TTC.Text, (Len(Valeur2TTC.Text) - 2)) & 75) Then
+        Valeur2TTC.Text = Left$(Valeur2TTC.Text, (Len(Valeur2TTC.Text) - 2)) & "50"
+      Endif
+      If Val(Valeur2TTC.Text) >= Val(Left$(Valeur2TTC.Text, (Len(Valeur2TTC.Text) - 2)) & 76) Then
+        Valeur2TTC.Text = Round(Val(Valeur2TTC.Text))
+        Valeur2TTC.Text = Format$(Valeur2TTC.Text, "0.00")
+      Endif
+    Endif
+  Endif
+  
+  If arr.Text = "1,00" Then
+    Valeur2TTC.Text = Round(Val(Valeur2TTC.Text))
+    Valeur2TTC.Text = Format$(Valeur2TTC.Text, "0.00")
+  Endif
+  
+End

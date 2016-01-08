@@ -1,0 +1,395 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Rubcompt.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 27/09/2006
+'# Gestion des comptes utilisés dans les comptes de resultat, SIG et Bilan
+'################################################
+'
+
+Private Rubs As Result
+Private rResult As Result
+Private b As Integer
+Private son As Integer = Start.Son
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  b = 0
+  Me.Center
+  Colcol.Columns.count = 5
+  Colcol.Columns[0].Width = 60
+  Colcol.Columns[1].Width = 436
+  Colcol.Columns[2].Width = 80
+  Colcol.Columns[3].Width = 80
+  Colcol.Columns[4].Width = 10
+  Colcol.Columns[0].Text = "code"
+  Colcol.Columns[1].Alignment = Align.TopLeft
+  Colcol.Columns[1].Text = "Intitulé"
+  Colcol.Columns[2].Alignment = Align.Left
+  Colcol.Columns[2].Text = "Début"
+  Colcol.Columns[3].Alignment = Align.Left
+  Colcol.Columns[3].Text = "Fin"
+  numrub.SetFocus
+  numrub.Select
+  
+End
+
+Public Sub Form_Open()
+  
+  Dim Tab As String
+  
+  Tab = "Fiches_RubCompt" 
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by numrub")
+  If rResult.Available Then
+    Repeat
+      Try Colcol.add(rResult!numrub & rResult!compte1, rResult!numrub & rResult!compte1)
+      If Not Error Then
+        Colcol.Item[0] = rResult!numrub
+        Rubman2()
+        Colcol.Item[2] = rResult!compte1
+        Colcol.Item[3] = rResult!compte2
+        Try Colcol.Item[4] = rResult!amortissement
+      Endif
+    Until rResult.MoveNext()
+  Endif
+  
+End
+
+Public Sub Maj_Zones()
+  
+  numrub.text = Colcol.Current[0]
+  intitule.text = Colcol.Current[1]
+  cpt1.Text = Colcol.Current[2]
+  cpt2.Text = Colcol.Current[3]
+  If Colcol.Item[4] = "T" Then
+    amortissement.value = True
+  Else
+    amortissement.value = False
+  Endif
+  numrub.SetFocus
+  numrub.Select
+  
+End
+
+Public Sub CleanChamps()
+  'numrub.Clear
+  'intitule.Clear
+  
+  cpt1.clear
+  cpt2.Clear
+  amortissement.value = False
+  
+End
+
+Public Sub Refresh()
+  
+  Colcol.Clear
+  form_Open()
+  
+End
+
+Public Sub Lib_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+        
+      Case 1
+        If numrub.Text Then
+          Rubman()
+          If b = 0 Then
+            cpt1.SetFocus
+            cpt1.Select
+          Else
+            numrub.SetFocus
+            numrub.Select
+            b = 0
+          Endif
+          Stop Event
+        Else
+          numrub.SetFocus
+          numrub.Select
+        Endif
+        
+      Case 2
+        If cpt1.Text Then
+          cpt2.Text = cpt1.Text & String$(8 - Len(cpt1.Text), "9")
+          cpt2.SetFocus
+          cpt2.Select
+          Stop Event
+        Else
+          cpt1.SetFocus
+          cpt1.Select
+          Stop Event
+        Endif
+        
+      Case 3
+        If cpt2.Text Then
+          Button2.SetFocus
+          Stop Event
+        Else
+          cpt2.SetFocus
+          cpt2.Select
+          Stop Event
+        Endif
+        
+    End Select
+  Endif
+  
+  If key.code = key.F1 Then
+    Button4_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.F2 Then
+    Select Case Last.tag
+      Case 1
+        ToggleButton1_Click()
+        Stop Event
+    End Select
+  Endif
+  
+End
+
+Public Sub Btn_KeyPress()
+  
+  Select Case Last.tag
+      
+    Case 3
+      Button2_Click()
+      
+  End Select
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Button4_Click()
+      
+    Case 2
+      Button1_Click()
+      
+    Case 3
+      Button2_Click()
+      
+    Case 4
+      Me.Close
+      
+  End Select
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Lib_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  
+End
+
+Public Sub Button1_Click()
+  
+  Dim Tab As String
+  
+  Tab = "Fiches_RubCompt" 
+  If numrub.Text <> "" Then
+    If son Then
+      Music.Play
+    Endif
+    If Message.Question("Etes vous sur de vouloir effacer cet enregistrement", "Oui", "Non") = 1 Then
+      Utils.db.Exec("DELETE FROM " & Tab & " WHERE numrub = &1 and compte1 = &2", colcol.Current[0], cpt1.Text)
+      Refresh()
+      CleanChamps()
+    Endif
+  Endif
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim Tab As String
+  Dim sKey As String
+  
+  Tab = "Fiches_RubCompt" 
+  If numrub.Text <> "" Then
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE numrub= &1 and compte1 = &2", numrub.Text, cpt1.Text)
+    If Not rResult.Available Then
+      Try Utils.db.Exec("INSERT INTO " & Tab & "(numrub, compte1, compte2, amortissement) VALUES ( &1, &2, &3, &4)", numrub.Text, cpt1.Text, cpt2.Text, amortissement.value)
+      sKey = Numrub.Text & Cpt1.Text
+      If Error Then Message.Info("Veuillez saisir les données avant d'enregistrer SVP !")
+    Else
+      Utils.db.Exec("UPdate  " & Tab & "  SET  numrub = &1, compte1 = &2, compte2 = &3, amortissement = &4 WHERE numrub = &1 and compte1 = &2", numrub.Text, cpt1.Text, cpt2.Text, amortissement.value)
+      sKey = Colcol.Current.Key
+    Endif
+    Refresh()
+    Cleanchamps()
+    Try Colcol.MoveTo(sKey)
+    Try Colcol.Item.Selected = True
+    Try Colcol.Item.EnsureVisible
+  Else
+    If son Then
+      Music.Play
+    Endif
+    Message.Warning("Veuillez saisir un code SVP !", "Ok")
+  Endif
+  numrub.SetFocus
+  numrub.Select
+  
+End
+
+Public Sub Button3_Click()
+  
+  Me.Close()
+  
+End
+
+'************************************************
+'* On appelle la liste des rubriques        *
+'************************************************
+Public Sub ToggleButton1_Click()
+  
+  Dim tab As String
+  
+  Tab = "Fiches_Rubriques" 
+  If Rublist.visible Then
+    Rublist.clear
+    Rublist.visible = False
+    numrub.SetFocus
+    numrub.Select
+  Else
+    Rublist.visible = True
+    Rublist.Columns.count = 2
+    Rublist.Columns[0].Width = 65
+    Rublist.Columns[1].Width = 180
+    Rublist.Columns[0].Text = "code"
+    Rublist.Columns[1].Text = "Intitulé"
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where type = &1 order by numrub", "L")
+    If rResult.Available Then
+      Do
+        Rublist.Add(rResult!numrub, rResult!numrub)
+        Rublist.Item[0] = rResult!numrub
+        Rublist.Item[1] = rResult!intitule
+      Loop Until rResult.MoveNext()
+      RubList.MoveFirst
+      RubList.SetFocus
+      RubList.Item.Selected = True
+    Endif
+  Endif
+  
+End
+
+'**************************************************
+'*   Selection d'une rubrique a la souris         *
+'**************************************************
+Public Sub RubList_Click()
+  
+  numrub.text = RubList.Item[0]
+  intitule.text = RubList.Item[1]
+  RubList.clear
+  RubList.visible = False
+  cpt1.SetFocus
+  cpt1.Select
+  
+End
+
+'***************************************************
+'*   Selection d'une rubrique manuellement         *
+'***************************************************
+Public Sub RubList_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    RubList_Click()
+    Stop Event
+  Endif
+  
+  If key.code = key.F1 Then
+    Button4_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    RubList.visible = False
+    RubList.clear
+    numrub.SetFocus
+    numrub.Select
+    Stop Event
+  Endif
+  
+End
+
+'********************************************
+'* On controle si la rubrique existe        *
+'********************************************
+Public Sub Rubman()
+  
+  Dim tab As String
+  Dim typeL As String
+  
+  Tab = "Fiches_Rubriques" 
+  If numrub.Text Then
+    Rubs = Utils.db.Exec("SELECT * FROM " & Tab & " where numrub = &1", numrub.Text)
+    If Rubs.Available Then
+      numrub.Text = Rubs!numrub
+      intitule.text = Rubs!intitule
+      typeL = Rubs!type
+    Else
+      If son Then
+        Music.Play
+      Endif
+      Message.Warning("Cette rubrique n'existe pas !!!", "Ok")
+      b = 1
+    Endif
+  Endif
+  
+End
+
+'********************************************
+'* On recupere l'intitule de la rubrique    *
+'********************************************
+Public Sub Rubman2()
+  
+  Dim tab As String
+  
+  Tab = "Fiches_Rubriques" 
+  Rubs = Utils.db.Exec("SELECT * FROM " & Tab & " where numrub = &1", rResult!numrub)
+  If Rubs.available Then
+    Colcol.Item[1] = Rubs!intitule
+  Endif
+  
+End
+
+Public Sub Button4_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Rubscpts.html"]
+  
+End
+
+Public Sub colcol_Click()
+  
+  Maj_zones()
+  
+End

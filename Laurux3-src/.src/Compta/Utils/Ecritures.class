@@ -1,0 +1,404 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Ecritures.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 01/11/2004
+'# Gestion des écritures de comptabilité. Remonte du niveau des balances au journal
+'################################################
+'
+Private rResult As Result
+Private Tab As String
+Private Tab2 As String
+Private type As String
+Private Modif As Integer
+Private Cloturee As Integer
+Private code As String
+Private Doc As String
+Private Tot As String
+Private son As Integer = Start.Son
+Private Cle As String
+Private Indx As String
+Private Collectif As String
+Private EcrGL As Integer = 0
+Private EcrJL As Integer = 0
+Private num As Integer
+Private tresr As Integer = 0
+Private compte As String
+
+Public Sub _New()
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  With Ecrit
+    .Columns.count = 3
+    .Columns[0].Width = 80
+    .Columns[1].Width = 230
+    .Columns[2].Alignment = 2
+    .Columns[2].Width = 195
+    .Columns[0].Text = "code"
+    .Columns[1].Text = "Intitulé"
+    .Columns[2].Text = "solde"
+  End With
+  Modif = 0
+  Bclient_Click()
+  
+End
+
+Public Sub type_Click()
+  
+  type = "C"
+  With Ecrit
+    .clear
+    If rResult.Available Then
+      Repeat
+        .Add(rResult.Index, rResult.Index)
+        .Item[0] = rResult!compte_cc
+        .Item[1] = rResult!intitule_cc
+        .Item[2] = Format$(rResult!solde, "0.00")
+      Until rResult.MoveNext()
+    Endif
+  End With
+  
+End
+
+Public Sub Bclient_Click()
+  
+  Tab = "Fiches_Comptes" 
+  Ecrit.clear
+  type = "C"
+  rResult = Utils.db.Exec("SELECT compte_cc, intitule_cc, solde FROM " & tab & " where  type_cc= '" & type & "'order by cast(compte_cc AS char) ")
+  type_Click()
+  
+End
+
+Public Sub Bfournisseur_Click()
+  
+  Tab = "Fiches_Comptes" 
+  Ecrit.clear
+  type = "F"
+  rResult = Utils.db.Exec("SELECT  compte_cc, intitule_cc, solde  FROM " & tab & " where  type_cc= '" & type & "'order by cast(compte_cc AS char) ")
+  type_Click()
+  
+End
+
+Public Sub Bgestion_Click()
+  
+  Tab = "Fiches_Comptes" 
+  Ecrit.clear
+  type = "G"
+  rResult = Utils.db.Exec("SELECT  compte_cc, intitule_cc, solde  FROM " & tab & " where  type_cc= '" & type & "'order by cast(compte_cc AS char) ")
+  type_Click()
+  
+End
+
+Public Sub Bbilan_Click()
+  
+  Tab = "Fiches_Comptes" 
+  Ecrit.clear
+  type = "B"
+  rResult = Utils.db.Exec("SELECT  compte_cc, intitule_cc, solde  FROM " & tab & " where  type_cc= '" & type & "'order by cast(compte_cc AS char) ")
+  type_Click()
+  
+End
+
+Public Sub type_compte()
+  
+  If Bclient.Value = True Then Bclient_Click()
+  If Bfournisseur.Value = True Then Bfournisseur_Click()
+  If Bgestion.Value = True Then Bgestion_Click()
+  If Bbilan.Value = True Then Bbilan_Click()
+  
+End
+
+Public Sub Button6_Click()
+  
+  Me.Close
+  
+End
+
+Public Sub Ecrit_Click()
+  
+  Dim Mvt As Result
+  Dim Mtd As Float = 0
+  Dim Mtc As Float = 0
+  
+  Tot = "0"
+  Tab2 = "Fiches_Mvt" 
+  Titre.text = "Visualisation des écritures. (Ecran 2 extrait de compte)"
+  EcritGL.Visible = True
+  Button6.Visible = False
+  Button1.Visible = True
+  EcrGL = 1
+  With EcritGL
+    .Columns.count = 10
+    .Columns[0].Alignment = 4
+    .Columns[0].Width = 80
+    .Columns[1].Width = 100
+    .Columns[2].Width = 280
+    .Columns[3].Width = 110
+    .Columns[4].Width = 110
+    .Columns[5].Width = 120
+    .Columns[6].Width = 120
+    .Columns[7].Width = 120
+    .Columns[8].Width = 70
+    .Columns[9].Width = 70
+    .Columns[0].Text = "Code"
+    .Columns[1].Text = "Date"
+    .Columns[2].Text = "Libellé"
+    .Columns[3].Text = "Document"
+    .Columns[4].Text = "Lot"
+    .Columns[5].Alignment = 2
+    .Columns[5].Text = "Débit"
+    .Columns[6].Alignment = 2
+    .Columns[6].Text = "Crédit"
+    .Columns[7].Alignment = 2
+    .Columns[7].Text = "Solde"
+    .Columns[8].Alignment = 2
+    .Columns[8].Text = "Numéro"
+    .Columns[9].Alignment = 2
+    .Columns[9].Text = "Journal"
+    code = Ecrit.Current[0]
+    Label1.visible = True
+    Label1.Text = Ecrit.Item[0] & " " & Ecrit.Item[1] & " " & Ecrit.Item[2]
+  End With
+  Mvt = Utils.db.Exec("SELECT * FROM " & tab2 & " where  compte= &1 and validee = &2 order by dte ", code, 1)
+  If Mvt.Available Then
+    With utils
+      Repeat
+        EcritGL.Add(Mvt.Index, Mvt.Index)
+        'If Error Then Print Mvt.index
+        EcritGL.Item[0] = Mvt!compte
+        EcritGL.Item[1] = .Cdate_Aff(Mvt!dte)
+        EcritGL.Item[2] = Mvt!libelle
+        EcritGL.Item[3] = Mvt!numdoc
+        EcritGL.Item[4] = Mvt!numlot
+        EcritGL.Item[5] = Format$(Mvt!montantd, "0.00")
+        EcritGL.Item[6] = Format$(Mvt!montantc, "0.00")
+        Mtd = mvt!montantd
+        Mtc = mvt!montantc
+        tot = Val(.cpoint(tot)) + Mtd - Mtc
+        EcritGL.Item[7] = Format(Val(.cpoint(tot)), "0.00")
+        EcritGL.Item[8] = Mvt!numero
+        EcritGL.Item[9] = Mvt!jour
+      Until Mvt.MoveNext()
+    End With
+  Endif
+  Compte = Ecrit.Item[0]
+  
+End
+
+Public Sub EcritGL_Click()
+  
+  Dim Mvt As Result
+  Dim Bcol As Boolean = False
+  
+  Tab2 = "Fiches_Mvt" 
+  EcritJL.Visible = True
+  labtot.Visible = True
+  Titre.Text = "Visualisation/Modification des écritures. (Ecran 3 détail de l'écriture)"
+  Tot = "0"
+  Modif = 0
+  EcrJL = 1
+  EcrGL = 0
+  Tresr = 0
+  With EcritJL
+    .Columns.count = 9
+    .Columns[0].Alignment = 4
+    .Columns[0].Width = 80
+    .Columns[1].Width = 100
+    .Columns[2].Width = 300
+    .Columns[3].Width = 110
+    .Columns[4].Width = 110
+    .Columns[5].Width = 120
+    .Columns[6].Width = 120
+    .Columns[7].Width = 80
+    .Columns[8].Width = 80
+    '.Columns[9].Width = 1
+    '.Columns[10].Width = 1
+    .Columns[0].Text = "Code"
+    .Columns[1].Text = "Date"
+    .Columns[2].Text = "Libellé"
+    .Columns[3].Text = "Document"
+    .Columns[4].Text = "Lot"
+    .Columns[5].Alignment = 2
+    .Columns[5].Text = "Débit"
+    .Columns[6].Alignment = 2
+    .Columns[6].Text = "Crédit"
+    .Columns[7].Alignment = 2
+    .Columns[7].Text = "Numéro"
+    .Columns[8].Alignment = 2
+    .Columns[8].Text = "Journal"
+    code = EcritGL.Current[0]
+    Doc = EcritGL.Current[8]
+    Cle = EcritGL.Key
+    EcritJL.Clear
+  End With
+  Mvt = Utils.db.Exec("SELECT * FROM " & tab2 & " where numero = &1 and collectif is null order by compte ", doc)
+  If Mvt.Available Then
+    With utils
+      Repeat
+        Try Bcol = rResult!collectif
+        If Error Then Bcol = False
+        If Not Bcol Then
+          EcritJL.Add(Mvt!compte & " " & Mvt.Index, Mvt.Index)
+          EcritJL.Item[0] = Mvt!compte
+          EcritJL.Item[1] = .Cdate_Aff(Mvt!dte)
+          EcritJL.Item[2] = Mvt!libelle
+          EcritJL.Item[3] = Mvt!numdoc
+          EcritJL.Item[4] = Mvt!numlot
+          EcritJL.Item[5] = Format$(Mvt!montantd, "0.00")
+          EcritJL.Item[6] = Format$(Mvt!montantc, "0.00")
+          EcritJL.Item[7] = Mvt!numero
+          EcritJL.Item[8] = Mvt!jour
+          EcritJL.Item[9] = Mvt!lind
+          EcritJL.Item[10] = "v"
+          If Mvt!cloturee = True Then
+            cloturee = 1
+          Else
+            cloturee = 0
+          Endif
+          Tresr = Mvt!tresorerie
+          tot = Val(tot) + mvt!montantd - mvt!montantc
+          tot = Format(Val(.cpoint(tot)), "0.00")
+        Else
+          Indx = Mvt!lind
+          Collectif = Mvt!compte
+        Endif
+      Until Mvt.MoveNext()
+    End With
+    labtot.text = "Solde écriture : " & tot
+  Endif
+  
+End
+
+Public Sub EcritJL_click()
+  
+  num = EcritJL.Item[7]
+  If cloturee = 0 Then
+    Necrit.Visible = True
+  Else
+    If son Then
+      Music.Play
+    Endif
+    Try Message.Error("Modification impossible, cette écriture est cloturée")
+  Endif
+  
+End
+
+Public Sub Button1_Click()
+  
+  If EcrJL = 1 Then
+    EcritJL.Visible = False
+    Titre.text = "Visualisation des écritures. (Ecran 2 extrait de compte)"
+    EcrGL = 1
+    EcrJL = 0
+    Necrit.Visible = False
+  Else
+    If EcrGL = 1 Then
+      Titre.text = "Visualisation des écritures. (Ecran 1 solde des comptes)"
+      EcritGL.Visible = False
+      Button1.Visible = False
+      labtot.Visible = False
+      Button6.Visible = True
+      EcritGL.Clear
+      Label1.visible = False
+      EcrGL = 0
+    Endif
+  Endif
+  
+End
+
+Public Sub QuitteEcritjl()
+  
+  If EcritJL.Visible = True Then
+    EcritJL.Visible = False
+    EcrJL = 0
+    Necrit.Visible = False
+    If modif = 1 Then
+      EcritJL.Clear
+      EcritGL.Clear
+      Ecrit_Click()
+      Ecrit.Clear
+      If type = "C" Then Bclient_Click()
+      If type = "F" Then Bfournisseur_Click()
+      If type = "G" Then Bgestion_Click()
+      If type = "B" Then Bbilan_Click
+      Ecrit.MoveFirst()
+      modif = 0
+    Endif
+  Endif
+  
+End
+
+'*********************************************
+'           On modifie l'écriture             *
+'*********************************************
+Public Sub Necrit_Click()
+  
+  Dim hForm As Saisecrit
+  Dim hForm2 As Tresor
+  
+  If Cloturee = 0 Then
+    If tresr = 0 Then
+      hForm = New Saisecrit(num)
+      Try hForm.Showmodal()
+    Else
+      hForm2 = New Tresor(num)
+      Try hForm2.Showmodal()
+    Endif
+    Ecritures.Show
+    EcritJL.Clear
+    EcritGL.Clear
+    Ecrit.Clear
+    If Bbilan.Value = True Then Bbilan_Click()
+    If Bgestion.Value = True Then Bgestion_Click()
+    If Bclient.Value = True Then Bclient_Click()
+    If Bfournisseur.Value = True Then Bfournisseur_Click()
+    Ecrit.MoveFirst
+    Repeat
+      Ecrit.item.Selected = True
+      If Ecrit.Item[0] = Compte Then Break
+    Until Ecrit.MoveNext()
+    Ecrit_Click()
+    EcritGL.MoveFirst
+    Repeat
+      EcritGL.item.Selected = True
+      If EcritGL.Key = cle Then Break
+    Until EcritGL.MoveNext()
+    EcritJL.Visible = False
+    Necrit.Visible = False
+    Modif = 1
+  Else
+    If Son Then
+      Music.Play
+    Endif
+    Message.Delete("Vous ne pouvez pas modifier une écriture cloturée !")
+  Endif
+  
+End
+
+Public Sub Button3_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Ecritures.html"]
+  
+End

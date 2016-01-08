@@ -1,0 +1,289 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : VisStatCli.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 26/06/2006
+'# Chiffre d'affaire par client
+'################################################
+
+Public total As Integer
+Public value As Float[]
+Public Dtn0 As String
+Public Dtn1 As String
+Public Tri As String
+Public sens As String
+CoulZns As Integer ' Variable pour la couleur du background des zones de saisie et des columnviews
+CoulZnaf As Integer ' Variable pour la couleur du background des columnviews
+CoulFc As Integer ' Variable pour la couleur du focus
+PosY As Integer
+Page As Integer
+Filename As String
+son As Integer = Start.Son
+Coulfond As New String[]
+
+Public Sub _New(Hitniv As StatCli, Soc As String, Sn As Integer, dte1 As String, dte2 As String)
+  
+  Dim Tab As String
+  Dim Frmt As New String[]
+  
+  Frmt = Utils.FColr(Settings["/Coul/Znaff"])
+  CoulZnaf = Val(Frmt[0])
+  Frmt = Utils.FColr(Settings["/Coul/Focus"])
+  Coulfc = Val(Frmt[0])
+  Frmt = Utils.FColr(Settings["/Coul/Znss"])
+  CoulZns = Val(Frmt[0])
+  Frmt = Utils.FColr(Settings["/Coul/Fnets"])
+  Coulfond = Utils.Coulfd()
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Tab = "Total"
+  son = Sn
+  Dtn0 = dte1
+  Dtn1 = dte2
+  Me.center
+  With Liste
+    .Columns.count = 8
+    .Columns[0].Width = 80
+    .Columns[1].Width = 150
+    .Columns[2].Width = 150
+    .Columns[3].Width = 90
+    .Columns[4].Width = 90
+    .Columns[5].Width = 90
+    .Columns[6].Width = 90
+    .Columns[7].Width = 90
+    .Columns[0].Text = "code"
+    .Columns[0].Alignment = 1
+    .Columns[1].Text = "nom"
+    .Columns[1].Alignment = 1
+    .Columns[2].Text = "Prenom"
+    .Columns[2].Alignment = 1
+    .Columns[3].Text = "Brut ht"
+    .Columns[3].Alignment = 3
+    .Columns[4].Text = "remise"
+    .Columns[4].Alignment = 3
+    .Columns[5].Text = "Net ht"
+    .Columns[5].Alignment = 3
+    .Columns[6].Text = "Net N-1"
+    .Columns[6].Alignment = 3
+    .Columns[7].Text = "% N/N-1"
+    .Columns[7].Alignment = 3
+    Tri = "cdclifac"
+    Sens = "desc"
+    Affichage()
+  End With
+  
+End
+
+Public Sub Affichage()
+  
+  Dim Tab As String
+  Dim rResult As Result
+  Dim Totl As Float
+  Dim Pvht As Float
+  Dim Rm As Float
+  Dim Net As Float
+  Dim htn1 As Float
+  
+  Tab = "Total"
+  With Liste
+    .clear
+    Sens_Aff()
+    If Bnom.value = True Then
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by " & Tri & " " & Sens & "")
+    Else
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by lpad(" & Tri & ", 12, ' ') " & Sens & "")
+    Endif
+    If rResult.Available Then
+      Repeat
+        Totl = Totl + rResult!totfac
+      Until rResult.MoveNext()
+      rResult.MoveFirst()
+      Repeat
+        .Add(rResult!cdclifac, rResult!cdclifac)
+        .Item[0] = rResult!cdclifac
+        .Item[1] = rResult!nmclifac
+        .Item[2] = rResult!pnmclifac
+        .Item[3] = Format$(rResult!brutfac, "0.00")
+        .Item[4] = Format$(rResult!rmfac, "0.00")
+        .Item[5] = Format$(rResult!totfac, "0.00")
+        Try .Item[6] = Format$(rResult!totfacn1, "0.00 ")
+        If Not IsNull(rResult!totfacn1) Then
+          If Val(Utils.cpoint(rResult!totfacn1)) > 0 Then .Item[7] = Format$(((rResult!totfac - rResult!totfacn1) * 100) / rResult!totfacn1, "00.00")
+        Endif
+        If Not IsNull(rResult!brutfac) Then Pvht = Pvht + rResult!brutfac
+        Rm = rm + rResult!rmfac
+        Net = net + rResult!totfac
+        htn1 = 0
+        Try htn1 = htn1 + rResult!totfacn1
+      Until rResult.MoveNext()
+      Brutht.Text = Format$(Pvht, "0.00")
+      Remises.Text = Format$(Rm, "0.00")
+      NetHT.Text = Format$(Net, "0.00")
+      Netnn.Text = Format$(htn1, "0.00")
+      Try Netnn2.Text = Format$(((net - htn1) * 100) / htn1, "0.00")
+    Endif
+  End With
+  
+End
+
+Public Sub Sens_Aff()
+  
+  If sens = "asc" Then
+    sens = "desc"
+  Else
+    Sens = "asc"
+  Endif
+  
+End
+
+Public Sub Bcode_MouseDown()
+  
+  Tri = "cdclifac"
+  
+  Affichage()
+  
+End
+
+Public Sub Bnom_MouseDown()
+  
+  Tri = "nmclifac"
+  Affichage()
+  
+End
+
+Public Sub Bbrut_MouseDown()
+  
+  Tri = "brutfac"
+  Affichage()
+  
+End
+
+Public Sub Brem_MouseDown()
+  
+  Tri = "rmfac"
+  Affichage()
+  
+End
+
+Public Sub Bnet_MouseDown()
+  
+  Tri = "totfac"
+  Affichage()
+  
+End
+
+Public Sub Bnet2_MouseDown()
+  
+  Tri = "totfacn1"
+  Affichage()
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim code As String
+  Dim intitule As String
+  Dim Pvht As String
+  Dim Pvhtt As Float
+  Dim Rm As String
+  Dim rmt As Float
+  Dim Net As String
+  Dim nett As Float
+  Dim htn1 As String
+  Dim nn1 As String
+  Dim Totn1 As Float
+  Dim Totnn1 As String
+  Dim pdf As Chistoriques
+  
+  rmt = 0
+  NetT = 0
+  Totn1 = 0
+  totnn1 = 0
+  page = 1
+  Shell "cd " & User.Home & ""
+  Filename = User.home & "/Statcli.pdf"
+  Me.Mouse = Mouse.Wait
+  If Liste.Count Then
+    pdf = New Chistoriques("Portrait", "mm", "A4")
+    pdf.Open()
+    pdf.AliasNbPages()
+    pdf.Entete("Impression du CA clients")
+    pdf.Level0F(dtn0, dtn1)
+    pdf.Level1C()
+    posy = 32
+    Liste.MoveFirst
+    Repeat
+      Liste.Item.Selected = True
+      code = Liste.Current[0]
+      intitule = Liste.Current[1]
+      Pvht = Liste.Current[3]
+      Rm = Liste.Current[4]
+      Net = Liste.Current[5]
+      htn1 = Liste.Current[6]
+      nn1 = Liste.Current[7]
+      Try Totn1 = Totn1 + Val(htn1)
+      If IsNull(nn1) Or If IsNull(Val(nn1)) Then nn1 = "0"
+      'Totnn1 = Totnn1 + Val(nn1)
+      Pvhtt = Pvhtt + Val(Pvht)
+      rmt = rmt + Val(Rm)
+      NetT = NetT + Val(Net)
+      pdf.level2C(code, intitule, pvht, rm, net, htn1, nn1, PosY)
+      posy += 5
+      If PosY >= 283 Then
+        pdf.Footer()
+        pdf.Entete("Impression du CA clients")
+        pdf.Level0F(dtn0, dtn1)
+        pdf.Level1C()
+        posy = 32
+      Endif
+    Until Liste.MoveNext()
+    pdf.Lines(PosY)
+    posy += 5
+    pdf.Level4C(PosY)
+    posy += 8
+    Try Totnn1 = Format$(((Val(Utils.cpoint(nett)) - Val(Utils.cpoint(totn1))) * 100) / Val(Utils.cpoint(totn1)), "00.00")
+    If Error Then Totnn1 = "0,00"
+    pdf.Level5c(Format$(pvhtt, "0.00"), Format$(rmt, "0.00"), Format$(nett, "0.00"), Format$(Totn1, "0.00"), Totnn1, PosY)
+    pdf.Footer()
+    pdf.Output(Filename, False)
+    Visualiseur.Prog_Editeur(Filename)
+  Endif
+  Me.Mouse = Mouse.Pointing
+  
+End
+
+Public Sub Observers(hLabel As Label)
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+End
+
+Public Sub Observers2(hBtn As Button)
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+End
+
+Public Sub Button1_Click()
+  
+  If Exist(filename) Then Try Kill filename
+  Me.close
+  
+End

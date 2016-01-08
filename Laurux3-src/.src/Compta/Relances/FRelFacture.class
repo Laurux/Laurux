@@ -1,0 +1,488 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : FRelFacture.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 01/11/2004
+'# Edition des relevés de factures
+'################################################
+'
+
+Private Filename As String
+Private jour As String
+Private dte1 As String
+Private dte2 As String
+Private Txt As String
+Private Enr As Integer
+Private son As Integer = Start.Son
+Private PosY As Integer
+Private Coulfond As New String[]
+
+Public Sub _New()
+  
+  Coulfond = Utils.Coulfd()
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  compteRel.Columns.count = 7
+  compteRel.Columns[0].Alignment = 4
+  compteRel.Columns[0].Width = 70
+  compteRel.Columns[1].Width = 60
+  compteRel.Columns[2].Width = 220
+  compteRel.Columns[3].Width = 80
+  compteRel.Columns[4].Width = 220
+  compteRel.Columns[5].Width = 100
+  compteRel.Columns[6].Width = 100
+  compteRel.Columns[0].Text = "Code"
+  compteRel.Columns[1].Text = "RS"
+  compteRel.Columns[2].Text = "Nom"
+  compteRel.Columns[3].Text = "CP"
+  compteRel.Columns[4].Text = "ville"
+  compteRel.Columns[5].Alignment = 2
+  compteRel.Columns[5].Text = "Débit"
+  compteRel.Columns[6].Alignment = 2
+  compteRel.Columns[6].Text = "Crédit"
+  dteN0.Text = Format$(Now, "01.mm.yyyy")
+  dteN1.Text = Format$(Now, "dd.mm.yyyy")
+  dte1 = dteN0.Text
+  dte2 = dteN1.Text
+  dteN0_GotFocus()
+  Enr = 1
+  
+End
+
+Public Sub MajTab()
+  
+  Dim rResult As Result
+  Dim rrResult As Result
+  Dim rrrResult As Result
+  Dim Tab As String
+  Dim Tab2 As String
+  Dim Tab3 As String
+  Dim Tab4 As String
+  Dim cpt As String
+  Dim Totdeb As Float
+  Dim Totcred As Float
+  Dim Dn0 As String
+  Dim Dn1 As String
+  Dim Jal As String
+  
+  Tab = "Fiches_RelFacture" 
+  Tab2 = "Fiches_Mvt" 
+  Tab3 = "Fiches_Journaux" 
+  Tab4 = "Fiches_Cli" 
+  compteRel.clear
+  Utils.db.Exec("DROP TABLE if exists " & Tab & "")
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (compte Char(8) NOT NULL," &
+    "rs char(10) ," &
+    "intitule char(30) ," &
+    "adr1 char(30) ," &
+    "adr2 char(30) ," &
+    "cp char(10) ," &
+    "ville char(25) ," &
+    "dte char(10) ," &
+    "numdoc char(10) NOT NULL," &
+    "numlot char(10) ," &
+    "libelle char(30) ," &
+    "montantd Decimal(12,2) ," &
+    "montantc Decimal(12,2) ," &
+    "numero char(8) ," &
+    "journal char(2) ," &
+    "PRIMARY KEY (compte,numdoc))" & "ENGINE = MYISAM")
+  If dteN0.Text <> "" And dteN1.Text <> "" Then
+    Dn0 = Right$(dteN0.Text, 4) & Mid$(dteN0.Text, 4, 2) & Left$(dteN0.Text, 2)
+    Dn1 = Right$(dteN1.Text, 4) & Mid$(dteN1.Text, 4, 2) & Left$(dteN1.Text, 2)
+    rResult = Utils.db.Exec("SELECT * FROM " & tab2 & " where left(compte,3) = &1 and dte >= &2 and dte <= &3 and tresorerie = &4 and collectif is null and lettree = &5 order by compte ", 411, Dn0, Dn1, 0, 0)
+    If rResult.Available Then
+      Repeat
+        Jal = rResult!jour
+        rrrResult = Utils.db.Exec("SELECT * FROM " & tab3 & " where  code_jo = &1", Jal)
+        If rrrResult!type_jo = "VE" Then
+          rrResult = Utils.db.Exec("SELECT * FROM " & tab4 & " where  cli_code = &1", rResult!compte)
+          If rrResult!cli_rlvf Then Try Utils.db.Exec("INSERT INTO " & Tab & " (compte,Rs, intitule,adr1,adr2,cp,ville,dte,numdoc,numlot,libelle,montantd,montantc,numero,journal) VALUES (&1,&2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15})", rResult!compte, rrResult!cli_rs_soc, rrResult!cli_nom, rrResult!cli_adr1, rrResult!cli_adr2, rrResult!cli_cd_ptl, rrResult!cli_ville, rResult!dte, rResult!numdoc, rResult!numlot, rResult!libelle, rResult!montantd, rResult!montantc, rResult!numero, rResult!jour)
+        Endif
+      Until rResult.MoveNext()
+    Endif
+    rResult = Utils.db.Exec("SELECT * FROM " & tab & " order by compte ")
+    If rResult.Available Then
+      Repeat
+        If cpt <> rResult!compte Then
+          Totdeb = rResult!montantd
+          Totcred = rResult!montantc
+          compteRel.Add(rResult!compte, rResult!compte)
+          compteRel.Item[0] = rResult!compte
+          compteRel.Item[1] = rResult!rs
+          compteRel.Item[2] = rResult!intitule
+          compteRel.Item[3] = rResult!cp
+          compteRel.Item[4] = rResult!ville
+          cpt = rResult!compte
+          compteRel.Item[5] = Format$(Totdeb, "0.00")
+          compteRel.Item[6] = Format$(Totcred, "0.00")
+        Else
+          Totdeb = Totdeb + rResult!montantd
+          Totcred = Totcred + rResult!montantc
+          compteRel.Item[5] = Format$(Totdeb, "0.00")
+          compteRel.Item[6] = Format$(Totcred, "0.00")
+        Endif
+      Until rResult.MoveNext()
+    Endif
+  Else
+    If son Then
+      Music.Play
+    Endif
+    Message.Info("Veuillez saisir votre date SVP")
+    dteN1_GotFocus()
+    dteN1.SetFocus
+  Endif
+  
+End
+
+Public Sub dte_KeyPress()
+  
+  Select Case Last.tag
+      
+    Case 1
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        dteN0_LostFocus()
+        dten1_GotFocus()
+        dten1.SetFocus
+        dten1.Select
+        Stop Event
+      Endif
+      
+    Case 2
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        dten1_LostFocus()
+        If Enr = 0 Then
+          dteN1_GotFocus()
+          dteN1.SetFocus
+          dteN1.Select
+          Stop Event
+        Else
+          Enr = 1
+          Button2.SetFocus
+        Endif
+      Endif
+  End Select
+  
+  If key.code = key.F1 Then
+    Button7_Click()
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Button7_Click()
+      
+    Case 2
+      Button1_Click()
+      
+    Case 3
+      If Exist(filename) Then Try Kill filename
+      Me.Close
+      
+  End Select
+  
+End
+
+Public Sub dteN0_GotFocus()
+  
+  dteN0.Background = &HAAFF7F&
+  dteN0.SetFocus
+  dteN0.Select
+  
+End
+
+Public Sub dteN0_LostFocus()
+  
+  dteN0.Background = Color.TextBackground
+  With utils
+    dteN0.text = .Cdate_calc(dteN0.text)
+    dteN0.Text = .Cdate_aff(dteN0.Text)
+    If dteN0.Text = "00.00.0:00" Then dteN0.Text = Format$(Now, "dd.mm.yyyy")
+  End With
+  dteN1_GotFocus()
+  dteN1.setfocus
+Catch
+  dteN0_GotFocus()
+  dteN0.setfocus
+  
+End
+
+Public Sub dteN1_GotFocus()
+  
+  dteN1.Background = &HAAFF7F&
+  
+End
+
+Public Sub dteN1_LostFocus()
+  
+  Enr = 1
+  dteN0.Background = Color.TextBackground
+  With utils
+    dteN1.text = .Cdate_calc(dteN1.text)
+    dteN1.Text = .Cdate_aff(dteN1.Text)
+    If dteN1.Text = "00.00.0:00" Then dteN1.Text = Format$(Now, "dd.mm.yyyy")
+  End With
+  If Val(Right$(dteN1.text, 4) & Mid$(dteN1.text, 4, 2) & Left$(dteN1.text, 2)) <= Val(Right$(dte1, 4) & Mid$(dte1, 4, 2) & Left$(dte1, 2)) Then
+    Txt = "Attention ! La date saisie est inférieure au début de la période selectionnée."
+    Compdate2()
+  Endif
+  dteN1.Background = Color.TextBackground
+Catch
+  dteN1_GotFocus()
+  dteN1.setfocus
+  
+End
+
+Public Sub Compdate()
+  
+  If son Then
+    Music.Play
+  Endif
+  If Message.Warning(Txt, "Ok") = 1 Then
+    dteN0_GotFocus()
+    dteN0.setfocus
+  Endif
+  
+End
+
+Public Sub Compdate2()
+  
+  If son Then
+    Music.Play
+  Endif
+  If Message.Warning(Txt, "Ok") = 1 Then
+    Enr = 0
+    dteN1_GotFocus()
+    dteN1.setfocus
+  Endif
+  
+End
+
+Public Sub Releves()
+  
+  Dim rRESULT As RESULT
+  Dim Tab As String
+  Dim Tab2 As String
+  Dim adr1 As String
+  Dim adr2 As String
+  Dim adr21 As String
+  Dim adr22 As String
+  Dim ville As String
+  Dim ville2 As String
+  Dim Pays As String
+  Dim Mail As String
+  Dim Rcs As String
+  Dim Siret As String
+  Dim Tvaintra As String
+  Dim Cap As String
+  Dim Ape As String
+  Dim Iban As String
+  Dim Tel As String
+  Dim portable As String
+  Dim Fax As String
+  Dim site As String
+  Dim Rs As String
+  Dim Rs2 As String
+  Dim dte As String
+  Dim num As String
+  Dim Lib As String
+  Dim Mtd As String
+  Dim Totmtd As String
+  Dim Mtc As String
+  Dim Totmtc As String
+  Dim Soldes As String
+  Dim Afflog As Boolean
+  Dim pdf As Creleve
+  Dim Sens As Boolean = False
+  
+  Afflog = False
+  Shell "cd " & User.Home & ""
+  Filename = User.home & "/RelFac.pdf"
+  pdf = New Creleve("Portrait", "mm", "A4")
+  pdf.Open()
+  pdf.AliasNbPages()
+  Tab = "Fiches_RelFacture" 
+  Tab2 = "Fiches_Societes"
+  Me.Mouse = Mouse.Wait
+  jour = Format$(Now, "dd.mm.yyyy")
+  dte2 = dteN0.Text & " " & "au" & " " & dteN1.Text
+  With Utils
+    Totmtd = "0"
+    Totmtc = "0"
+    rResult = Utils.db.Exec("SELECT * FROM " & tab2 & " where cd_sc = &1", Start.Societe)
+    Rs = rResult!type_sc & " " & rResult!int_sc
+    adr1 = rResult!adr1_sc
+    adr2 = rResult!adr2_sc
+    ville = rResult!cp_sc & "  " & rResult!burdis_sc
+    jour = rResult!burdis_sc & "  le  " & jour
+    If rResult!villerc_sc Then Rcs = "Rcs : " & rResult!rcs_sc & " " & rResult!villerc_sc
+    If rResult!siret_sc Then Siret = Settings["/Soc" & Start.Societe & "/Siret"] & " : " & rResult!siret_sc
+    If rResult!tvaintra_sc Then Tvaintra = "Tva intra : " & rResult!tvaintra_sc
+    If rResult!cap_sc Then Cap = "Capital : " & rResult!cap_sc
+    If rResult!ape_sc Then Ape = "Naf : " & rResult!ape_sc
+    If rResult!tel_sc Then Tel = "Tel : " & rResult!tel_sc
+    If rResult!port_sc Then Portable = "Portable : " & rResult!port_sc
+    If rResult!fax_sc Then Fax = "Fax : " & rResult!fax_sc
+    If rResult!email_sc Then Mail = "Courriel : " & rResult!email_sc
+    If rResult!site Then Site = "Site : " & rResult!site
+    If rResult!banq Then Iban = "Iban : " & rResult!banq & " Bic : " & rResult!bic
+    If compteRel.Available Then
+      compteRel.MoveFirst
+      Repeat
+        If RB2.Value And Not compteRel.Item.selected Then
+        Else
+          If RB2.Value And compteRel.Item.selected Then rResult = Utils.db.Exec("SELECT * FROM " & tab & " where compte = &1", compteRel.Item[0])
+          If RB1.Value Then rResult = Utils.db.Exec("SELECT * FROM " & tab & "  where compte = &1", compteRel.Item[0])
+          If rResult.Available Then
+            Rs2 = rResult!rs & " " & rResult!intitule
+            adr21 = rResult!adr1
+            adr22 = rResult!adr2
+            ville2 = rResult!cp & "  " & rResult!ville
+            pdf.Entete(rs, adr1, adr2, ville, cap, rcs, siret, ape, Tvaintra, Tel, portable, fax, mail, site, Pays, Iban, False)
+            pdf.Entete2(rs2, adr21, adr22, ville2, Pays, "", False)
+            pdf.Level1(Jour, dte2, "1")
+            pdf.Level2()
+            posy = 120
+            Repeat
+              dte = Right$(rResult!dte, 2) & "." & Mid$(rResult!dte, 6, 2) & "." & Left$(rResult!dte, 4)
+              num = rResult!numdoc
+              Lib = rResult!libelle
+              Mtd = rResult!montantd
+              Mtd = Format$(Mtd, "0.00")
+              Mtc = rResult!montantc
+              Mtc = Format$(Mtc, "0.00")
+              Totmtd = Val(Totmtd) + Val(Mtd)
+              Totmtd = Format$(Totmtd, "0.00")
+              Totmtc = Val(Totmtc) + Val(Mtc)
+              Totmtc = Format$(Totmtc, "0.00")
+              pdf.Level3(Dte, Num, Lib, Mtd, Mtc, Posy)
+              posy += 5
+              If PosY >= 283 Then
+                pdf.Entete(rs, adr1, adr2, ville, cap, rcs, siret, ape, Tvaintra, Tel, portable, fax, mail, site, Pays, Iban, False)
+                pdf.Entete2(rs2, adr21, adr22, ville2, Pays, "", False)
+                pdf.Level1(Jour, dte2, "1")
+                pdf.Level2()
+                posy = 120
+              Endif
+            Until rResult.MoveNext()
+            pdf.lines(PosY)
+            Posy += 4
+            pdf.Level4(Totmtd, Totmtc, PosY)
+            Posy += 5
+            Soldes = Val(.cpoint(Totmtd)) - Val(.cpoint(Totmtc))
+            If Val(.cpoint(Soldes)) < 0 Then
+              sens = True
+              Soldes = Abs(Val(.cpoint(Soldes)))
+            Else
+              sens = False
+            Endif
+            Soldes = Solde(Soldes)
+            If sens Then Soldes = "-" & Soldes
+            Soldes = " Arrété le présent relevé à la somme de " & Soldes
+            pdf.Level9(Soldes, PosY)
+            Totmtd = 0
+            Totmtc = 0
+          Endif
+        Endif
+      Until compteRel.Movenext()
+      pdf.Output(Filename, False)
+      Visualiseur.Prog_Editeur(Filename)
+    Endif
+  End With
+  Me.Mouse = Mouse.Custom
+  MajTab()
+  
+End
+
+Public Sub Solde(Entier As String) As String
+  
+  Dim sEntier As String
+  Dim sDizaine As String
+  Dim ipos As Integer
+  Dim $Monnaie As String = " euros "
+  Dim $Centimes As String = " centimes"
+  
+  With Utils
+    sEntier = Entier
+    sDizaine = sEntier
+    iPos = InStr(sEntier, ".")
+    If ipos <> 0 Then
+      sDizaine = Right$(sDizaine, 2)
+      sDizaine = numtostring.nbtostring(sDizaine)
+    Else
+      sDizaine = ""
+    Endif
+    If ipos <> 0 Then sEntier = Left$(sEntier, iPos - 1)
+    sEntier = numtostring.nbtostring(sEntier)
+    If Not IsNull(sDizaine) Then
+      If Right$(sDizaine, 2) = "un" Then
+        sDizaine = Left$(sDizaine, Len(sDizaine) - 2) & "et " & Right$(sDizaine, 2)
+        $centimes = " centime"
+      Else
+        $centimes = " centimes"
+      Endif
+    Else
+      $Centimes = ""
+    Endif
+    If sEntier = "un" Or If sEntier = "zéro" Then $Monnaie = " Euro "
+    sEntier = sEntier & $Monnaie & sDizaine & $centimes
+    Return sEntier
+  End With   
+  
+End
+
+Public Sub Button1_Click()
+  
+  Releves()
+  
+End
+
+Public Sub Button2_Click()
+  
+  MajTab()
+  
+End
+
+Public Sub RB1_Click()
+  
+  MajTab()
+  
+End
+
+Public Sub RB2_Click()
+  
+  MajTab()
+  
+End
+
+Public Sub Button7_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Relfact.html"]
+  
+End

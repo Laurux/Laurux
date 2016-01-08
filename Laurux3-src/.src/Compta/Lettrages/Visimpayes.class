@@ -1,0 +1,214 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'-------------------------------arr---------------------------------------------
+'################################################
+'# nom du fichier           : Facturefm.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 01/09/2007
+'# Facturation fin de mois
+'################################################
+'
+Private Tab As String
+Private Tab3 As String
+Private Tab4 As String
+Private rResult As Result
+Private Coulfond As New String[]
+
+'**********************************************************
+'*initialisation écrans et gestion onglet client          *
+'**********************************************************
+Public Sub _New()
+  
+  Tab = "Fiches_Parametres" 
+  rResult = Utils.db.Exec("SELECT * FROM " & tab & "")
+  Coulfond = Utils.Coulfd()
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  
+  Colbl.Columns.count = 6
+  Colbl.Columns[0].Width = 80
+  Colbl.Columns[1].Width = 230
+  Colbl.Columns[2].Width = 60
+  Colbl.Columns[3].Width = 200
+  Colbl.Columns[4].Width = 100
+  Colbl.Columns[0].Text = "Code"
+  Colbl.Columns[0].Alignment = 1
+  Colbl.Columns[1].Text = "Nom"
+  Colbl.Columns[1].Alignment = 1
+  Colbl.Columns[2].Text = "Cp"
+  Colbl.Columns[2].Alignment = 1
+  Colbl.Columns[3].Text = "Ville"
+  Colbl.Columns[4].Text = "Solde compte"
+  Colbl.Columns[4].Alignment = 2
+  
+  Coldetail.Columns.count = 6
+  Coldetail.Columns[0].Width = 1
+  Coldetail.Columns[1].Width = 100
+  Coldetail.Columns[2].Width = 100
+  Coldetail.Columns[3].Width = 100
+  Coldetail.Columns[4].Width = 100
+  Coldetail.Columns[5].Width = 100
+  Coldetail.Columns[1].Text = "N° Facture"
+  Coldetail.Columns[2].Text = "Date"
+  Coldetail.Columns[3].Text = "Mt facture"
+  Coldetail.Columns[3].Alignment = 2
+  Coldetail.Columns[4].Text = "Mt reglement"
+  Coldetail.Columns[4].Alignment = 2
+  Coldetail.Columns[5].Text = "Libellé"
+  recup_bl()
+  
+End
+
+'********************************
+'*  On récupère les factures    *
+'********************************
+Public Sub recup_bl()
+  
+  Dim Tab2 As String
+  Dim Facture As Result
+  Dim Client As Result
+  Dim totf As Result
+  Dim Totald As String
+  Dim Totalc As String
+  Dim Tot As String
+  Dim Numerodoc As String
+  
+  Tab = "Fiches_Mvt" 
+  Tab2 = "Fiches_Cli" 
+  Tab3 = "Facturefm" 
+  Tab4 = "Detail" 
+  Totald = "0"
+  Totalc = "0"
+  Tot = 0
+  Utils.db.Exec("drop Table IF exists " & Tab3 & "")
+  Utils.db.Exec("CREATE TABLE " & Tab3 & 
+    "(code Char(8) NOT NULL," &
+    "nom Char(35)," &
+    "cp Char(5)," &
+    "ville Char(35)," &
+    "totald Char(12)," &
+    "totalc Char(12)," &
+    "lind char(10) ," &
+    "PRIMARY KEY (code))" & "ENGINE = MYISAM")
+  Utils.db.Exec("drop Table IF exists " & Tab4 & "")
+  Utils.db.Exec("CREATE TABLE " & Tab4 & 
+    "(num Char(12) NOT NULL," &
+    "code Char(10)," &
+    "date date," &
+    "mtd Char(12)," &
+    "mtc Char(12)," &
+    "numfac Char(12)," &
+    "intitule Char(30)," &
+    "lind char(10) ," &
+    "PRIMARY KEY (num, numfac, lind))" & "ENGINE = MYISAM")
+  Facture = Utils.db.Exec("SELECT * FROM " & tab & " where left(compte,3) = &1 and collectif is null and lettree = &2 order by numero", 411, 0)
+  If Facture.Available Then
+    Repeat
+      Client = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE cli_code = &1", Facture!compte)
+      totf = Utils.db.Exec("SELECT * FROM " & Tab3 & " WHERE code = &1", Facture!compte)
+      If totf.Available Then
+        Totald = totf!totald + Facture!montantd
+        Totalc = totf!totalc + Facture!montantc
+        Utils.db.Exec("UPdate " & Tab3 & " SET totald = &1, totalc = &2 WHERE code = &3", Totald, Totalc, Facture!compte)
+      Else
+        Utils.db.Exec("INSERT INTO " & Tab3 & " (code, nom, cp, ville, totald, totalc) Values (&1, &2, &3, &4, &5, &6)", Facture!compte, Client!cli_nom, Client!cli_cd_ptl, Client!cli_ville, Facture!montantd, Facture!montantc)
+      Endif
+      numerodoc = Facture!numdoc
+      If IsNull(Numerodoc) Then Numerodoc = " "
+      Utils.db.Exec("INSERT INTO " & Tab4 & " (num, code, date, mtd, mtc, numfac, intitule, lind) Values (&1, &2, &3, &4, &5, &6, &7, &8)", Facture!numero, Facture!compte, Facture!dte, Facture!montantd, Facture!montantc, Numerodoc, Facture!intitule, Facture!lind)
+    Until Facture.MoveNext()
+  Endif
+  Client = Utils.db.Exec("SELECT * FROM " & Tab3 & " order by nom")
+  If Client.Available Then
+    Repeat
+      Colbl.Add(Client!code, Client!code)
+      Colbl.Item[0] = Client!code
+      Colbl.Item[1] = Client!nom
+      Colbl.Item[2] = Client!cp
+      Colbl.Item[3] = Client!ville
+      Colbl.Item[4] = Format$(Client!totald - Client!totalc, "0.00")
+      Tot = Format$(Val(Tot) + Client!totald - Client!totalc, "0.00")
+      '  Colbl.Item[5] = Format$(Client!totalc, "0.00")
+    Until Client.MoveNext()
+    Label1.Text = "Total impayés : " & Tot
+  Endif
+  
+End
+
+Public Sub Colbl_Click()
+  
+  Dim Client As Result
+  
+  Tab = "Detail" 
+  Coldetail.clear
+  With Utils
+    If Not Colbl.Available Then
+      Colbl.clear
+    Else
+      Client = Utils.db.Exec("SELECT * FROM " & Tab & " where code = &1 order by num", Colbl.Item[0])
+      If Client.Available Then
+        Repeat
+          Coldetail.Add(Client!num & Client!numfac & Client!lind, Client!num & Client!numfac)
+          Coldetail.Item[0] = Client!num
+          Coldetail.Item[1] = Client!numfac
+          Coldetail.Item[2] = .Cdate_Aff(Client!date)
+          Coldetail.Item[3] = Format$(Client!mtd, "0.00")
+          Coldetail.Item[4] = Format$(Client!mtc, "0.00")
+          Coldetail.Item[5] = "  " & Client!intitule
+        Until Client.MoveNext()
+      Endif
+    Endif
+  End With
+  
+End
+
+Public Sub Coldetail_Keypress()
+  
+  Dim Tab5 As String
+  
+  Tab3 = "Facturefm" 
+  Tab4 = "Detail" 
+  Tab5 = "Fiches_Mvt" 
+  With Utils
+    If Key.code = Key.Delete And Coldetail.Count <> 0 Then
+      If Message.Question("Cette facture n'apparaitra plus dans les factures dues !", "Oui", "Non") = 1 Then
+        Utils.db.Exec("delete from " & Tab4 & " WHERE num = &1 ", Coldetail.current[0])
+        Utils.db.Exec("Update " & Tab5 & " set lettree = &1 where numero = &2", 1, Coldetail.current[0])
+      Endif
+      Colbl.Clear
+      Coldetail.Clear
+      recup_bl()
+    Endif
+  End With
+  
+End
+
+Public Sub Button2_Click()
+  
+  Me.Close
+  
+End
+
+Public Sub Button1_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Visimpayes.html"]
+  
+End

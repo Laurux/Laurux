@@ -1,0 +1,254 @@
+' Gambas class file
+
+'
+' Gambas class file
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Hit.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 19/04/2005
+'# Impression du hit parade
+'################################################
+
+hForm As VisHit
+Filename As String
+Filetxt As String
+hfile As File
+dte4 As String
+ye As String
+mo As String
+da As String
+dte1 As String
+Txt As String
+Niv As String
+Tot As Integer
+son As Integer = Start.Son
+
+Public Sub _New()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  Dim jour As String
+  Dim Frmt As New String[]
+  
+  Frmt = Utils.FColr(Settings["/Coul/Fnets"])
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Tot = 10
+  
+  Music.Load(Start.Musique)
+  filename = User.home & "/Sinv.kud"
+  Me.Center
+  dteN0.Text = "01.01.2006"
+  dteN1.Text = Format$(Now, "dd.mm.yyyy")
+  If Settings["/Soc" & Start.Societe & "/Materiel"] = 0 Then
+    HBox3.visible = False
+    Facn.value = True
+  Endif
+  
+End
+
+Public Sub dte_KeyPress()
+  
+  Select Case Last.tag
+      
+    Case 1
+      If Key.code = Key.enter Or Key.code = Key.Return Or Key.code = Key.Tab Then
+        dteN0_LF()
+        dteN1.SetFocus
+        dteN1.Select
+        Stop Event
+      Endif
+      
+    Case 2
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        dteN1_LF()
+        dteN0.SetFocus
+        dteN0.Select
+        Stop Event
+      Endif
+  End Select
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Traitement()
+      
+    Case 2
+      Me.Close
+  End Select
+  
+End
+
+Public Sub Rb_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Tot = 10
+      
+    Case 2
+      Tot = 20
+      
+    Case 3
+      Tot = 50
+      
+    Case 4
+      Tot = 100
+  End Select
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub dte_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  
+End
+
+'****************************************************
+'*          Gestion de la premiere date             *
+'****************************************************
+Public Sub dteN0_LF()
+  
+  Dim Dtn As String
+  
+  With utils
+    dteN0.text = .Cdate_calc(dteN0.text)
+    dteN0.Text = .Cdate_aff(dteN0.Text)
+    If dteN0.Text = "00.00.0:00" Then dteN0.Text = Format$(Now, "dd.mm.yyyy")
+  End With
+  dteN1.setfocus
+  dteN1.Select
+Catch
+  dteN0.setfocus
+  dteN0.Select
+  
+End
+
+'****************************************************
+'*           Gestion de la seconde date             *
+'****************************************************
+Public Sub dteN1_LF()
+  
+  Dim Dtn As String
+  
+  With utils
+    dteN1.text = .Cdate_calc(dteN1.text)
+    dteN1.Text = .Cdate_aff(dteN1.Text)
+    If dteN1.Text = "00.00.0:00" Then dteN1.Text = Format$(Now, "dd.mm.yyyy")
+  End With
+  If Val(Right$(dteN1.text, 4) & Mid$(dteN1.text, 4, 2) & Left$(dteN1.text, 2)) < Val(Right$(dteN0.text, 4) & Mid$(dteN0.text, 4, 2) & Left$(dteN0.text, 2)) Then
+    If son Then
+      Music.Play
+    Endif
+    If Message.Warning("Attention ! Votre selection n'est pas possible.", "Ok") = 1 Then
+      dteN1.setfocus
+      dteN1.Select
+    Endif
+  Endif
+Catch
+  dteN1.setfocus
+  dteN1.Select
+  
+End
+
+Public Sub Traitement()
+  
+  Dim Tab As String
+  Dim Tab2 As String
+  Dim Tab3 As String
+  Dim Tab4 As String
+  Dim Tab5 As String
+  Dim rResult As Result
+  Dim LigResult As Result
+  Dim TotResult As Result
+  Dim codeA As String
+  Dim designA As String
+  Dim qteA As String
+  Dim TotA As String
+  
+  Tab = "Fiches_HistoFac" 
+  Tab2 = "Fiches_HistoLigfac" 
+  Tab3 = "Total"
+  Tab4 = "Fiches_HistoFacM" 
+  Tab5 = "Fiches_HistoLigfacM" 
+  With Utils
+    Me.Mouse = Mouse.Wait
+    Tab3 = "Total"
+    Utils.db.Exec("DROP TABLE IF EXISTS  Total")
+    Utils.db.Exec("CREATE TABLE " & Tab3 & 
+      "(code Char(15) NOT NULL," &
+      "design Char(30)," &
+      "qte Decimal(12,2)," &
+      "totalht Decimal(12,2)," &
+      "PRIMARY KEY (code))" & "ENGINE = MYISAM")
+    If dteN0.Text <> "" Or Left$(dteN0.Text, 2) = "00" Or dteN1.Text <> "" Or Left$(dteN1.Text, 2) = "00" Then
+      If Facn.value = True Then rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where datefac >= &1 and datefac <= &2  ", .Cdate_Dbase(dteN0.Text), .Cdate_Dbase(dteN1.Text))
+      If Face.value = True Then rResult = Utils.db.Exec("SELECT * FROM " & Tab4 & " where datefac >= &1 and datefac <= &2  ", .Cdate_Dbase(dteN0.Text), .Cdate_Dbase(dteN1.Text))
+      If Fact.value = True Then rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where datefac >= &1 and datefac <= &2 union SELECT * FROM " & Tab4 & " where datefac >= &1 and datefac <= &2 ", .Cdate_Dbase(dteN0.Text), .Cdate_Dbase(dteN1.Text))
+      If rResult.Available Then
+        Repeat
+          If Facn.value = True Then LigResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " Where num_ligfac = &1 and typel_ligfac <> &2 and typel_ligfac <> &3 and typel_ligfac <> &4 and typel_ligfac <> &5 and typel_ligfac <> &6 and typel_ligfac <> &7", rResult!numfac, "T", "E", "C", "P", "R", "O")
+          If Face.value = True Then LigResult = Utils.db.Exec("SELECT * FROM " & Tab5 & " Where num_ligfac = &1 and typel_ligfac <> &2 and typel_ligfac <> &3 and typel_ligfac <> &4 and typel_ligfac <> &5 and typel_ligfac <> &6 and typel_ligfac <> &7", rResult!numfac, "T", "E", "C", "P", "R", "O")
+          If Fact.value = True Then LigResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " Where num_ligfac = &1 and typel_ligfac <> &2 and typel_ligfac <> &3 and typel_ligfac <> &4 and typel_ligfac <> &5 and typel_ligfac <> &6 and typel_ligfac <> &7 union SELECT * FROM " & Tab5 & " Where num_ligfac = &1 and typel_ligfac <> &2 and typel_ligfac <> &3 and typel_ligfac <> &4 and typel_ligfac <> &5 and typel_ligfac <> &6 and typel_ligfac <> &7", rResult!numfac, "T", "E", "C", "P", "R", "O")
+          If LigResult.Available Then
+            Repeat
+              If LigResult!code_ligfac Then
+                TotResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " Where code = &1", LigResult!code_ligfac)
+                If TotResult.Available Then
+                  Try qteA = Str(TotResult!qte + Val(.cpoint(LigResult!qte_ligfac)))
+                  Try TotA = Str(TotResult!totalht + Val(LigResult!netht_ligfac))
+                  Utils.db.Exec("UPdate " & Tab3 & " set code = &1, design = &2, qte = &3, totalht = &4 Where code = &1", LigResult!code_ligfac, LigResult!libel_ligfac, qteA, TotA)
+                Else
+                  qteA = LigResult!qte_ligfac
+                  TotA = LigResult!netht_ligfac
+                  Utils.db.Exec("INSERT INTO " & Tab3 & "(code, design, qte, totalht) VALUES (&1, &2, &3, &4)", LigResult!code_ligfac, LigResult!libel_ligfac, qteA, TotA)
+                Endif
+              Endif
+            Until LigResult.MoveNext()
+          Endif
+        Until rResult.MoveNext()
+      Endif
+    Else
+      If son Then
+        Music.Play
+      Endif
+      message.Warning("Veuillez saisir une date SVP !", "Ok")
+    Endif
+  End With
+  Me.Mouse = Mouse.Default
+  If RadioButton1.Value Then Niv = "1"
+  If RadioButton2.Value Then Niv = "2"
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab3 & "")
+  If rResult.Available Then
+    hForm = New VisHit(Me, niv, Tot, son, dteN0.Text, dteN1.Text, RadioButton3.value)
+    hForm.Show()
+  Else
+    Message.Warning("Aucune donnée pour cette période !", "OK")
+  Endif
+  
+End

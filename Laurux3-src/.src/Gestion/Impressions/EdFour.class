@@ -1,0 +1,322 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : EDfour.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 11/05/2006
+'# Edition des fournisseurs
+'################################################
+'
+
+Filename As String
+Tab As String
+son As Integer = Start.Son
+PosY As Integer
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  Cli.Text = "00000"
+  Cli2.Text = "4099999"
+  Cli.Select
+  Cli.SetFocus
+  
+End
+
+Public Sub ToggleButton1_Click()
+  
+  Dim rResult As Result
+  
+  Tab = "Fiches_Four" 
+  With Utils
+    If Colcli.visible Then
+      Colcli.clear
+      Colcli.visible = False
+    Else
+      Colcli.visible = True
+      Colcli.Columns.count = 2
+      Colcli.Columns[0].Width = 65
+      Colcli.Columns[1].Width = 280
+      Colcli.Columns[0].Text = "code"
+      Colcli.Columns[1].Text = "Intitulé"
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by fo_code ")
+      If rResult.Available Then
+        Do
+          Colcli.Add(rResult!fo_code, rResult!fo_code)
+          Colcli.Item[0] = rResult!fo_code
+          Colcli.Item[1] = rResult!fo_nom
+        Loop Until rResult.MoveNext()
+      Endif
+      If Colcli.Count Then
+        Colcli.MoveFirst
+        Colcli.SetFocus
+        Colcli.Item.Selected = True
+      Endif
+    Endif
+  End With
+  
+End
+
+'***********************************************************
+'* Gestion du columnview Colcli lors d'une saisie manuelle *
+'***********************************************************
+Public Sub Colcli_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Colcli.MoveCurrent
+    Colcli_Click()
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Colcli.visible = False
+    Colcli.clear
+    Cli.SetFocus
+    Cli.Select
+    Stop Event
+  Endif
+  
+End
+
+Public Sub ToggleButton2_Click()
+  
+  Dim rResult As Result
+  
+  Tab = "Fiches_Four" 
+  With Utils
+    If Colcli2.visible Then
+      Colcli2.clear
+      Colcli2.visible = False
+    Else
+      Colcli2.visible = True
+      Colcli2.Columns.count = 2
+      Colcli2.Columns[0].Width = 65
+      Colcli2.Columns[1].Width = 280
+      Colcli2.Columns[0].Text = "code"
+      Colcli2.Columns[1].Text = "Intitulé"
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by fo_code")
+      If rResult.Available Then
+        Do
+          Colcli2.Add(rResult!fo_code, rResult!fo_code)
+          Colcli2.Item[0] = rResult!fo_code
+          Colcli2.Item[1] = rResult!fo_nom
+        Loop Until rResult.MoveNext()
+      Endif
+      If Colcli2.Count Then
+        Colcli2.MoveFirst
+        Colcli2.SetFocus
+        Colcli2.Item.Selected = True
+      Endif
+    Endif
+  End With
+  
+End
+
+'***********************************************************
+'* Gestion du columnview Colcli2 lors d'une saisie manuelle *
+'***********************************************************
+Public Sub Colcli2_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Colcli2.MoveCurrent
+    Colcli2_Click()
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Colcli2.visible = False
+    Colcli2.clear
+    Cli2.SetFocus
+    Cli2.Select
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Button1_Click()
+      
+    Case 2
+      Button2_Click()
+      
+    Case 3
+      If Exist(Filename) Then Try Kill Filename
+      Me.Close
+      
+  End Select
+  
+End
+
+Public Sub Cmpt_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+      Case 1
+        Cli2.SetFocus
+        Cli2.Select
+        Stop Event
+        
+      Case 2
+        Cli.SetFocus
+        Cli.Select
+        Stop Event
+    End Select
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+  If key.code = key.F2 Then
+    Select Case Last.tag
+      Case 1
+        ToggleButton1_Click()
+        Stop Event
+        
+      Case 2
+        ToggleButton2_Click()
+        Stop Event
+    End Select
+  Endif
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Cmpt_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  
+End
+
+Public Sub Colcli_Click()
+  
+  Cli.Text = Colcli.Item[0]
+  Colcli.clear
+  Colcli.visible = False
+  Cli2.Select
+  Cli2.SetFocus
+  
+End
+
+Public Sub Colcli2_Click()
+  
+  Cli2.Text = Colcli2.Item[0]
+  Colcli2.clear
+  Colcli2.visible = False
+  Cli.Select
+  Cli.SetFocus
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim rResult As Result
+  Dim code As String
+  Dim intitule As String
+  Dim Prenom As String
+  Dim adr1 As String
+  Dim adr2 As String
+  Dim cp As String
+  Dim ville As String
+  Dim TelBur As String
+  Dim TelPble As String
+  Dim dte As String
+  Dim Nbpage As Integer
+  Dim pdf As Cclients
+  
+  dte = Format$(Now, "dd.mm.yyyy")
+  Tab = "Fiches_Four" 
+  Nbpage = 1
+  Shell "cd " & User.Home & ""
+  Filename = User.home & "/Fours.pdf"
+  pdf = New Cclients("l", "mm", "A4")
+  pdf.Open()
+  pdf.AliasNbPages()
+  pdf.EnteteP("Liste des fournisseurs")
+  pdf.Level1F()
+  Posy = 30
+  Me.Mouse = Mouse.Wait
+  If Radiobutton1.Value Then
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE fo_code >= &1  and fo_code <= &2 order by fo_code", Cli.text, Cli2.text)
+  Endif
+  If Radiobutton2.Value Then
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE fo_code >= &1  and fo_code <= &2 order by fo_nom", Cli.text, Cli2.text)
+  Endif
+  If rResult.Available Then
+    Do
+      code = rResult!fo_code
+      intitule = rResult!fo_nom
+      Prenom = rResult!fo_pnm
+      adr1 = rResult!fo_adr1
+      adr2 = rResult!fo_adr2
+      cp = rResult!fo_cd_ptl
+      ville = rResult!fo_ville
+      Telbur = rResult!fo_tel_bur
+      TelPble = rResult!fo_pble
+      pdf.Level2F(code, intitule, prenom, adr1, adr2, cp, ville, TelBur, TelPble, PosY)
+      Posy += 4
+      pdf.LinesP(PosY)
+      Posy += 2
+      If PosY >= 194 Then
+        pdf.BaspageP()
+        pdf.EnteteP("Liste des fournisseurs")
+        pdf.Level1F()
+        Posy = 30
+      Endif
+    Loop Until rResult.MoveNext()
+    Posy += 4
+    pdf.Baspage()
+    pdf.Output(Filename, False)
+    Impression.Prog_Editeur(Filename)
+  Else
+    If son Then
+      Music.Play
+    Endif
+    message(" Aucun fournisseur pour cette demande", "OK")
+  Endif
+  Me.Mouse = Mouse.Pointing
+  
+End
+
+Public Sub Button1_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Edfour.html"]
+  
+End

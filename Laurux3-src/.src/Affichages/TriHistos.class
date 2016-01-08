@@ -1,0 +1,730 @@
+' Gambas class file
+
+Private Tri As String
+Private Dbl As String
+Private Decm As String
+Private Type As String
+Private Code As String
+Private Cfour As String
+Private Dtejour As String
+Private Periode As Integer
+
+Public Sub _new(Codea As String, Four As String, decimale As String, Triart As String, Thisto As String)
+  
+  Me.Center
+  decm = Decimale
+  Tri = Triart
+  Type = Thisto
+  Code = codea
+  Four = Four
+  ComboBox1.Text = "1 an"
+  Periode = Val(Left$(ComboBox1.Text, 1))
+  If Type = "V" Then
+    Histo_ventes()
+  Else
+    Histo_Achat()
+  Endif
+  
+End
+
+Public Sub Histo_ventes()
+  
+  Dim Histolig As Result
+  Dim Histofac As Result
+  Dim LigblResult As Result
+  Dim BlResult As Result
+  Dim LigcaiR As Result
+  Dim rexp As Result
+  Dim CaiR As Result
+  Dim HisResult As Result
+  Dim lind As Integer = 1
+  Dim libelle As String
+  
+  Dtejour = Format$(Now, "yyyymm")
+  Dtejour = (Val(Left$(Dtejour, 4)) - Periode) & Right$(Dtejour, 2) & "01"
+  Utils.db.Exec("drop Table IF exists " & Cbase.Table("TabStat") & "")
+  Utils.db.Exec("CREATE TABLE " & Cbase.Table("TabStat") &
+    "(code Char(15) NOT NULL, " &
+    "date Date," &
+    "nom Char(50)," &
+    "pvb Decimal(12,2) ," &
+    "rem char(6) ," &
+    "pvn Decimal(12,2) ," &
+    "qte Decimal(12,3) ," &
+    "nfac char(10) ," &
+    "nlig char(10) ," &
+    "lind INT NOT NULL AUTO_INCREMENT," &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  Tri = "date"
+  If Start.Caisse = True Then
+    NFAC.text = "N° Fac/Bl/Tck"
+  Else
+    NFAC.text = "N° Fac/Bl"
+  Endif
+  With utils
+    Colhisto.clear
+    Colhisto.Columns.count = 9
+    Colhisto.Columns[0].Width = DA.Width
+    Colhisto.Columns[1].Alignment = 3
+    Colhisto.Columns[1].Width = COD.Width
+    Colhisto.Columns[2].Width = NM.Width
+    Colhisto.Columns[3].Alignment = 2
+    Colhisto.Columns[3].Width = Txtb1.Width
+    Colhisto.Columns[4].Alignment = 2
+    Colhisto.Columns[4].Width = Txtb2.Width
+    Colhisto.Columns[5].Alignment = 2
+    Colhisto.Columns[5].Width = Txtb3.Width
+    Colhisto.Columns[6].Alignment = 2
+    Colhisto.Columns[6].Width = Txtb4.Width
+    Colhisto.Columns[7].Alignment = 3
+    Colhisto.Columns[7].Width = NFAC.Width
+    If Not IsNull(code) Then
+      LigblResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigbl") & " where code_ligbl = &1 and typel_ligbl = &2 ", code, "A")
+      If LigblResult.Available Then
+        Do
+          BlResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBl") & " where numbl = &1 ", LigblResult!num_ligbl)
+          If BlResult.Available Then
+            If BlResult!type = "B" Or BlResult!type = "F" Then
+              If BlResult!imp = "1" Then
+                HisResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabStat") & " where nfac = &1 ", LigblResult!num_ligbl)
+              Else
+                HisResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabStat") & " where nfac = &1 ", LigblResult!num_ligbl)
+              Endif
+              If Not HisResult.Available Then
+                Utils.db.Exec("INSERT INTO " & Cbase.Table("TabStat") & " VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10})", BlResult!cdclibl, BlResult!datebl, BlResult!nmclibl, Val(Utils.cpoint(LigblResult!pu_ligbl)), Val(Utils.cpoint(LigblResult!rem_ligbl)), Val(Utils.cpoint(LigblResult!netht_ligbl)), Val(Utils.CPoint(LigblResult!qte_ligbl)), BlResult!numbl, LigblResult!numlig_ligbl, lind)
+                Inc lind
+              Endif
+            Endif
+          Endif
+        Loop Until LigblResult.MoveNext()
+      Endif
+      Histolig = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisLigFac") & " where code_ligfac = &1 and typel_ligfac = &2 ", code, "A")
+      If Histolig.Available Then
+        Do
+          Histofac = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisFac") & " where numfac = &1 and datefac >= &2 and datefac <= &3", Histolig!num_ligfac, dtejour, Format$(Now, "yyyymmdd"))
+          If Histofac.Available Then
+            Try Utils.db.Exec("INSERT INTO " & Cbase.Table("TabStat") & " VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10})", Histofac!cdclifac, Histofac!datefac, Histofac!nmclifac, Val(Utils.cpoint(Histolig!pu_ligfac)), Val(Utils.cpoint(Histolig!rem_ligfac)), Val(Utils.cpoint(Histolig!netht_ligfac)), Val(Utils.CPoint(Histolig!qte_ligfac)), Histofac!numfac, Histolig!numlig_ligfac, lind)
+          Endif
+          Inc lind
+        Loop Until Histolig.MoveNext()
+      Endif
+      Try LigcaiR = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisLigTck") & " where code = &1 and type = &2 ", code, "A")
+      If Not Error Then
+        If LigcaiR.Available Then
+          Do
+            CaiR = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisEntTck") & " where numero = &1 and date >= &2 and date <= &3 ", LigcaiR!numero, dtejour, Format$(Now, "yyyymmdd"))
+            Try Utils.db.Exec("INSERT INTO " & Cbase.Table("TabStat") & " VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10})", CaiR!client, CaiR!date, "Caisse", Val(Utils.cpoint(LigcaiR!montant)), "", Val(Utils.cpoint(LigcaiR!montant)), Val(Utils.cpoint(LigcaiR!qte)), LigcaiR!numero, LigcaiR!numlig, LigcaiR!lInd)
+            Inc lind
+          Loop Until LigcaiR.MoveNext()
+        Endif
+      Endif
+      rexp = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvtexp") & " where code = &1 and qtem is not null", code, "")
+      If Not Error Then
+        If rexp.Available Then
+          Do
+            Libelle = rexp!com
+            If IsNull(Libelle) Then Libelle = "Sortie exceptionnelle"
+            If Val(Utils.cpoint(rexp!qtem)) > 0 Then Utils.db.Exec("INSERT INTO " & Cbase.Table("TabStat") & " VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10})", code, rexp!daterecpt, Libelle, "", "", "", Val(Utils.cpoint(rexp!qtem)), "", "", lind)
+            Inc lind
+          Loop Until rexp.MoveNext()
+        Endif
+      Endif
+      Aff_StatVE()
+    Endif
+  End With
+  
+End
+
+Public Sub Aff_StatVE()
+  
+  Dim StatResult As Result
+  Dim Nbd1 As String
+  Dim Nbd2 As String
+  Dim Nbd3 As String
+  
+  Qte_totale.Text = "0"
+  If Not Dbl Then
+    StatResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabStat") & " order by " & Tri & "")
+  Else
+    StatResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabStat") & " order by " & Tri & " desc")
+  Endif
+  If StatResult.Available Then
+    Colhisto.Clear
+    Repeat
+      Colhisto.Add(StatResult!nfac & StatResult!nlig & StatResult!lind, StatResult!nfac & StatResult!nlig)
+      Colhisto.Item[0] = Utils.Cdate_Aff(StatResult!date)
+      Colhisto.Item[1] = StatResult!code
+      Colhisto.Item[2] = StatResult!nom
+      Try Colhisto.Item[3] = Format$(StatResult!pvb, "0.00")
+      If Not Error Then
+        If Len(Colhisto.Item[3]) - InStr(Colhisto.Item[3], ",") = 2 Then Colhisto.Item[3] = Colhisto.Item[3] & " "
+        'Colhisto.Item[4] = "*.***"
+        Try Colhisto.Item[4] = Format$(StatResult!rem, "0.000")
+        If Error Then Colhisto.Item[4] = "*.***"
+        Try Colhisto.Item[5] = Format$(StatResult!pvn, "0.00")
+        If Error Then Colhisto.Item[5] = "0.00"
+        If Len(Colhisto.Item[5]) - InStr(Colhisto.Item[5], ",") = 2 Then Colhisto.Item[5] = Colhisto.Item[5] & " "
+      Endif
+      Colhisto.Item[6] = Utils.CDec(Decm, StatResult!qte)
+      Select Case Decm
+        Case 0
+          Nbd1 = "0"
+        Case 2
+          Nbd2 = "2"
+        Case 3
+          Nbd3 = "3"
+      End Select
+      Colhisto.Item[7] = StatResult!nfac
+      Try Qte_totale.Text = Val(utils.CPoint(Qte_totale.Text)) + Val(Utils.CPoint(StatResult!qte))
+    Until StatResult.MoveNext()
+    If Nbd1 = "0" Then Qte_totale.Text = Format$(Qte_totale.Text, "0")
+    If Nbd2 = "2" Then Qte_totale.Text = Format$(Qte_totale.Text, "0.00")
+    If Nbd3 = "3" Then Qte_totale.Text = Format$(Qte_totale.Text, "0.000")
+    Colhisto.MoveFirst
+    Colhisto.SetFocus
+    Colhisto.Item.Selected = True
+  Endif
+  
+End
+
+'**********************************
+'*     Recherche histo achats     *
+'**********************************
+Public Sub Histo_Achat()
+  
+  With Utils
+    Tri = "daterecpt"
+    NFAC.text = "N° Bl"
+    Colhisto.clear
+    Colhisto.Columns.count = 8
+    Colhisto.Columns[0].Width = DA.Width
+    Colhisto.Columns[1].Width = COD.Width
+    Colhisto.Columns[2].Width = NM.Width
+    Colhisto.Columns[3].Alignment = 2
+    Colhisto.Columns[3].Width = Txtb1.Width
+    Colhisto.Columns[4].Alignment = 2
+    Colhisto.Columns[4].Width = Txtb2.Width
+    Colhisto.Columns[5].Alignment = 2
+    Colhisto.Columns[5].Width = Txtb3.Width
+    Colhisto.Columns[6].Alignment = 2
+    Colhisto.Columns[6].Width = Txtb4.Width
+    Colhisto.Columns[7].Alignment = 3
+    Colhisto.Columns[7].Width = NFAC.Width
+    Colhisto.Columns[0].Text = "Date"
+    Colhisto.Columns[1].Text = "Code"
+    Colhisto.Columns[2].Text = "Nom"
+    Colhisto.Columns[3].Text = "Pv brut"
+    Colhisto.Columns[4].Text = "Remise"
+    Colhisto.Columns[5].Text = "Pv net"
+    Colhisto.Columns[6].Text = "Qte"
+    Colhisto.Columns[7].Text = "N° Bl"
+    If Not IsNull(code) Then
+      Aff_StatAC()
+    Endif
+  End With
+  
+End
+
+Public Sub Aff_StatAC()
+  
+  Dim Ligrcpt As Result
+  Dim fours As Result
+  Dim rexp As Result
+  Dim Nbd1 As String
+  Dim Nbd2 As String
+  Dim Nbd3 As String
+  Dim Libelle As String
+  
+  Dtejour = Format$(Now, "yyyymm")
+  Dtejour = (Val(Left$(Dtejour, 4)) - Periode) & Right$(Dtejour, 2) & "01"
+  Colhisto.Clear
+  Qte_totale.text = "0"
+  If Not Dbl Then
+    Ligrcpt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigrecpt") & " where code = &1  and daterecpt >= &3 and daterecpt <= &4 or code = &2  and daterecpt >= &3 and daterecpt <= &4 order by " & Tri & "", code, cfour, dtejour, Format$(Now, "yyyymmdd"))
+  Else
+    Ligrcpt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigrecpt") & " where code = &1  and daterecpt >= &3 and daterecpt <= &4 or code = &2  and daterecpt >= &3 and daterecpt <= &4 order by " & Tri & " Desc", code, cfour, dtejour, Format$(Now, "yyyymmdd"))
+  Endif
+  If Ligrcpt.Available Then
+    Do
+      fours = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFour") & " where fo_code = &1 ", Ligrcpt!four)
+      Colhisto.Add(Ligrcpt!numrecpt & Ligrcpt!four & Ligrcpt!nligne, Ligrcpt!numrecpt & Ligrcpt!four & Ligrcpt!nligne)
+      Colhisto.Item[0] = Utils.Cdate_Aff(Ligrcpt!daterecpt)
+      Colhisto.Item[1] = Ligrcpt!four
+      Colhisto.Item[2] = fours!fo_nom
+      Colhisto.Item[3] = Format$(Val(Utils.cpoint(Ligrcpt!pbht)), "0.00")
+      If Len(Colhisto.Item[4]) - InStr(Colhisto.Item[4], ",") = 2 Then Colhisto.Item[4] = Colhisto.Item[4] & " "
+      Colhisto.Item[4] = Ligrcpt!rm
+      Colhisto.Item[5] = Format$(Val(utils.cpoint(Ligrcpt!paht)), "0.00")
+      If Len(Colhisto.Item[6]) - InStr(Colhisto.Item[6], ",") = 2 Then Colhisto.Item[6] = Colhisto.Item[6] & " "
+      Colhisto.Item[6] = Utils.CDec(Decm, Ligrcpt!qte)
+      Select Case Decm
+        Case 0
+          Nbd1 = "0"
+        Case 2
+          Nbd2 = "2"
+        Case 3
+          Nbd3 = "3"
+      End Select
+      Colhisto.Item[7] = Ligrcpt!numrecpt
+      Qte_totale.Text = Val(utils.CPoint(Qte_totale.Text)) + Val(Utils.CPoint(Ligrcpt!qte))
+    Loop Until Ligrcpt.MoveNext()
+  Endif
+  Try rexp = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvtexp") & " where code = &1 and qtep is not null", code, "")
+  If Not Error Then
+    If rexp.Available Then
+      Do
+        If Val(Utils.cpoint(rexp!qtep)) > 0 Then
+          Libelle = rexp!com
+          If IsNull(Libelle) Then Libelle = "Entrée exceptionnelle"
+          Colhisto.Add(rexp!mind, rexp!mind)
+          Colhisto.Item[0] = Utils.Cdate_Aff(rexp!daterecpt)
+          Colhisto.Item[1] = ""
+          Colhisto.Item[2] = Libelle
+          Colhisto.Item[3] = ""
+          Colhisto.Item[4] = ""
+          Colhisto.Item[5] = ""
+          Colhisto.Item[6] = Utils.CDec(Decm, rexp!qtep)
+          Try Qte_totale.Text = Val(utils.CPoint(Qte_totale.Text)) + Val(Utils.CPoint(rexp!qtep))
+        Endif
+      Loop Until rexp.MoveNext()
+    Endif
+  Endif
+  If Nbd1 = "0" Then Qte_totale.Text = Format$(Qte_totale.Text, "0")
+  If Nbd2 = "2" Then Qte_totale.Text = Format$(Qte_totale.Text, "0.00")
+  If Nbd3 = "3" Then Qte_totale.Text = Format$(Qte_totale.Text, "0.000")
+  Try Colhisto.MoveFirst
+  Try Colhisto.SetFocus
+  Try Colhisto.Item.Selected = True
+  
+End
+
+Public Sub aff_Histo()
+  
+  DA.Text = "Date"
+  COD.text = "Code"
+  NM.Text = "Nom"
+  If Type = "V" Then
+    If Start.Caisse = True Then
+      NFAC.text = "N° Fac/Bl/Tck"
+    Else
+      NFAC.text = "N° Fac/Bl"
+    Endif
+  Else
+    NFAC.Text = "N° Bl"
+  Endif
+  
+End
+
+Public Sub COD_GotFocus()
+  
+  Dbl = ""
+  aff_Histo()
+  COD.Text = ""
+  Tri = "code"
+  If Type = "V" Then
+    Aff_StatVE()
+  Else
+    Aff_StatAC()
+  Endif
+  Try Utils.ObsGotf(Cod)
+  
+End
+
+Public Sub COD_DblClick()
+  
+  If Dbl Then
+    Dbl = ""
+  Else
+    Dbl = "1"
+  Endif
+  aff_Histo()
+  COD.Text = ""
+  Tri = "code"
+  If Type = "V" Then
+    Aff_StatVE()
+  Else
+    Aff_StatAC()
+  Endif
+  
+End
+
+Public Sub COD_LostFocus()
+  
+  Try Utils.ObsLstf(COD)
+  
+End
+
+Public Sub DA_GotFocus()
+  
+  Dbl = ""
+  aff_Histo()
+  DA.Text = ""
+  If Type = "V" Then
+    Tri = "date"
+    Aff_StatVE()
+  Else
+    Tri = "daterecpt"
+    Aff_StatAC()
+  Endif
+  
+End
+
+Public Sub DA_Dblclick()
+  
+  If Dbl Then
+    Dbl = ""
+  Else
+    Dbl = "1"
+  Endif
+  aff_Histo()
+  DA.Text = ""
+  If Type = "V" Then
+    Tri = "date"
+    Aff_StatVE()
+  Else
+    Tri = "daterecpt"
+    Aff_StatAC()
+  Endif
+  
+End
+
+Public Sub DA_LostFocus()
+  
+  Try Utils.ObsLstf(DA)
+  
+End
+
+Public Sub NM_GotFocus()
+  
+  Dbl = ""
+  aff_Histo()
+  NM.Text = ""
+  If Type = "V" Then
+    Tri = "nom"
+    Aff_StatVE()
+  Else
+    Tri = "four"
+    Aff_StatAC()
+  Endif
+  Try Utils.ObsGotf(nm)
+  
+End
+
+Public Sub NM_DblClick()
+  
+  If Dbl Then
+    Dbl = ""
+  Else
+    Dbl = "1"
+  Endif
+  aff_Histo()
+  NM.Text = ""
+  If Type = "V" Then
+    Tri = "nom"
+    Aff_StatVE()
+  Else
+    Tri = "four"
+    Aff_StatAC()
+  Endif
+  
+End
+
+Public Sub NM_LostFocus()
+  
+  Try Utils.ObsLstf(NM)
+  
+End
+
+Public Sub NFAC_GotFocus()
+  
+  Dbl = ""
+  aff_Histo()
+  NFAC.Text = ""
+  If Type = "V" Then
+    Tri = "nfac"
+    Aff_StatVE()
+  Else
+    Tri = "numrecpt"
+    Aff_StatAC()
+  Endif
+  Try Utils.ObsGotf(nfac)
+  
+End
+
+Public Sub Nfac_DblClick()
+  
+  If Dbl Then
+    Dbl = ""
+  Else
+    Dbl = "1"
+  Endif
+  aff_Histo()
+  NFAC.Text = ""
+  If Type = "V" Then
+    Tri = "nfac"
+    Aff_StatVE()
+  Else
+    Tri = "numrecpt"
+    Aff_StatAC()
+  Endif
+  
+End
+
+Public Sub NFAC_LostFocus()
+  
+  Try Utils.ObsLstf(NFAC)
+  
+End
+
+'**************************************************
+'*      Selection d'une facture a la souris       *
+'**************************************************
+Public Sub Colhisto_click()
+  
+  If Type = "V" Then
+    DocVentes()
+  Else
+    DocAchat()
+  Endif
+  
+End
+
+Public Sub DocVentes()
+  
+  Dim Rcli As Result
+  Dim rart As Result
+  Dim sline As String
+  Dim Lg As Integer = 1
+  
+  Totalfac.Text = "0,00"
+  Colrcp3.clear
+  Colrcp3.Columns.count = 7
+  Colrcp3.Columns[0].Width = 50
+  Colrcp3.Columns[1].Width = 140
+  Colrcp3.Columns[2].Width = 310
+  Colrcp3.Columns[3].Width = 60
+  Colrcp3.Columns[4].Width = 80
+  Colrcp3.Columns[5].Width = 80
+  Colrcp3.Columns[6].Width = 80
+  Colrcp3.Columns[0].Text = "Ligne"
+  Colrcp3.Columns[1].Text = "Code"
+  Colrcp3.Columns[2].Text = "Designation"
+  Colrcp3.Columns[3].Text = "Qté "
+  Colrcp3.Columns[3].Alignment = 2
+  Colrcp3.Columns[4].Text = "Px brut ht"
+  Colrcp3.Columns[4].Alignment = 2
+  Colrcp3.Columns[5].Text = "Remise"
+  Colrcp3.Columns[5].Alignment = 2
+  Colrcp3.Columns[6].Text = "Px net ht"
+  Colrcp3.Columns[6].Alignment = 2
+  With Utils
+    If Colhisto.Count And Not IsNull(Colhisto.Item[1]) Then
+      Rcli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " WHERE cli_code = &1", Colhisto.Item[1])
+      Try codecli.Text = Rcli!cli_code
+      If Error Then codecli.Text = Colhisto.Item[1]
+      Try nomcli.Text = Rcli!cli_nom
+      If Not Error Then
+        datef.Text = .Cdate_Aff(Colhisto.Item[0])
+        numfac.Text = Colhisto.Item[7]
+        If Left$(Numfac.text, 1) <> 0 Then
+          Rcli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisLigFac") & " WHERE num_ligfac = &1", Colhisto.Item[7])
+          If Rcli.Available Then
+            Do
+              If Rcli!typel_ligfac <> "C" Then
+                Colrcp3.Add(Rcli!numlig_ligfac, Rcli!numlig_ligfac)
+                rart = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_code = &1", Rcli!code_ligfac)
+                If rart.Available Then
+                  Colrcp3.Item[1] = Rcli!code_ligfac
+                  Colrcp3.Item[2] = .CDec(rart!art_dec, Rcli!qte_ligfac)
+                Endif
+                If Not Colrcp3.Item[3] Then Colrcp3.Item[3] = Rcli!qte_ligfac
+                Colrcp3.Item[2] = Rcli!libel_ligfac
+                Colrcp3.Item[4] = Rcli!brut_ligfac
+                If Not Colrcp3.Item[3] Then Colrcp3.Item[3] = 0
+                Colrcp3.Item[5] = Rcli!rem_ligfac
+                Colrcp3.Item[6] = Rcli!netht_ligfac
+                If Colrcp3.Item[6] Then Totalfac.Text = Format$(Val(Totalfac.Text) + (Val(Rcli!netht_ligfac) * Val(Colrcp3.Item[3])), "0.00")
+              Else
+                If Rcli!typel_ligfac = "C"
+                  For Each sline In Split(Rcli!com_ligfac, "\n")
+                    Colrcp3.Add(Rcli!numlig_ligfac & Lg, Rcli!numlig_ligfac & Lg)
+                    Colrcp3.Item[0] = Rcli!numlig_ligfac
+                    Colrcp3.Item[2] = sline
+                    Inc lg
+                  Next
+                Endif
+              Endif
+            Loop Until Rcli.MoveNext()
+            Nlgf.Text = Colrcp3.count
+          Else
+            Rcli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisLigTck") & " WHERE numero = &1", Colhisto.Item[7])
+            If Rcli.Available Then
+              Do
+                Colrcp3.Add(Rcli!lInd, Rcli!lInd)
+                rart = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_code = &1", Rcli!code)
+                If rart.Available Then
+                  Colrcp3.Item[1] = Rcli!code
+                  Colrcp3.Item[2] = .CDec(rart!art_dec, Rcli!qte)
+                Endif
+                If Not Colrcp3.Item[3] Then Colrcp3.Item[3] = Rcli!qte
+                Colrcp3.Item[2] = Rcli!intitule
+                Colrcp3.Item[4] = Rcli!montant
+                If Not Colrcp3.Item[3] Then Colrcp3.Item[3] = 0
+                Colrcp3.Item[5] = Rcli!mrem
+                Colrcp3.Item[6] = Rcli!mht
+                If Colrcp3.Item[6] Then Totalfac.Text = Format$(Val(Totalfac.Text) + (Val(Rcli!montant) * Val(Colrcp3.Item[3])), "0.00")
+              Loop Until Rcli.MoveNext()
+            Endif
+          Endif
+        Else
+          Rcli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigbl") & " WHERE num_ligbl = &1", Colhisto.Item[7])
+          If Rcli.Available Then
+            Do
+              If Rcli!typel_ligbl <> "C" Then
+                Colrcp3.Add(Rcli!numlig_ligbl, Rcli!numlig_ligbl)
+                rart = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_code = &1", Rcli!code_ligbl)
+                If rart.Available Then
+                  Colrcp3.Item[3] = .CDec(rart!art_dec, Rcli!qte_ligbl)
+                Endif
+                If Not Colrcp3.Item[2] Then Colrcp3.Item[2] = Rcli!qte_ligbl
+                Colrcp3.Item[1] = Rcli!code_ligbl
+                Colrcp3.Item[2] = Rcli!libel_ligbl
+                Colrcp3.Item[4] = Rcli!brut_ligbl
+                If Not Colrcp3.Item[3] Then Colrcp3.Item[3] = 0
+                Colrcp3.Item[5] = Rcli!rem_ligbl
+                Colrcp3.Item[6] = Rcli!netht_ligbl
+                If Colrcp3.Item[6] Then Totalfac.Text = Format$(Val(Totalfac.Text) + (Val(Rcli!netht_ligbl) * Val(Colrcp3.Item[3])), "0.00")
+              Else
+                If Rcli!typel_ligbl = "C"
+                  For Each sline In Split(Rcli!com_ligbl, "\n")
+                    Colrcp3.Add(Rcli!numlig_ligbl & Lg, Rcli!numlig_ligbl & Lg)
+                    Colrcp3.Item[0] = Rcli!numlig_ligbl
+                    Colrcp3.Item[2] = sline
+                    Inc lg
+                  Next
+                Endif
+              Endif
+            Loop Until Rcli.MoveNext()
+            Nlgf.Text = Colrcp3.count
+          Endif
+        Endif
+        Panel4.visible = True
+      Endif
+    Endif
+  End With
+  
+End
+
+'***************************************************
+'*       Selection d'une facture manuellement      *
+'***************************************************
+Public Sub Colhisto_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Colhisto_click()
+  Endif
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Me.Close
+    Stop Event
+  Endif
+  
+End
+
+'**************************************************
+'                 Bl fournisseur                  *
+'**************************************************
+Public Sub DocAchat()
+  
+  Dim Ligrcpt As Result
+  Dim fours As Result
+  Dim Arts As Result
+  
+  Totalbl.Text = "0,00"
+  NFAC.Text = "N° Bl"
+  Colrcp2.Clear
+  Colrcp2.Columns.count = 7
+  Colrcp2.Columns[0].Width = 80
+  Colrcp2.Columns[1].Width = 200
+  Colrcp2.Columns[2].Width = 100
+  Colrcp2.Columns[3].Width = 80
+  Colrcp2.Columns[4].Width = 80
+  Colrcp2.Columns[5].Width = 90
+  Colrcp2.Columns[6].Width = 100
+  Colrcp2.Columns[0].Text = "code"
+  Colrcp2.Columns[1].Text = "designation"
+  Colrcp2.Columns[2].Text = "Qté "
+  Colrcp2.Columns[2].Alignment = 2
+  Colrcp2.Columns[3].Text = "Pb ht"
+  Colrcp2.Columns[3].Alignment = 2
+  Colrcp2.Columns[4].Text = "Remise"
+  Colrcp2.Columns[4].Alignment = 2
+  Colrcp2.Columns[5].Text = "Pa ht"
+  Colrcp2.Columns[5].Alignment = 2
+  With Utils
+    If Colhisto.Count And Not IsNull(Colhisto.Item[1]) Then
+      fours = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFour") & " WHERE fo_code = &1", Colhisto.Item[1])
+      codefour2.Text = fours!fo_code
+      nomfour2.Text = fours!fo_nom
+      datebl.Text = Colhisto.Item[0]
+      Ligrcpt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigrecpt") & " WHERE numrecpt = &1 and four = &2", Colhisto.Item[7], Colhisto.Item[1])
+      If Ligrcpt.Available Then
+        numbl2.Text = Ligrcpt!numrecpt
+        Do
+          Colrcp2.Add(Ligrcpt!numrecpt & Ligrcpt!code & Ligrcpt!four & Ligrcpt!nligne, Ligrcpt!numrecpt & Ligrcpt!code & Ligrcpt!four & Ligrcpt!nligne)
+          Colrcp2.Item[0] = Ligrcpt!code
+          Arts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_code = &1", Ligrcpt!code)
+          If Arts.Available Then
+            Colrcp2.Item[2] = .CDec(Arts!art_dec, Ligrcpt!qte)
+            If Not Colrcp2.Item[2] Then Colrcp2.Item[2] = .CDec(Arts!art_dec, 0)
+          Else
+            Colrcp2.Item[2] = .cpoint(Ligrcpt!qte)
+          Endif
+          Colrcp2.Item[1] = Ligrcpt!design
+          Colrcp2.Item[3] = Format$(Val(Ligrcpt!pbht), "0.00")
+          If Len(Colrcp2.Item[3]) - InStr(Colrcp2.Item[3], ",") = 2 Then Colrcp2.Item[3] = Colrcp2.Item[3] & " "
+          Colrcp2.Item[4] = Ligrcpt!rm
+          Colrcp2.Item[5] = Format$(Val(Ligrcpt!paht), "0.00")
+          If Len(Colrcp2.Item[5]) - InStr(Colrcp2.Item[5], ",") = 2 Then Colrcp2.Item[5] = Colrcp2.Item[5] & " "
+          Totalbl.Text = Format$(Val(Totalbl.Text) + (Val(Ligrcpt!paht) * Val(Colrcp2.Item[2])), "0.00")
+        Loop Until Ligrcpt.MoveNext()
+        Nlgbl.Text = Colrcp2.count
+      Endif
+      Panel3.visible = True
+    Endif
+  End With
+  
+End
+
+Public Sub Button1_Click()
+  
+  Colhisto.Clear
+  Me.Close()
+  
+End
+
+Public Sub Button2_Click()
+  
+  Colrcp2.clear
+  Panel3.visible = False
+  
+End
+
+Public Sub Button3_Click()
+  
+  Colrcp3.clear
+  Panel4.visible = False
+  
+End
+
+Public Sub ComboBox1_Change()
+  
+  Periode = Val(Left$(ComboBox1.Text, 1))
+  Dtejour = Format$(Now, "yyyymm")
+  Dtejour = (Val(Left$(Dtejour, 4)) - Periode) & Right$(Dtejour, 2) & ""
+  If Type = "V" Then
+    Histo_ventes()
+  Else
+    Histo_Achat()
+  Endif
+  
+End

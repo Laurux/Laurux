@@ -1,0 +1,417 @@
+' Gambas class file
+
+Private NbEnreg As Integer = 0 ' Enregistrement de départ de la sélection
+Private Clitable[9] As String
+Private Dbl As Boolean = False
+Private Tri As String
+Private sel As String
+Private Origine As String
+Private lg As Integer
+
+'************************************** Gestion des recherche fournisseurs *****************************************************
+Public Sub _new(sOrg As String)
+  
+  Tri = "fo_code"
+  sel = ""
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  lg = Int(Colcli.height / colcli.Rows.Height) - 1
+  Me.Center
+  Origine = sOrg
+  C1.Text = "Code"
+  N1.Text = "Nom"
+  P1.Text = "      Prénom             Adresse1                      Adresse2   "
+  Cp1.Text = "Cp"
+  VILLE.Text = "Ville"
+  Tris()
+  Deb3()
+  Colcli.MoveTo(0, 0)
+  Try colcli.Current.EnsureVisible
+  N1.setfocus
+  
+End
+
+Public Sub Tris()
+  
+  With colcli
+    .Columns.count = 7
+    .Columns[0].Width = C1.Width
+    .Columns[1].Width = N1.Width
+    .Columns[2].Width = 124
+    .Columns[3].Width = 162
+    .Columns[4].Width = 162
+    .Columns[5].Width = Cp1.Width
+    .Columns[6].Width = VILLE.Width
+  End With
+  
+End
+
+'**********************************************************
+'*               recherche des fournisseurs                    *
+'**********************************************************
+Public Sub Colcli_Data(Row As Integer, Column As Integer)
+  
+  Dim Frmt As New String[]
+  Dim Frmt2 As String[]
+  
+  Frmt = Utils.FColr(Settings["/Coul/Fnets"])
+  Frmt2 = Utils.FColr(Settings["/Coul/Znaff"])
+  With Utils
+    CliTable[0] = "fo_code"
+    CliTable[1] = "fo_nom"
+    CliTable[2] = "fo_pnm"
+    CliTable[3] = "fo_adr1"
+    CliTable[4] = "fo_adr2"
+    CliTable[5] = "fo_cd_ptl"
+    CliTable[6] = "fo_ville"
+    CliTable[7] = "fo_obs"
+    .rs2.MoveTo(Row)
+    Try Colcli.data.Text = Str(.rs2[CliTable[Column]])
+  End With
+  
+End
+
+Public Sub colcli_Click()
+  
+  Variables.Bsel = True
+  Variables.Cfour = colcli[colcli.row, 0].Text
+  Variables.obs = colcli[colcli.row, 0].Text
+  Me.close
+  
+End
+
+Public Sub ColCli_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    ColCli_Click()
+  Endif
+  If Key.code = Key.Up Then
+    If ColCli.Row = 0 Then
+      Remonter_Click()
+    Endif
+  Endif
+  If Key.code = Key.down Then
+    If ColCli.Row = lg - 1 Then
+      Descendre_Click()
+    Endif
+  Endif
+  If Key.code = Key.PageDown Then
+    Descendre_Click()
+  Endif
+  
+  If Key.code = Key.PageUp Then
+    Remonter_Click()
+  Endif
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then Me.Close()
+  
+End
+
+Public Sub ColCli_MouseWheel()
+  
+  If mouse.Delta = -1 Then
+    If Colcli.Rows.Count = lg Then NbEnreg = NbEnreg + lg
+  Else
+    If Colcli.Rows.Count <= lg Then NbEnreg = NbEnreg - lg
+  Endif
+  Deplacement()
+  
+End
+
+Public Sub Descendre_Click()
+  
+  If ColCli.Rows.Count = lg Then
+    NbEnreg = NbEnreg + lg
+    Deplacement()
+  Endif
+  Try ColCli.MoveTo(0, 0)
+  Try ColCli.Current.EnsureVisible
+  Try ColCli.SetFocus
+  
+End
+
+Public Sub Remonter_Click()
+  
+  NbEnreg = NbEnreg - lg
+  Deplacement()
+  Try ColCli.MoveTo(0, 0)
+  Try ColCli.Current.EnsureVisible
+  Try ColCli.SetFocus
+  
+End
+
+Public Sub Descendre_KeyPress()
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Me.Close
+  Endif
+  If key.code = key.PageDown Then Descendre_Click()
+  If key.code = key.PageUp Then Remonter_Click()
+  
+End
+
+Public Sub Remonter_KeyPress()
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Me.Close
+  Endif
+  If key.code = key.PageDown Then Descendre_Click()
+  If key.code = key.PageUp Then Remonter_Click()
+  
+End
+
+Public Sub Deplacement()
+  
+  If NbEnreg < 0 Then NbEnreg = 0
+  If Dbl = True Then
+    Deb4()
+  Else
+    Deb3()
+  Endif
+  
+End
+
+Public Sub Deb3()
+  
+  Tris()
+  Utils.Base2(colcli, "select * from " & Cbase.Table("TabFour") & " where " & Tri & " like  \"%" & sel & "%\"  order by " & Tri & " limit " & NbEnreg & ", " & lg & "")
+  Colcli.Refresh
+  
+End
+
+Public Sub Deb4()
+  
+  Tris()
+  Utils.Base2(colcli, "select * from " & Cbase.Table("TabFour") & " where " & Tri & " like  \"%" & sel & "%\"  order by " & Tri & " desc limit " & NbEnreg & ", " & lg & "")
+  Colcli.Refresh
+  
+End
+
+Public Sub Dbclk()
+  
+  If Not Dbl Then
+    Deb4()
+    Dbl = "1"
+  Else
+    Deb3()
+    Dbl = ""
+  Endif
+  
+End
+
+Public Sub C1_Click()
+  
+  sel = ""
+  Dbl = ""
+  'ref()
+  C1.Text = ""
+  N1.Text = "Nom"
+  cp1.Text = "CP"
+  VILLE.Text = "Ville"
+  Tri = "fo_code"
+  NbEnreg = 0
+  Dbl = ""
+  Deb3()
+  
+End
+
+Public Sub C1_Dblclick()
+  
+  Dbclk()
+  
+End
+
+Public Sub N1_Click()
+  
+  sel = ""
+  Dbl = ""
+  'ref()
+  C1.Text = "Code"
+  N1.clear
+  cp1.Text = "CP"
+  VILLE.Text = "Ville"
+  Tri = "fo_nom"
+  NbEnreg = 0
+  Dbl = ""
+  Deb3()
+  
+End
+
+Public Sub N1_Dblclick()
+  
+  Dbclk()
+  
+End
+
+Public Sub Cp1_Click()
+  
+  sel = ""
+  Dbl = ""
+  'ref()
+  cp1.Text = ""
+  C1.Text = "Code"
+  N1.Text = "Nom"
+  VILLE.Text = "Ville"
+  Tri = "fo_cd_ptl"
+  NbEnreg = 0
+  Dbl = ""
+  Deb3()
+  
+End
+
+Public Sub Cp1_Dblclick()
+  
+  Dbclk()
+  
+End
+
+Public Sub VILLE_Click()
+  
+  sel = ""
+  Dbl = ""
+  'ref()
+  cp1.Text = "CP"
+  C1.Text = "Code"
+  N1.Text = "Nom"
+  VILLE.clear
+  Tri = "fo_ville"
+  NbEnreg = 0
+  Dbl = ""
+  Deb3()
+  
+End
+
+Public Sub VILLE_Dblclick()
+  
+  Dbclk()
+  
+End
+
+Public Sub C1_KeyPress()
+  
+  Chkinput()
+  If Key.code = Key.F2 Or key.code = key.Esc Then Me.Close()
+  If Key.code = key.Down Then
+    Colcli.MoveTo(0, 0)
+    Colcli.SetFocus
+  Endif
+  If key.code = key.Right Then
+    N1.SetFocus
+    N1_Click()
+  Endif
+  
+End
+
+Public Sub N1_KeyPress()
+  
+  ChkInput()
+  If Key.code = Key.F2 Or key.code = key.Esc Then Me.Close()
+  If Key.code = key.Down Then
+    Colcli.MoveTo(0, 0)
+    Colcli.SetFocus
+  Endif
+  If key.code = key.Right Then
+    Cp1_Click()
+    Cp1.SetFocus
+  Endif
+  If key.code = key.Left Then
+    C1_Click()
+    C1.SetFocus
+  Endif
+  
+End
+
+Public Sub Cp1_KeyPress()
+  
+  ChkInput()
+  If Key.code = Key.F2 Or key.code = key.Esc Then Me.Close()
+  If Key.code = key.Down Then
+    Colcli.MoveTo(0, 0)
+    Colcli.SetFocus
+  Endif
+  If key.code = key.Right Then
+    VILLE_Click()
+    VILLE.SetFocus
+  Endif
+  If key.code = key.Left Then
+    N1_Click()
+    N1.SetFocus
+  Endif
+  
+End
+
+Public Sub VILLE_KeyPress()
+  
+  ChkInput()
+  If Key.code = Key.F2 Or key.code = key.Esc Then Me.Close()
+  If Key.code = key.Down Then
+    Colcli.MoveTo(0, 0)
+    Colcli.SetFocus
+  Endif
+  If key.code = key.Left Then
+    Cp1_Click()
+    Cp1.SetFocus
+  Endif
+  
+End
+
+Public Sub C1_GotFocus()
+  
+  Try Utils.ObsGotf(C1)
+  C1_Click()
+  
+End
+
+Public Sub C1_LostFocus()
+  
+  Try Utils.ObsLstf(C1)
+  
+End
+
+Public Sub N1_GotFocus()
+  
+  Try Utils.ObsGotf(n1)
+  N1_Click()
+  
+End
+
+Public Sub N1_LostFocus()
+  
+  Try Utils.ObsLstf(N1)
+  
+End
+
+Public Sub cp1_GotFocus()
+  
+  Try Utils.ObsGotf(Cp1)
+  cp1_Click()
+  
+End
+
+Public Sub cp1_LostFocus()
+  
+  Try Utils.ObsLstf(Cp1)
+  
+End
+
+Public Sub VILLE_GotFocus()
+  
+  Try Utils.ObsGotf(ville)
+  VILLE_Click()
+  
+End
+
+Public Sub VILLE_LostFocus()
+  
+  Try Utils.ObsLstf(VILLE)
+  
+End
+
+Public Sub ChkInput()
+  
+  If InStr("\"&", Key.Text) = 0 Then
+    sel = utils.Obstch(sel)
+    Deb3()
+  Else
+    Stop Event
+  Endif
+  
+End

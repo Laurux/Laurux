@@ -1,0 +1,120 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Calcsolde.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 21/05/2006
+'# Recalcul des soldes à partir des écritures
+'################################################
+
+TotSldHP As Float
+TotDeb As Float
+TotCred As Float
+TotSld As Float
+debit As Float
+credit As Float
+Compt As String
+p As Integer
+
+'*************************
+'* On initialise l'écran *
+'*************************
+Public Sub _New()
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+End
+
+'***********************
+'* On gere nos boutons *
+'***********************
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Button2_Click()
+      
+    Case 2
+      Me.Close
+      
+  End Select
+  
+End
+
+'******************
+'*   On calcule   *
+'******************
+Public Sub Button2_Click()
+  
+  Dim i As Integer
+  Dim rResult As Result
+  Dim rrResult As Result
+  Dim Tab As String
+  Dim Tab2 As String
+  Dim Intit As String
+  Dim p1 As Integer
+  
+  totsldhp = 0.00
+  Tab = "Fiches_Mvt" 
+  Tab2 = "Fiches_Comptes" 
+  p1 = 1
+  p = 4
+  With Utils
+    rrResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " order by cast(compte_cc AS char)")
+    If rrResult.Available Then
+      Me.Mouse = Mouse.Wait
+      Repeat
+        compt = rrResult!compte_cc
+        Intit = rrResult!intitule_cc
+        rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE compte = &1  and validee = &2  order by dte ", compt, 1)
+        If rResult.count <> 0 Then
+          i = 0
+          While i < rResult.count
+            debit = rResult!montantd
+            credit = rResult!montantc
+            totdeb = totdeb + debit
+            totcred = totcred + credit
+            totsld = totdeb - totcred
+            Inc i
+            rResult.MoveNext()
+          Wend
+          Utils.db.Exec("UPdate " & Tab2 & "  SET solde = &2 where compte_cc = &1", Compt, .PointBase(Totsld))
+        Else
+          totsld = 0
+          Utils.db.Exec("UPdate " & Tab2 & "  SET solde = &2 where compte_cc = &1", Compt, .PointBase(Totsld))
+        Endif
+        totdeb = 0
+        totcred = 0
+        totsld = 0
+      Until rrResult.MoveNext()
+    Else
+    Endif
+  End With
+  Me.Mouse = Mouse.Default
+  If Start.son Then
+    Music.Play
+  Endif
+  message.Info(" Traitement terminé", "OK")
+  Me.Close
+  
+End

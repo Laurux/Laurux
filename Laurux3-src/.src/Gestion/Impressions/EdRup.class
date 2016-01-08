@@ -1,0 +1,537 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : EdRup.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 12/04/2011
+'# Impression des produits a commander
+'################################################
+'
+
+Filename As String
+son As Integer = Start.Son
+PosY As Integer
+PosX As Integer
+Coulfond As New String[]
+Private artbl As Boolean = False
+Private Origine As String = ""
+Private b As Integer = 0
+Private qtec As Integer = 0
+Private Tri As String
+
+Public Sub _New()
+  
+  Dim Frmt As New String[]
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  Frmt = Utils.FColr(Settings["/Coul/Fnets"])
+  Coulfond = Utils.Coulfd()
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Try CheckBox1.value = Settings["/Soc" & Start.Societe & "/Edrupt/Nstock"]
+  Try CheckBox2.value = Settings["/Soc" & Start.Societe & "/Edrupt/Rclient"]
+  Art.Text = "00000"
+  Art2.Text = "ZZZZZ"
+  four.Text = "40100001"
+  four2.Text = "40199999"
+  Four.Select
+  Four.SetFocus
+  
+End
+
+Public Sub ToggleButton1_Click()
+  
+  Origine = "1"
+  SelectionArt()
+  
+End
+
+Public Sub ToggleButton2_Click()
+  
+  Origine = "2"
+  SelectionArt()
+  
+End
+
+'************************************
+'* Affichage du columnview Colfour  *
+'************************************
+Public Sub ToggleButton3_Click()
+  
+  Dim MyForm As Trifours
+  
+  Variables.bsel = False
+  MyForm = New Trifours("EdRup")
+  MyForm.Showmodal()
+  If Variables.Bsel = True Then
+    Four.Text = Variables.Cfour
+  Else
+    Four.SetFocus
+  Endif
+  Fourman(Four.Text)  
+  Four2.SetFocus
+  Four2.Select
+  
+End
+
+Public Sub ToggleButton4_Click()
+  
+  Dim MyForm As Trifours
+  
+  Variables.bsel = False
+  MyForm = New Trifours("EdRup")
+  MyForm.Showmodal()
+  If Variables.Bsel = True Then
+    Four2.Text = Variables.Cfour
+  Else
+    Four2.SetFocus
+  Endif
+  Fourman(Four2.Text)  
+  Button2.SetFocus
+  
+End
+
+'********************************************
+'* Saisie d'un fournisseur manuellement     *
+'********************************************
+Public Sub fourman(Org As String)
+  
+  Dim Rfours As Result
+  
+  Rfours = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFour") & " WHERE fo_code = &1", Org)
+Catch
+  B = 1
+  If Start.son Then
+    Music.Play
+  Endif
+  Message.Warning("Ce fournisseur n'existe pas !")
+  
+End
+
+'****************************************Gestion des articles**************************************************
+Public Sub SelectionArt()
+  
+  Dim sel As String = ""
+  Dim MyForm As TriArticles
+  
+  sel = ""
+  Tri = "art_code"
+  MyForm = New TriArticles(True, "", Tri, "EdRup", "", "")
+  MyForm.Showmodal()
+  If Variables.Bsel = True Then
+    b = 0
+    If Origine = "1" Then
+      Art.text = Variables.ArtCode
+      Art2.SetFocus
+      Art2.Select
+    Else
+      If Origine = "2" Then
+        Art2.text = Variables.ArtCode
+        Four.SetFocus
+        Four.Select
+      Endif
+    Endif
+  Endif
+  
+End
+
+'********************************************
+'* Saisie d'un article manuellement         *
+'********************************************
+Public Sub art_man()
+  
+  Dim rarts As Result
+  
+  With utils
+    rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", Art.Text)
+    If Not rarts.Available Then
+      rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_cfour = &1", Art.Text)
+    Endif
+    If Not rarts.Available Then
+      rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_cbarre = &1", Art.Text)
+    Endif
+    If Not rarts.Available Then
+      rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_refcentrale = &1", Art.Text)
+    Endif
+    If Not rarts.Available Then
+      If son Then
+        Music.Play
+      Endif
+      message.Warning(" Cette référence n'existe pas ! ")
+      b = 1
+    Else
+      b = 0
+    Endif
+  End With
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Button1_Click()
+      
+    Case 2
+      Button2_Click()
+      
+    Case 3
+      If Exist(filename) Then Try Kill filename
+      Settings["/Soc" & Start.Societe & "/Edrupt/Nstock"] = CheckBox1.value 
+      Settings["/Soc" & Start.Societe & "/Edrupt/Rclient"] = CheckBox2.value 
+      Settings.save
+      Me.Close
+      
+  End Select
+  
+End
+
+Public Sub Btn_KeyPress()
+  
+  Select Case Last.tag
+    Case 2
+      Button2_Click()
+  End Select
+  
+End
+
+Public Sub Cmpt_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+      Case 1
+        Art_man()
+        If b = 1 Then
+          Art.SetFocus
+          Art.Select
+          b = 0
+        Else
+          Art2.SetFocus
+          Art2.Select
+        Endif
+        Stop Event
+        
+      Case 2
+        Art_man()
+        If b = 1 Then
+          Art.SetFocus
+          Art.Select
+          b = 0
+        Else
+          Four.SetFocus
+          Four.Select
+        Endif
+        Stop Event
+        
+      Case 3
+        four2.SetFocus
+        four2.Select
+        Stop Event
+        
+      Case 4
+        Button2.SetFocus
+        Stop Event
+        
+    End Select
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+  If key.code = key.F2 Then
+    Select Case Last.tag
+      Case 1
+        ToggleButton1_Click()
+        Stop Event
+      Case 2
+        ToggleButton2_Click()
+        Stop Event
+      Case 3
+        ToggleButton3_Click()
+        Stop Event
+      Case 4
+        ToggleButton4_Click()
+        Stop Event
+    End Select
+  Endif
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Cmpt_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim rarts, cart As Result
+  Dim Tabl, Tab2, Tab3 As String
+  Dim code, codec, rupt, rupt2, numcom As String
+  Dim intitule, intitulea, intitulec As String
+  Dim Fami As String
+  Dim rfourn As String
+  Dim rCentrale As String
+  Dim paht As String
+  Dim Qtecom As Float
+  Dim Decm As String
+  Dim dte As String
+  Dim nbdec As String
+  Dim nbd As String
+  Dim Nbpage As Integer
+  Dim Fourn, Fourn2 As String
+  Dim stk As String
+  Dim stkmini, stkmaxi As Float = 0
+  Dim pdf As Carticles
+  Dim Stocke As Boolean = False
+  
+  Me.Mouse = Mouse.Wait
+  Nbpage = 1
+  Tabl = "Fiches_Ligcom" 
+  Tab2 = "Rupture"
+  Tab3 = "RuptureC"
+  Shell "cd " & User.Home & ""
+  Filename = User.home & "/Pcommande.pdf"
+  pdf = New CArticles("Portrait", "mm", "A4")
+  pdf.Open()
+  pdf.AliasNbPages()
+  pdf.Entete("Impression des produits en rupture")
+  dte = Format$(Now, "dd.mm.yyyy")
+  If CheckBox2.value Then
+    pdf.Level13R()
+  Else
+    pdf.Level13()
+  Endif
+  posx = 40
+  posy = 22
+  Crupt.Rupture(CheckBox1.value, CheckBox2.value, four.Text, four2.Text, Art.Text, Art2.Text, "EdRup")
+  If Four.Text <> Four2.Text Then
+    If CheckBox2.Value = True Then
+      rarts = Utils.db.Exec("SELECT * FROM " & Tab2 & " left join " & Cbase.Table("TabArt") & " on art_code = codea order by codec, four, codea")
+    Else
+      rarts = Utils.db.Exec("SELECT * FROM " & Tab2 & " left join " & Cbase.Table("TabArt") & " on art_code = codea order by four, codea")
+    Endif
+  Else
+    If CheckBox2.Value = True Then
+      rarts = Utils.db.Exec("SELECT * FROM " & Tab2 & " left join " & Cbase.Table("TabArt") & " on art_code = codea where four = &1 order by codec, four, codea", Four.text)
+    Else
+      rarts = Utils.db.Exec("SELECT * FROM " & Tab2 & " left join " & Cbase.Table("TabArt") & " on art_code = codea where four = &1 order by four, codea", Four.text)
+    Endif
+  Endif
+  If rarts.Available Then
+    intitulec = ""
+    If IsNull(rarts!four) Then
+      fourn = rarts!art_four
+    Else
+      fourn = rarts!four
+    Endif
+    Repeat
+      If CheckBox2.value = True Then
+        If rupt <> rarts!codec 
+          If IsNull(rarts!intitulec) Then 
+            intitulec = "Commande(s) fournisseurs"
+            pdf.level14("", intitulec, "", "", "", "", "", "", PosY)
+            posy += 4
+          Else
+            If Not IsNull(rarts!numcom) Then
+              intitulec = "Commande(s) client  " & rarts!codec & " " & rarts!intitulec
+            Else
+              intitulec = "Commande(s) client  " & rarts!codec & " " & rarts!intitulec
+            Endif
+            posy += 2
+            pdf.ligne(PosY)
+            pdf.level14("", intitulec, "", "", "", "", "", "", PosY)
+            posy += 4
+          Endif
+        Endif
+      Endif
+      rupt = rarts!codec
+      qtec = 0
+      qtecom = 0
+      Try stkmini = rarts!art_stkmin
+      If Error Then stkmini = 0
+      Try stkmaxi = rarts!art_stkmax
+      If Error Then stkmaxi = 0
+      If rarts!art_stocke And stkmini > 0 And stkmaxi > 0 And CheckBox1.value = False Then artbl = True
+      Stocke = rarts!art_stocke
+      If stocke Then
+        Stk = String$(8, " ") & "X"
+      Else
+        stk = ""
+      Endif
+      If CheckBox1.value = True Then artbl = True
+      If artbl Then
+        code = rarts!art_code
+        intitule = rarts!intitulea
+        fami = rarts!art_fam
+        If Fourn <> rarts!four And Left$(intitulec, 18) <> "Commande(s) client" Then
+          If Len(intitulec) > 20 Then
+            posy += 1
+            pdf.ligne(PosY)
+          Endif
+        Endif
+        If IsNull(rarts!four) Then
+          fourn = rarts!art_four
+        Else
+          fourn = rarts!four
+        Endif
+        Fourn2 = Fourn
+        rfourn = rarts!art_cfour
+        rcentrale = rarts!art_refcentrale
+        If rcentrale = "NULL" Then rcentrale = ""
+        nbd = rarts!art_nbd
+        nbdec = Utils.Find_nbdec(nbd)
+        Decm = rarts!art_dec
+        paht = Format$(rarts!art_paht, nbdec)
+        If Not IsNull(rarts!qtecom) Then 
+          Qtecom = rarts!qtecom
+        Else
+          Qtecom = 0
+        Endif
+        'If stocke And rarts!art_qte > 0 Then Qtecom = rarts!art_qte - Qtecom
+        'If stocke And Qtecom <= rarts!art_stkmin Then Qtecom = rarts!art_stkmin - Qtecom 
+        If stocke And If Not IsNull(rarts!art_mincom) Then
+          If Val(Utils.cpoint(rarts!art_mincom)) > 0 And If qtecom < Val(Utils.cpoint(rarts!art_mincom)) Then Qtecom = Val(Utils.cpoint(rarts!art_mincom))
+        Endif
+        If Len(paht) - InStr(paht, ",") = 2 Then paht = paht & " "
+        If qtecom > 0 And stocke Or If Not stocke And qtecom > 0 And CheckBox1.value Then 
+          pdf.level14(code, intitule, stk, fourn, paht, Qtecom, rfourn, rcentrale, PosY)
+          PosY += 4
+          If CheckBox2.value Then
+            cart = Utils.db.Exec("SELECT * FROM " & Tab3 & " where codea = &1 and codec = &2 and intitulea = &3", code, codec, intitulea)
+            If cart.Available Then
+              Utils.db.Exec("UPdate  " & Tab3 & "  SET  qtecom = &3 where codea = &1 and codec = &2 and numcom = &4 and intitulea = &5", code, codec, Qtecom, numcom, intitulea)
+            Endif
+          Endif
+        Endif
+        'Endif
+      Else
+      Endif
+      If PosY >= 275 Then
+        pdf.Footer()
+        pdf.Entete("Impression des produits en rupture")
+        If CheckBox2.value Then
+          pdf.Level13R()
+        Else
+          pdf.Level13()
+        Endif
+        PosY = 24
+      Endif
+      artbl = False
+      'Wait 0.001
+    Until rarts.MoveNext()
+    
+    '******************************
+    'impression des clients
+    '******************************
+    If CheckBox2.Value = True Then
+      If Four.Text <> Four2.Text Then
+        rarts = Utils.db.Exec("SELECT * FROM " & Tab3 & "  left join " & Cbase.Table("TabArt") & " on art_code = codea  order by codec, four, codea")
+      Else
+        rarts = Utils.db.Exec("SELECT * FROM " & Tab3 & "  left join " & Cbase.Table("TabArt") & " on art_code = codea  where four = &1 order by codec, four, codea", Four.Text) 
+      Endif
+      If rarts.Available Then
+        intitulec = ""
+        fourn = rarts!four
+        Repeat
+          qtec = 0
+          qtecom = 0
+          code = rarts!art_code
+          intitule = rarts!intitulea
+          fami = rarts!art_fam
+          If IsNull(rarts!four) Then
+            fourn = rarts!art_four
+          Else
+            fourn = rarts!four
+          Endif
+          rfourn = rarts!art_cfour
+          rcentrale = rarts!art_refcentrale
+          If rcentrale = "NULL" Then rcentrale = ""
+          nbd = rarts!art_nbd
+          nbdec = Utils.Find_nbdec(nbd)
+          Decm = rarts!art_dec
+          paht = Format$(rarts!art_paht, nbdec)
+          If Not IsNull(rarts!qte) Then 
+            Qtec = rarts!qte
+          Else
+            Qtec = 0
+          Endif
+          Stocke = rarts!art_stocke
+          If stocke Then
+            Stk = String$(8, " ") & "X"
+          Else
+            stk = ""
+          Endif
+          If qtec > 0 Then 
+            If rupt <> rarts!codec Or If rupt2 <> rarts!intitulec Then
+              intitulec = "Commande(s) client  " & rarts!codec & " " & rarts!intitulec
+              posy += 2
+              pdf.ligne(PosY)
+              pdf.level14("", intitulec, "", "", "", "", "", "", PosY)
+              posy += 4
+            Endif
+            pdf.level14(code, intitule, stk, fourn, paht, Qtec, rfourn, rcentrale, PosY)
+            PosY += 4
+          Endif
+          rupt = rarts!codec
+          rupt2 = rarts!intitulec
+          If PosY >= 275 Then
+            pdf.Footer()
+            pdf.Entete("Impression des produits en rupture")
+            If CheckBox2.value Then
+              pdf.Level13R()
+            Else
+              pdf.Level13()
+            Endif
+            PosY = 24
+          Endif
+          artbl = False
+          'Wait 0.001
+        Until rarts.MoveNext()
+      Endif
+    Endif
+    pdf.ligne(PosY)
+    pdf.Footer()
+    pdf.Output(Filename, False)
+    Me.mouse = Mouse.Default
+    Impression.Prog_Editeur(Filename)
+  Else
+    If son Then
+      Music.Play
+    Endif
+    message(" Aucun article pour cette demande", "OK")
+  Endif
+  Me.Mouse = Mouse.Pointing
+  
+End
+
+Public Sub Button1_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Prodcom.html"]
+  
+End

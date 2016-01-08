@@ -1,0 +1,208 @@
+' Gambas class file
+
+son As Integer = Start.Son
+
+Public Sub _new()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Music.Load(Start.Musique)
+  Me.Center
+  
+End
+
+Public Sub Button3_Click()
+  
+  Me.close
+  
+End
+
+'************************************************
+'* On appelle la liste des fournisseurs         *
+'************************************************
+Public Sub Button4_Click()
+  
+  Dim Rfour As Result
+  
+  If fourlist.visible Then
+    fourlist.clear
+    fourlist.visible = False
+  Else
+    fourlist.visible = True
+    fourlist.Columns.count = 2
+    fourlist.Columns[0].Width = 65
+    fourlist.Columns[1].Width = 180
+    fourlist.Columns[0].Text = "code"
+    fourlist.Columns[1].Text = "Intitulé"
+    If RadioButton1.value = True Then
+      Rfour = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFour") & " ")
+      If Rfour.Available Then
+        Do
+          fourlist.Add(Rfour!fo_code, Rfour!fo_code)
+          fourlist.Item[0] = Rfour!fo_code
+          fourlist.Item[1] = Rfour!fo_nom
+        Loop Until Rfour.MoveNext()
+        fourList.MoveFirst
+        fourList.SetFocus
+        fourList.Item.Selected = True
+      Endif
+    Else
+      Rfour = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCentrales") & " ")
+      If Rfour.Available Then
+        Do
+          fourlist.Add(Rfour!code, Rfour!code)
+          fourlist.Item[0] = Rfour!code
+          fourlist.Item[1] = Rfour!libelle
+        Loop Until Rfour.MoveNext()
+        fourList.MoveFirst
+        fourList.SetFocus
+        fourList.Item.Selected = True
+      Endif
+      
+    Endif
+  Endif
+  
+End
+
+'**************************************************
+'* Selection d'un fournisseur a la souris         *
+'**************************************************
+Public Sub fourList_Click()
+  
+  four.text = fourList.Item[0]
+  fournom.text = fourList.Item[1]
+  fourList.clear
+  fourList.visible = False
+  
+End
+
+'***************************************************
+'* Selection d'un fournisseur manuellement         *
+'***************************************************
+Public Sub fourList_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    fourList_Click()
+  Endif
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    fourList.visible = False
+    fourList.clear
+    four.SetFocus
+    Stop Event
+  Endif
+  
+End
+
+Public Sub ToggleButton2_Click()
+  
+  If DateChooser1.Visible = False Then
+    DateChooser1.visible = True
+  Else
+    DateChooser1.Visible = False
+  Endif
+  
+End
+
+Public Sub DateChooser1_Activate()
+  
+  Date.text = Format$(DateChooser1.Value, "dd.mm.yyyy")
+  DateChooser1.Visible = False
+  
+End
+
+Public Sub Svs_Click()
+  
+  Dialog.Title = "Choisir un fichier"
+  Dialog.Path = User.home
+  Dialog.Filter = ["*.csv", "Fichiers csv", "*.txt", "Fichiers texte", "*", "Tous les fichiers"]
+  If Dialog.OpenFile() Then Return
+  Sauves.Text = Dialog.Path
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim rArt As Result
+  Dim Lig As String
+  Dim Key As String
+  Dim iPos As Integer
+  Dim x As Integer
+  Dim Ref As String
+  Dim Intitule As String
+  Dim Paua As String
+  Dim Cbarre As String
+  Dim hfil As File
+  'On lance le traitement
+  Try HFil = Open Sauves.Text For Read
+  If Not Error Then
+    Me.Mouse = Mouse.Wait
+    While Not Eof(hFil)
+      Line Input #hFil, Lig
+      For x = 1 To 4
+        iPos = InStr(Lig, ";")
+        If iPos = 0 Then
+          Key = Lig
+        Else
+          Key = Left$(Lig, iPos - 1)
+        Endif
+        Lig = Mid$(Lig, iPos + 1)
+        Select Case x
+          Case 1
+            Ref = key
+          Case 2
+            Intitule = key
+          Case 3
+            PaUA = key
+            PaUA = Utils.cpoint(PaUA)
+            If Val(PaUA) = Null Then PaUA = "0"
+          Case 4
+            Cbarre = key
+            If Len(cbarre) <> 13 Then cbarre = ""
+        End Select
+      Next
+      If Not IsNull(ref) Then
+        If RadioButton1.value = True Then
+          If Not IsNull(Cbarre) Then
+            rArt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_cbarre = &1", Cbarre)
+            If Not rArt.Available Then rArt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_cfour = &1 and art_four = &2", Ref, Four.Text)
+          Else
+            rArt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_cfour = &1 and art_four = &2", Ref, Four.Text)
+          Endif
+        Else
+          rArt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_refcentrale = &1 and art_centrale = &2", Cbarre, Four.Text)
+          If Not rArt.Available Then rArt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_cbarre = &1 and art_centrale = &2", Cbarre, Four.text)
+        Endif
+        If rArt.Available Then
+          Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET  art_pbfbt = &2, art_datefbt = &3 WHERE art_code = &1", rArt!art_code, Val(Paua), Utils.Cdate_Dbase(date.text))
+        Endif
+      Endif
+    Wend
+    Me.Mouse = Mouse.Default
+    If son Then
+      Music.Play
+    Endif
+    Message.Info("Traitement terminé.", "Ok")
+    Close #hfil
+  Else
+    If son Then
+      Music.Play
+    Endif
+    Message.error("Ce fichier n'existe pas.", "Ok")
+  Endif
+  
+End
+
+Public Sub RadioButton1_Click()
+  
+  TextLabel4.Text = "Fournisseur"
+  Four.Clear
+  Fournom.clear
+  
+End
+
+Public Sub RadioButton2_Click()
+  
+  TextLabel4.Text = "Centrale"
+  Four.Clear
+  Fournom.clear
+  
+End

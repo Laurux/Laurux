@@ -1,0 +1,217 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : EdDocs.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 13.04.2011
+'# Edition des documents clients en cours
+'################################################
+'
+Filename As String
+son As Integer = Start.Son
+PosY As Integer
+Coulfond As New String[]
+Private TypeD As String
+
+Public Sub _New()
+  
+  Dim Frmt As New String[]
+  
+  Frmt = Utils.FColr(Settings["/Coul/Fnets"])
+  Coulfond = Utils.Coulfd()
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  
+End
+
+Public Sub Button1_Click()
+  
+  Dim rResult As Result
+  Dim Resultlg As Result
+  Dim Type, Ordre As String
+  Dim Type2 As String
+  Dim intitule, sline As String
+  Dim Adr1 As String
+  Dim Adr2 As String
+  Dim Burdis, tel, tel2, tel3 As String
+  Dim datebl As String
+  Dim datefac As String
+  Dim Numbl As String
+  Dim Numfac As String
+  Dim Total As String
+  Dim Nbpage As Integer
+  Dim entete As String
+  Dim pdf As Cdocuments
+  
+  Nbpage = 1
+  Shell "cd " & User.Home & ""
+  Filename = User.home & "/ListeDocs.pdf"
+  pdf = New Cdocuments("l", "mm", "A4")
+  pdf.Open()
+  pdf.AliasNbPages()
+  If RadioButton1.value Then Entete = "Liste des documents en cours"
+  If RadioButton2.value Then Entete = "Liste des devis en cours"
+  If RadioButton4.value Then Entete = "Liste des commandes en cours"
+  If RadioButton3.value Then Entete = "Liste des BL en cours"
+  If RadioButton5.value Then Entete = "Liste des factures en cours"
+  If RadioButton8.value Then Ordre = "numbl"
+  If RadioButton9.value Then Ordre = "datebl, numbl"
+  If RadioButton10.value Then Ordre = "cdclibl, nmclibl, type, datebl, numbl"
+  If RadioButton11.value Then Ordre = "livraison, cdclibl, type, datebl, numbl"
+  pdf.EnteteP(Entete)
+  Me.Mouse = Mouse.Wait
+  Posy = 16
+  pdf.Level1d(posy)
+  Posy = posy + 10
+  If Not IsNull(TypeD) Then
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBl") & " left join " & Cbase.Table("TabCli") & " on cli_code = cdclibl where type = &1 order by " & Ordre & "", Typed)
+  Else
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBl") & "  left join " & Cbase.Table("TabCli") & " on cli_code = cdclibl order by " & Ordre & "")
+  Endif
+  If rResult.Available Then
+    Type2 = rResult!type
+    pdf.LinesLG(PosY)
+    Repeat
+      Type = rResult!type
+      intitule = rResult!cvclibl & " " & rResult!nmclibl & " " & rResult!pnmclibl & " "
+      Intitule = Left$(Intitule, 27)
+      Adr1 = rResult!adr1bl
+      Adr1 = Left$(Adr1, 27)
+      Adr2 = rResult!adr2bl
+      Adr2 = Left$(Adr2, 27)
+      Burdis = rResult!cpbl & " " & rResult!villebl
+      Burdis = Left$(Burdis, 30)
+      Tel = rResult!cli_tel_bur
+      Tel2 = rResult!cli_tel_poste
+      Tel3 = rResult!cli_pble
+      Datebl = Utils.Cdate_Aff(rResult!datebl)
+      Datefac = Utils.Cdate_Aff(rResult!dtefac)
+      Numbl = rResult!numbl
+      Numfac = rResult!numfac
+      Try Total = Format$(rResult!totalttc, "0.00")
+      If Error Then Total = "*******"
+      If Type2 <> type Then
+        pdf.LinesP(PosY)
+        PosY = PosY + 4
+      Endif
+      Type2 = type
+      If Type = "F" And rResult!imp = 1 Then
+        pdf.level2d(Type, intitule, Adr1, Adr2, Burdis, Datefac, Numfac, Total, posy, TypeD, RadioButton7.value, rResult!livraison)
+      Else
+        pdf.level2d(Type, intitule, Adr1, Adr2, Burdis, Datebl, Numbl, Total, posy, TypeD, RadioButton7.value, rResult!livraison)
+      Endif
+      PosY = PosY + 4
+      If Not IsNull(Tel) Or Not IsNull(Tel2) Or Not IsNull(Tel3) Then
+        pdf.level2d("", "", Tel, tel2, tel3, "", "", "", posy, "", RadioButton7.value, "")
+        PosY = PosY + 4
+      Endif
+      If PosY >= 194 Then
+        pdf.BaspageP()
+        pdf.EnteteP(Entete)
+        Posy = 26
+        pdf.Level1d(posy)
+        Posy = posy + 10
+      Endif
+      If RadioButton7.value Then
+        Resultlg = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigbl") & " where num_ligbl = &1 and typel_ligbl = &2 or num_ligbl = &1 and code_ligbl = &3", rResult!numbl, "A", "YY")
+        If Resultlg.Available Then
+          Repeat
+            If Resultlg!code_ligbl <> "YY" Then
+              pdf.level2DLG(Resultlg!code_ligbl, Resultlg!libel_ligbl, Resultlg!qte_ligbl, Format$(Val(Utils.cpoint(Resultlg!nettc_ligbl)), "0.00"), posy)
+            Else
+              If RadioButton2.value Then 
+                For Each sline In Split(Resultlg!com_ligbl, "\n")
+                  PosY = PosY + 4
+                  If PosY >= 194 Then
+                    pdf.BaspageP()
+                    pdf.EnteteP(Entete)
+                    Posy = 26
+                    pdf.Level1d(posy)
+                    Posy = posy + 10
+                  Endif
+                  pdf.level2DLG2(sline, posy)
+                Next
+              Endif
+            Endif
+            PosY = PosY + 4
+            If PosY >= 194 Then
+              pdf.BaspageP()
+              pdf.EnteteP(Entete)
+              Posy = 26
+              pdf.Level1d(posy)
+              Posy = posy + 10
+            Endif
+          Until Resultlg.MoveNext()
+          pdf.LinesLG(PosY)
+        Endif
+      Endif
+    Until rResult.MoveNext()
+    pdf.LinesLG(PosY)
+    pdf.BaspageP()
+    pdf.Output(Filename, False)
+    Impression.Prog_Editeur(Filename)
+  Else
+    If son Then
+      Music.Play
+    Endif
+    message(" Aucun document en cours n'est a imprimer", "OK")
+  Endif
+  Me.Mouse = Mouse.Pointing
+  
+End
+
+Public Sub Button2_Click()
+  
+  If Exist(Filename) Then Try Kill Filename
+  Me.Close
+  
+End
+
+Public Sub RadioButton1_Click()
+  
+  TypeD = ""
+  
+End
+
+Public Sub RadioButton4_Click()
+  
+  TypeD = "D"
+  
+End
+
+Public Sub RadioButton2_Click()
+  
+  TypeD = "C"
+  
+End
+
+Public Sub RadioButton3_Click()
+  
+  TypeD = "B"
+  
+End
+
+Public Sub RadioButton5_Click()
+  
+  TypeD = "F"
+  
+End

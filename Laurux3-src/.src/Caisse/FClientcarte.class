@@ -1,0 +1,1382 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Fclient.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 01/11/2004
+'# Gestion de la table des clients
+'################################################
+'
+
+Private n As Integer
+Private Tri As String
+Private sel As String
+Private Clitable[7] As String
+Private Enr As Integer ' Flag utilisé pour le focus si la donnée a recuperer existe ou non
+Private son As Integer = Start.Son
+Private sKey As String
+Private Dbl As String
+Private CoulZnaf As Integer ' Variable pour la couleur du background des columnviews
+Private CoulFc As Integer ' Variable pour la couleur du focus
+Private Der As String 'Derniere carte créée
+Private Org As Integer 'flag pour origine ouverture datechooser
+Private Chkfocus As Boolean = False
+Private b As Integer = 0
+Private i2 As Integer
+Private txtPosX As Integer
+Private txtPosY As Integer
+Private Filename As String = "EtiqCarte.ps"
+Private Nblargeur As String
+Private Nbhauteur As String
+Private Largeur As Integer
+Private Hauteur As Integer
+Private Mrghaut As Integer
+Private Mrgauche As Integer
+Private Esplargeur As Integer
+Private Esphauteur As Integer
+Private Nbetq As Integer = 1
+Private Nb As Boolean = False
+Private pdf As Cetiquettes
+Public Bsel As Boolean = False
+Public Codepostal As String
+Public Bureaudistributeur As String
+
+Public Sub _New()
+  
+  Dim Frmt As New String[]
+  Dim rResult As Result
+  
+  Music.Load(Start.Musique)
+  Me.center
+  Balloon.Delay = 1500
+  Frmt = Utils.FColr(Settings["/Coul/Znaff"])
+  CoulZnaf = Val(Frmt[0])
+  Frmt = Utils.FColr(Settings["/Coul/Focus"])
+  Coulfc = Val(Frmt[0])
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  n = 1
+  C1.Text = "Code"
+  C2.Text = "CV"
+  N1.Text = "Nom"
+  P1.Text = "Prénom"
+  A1.Text = "Adresse 1"
+  cp1.Text = "CP"
+  V1.Text = "Ville"
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabIdentite"))
+  If Not Error Then
+    If rResult.Available Then
+      Do
+        CV.Add(rResult!libelle)
+      Loop Until rResult.MoveNext()
+    Endif
+  Endif
+  CV.Text = ""
+  Nm.setfocus
+  
+End
+
+Public Sub Tabstrip1_click()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+End
+
+Public Sub Colcli_Data(Row As Integer, Column As Integer)
+  
+  With Utils
+    Clitable[0] = "code"
+    Clitable[1] = "rs_soc"
+    Clitable[2] = "nom"
+    Clitable[3] = "pnm"
+    Clitable[4] = "adr1"
+    Clitable[5] = "cd_ptl"
+    Clitable[6] = "ville"
+    Try .rs1.MoveTo(Row)
+    If (row Mod 2) = 0 Then
+      If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then
+        Colcli.Data.Background = CoulZnaf
+      Else
+        Colcli.Data.Background = Color.TextBackground
+      Endif
+    Else
+      If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then
+        Colcli.Data.Background = &HFAFAFA&
+      Else
+        Colcli.Data.Background = &HEBD0C2&
+      Endif
+    Endif
+    Try Colcli.data.Text = Str(.rs1[Clitable[Column]])
+    If Not Error Then
+      If Column = 8 Then Colcli.Data.Alignment = 1
+    Endif
+  End With
+  
+End
+
+Public Sub Form_Open()
+  
+  Tri = "code"
+  Tris()
+  sel = ""
+  Deb2()
+  
+End
+
+Public Sub colcli_Click()
+  
+  CleanChamps()
+  Maj_Zones()
+  cp1.Text = "CP"
+  C1.Text = "Code"
+  N1.Text = "Nom"
+  A1.Text = "Adresse 1"
+  V1.Text = "Ville"
+  Enr = 0
+  Cv.SetFocus
+  Cv.Select
+  chkfocus = True
+  
+End
+
+Public Sub Tris()
+  
+  With colcli
+    .Columns.count = 9
+    .Columns[0].Width = C1.Width
+    .Columns[1].Width = C2.Width
+    .Columns[2].Width = N1.Width
+    .Columns[3].Width = P1.Width
+    .Columns[4].Width = A1.Width
+    .Columns[5].Width = Cp1.Width
+    .Columns[6].Width = V1.Width - 22
+  End With
+  
+End
+
+Public Sub Deb2()
+  
+  Utils.Base(colcli, "select code, rs_soc, nom, pnm, adr1, cd_ptl, ville from " & Cbase.Table("TabCarte") & " where " & Tri & " like  \"%" & sel & "%\" order by " & Tri & "")
+  Colcli.Refresh
+  
+End
+
+Public Sub Deb3()
+  
+  Utils.Base(colcli, "select code, rs_soc, nom, pnm, adr1, cd_ptl, ville  from " & Cbase.Table("TabCarte") & " where " & Tri & " like  \"%" & sel & "%\" order by " & Tri & " desc ")
+  colcli.Refresh
+  
+End
+
+Public Sub Maj_Zones()
+  
+  Dim Clitab As Result
+  
+  button2.text = "Creer"
+  button4.text = "Enregistrer"
+  Try Clitab = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCarte") & " where code = &1", colcli[colcli.row, 0].Text)
+  If Not Error Then Cd.Text = Clitab!code
+  If colcli.rows.Count Then
+    Nm.Text = Clitab!nom
+    Pnm.Text = Clitab!pnm
+    Adresse1.Text = Clitab!adr1
+    Adresse2.Text = Clitab!adr2
+    Cp.Text = Clitab!cd_ptl
+    Burdist.Text = Clitab!ville
+    Email.Text = Clitab!email
+    Fax1.text = Clitab!fx1
+    Fax2.text = Clitab!fx2
+    Telbur.Text = Clitab!tel_bur
+    Teldom.Text = Clitab!tel_dom
+    Poste.Text = Clitab!tel_poste
+    Portable.Text = Clitab!pble
+    Cv.Text = Clitab!rs_soc
+    Dte1.Text = Format$(Clitab!datec, "dd.mm.yyyy")
+    Dte2.Text = Format$(Clitab!datef, "dd.mm.yyyy")
+    Rem.Value = Clitab!rem
+    Prom.value = Clitab!promo
+    Tp1.text = Format$(Clitab!tp1, "0.00")
+    Tp2.text = Format$(Clitab!tp2, "0.00")
+    Tg1.text = Format$(Clitab!tg1, "0.00")
+    Tg2.text = Format$(Clitab!tg2, "0.00")
+    Divers.text = Clitab!obs
+    Cb.Text = Clitab!cb
+    If IsNull(Tp1.Text) Then Try Tp1.Text = Format$(Val(Settings["/Soc" & Start.Societe & "/Tp1"]), "0.00")
+    If IsNull(Tg1.Text) Then Try Tg1.Text = Format$(Val(Settings["/Soc" & Start.Societe & "/Tg1"]), "0.00")
+  Endif
+  
+End
+
+Public Sub Button10_Click()
+  
+  Dim adr1 As String
+  Dim adr2 As String
+  Dim burd As String
+  
+  If Not IsNull(Cd.text) Then
+    adr1 = Replace$(Adresse1.text, " ", "+")
+    adr2 = Replace$(Adresse2.text, " ", "+")
+    burd = Replace$(burdist.text, " ", "+")
+    Exec ["xdg-open", "http://maps.google.fr/maps?near=" & adr1 & "+" & Adr2 & "+" & cp.text & "+" & burd]
+  Endif
+  
+End
+
+Public Sub Refresh()
+  
+  form_Open()
+  
+End
+
+Public Sub CleanChamps()
+  
+  Cv.Text = ""
+  Cd.Clear
+  Nm.Clear
+  Pnm.Clear
+  Adresse1.Clear
+  Adresse2.Clear
+  cp.Clear
+  Burdist.Clear
+  Email.Clear
+  Teldom.Clear
+  Telbur.Clear
+  Poste.Clear
+  Portable.Clear
+  Fax1.Clear
+  Fax2.Clear
+  Dte1.Clear
+  Dte2.Clear
+  Rem.value = False
+  Prom.value = False
+  Tp1.Text = "0"
+  Tp2.Text = "0"
+  Tg1.Text = "0"
+  Tg2.Text = "0"
+  Divers.Clear
+  Cb.Clear
+  Histo.clear
+  Hisp.value = False
+  Hisv.value = False
+  
+End
+
+Public Sub Cmpt_LostFocus()
+  
+  With Utils
+    Select Case Last.tag
+        
+      Case 8
+        If Not IsNull(Email.Text) Then Utils.chkEmail(Email.Text)
+        
+      Case 15
+        If chkfocus = True Then
+          Dte1.text = .CDate_calc(Dte1.Text)
+          Dte1.Text = .Cdate_aff(Dte1.Text)
+          If Dte1.Text = "00.00.0:00" Then
+            Dte1.SetFocus
+            Dte1.Select
+          Endif
+        Endif
+        
+      Case 16
+        If chkfocus = True Then
+          Dte2.text = .CDate_calc(Dte2.Text)
+          Dte2.Text = .Cdate_aff(Dte2.Text)
+          If Dte2.Text = "00.00.0:00" Then
+            Dte2.SetFocus
+            Dte2.Select
+          Endif
+        Endif
+        
+      Case 19
+        If Left$(Cb.Text, 1) = "*" Then Cb.Text = Mid$(Cb.Text, 2, Len(Cb.Text) - 1)
+        Utils.Find_cbarre(Cb.Text)
+        If Not IsNull(Cb.Text) Then
+          codebarre()
+          CtrlCbarre()
+          If b = 1 Then
+            Cb.SetFocus
+            Cb.Select
+            b = 0
+          Endif
+        Endif
+    End Select
+  End With
+  
+End
+
+Public Sub Cmpt_KeyPress()
+  
+  With utils
+    If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+      Select Case Last.tag
+          
+        Case 1
+          Nm.SetFocus
+          Nm.Select
+          Stop Event
+          
+        Case 2
+          If Cd.Text Then
+            Nm.Text = .Remplace(Nm.Text)
+            Pnm.SetFocus
+            Pnm.Select
+          Else
+            Message.Warning("Veuillez cliquer sur le bouton 'Créer' avant de remplir les zones SVP !", "Ok")
+          Endif
+          Stop Event
+          
+        Case 3
+          Pnm.Text = .Remplace(Pnm.Text)
+          Adresse1.SetFocus
+          Adresse1.Select
+          Stop Event
+          
+        Case 4
+          Adresse1.Text = .Remplace(Adresse1.Text)
+          Adresse2.SetFocus
+          Adresse2.Select
+          Stop Event
+          
+        Case 5
+          Adresse2.Text = .Remplace(Adresse2.Text)
+          cp.SetFocus
+          cp.Select
+          Stop Event
+          
+        Case 6
+          Cpman()
+          Stop Event
+          
+        Case 7
+          Burdist.Text = .Remplace(Burdist.Text)
+          Email.SetFocus
+          Email.Select
+          Stop Event
+          
+        Case 8
+          Teldom.SetFocus
+          Teldom.Select
+          Stop Event
+          
+        Case 9
+          Telbur.SetFocus
+          Telbur.Select
+          Stop Event
+          
+        Case 10
+          Poste.SetFocus
+          Poste.Select
+          Stop Event
+          
+        Case 11
+          Portable.SetFocus
+          Portable.Select
+          Stop Event
+          
+        Case 12
+          Fax1.SetFocus
+          Fax1.Select
+          Stop Event
+          
+        Case 13
+          fax2.SetFocus
+          fax2.Select
+          Stop Event
+          
+        Case 19
+          Dte1.SetFocus
+          Dte1.Select
+          Stop Event
+          
+        Case 14
+          Dte1.SetFocus
+          Dte1.Select
+          Stop Event
+          
+        Case 15
+          Dte2.SetFocus
+          Stop Event
+          
+        Case 16
+          Tp1.SetFocus
+          Tp1.Select
+          Stop Event
+          
+        Case 17
+          Tg1.SetFocus
+          Tg1.Select
+          Stop Event
+      End Select
+    Else
+      Select Case Last.tag
+        Case 15
+          ChkPrx()
+          
+        Case 16
+          ChkPrx()
+          
+        Case 17
+          ChkPrx()
+          
+        Case 18
+          ChkPrx()
+      End Select
+    Endif
+    
+    If key.code = key.F1 Then
+      Button7_Click()
+      Stop Event
+    Endif
+  End With
+  
+End
+
+Public Sub ChkPrx()
+  
+  If InStr("0123456789,.", Key.Text) = 0 Then
+    If key.code <> key.BackSpace And Key.Code <> Key.tab And Key.Code <> Key.Delete And Key.code <> Key.enter And Key.code <> Key.return Then
+      Stop Event
+    Endif
+  Endif
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Cmpt_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+    Last.SELECT
+  End With
+  
+End
+
+Public Sub C1_GotFocus()
+  
+  Try Utils.ObsGotf(C1)
+  C1_Click()
+  
+End
+
+Public Sub C1_LostFocus()
+  
+  Try Utils.ObsLstf(C1)
+  
+End
+
+Public Sub N1_GotFocus()
+  
+  Try Utils.ObsGotf(N1)
+  N1_Click()
+  
+End
+
+Public Sub N1_LostFocus()
+  
+  Try Utils.ObsLstf(N1)
+  
+End
+
+Public Sub A1_GotFocus()
+  
+  Try Utils.ObsGotf(A1)
+  A1_Click()
+  
+End
+
+Public Sub A1_LostFocus()
+  
+  Try Utils.ObsLstf(A1)
+  
+End
+
+Public Sub cp1_GotFocus()
+  
+  Try Utils.ObsGotf(Cp1)
+  cp1_Click()
+  
+End
+
+Public Sub cp1_LostFocus()
+  
+  Try Utils.ObsLstf(Cp1)
+  
+End
+
+Public Sub V1_GotFocus()
+  
+  Try Utils.ObsGotf(V1)
+  V1_Click()
+  
+End
+
+Public Sub V1_LostFocus()
+  
+  Try Utils.ObsLstf(V1)
+  
+End
+
+Public Sub Cb_GotFocus()
+  
+  Try Utils.ObsGotf(Cb)
+  
+End
+
+Public Sub Cb_LostFocus()
+  
+  Try Utils.ObsLstf(Cb)
+  If Left$(Cb.Text, 1) = "*" Then Cb.Text = Mid$(Cb.Text, 2, Len(Cb.Text) - 1)
+  Utils.Find_cbarre(Cb.Text)
+  If Not IsNull(Cb.Text) Then
+    codebarre()
+    CtrlCbarre()
+    If b = 1 Then
+      Cb.SetFocus
+      Cb.Select
+    Endif
+  Endif
+  
+End
+
+'***********************************************
+'*      Controle coherence du code a barre     *
+'***********************************************
+Public Sub codeBarre()
+  
+  Dim Cle As Integer
+  
+  If Len(Cb.Text) <> 8 And Len(Cb.Text) <> 13 Then
+    Try Message.Warning("Le code barre n'est pas à la norme EAN13 ! \n Il doit avoir une longueur de 8 ou 13 caracteres.", "OK")
+    b = 1
+  Else
+    If Len(Cb.text) = 13 Then
+      'Cle = Utils.Calcode(Cb.Text)
+      Cle = Utils.Calcode(Left$(Cb.Text, 12))
+      If Cle <> Right$(Cb.Text, 1) Then
+        If son Then
+          Music.Play
+        Endif
+        Try Message.Warning("Le code barre n'est pas à la norme EAN13 ! Sa cle doit etre : " & Cle, "OK")
+        b = 1
+      Endif
+    Endif
+  Endif
+  
+End
+
+'********************************************
+'*  Controle si presence d'un code barre    *
+'********************************************
+'********************************************
+'* Controle si presence d'un code barre*
+'********************************************
+Public Sub CtrlCbarre()
+  
+  Dim Rcbarre As Result
+  
+  Rcbarre = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCarte") & " where cb = &1 ", Cb.Text)
+  If Rcbarre.Available And cb.Text <> "" Then
+    If Rcbarre!code <> cd.text Then
+      If son Then
+        Music.Play
+      Endif
+      Balloon.Warning(("Le code barre est déjà attribué a la carte " & Rcbarre!code & "  !"), Cb)
+      b = 1
+      Cb.SetFocus
+      Cb.Select
+    Endif
+  Endif
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Button7_Click()
+      
+    Case 2
+      Button1_Click()
+      
+    Case 3
+      Button2_Click()
+      
+    Case 4
+      Button3_Click()
+      
+    Case 5
+      Button4_Click()
+      
+    Case 6
+      Me.Close
+      
+    Case 7
+      Button12_Click()
+      
+    Case 8
+      Button13_Click()
+      
+    Case 9
+      Panel2.visible = False
+      
+  End Select
+  
+End
+
+Public Sub Button4_Click()
+  
+  Dim CountRow As Integer
+  
+  With Utils
+    Nm.Text = .Remplace(Nm.Text)
+    Pnm.Text = .Remplace(Pnm.Text)
+    Adresse1.Text = .Remplace(Adresse1.Text)
+    Adresse2.Text = .Remplace(Adresse2.Text)
+    Burdist.Text = .Remplace(Burdist.Text)
+    If Not Nm.Text Or Not cd.Text Or Val(Tp1.text) = 0 Or Not tp1.text Or Val(tg1.text) = 0 Or Not tg1.text Then
+      If son Then
+        Music.Play
+      Endif
+      Message("Vous devez d'abord remplir les zones obligatoires (nom, affectation des points)\n ou cliquez sur le bouton 'Créer' si vous n'avez pas de code carte", "OK")
+    Else
+      If button4.text = "Valider" Or button4.text = "V&alider" Then
+        Utils.db.Exec("INSERT INTO " & Cbase.Table("TabCarte") & " (code,rs_soc,nom,pnm,adr1,adr2,cd_ptl,ville,email,tel_bur,tel_dom,tel_poste,pble,fx1,fx2, datec, datef, rem, promo, tp1, tp2, tg1, tg2, obs, cb) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24}, &{25})", Cd.text, CV.text, Nm.text, Pnm.text, Adresse1.text, Adresse2.text, cp.text, Burdist.text, Email.text, Telbur.text, Teldom.text, Poste.text, Portable.text, Fax1.text, Fax2.text, Utils.Cdate_Dbase(Dte1.Text), Utils.Cdate_Dbase(Dte2.Text), Rem.value, Prom.value, Tp1.Text, Tp2.Text, Tg1.Text, Tg2.Text, divers.text, cb.Text)
+        Enrgcp.Ecp(Cp.Text, Burdist.Text)
+        skey = cd.Text
+        Refresh()
+        Cleanchamps()
+        For CountRow = 0 To (Colcli.Rows.Count - 1)
+          If Colcli[CountRow, 0].Text = skey Then
+            Colcli.Rows[CountRow].Selected = True
+            Break
+          Endif
+        Next
+      Else
+        Utils.db.Exec("UPdate  " & Cbase.Table("TabCarte") & "  SET  code = &1, rs_soc= &2, nom = &3, pnm = &4, adr1 = &5, adr2 = &6, cd_ptl = &7, ville = &8, email = &9, tel_dom = &{10}, tel_bur = &{11}, tel_poste = &{12}, pble = &{13}, fx1 = &{14}, fx2 = &{15}, datec = &{16}, datef = &{17}, rem = &{18}, promo = &{19}, tp1 = &{20}, tp2 = &{21}, tg1 = &{22}, tg2 = &{23}, obs = &{24}, cb = &{25} WHERE code = &1", Cd.text, CV.text, Nm.text, Pnm.text, Adresse1.text, Adresse2.text, cp.text, Burdist.text, Email.text, Telbur.text, Teldom.text, Poste.text, Portable.text, Fax1.text, Fax2.text, Utils.Cdate_Dbase(Dte1.Text), Utils.Cdate_Dbase(Dte2.Text), Rem.value, Prom.value, Tp1.Text, Val(.cpoint(Tp2.Text)), Tg1.Text, Tg2.Text, divers.text, cb.text)
+        Enrgcp.Ecp(Cp.Text, Burdist.Text)
+        sKey = Colcli.row
+        Cleanchamps()
+        Refresh()
+        Colcli.MoveTo(skey, 0)
+      Endif
+      button4.text = "Enregistrer"
+      chkfocus = False
+      Tp2.ReadOnly = True
+      Tg2.ReadOnly = True
+    Endif
+  End With
+Catch
+  If son Then
+    Music.Play
+  Endif
+  message.Error(Error.Text & " " & Error.where)
+  'Message.Error("La création de ce compte client est impossible car ce numéro existe déjà !")
+  
+End
+
+Public Sub Button3_Click()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  Dim Suppr As Integer
+  
+  Tab = "Fiches_Cartes" 
+  If Not IsNull(cd.Text) Then
+    Suppr = 1
+    If son Then
+      Music.Play
+    Endif
+    If Message.Question("Etes vous sur de vouloir effacer cet enregistrement", "Oui", "Non") = 1 Then
+      Me.Mouse = Mouse.Wait
+      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCarte") & " WHERE  code = &1", Cd.Text)
+      If rResult.Available Then
+        If Suppr = 1 Then
+          Utils.db.Exec("DELETE FROM " & Cbase.Table("TabCarte") & " WHERE code = &1", Cd.Text)
+          sKey = Colcli.row
+          Refresh()
+          Cleanchamps()
+          Colcli.MoveTo(skey, 0)
+          Message.Info("Carte supprimée !")
+        Endif
+      Endif
+      Me.Mouse = Mouse.Pointing
+    Endif
+  Endif
+Catch
+  If son Then
+    Music.Play
+  Endif
+  message.Error(Error.Text & " " & Error.where)
+  Me.Mouse = Mouse.Pointing
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim CResult As Result
+  
+  Button4.Text = "V&alider"
+  cleanChamps()
+  Try CResult = Utils.db.Exec("SELECT code FROM " & Cbase.Table("TabCarte") & " order by code")
+  If CResult.Available Then
+    CResult.MoveLast
+    der = CResult!code
+    Cd.Text = Val(der) + 1
+    Cd.Text = Format$(Cd.Text, "000000")
+  Else
+    Cd.Text = "000001"
+  Endif
+  Calc_barre()
+  Dte1.Text = Format$(Now, "dd.mm.yyyy")
+  Dte2.Text = Left$(dte1.Text, 6) & Str(Val(Right$(Dte1.Text, 4)) + 20)
+  Try Tp1.Text = Format$(Val(Settings["/Soc" & Start.Societe & "/Tp1"]), "0.00")
+  Try Tg1.Text = Format$(Val(Settings["/Soc" & Start.Societe & "/Tg1"]), "0.00")
+  enr = "1"
+  chkfocus = True
+  Tp2.ReadOnly = False
+  Tg2.ReadOnly = False
+Catch
+  If son Then
+    Music.Play
+  Endif
+  message.Error(Error.Text & " " & Error.where)
+  Me.Mouse = Mouse.Default
+  
+End
+
+Public Sub Button6_Click()
+  
+  chkfocus = False
+  If DateChooser1.Visible = False Then
+    DateChooser1.visible = True
+  Else
+    DateChooser1.Visible = False
+  Endif
+  Org = 1
+  
+End
+
+Public Sub Button11_Click()
+  
+  chkfocus = False
+  If DateChooser1.Visible = False Then
+    DateChooser1.visible = True
+  Else
+    DateChooser1.Visible = False
+  Endif
+  Org = 2
+  
+End
+
+Public Sub DateChooser1_Activate()
+  
+  If Org = 1 Then
+    Dte1.text = Format$(DateChooser1.Value, "dd.mm.yyyy")
+    Dte2.SetFocus
+    dte2.Select
+  Else
+    Dte2.text = Format$(DateChooser1.Value, "dd.mm.yyyy")
+    Cd.SetFocus
+    Cd.Select
+  Endif
+  DateChooser1.Visible = False
+  
+End
+
+Public Sub Dbclk()
+  
+  If Not Dbl Then
+    Deb3()
+    Dbl = "1"
+  Else
+    Deb2()
+    Dbl = ""
+  Endif
+  
+End
+
+Public Sub C1_Click()
+  
+  sel = ""
+  'ref()
+  C1.Text = ""
+  N1.Text = "Nom"
+  A1.Text = "Adresse 1"
+  cp1.Text = "CP"
+  V1.Text = "Ville"
+  Tri = "code"
+  Deb2()
+  
+End
+
+Public Sub C1_Dblclick()
+  
+  Dbclk()
+  
+End
+
+Public Sub N1_Click()
+  
+  sel = ""
+  'ref()
+  C1.Text = "Code"
+  N1.Text = ""
+  A1.Text = "Adresse 1"
+  cp1.Text = "CP"
+  V1.Text = "Ville"
+  Tri = "nom"
+  Deb2()
+  
+End
+
+Public Sub N1_Dblclick()
+  
+  Dbclk()
+  
+End
+
+Public Sub A1_Click()
+  
+  sel = ""
+  'ref()
+  A1.Text = ""
+  C1.Text = "Code"
+  N1.Text = "Nom"
+  cp1.Text = "CP"
+  V1.Text = "Ville"
+  Tri = "adr1"
+  Deb2()
+  
+End
+
+Public Sub A1_Dblclick()
+  
+  Dbclk()
+  
+End
+
+Public Sub Cp1_Click()
+  
+  sel = ""
+  'ref()
+  cp1.Text = ""
+  C1.Text = "Code"
+  N1.Text = "Nom"
+  A1.Text = "Adresse 1"
+  V1.Text = "Ville"
+  Tri = "cd_ptl"
+  Deb2()
+  
+End
+
+Public Sub Cp1_Dblclick()
+  
+  Dbclk()
+  
+End
+
+Public Sub V1_Click()
+  
+  sel = ""
+  'ref()
+  cp1.Text = "CP"
+  C1.Text = "Code"
+  N1.Text = "Nom"
+  A1.Text = "Adresse 1"
+  V1.Text = ""
+  Tri = "ville"
+  Deb2()
+  
+End
+
+Public Sub V1_Dblclick()
+  
+  Dbclk()
+  
+End
+
+Public Sub Ref()
+  
+  Tri = "code"
+  CleanChamps()
+  Tris()
+  'Deb2()
+  
+End
+
+Public Sub C1_KeyPress()
+  
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    Deb2()
+  Endif
+  
+End
+
+Public Sub N1_KeyPress()
+  
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    Deb2()
+  Endif
+  
+End
+
+Public Sub A1_KeyPress()
+  
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    Deb2()
+  Endif
+  
+End
+
+Public Sub Cp1_KeyPress()
+  
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    Deb2()
+  Endif
+  
+End
+
+Public Sub V1_KeyPress()
+  
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    Deb2()
+  Endif
+  
+End
+
+Public Sub Button1_Click()
+  
+  Dim AdrMail As String = ""
+  Dim Txtentete As String = Settings["/Soc" & Start.Societe & "/Tmail2"]
+  Dim Txtcorps As String = Settings["/Soc" & Start.Societe & "/Tmail"]
+  
+  If IsNull(Txtentete) Then Txtentete = " "
+  If IsNull(Txtcorps) Then Txtcorps = " "
+  AdrMail = Email.Text
+  'Exec ["xdg-email", "--subject", Txtentete, "--body", Txtcorps, AdrMail]
+  EnvMail.Envoi2(AdrMail, "", "", "")
+  
+End
+
+'******************************GESTION DU CODE POSTAL*********************************
+Public Sub Cpman()
+  
+  Dim MyForm2 As Tricp
+  
+  MyForm2 = New Tricp("Client", Cp.Text)
+  MyForm2.Showmodal()
+  If Bsel = True Then
+    Cp.text = Codepostal
+    Burdist.Text = Bureaudistributeur
+  Else
+    Cp.SetFocus
+  Endif
+  
+End
+
+Public Sub aff_cp()
+  
+  Dim CpResult As Result
+  
+  Colcp.visible = True
+  Button5.Visible = True
+  Colcp.Columns.count = 2
+  Colcp.Columns[0].Width = 60
+  Colcp.Columns[1].Width = 280
+  Colcp.Columns[0].Text = "CP"
+  Colcp.Columns[1].Text = "Bureau distributeur"
+  If cp.text Then
+    CpResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCpostaux") & " where cp like '" & cp.Text & "%' order by cp, burdist")
+  Else
+    CpResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCpostaux") & " order by cp, burdist")
+  Endif
+  If CpResult.Available Then
+    Repeat
+      Colcp.Add(CpResult!cp & CpResult!burdist, CpResult!cp & CpResult!burdist)
+      Colcp.Item[0] = CpResult!cp
+      Colcp.Item[1] = CpResult!burdist
+    Until CpResult.MoveNext()
+    Colcp.MoveFirst()
+    Colcp.item.Selected = True
+    Colcp.setfocus
+  Endif
+  
+End
+
+Public Sub Colcp_Click()
+  
+  Cp.Text = Colcp.Item[0]
+  Burdist.Text = Colcp.Item[1]
+  Colcp.clear
+  Colcp.visible = False
+  Burdist.SetFocus
+  Burdist.Select
+  
+End
+'****************************************************************
+'* Gestion du columnview Colcp lors d'une saisie manuelle       *
+'****************************************************************
+
+Public Sub Colcp_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Colcp.MoveCurrent
+    Colcp_Click()
+    Stop Event
+  Endif
+  
+  If key.code = key.F1 Then
+    Button7_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Colcp.visible = False
+    Colcp.clear
+    Cp.Select
+    Cp.SetFocus
+    Stop Event
+  Endif
+  
+End
+
+Public Sub ChkCp()
+  
+  If InStr("0123456789", Key.Text) = 0 Then
+    If key.code <> key.BackSpace And Key.Code <> Key.tab And Key.Code <> Key.Delete And Key.code <> Key.enter And Key.code <> Key.return Then
+      Stop Event
+    Endif
+  Endif
+  
+End
+
+Public Sub ToggleButton5_Click()
+  
+  Dim MyForm2 As Tricp
+  
+  MyForm2 = New Tricp("Clientcarte", "")
+  MyForm2.Showmodal()
+  If Bsel = True Then
+    Cp.text = Codepostal
+    Burdist.Text = Bureaudistributeur
+  Else
+    Cp.SetFocus
+  Endif
+  
+End
+
+'********************************FIN DE GESTION DU CODE POSTAL**************************
+
+Public Sub Hisv_Click()
+  
+  Dim HisResult As Result
+  Dim HligResult As Result
+  
+  If Hisv.value = True Then
+    Hisp.value = False
+    Histo.Clear
+    Histo.Columns.count = 7
+    Histo.Columns[0].Width = 90
+    Histo.Columns[1].Width = 90
+    Histo.Columns[2].Width = 160
+    Histo.Columns[3].Width = 260
+    Histo.Columns[4].Width = 60
+    Histo.Columns[5].Width = 100
+    Histo.Columns[6].Width = 60
+    Histo.Columns[0].Text = "Date"
+    Histo.Columns[1].Text = "N° Ticket"
+    Histo.Columns[1].Alignment = 3
+    Histo.Columns[2].Text = "Article"
+    Histo.Columns[3].Text = "Désignation"
+    Histo.Columns[3].Alignment = 1
+    Histo.Columns[4].Text = "Qté "
+    Histo.Columns[4].Alignment = 2
+    Histo.Columns[5].Text = "Tot HT"
+    Histo.Columns[5].Alignment = 2
+    Histo.Columns[6].Text = "Remise"
+    Histo.Columns[6].Alignment = 2
+    HisResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHEntTck") & " where carte = &1 order by numero", cd.text)
+    If HisResult.Available Then
+      If Not IsNull(HisResult!carte) Then
+        Repeat
+          HligResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHLigTck") & " where numero = &1 order by code", HisResult!numero)
+          If HligResult.Available Then
+            Repeat
+              Histo.Add(HligResult!lInd, HligResult!lInd)
+              Histo.Item[0] = Utils.Cdate_aff(HisResult!date)
+              Histo.Item[1] = HisResult!numero
+              Histo.Item[2] = HligResult!code
+              Histo.Item[3] = HligResult!intitule
+              Histo.Item[4] = HligResult!qte
+              Histo.Item[5] = Format$(Val(Utils.cpoint(HligResult!mht)), "0.00")
+              Try Histo.Item[6] = Format$(Val(Utils.cpoint(HligResult!mrem)), "0.00")
+            Until HligResult.MoveNext()
+          Endif
+        Until HisResult.MoveNext()
+      Endif
+    Endif
+  Else
+    Histo.Clear
+  Endif
+  
+End
+
+Public Sub Hisp_Click()
+  
+  Dim HisResult As Result
+  Dim Totpoint As Float = 0
+  
+  If Hisp.value = True Then
+    Hisv.value = False
+    Histo.Clear
+    Histo.Columns.count = 6
+    Histo.Columns[0].Width = 140
+    Histo.Columns[1].Width = 120
+    Histo.Columns[2].Width = 120
+    Histo.Columns[3].Width = 120
+    Histo.Columns[4].Width = 130
+    Histo.Columns[5].Width = 130
+    Histo.Columns[0].Text = "N° carte"
+    Histo.Columns[1].Text = "Date"
+    Histo.Columns[2].Text = "N° ticket"
+    Histo.Columns[3].Text = "Tot HT"
+    Histo.Columns[3].Alignment = 2
+    Histo.Columns[4].Text = "Tot TTC"
+    Histo.Columns[4].Alignment = 2
+    Histo.Columns[5].Text = "Total points"
+    Histo.Columns[5].Alignment = 2
+    HisResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHEntTck") & " where carte = &1 order by numero", cd.text)
+    If HisResult.Available Then
+      If Not IsNull(HisResult!carte) Then
+        Repeat
+          Histo.Add(HisResult!numero, HisResult!numero)
+          Histo.Item[0] = HisResult!carte
+          Histo.Item[1] = Utils.Cdate_aff(HisResult!date)
+          Histo.Item[2] = HisResult!numero
+          Histo.Item[3] = Format$(Val(Utils.cpoint(HisResult!mht)), "0.00")
+          Histo.Item[4] = Format$(Val(Utils.cpoint(HisResult!mttc)), "0.00")
+          Totpoint = Totpoint + Val(Utils.cpoint(HisResult!points))
+          Histo.Item[5] = Format$(Totpoint, "0.00")
+        Until HisResult.MoveNext()
+      Endif
+    Endif
+  Else
+    Histo.clear
+  Endif
+  
+End
+
+'************************************
+'*       Generation code barre      *
+'************************************
+Public Sub Calc_barre()
+  
+  Dim Rb As String
+  Dim Cle As Integer
+  
+  Rb = ""
+  Rb = "299999" & Cd.Text
+  Cle = Utils.Calcode(Rb)
+  Cb.Text = Rb & Cle
+  
+End Sub
+
+'****************************** Gestion des étiquettes ***************************************
+Public Sub Button12_Click()
+  
+  If Not IsNull(Cd.Text) Then Panel2.Visible = True
+  init_ComboBox()
+  
+End
+
+Public Sub init_ComboBox()
+  
+  Dim retiq As Result
+  Dim Tab As String = "Fiches_Etiquettes" 
+  
+  Codetiq.clear
+  Try rEtiq = Utils.db.Exec("SELECT * FROM " & Tab & " ")
+  If Not Error Then
+    If rEtiq.Available Then
+      Do
+        Codetiq.Add(rEtiq!code & "- " & rEtiq!libelle)
+      Loop Until rEtiq.MoveNext()
+    Endif
+    Codetiq.Text = ""
+  Endif
+  
+End
+
+Public Sub Button13_Click()
+  
+  Dim Etiqr As Result
+  Dim Tab As String
+  Dim i As Integer = 1
+  Dim nom1 As String '
+  
+  Tab = "Fiches_Etiquettes" 
+  Nbetq = 1
+  Txtposx = 0 
+  txtposy = 0
+  If Codetiq.Text <> "" Then
+    Try Etiqr = Utils.db.Exec("SELECT * FROM " & tab & " WHERE code = &1", Left$(Codetiq.Text, 1))
+    If Not Error Then
+      If Etiqr.Available Then
+        Nblargeur = Etiqr!nblargeur
+        Nbhauteur = Etiqr!nbhauteur
+        Largeur = Etiqr!largeur / 10
+        Hauteur = Etiqr!hauteur / 10
+        Mrghaut = Etiqr!mrghaut / 10
+        Mrgauche = Etiqr!mrgauche / 10
+        Esplargeur = Etiqr!esplargeur / 10
+        Esphauteur = Etiqr!esphauteur / 10
+        txtPosX = 2 + Mrgauche
+        txtPosY = 3 + Mrghaut
+        Shell "cd " & User.Home & ""
+        Filename = User.home & "/EtiqCli.pdf"
+        Try Kill Filename
+        pdf = New CEtiquettes("Portrait", "mm", "A4")
+        pdf.Open()
+        pdf.NewPage()
+        Me.Mouse = Mouse.Wait
+        If Val(Posetiq.Text) > 1 Then
+          nom1 = ""
+          For i = 1 To Val(Posetiq.text) - 1
+            Inc Nbetq
+            If Nbetq = 2 Then i2 = 1
+            nb = True
+            pos_Etiq()
+          Next
+        Endif
+        Imprime()
+        fin_impression()
+        Me.Mouse = Mouse.Pointing
+        i2 = 0
+        txtposx = 0
+        txtposy = 0
+      Endif
+    Else
+      If son Then
+        Music.Play
+      Endif
+      message(" Veuillez d'abord créer les formats d'étiquettes SVP !!!", "OK")
+    Endif
+  Endif
+  
+End
+
+Public Sub Imprime()
+  
+  Dim i As Integer
+  
+  For i = 1 To Val(Nbetiq.Text)
+    pos_Etiq()
+    pdf.Nom(Cv.text & " " & Nm.Text & " " & Pnm.Text, txtPosX, txtPosY)
+    pdf.Nom(Adresse1.Text, txtPosX, txtPosY + 5)
+    pdf.Nom(Adresse2.Text, txtPosX, txtPosY + 10)
+    pdf.Cp(Cp.Text & " " & Burdist.Text, txtPosX, txtPosY + 15)
+    If Not IsNull(Cb.text) And If Len(Cb.text) = 13 Then pdf.Barcode(Cb.text, txtPosX + 10, txtPosY + 20)
+    Inc nbetq
+  Next
+  
+End
+
+Public Sub fin_impression()
+  
+  pdf.Output(Filename, False)
+  Impression.Prog_Editeur(Filename)
+  Panel2.Visible = False
+  
+End
+
+Public Sub pos_Etiq()
+  
+  If Nbetq = 1 Then
+    txtPosX = 2 + Mrgauche
+  Else
+    txtPosX = 2 + Mrgauche + (Largeur * (Nbetq - 1)) + Esplargeur
+  Endif
+  If Nbetq > Val(Nblargeur) Then
+    Nbetq = 1
+    txtPosX = 2 + Mrgauche
+    txtPosY = txtPosY + Hauteur + Esphauteur
+    Inc i2
+    If i2 > Val(Nbhauteur) Then
+      printer.NewPage()
+      i2 = 0
+      Nbetq = 1
+      txtPosX = 2 + Mrgauche
+      txtPosY = 2.1 + Mrghaut
+    Endif
+  Endif
+  
+End
+
+Public Sub Tp2_DblClick()
+  
+  Tp2.ReadOnly = False
+  
+End
+
+Public Sub Tg2_KeyPress()
+  
+  Tg2.ReadOnly = False
+  
+End
+
+Public Sub Button7_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Tablesclients&fournisseurs.html"]
+  
+End

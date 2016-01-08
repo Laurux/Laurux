@@ -1,0 +1,149 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Fcloture.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 01/11/2004
+'# Cloture des périodes
+'################################################
+'
+
+Private Tab As String
+Private Dtpc As String
+Private Dpc As String
+Private Depc As String
+Private dtepc As String
+Private son As Integer = Start.Son
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  
+End
+
+Public Sub Form_Open()
+  
+  Aff_date()
+  
+End
+
+Public Sub Aff_date()
+  
+  Dim rResult As Result
+  
+  Tab = "Fiches_Parametres" 
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
+  If Not rResult.Available Then
+    If son Then
+      Music.Play
+    Endif
+    Message.Warning("Veuillez completez la table des parametres généraux SVP avant de faire vos clotures", "OK")
+    Quit
+  Else
+    Dpc = rResult!dtepc
+    dtepc = Left(Dpc, 2)
+    dateprc.Text = "  " & Format$(Date(Right(dpc, 4), Left(dpc, 2), "01"), "mmmm  yyyy")
+    'Aff_date()
+    dtepc = Format(Val(dtepc) + 1, "00")
+    If Val(dtepc) > 12 Then
+      dtepc = "01"
+      dpc = Left$(dpc, 6) & Str(Val(Right$(dpc, 4)) + 1)
+    Endif
+    Dtpc = Format$(Date(Right(dpc, 4), dtepc, 01), "mmmm  yyyy")
+    Depc = rResult!dtepc
+    datecl.Text = "  " & Dtpc
+  Endif
+  
+End
+
+Public Sub Button3_Click()
+  
+  Me.Close
+  
+End
+
+Public Sub Button1_Click()
+  
+  Dim rResult As Result
+  Dim num As String
+  Dim Tab2 As String
+  Dim cpt As String
+  Dim Dppc As Date
+  Dim dtex As String
+  Dim numecr As Integer
+  'Dim numdef As String
+  
+  Tab = "Fiches_Mvt" 
+  Tab2 = "Fiches_Parametres" 
+  With Utils
+    rResult = .db.Exec("SELECT * FROM " & Tab2 & "")
+    dtex = rResult!dteclec ' On recupere la date de fin d'exercice
+    Try numecr = rResult!numecriture2
+    If Message.Question("Etes vous sur de vouloir lancer la cloture du mois de" & datecl.Text, "Oui", "Non") = 1 Then
+      Me.mouse = Mouse.Wait
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE  Mid(dte,6,2)  = &1 and left(dte, 4) = &2 and provisoire = &3 ", dtepc, Right(dpc, 4), 1)
+      If rResult.Available Then
+        Message.Warning(" Il reste des écritures non validées pour cette période. \n Cloture impossible. ! ", "OK")
+      Else
+        rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE  Mid(dte,6,2)  = &1  and left(dte, 4) = &2 and provisoire = &3 order by numero", dtepc, Right(dpc, 4), 0)
+        If rResult.Available Then
+          num = rResult!numero
+          numecr = numecr + 1
+          Repeat
+            If rResult!numero <> num And If IsNull(rResult!numerodef) Then numecr = numecr + 1
+            'numdef = rResult!dte
+            'numdef = Right$(numdef, 2) & Left$(numdef, 2) & numecr
+            num = rResult!numero
+            cpt = rResult!compte
+            If IsNull(rResult!numerodef) Then
+              Utils.db.Exec("UPdate  " & Tab & "  SET cloturee =  &1,numerodef = &3, dteval =&5 where numero = &2 and compte = &4", 1, num, numecr, cpt, Format$(Now, "yyyymmdd"))
+            Else
+              Utils.db.Exec("UPdate  " & Tab & "  SET cloturee =  &1, dteval =&5 where numero = &2 and compte = &4", 1, num, numecr, cpt, Format$(Now, "yyyymmdd"))
+            Endif
+          Until rResult.MoveNext()
+        Endif
+        dtepc = Format$(Val(dtepc), "00")
+        ' Determine le dernier jour du mois
+        Dppc = Date(Right$(dpc, 4), dtepc, 01)
+        If Month(Dppc) < 12 Then
+          dtepc = Day(Date(Year(dppc), Month(dppc) + 1, 1) - 1) & "." & dtepc & "." & Right(Dpc, 4)
+        Else
+          dtepc = Day(Date(Year(dppc) + 1, 1, 1) - 1) & "." & dtepc & "." & Right(Dpc, 4)
+        Endif
+        ' Met à jour la table des parametres
+        rResult = Utils.db.Exec("SELECT * FROM " & Tab2 & "")
+        Utils.db.Exec("UPdate  " & Tab2 & "  SET  dtepc  =  &1, numecriture2 = &2", .Cdate_Dbase(dtepc), numecr)
+        Message.Warning(" Traitement terminé ! ", "OK")
+        Me.mouse = mouse.Default
+      Endif
+    Endif
+  End With
+  Me.Close
+  
+End
+
+Public Sub Button2_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/ClotureAn.html"]
+  
+End

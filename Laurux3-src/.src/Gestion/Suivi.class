@@ -1,0 +1,425 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Suivi.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 01/03/2011
+'# Gestion du suivi des affaires
+'################################################
+
+Private rResult As Result
+Private PrMo As String
+Private Devis As Boolean
+Private Fac As Boolean
+Private son As Integer = Start.Son
+
+Public Sub _new(cod As String, Cv As String, Nm As String, Pnm As String, Num As String, Datej As String, NumF As String, DateF As String, bdevis As Boolean, bFacture As Boolean, Impfac As Boolean)
+  
+  Dim rSuivi As Result
+  
+  Me.center
+  
+  Music.Load(Start.Musique)
+  Devis = Bdevis
+  Fac = Bfacture
+  If Not devis Then
+    Qte.ReadOnly = True
+    Qte.Background = &D4D0C8&
+    Ach.ReadOnly = True
+    Ach.Background = &D4D0C8&
+    Vtes.ReadOnly = True
+    Vtes.Background = &D4D0C8&
+    Qte2.SetFocus
+    Qte2.Select
+  Endif
+  If devis Then
+    'Qte2.ReadOnly = TRUE
+    'Qte2.Background = &D4D0C8&
+    'Ach2.ReadOnly = TRUE
+    'Ach2.Background = &D4D0C8&
+    'Vtes2.ReadOnly = TRUE
+    'Vtes2.Background = &D4D0C8&
+    Frame6.visible = False
+  Endif
+  If fac And impfac Then
+    Qte.ReadOnly = True
+    Qte.Background = &D4D0C8&
+    Ach.ReadOnly = True
+    Ach.Background = &D4D0C8&
+    Vtes.ReadOnly = True
+    Vtes.Background = &D4D0C8&
+    Qte2.ReadOnly = True
+    Qte2.Background = &D4D0C8&
+    Ach2.ReadOnly = True
+    Ach2.Background = &D4D0C8&
+    Vtes2.ReadOnly = True
+    Vtes2.Background = &D4D0C8&
+  Endif
+  If Not IsNull(cod) Then
+    Code.text = cod
+    Nom.Text = Cv & " " & Nm & " " & Pnm
+    Numdev.Text = Num
+    Datedev.Text = Datej
+  Endif
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTxmo") & " where code_txtmo = &1", Settings["/Soc" & Start.Societe & "/CodeMO"])
+  If rResult.Available Then
+    PUmo.text = Format$(Val(Utils.cpoint(rResult!tx_txtmo)), "0.00")
+    PUmo2.Text = PUmo.Text
+    PrMo = rResult!prvt_txtmo
+    If Val(Utils.cpoint(PrMo)) = 0 Or If IsNull(PrMo) Then
+      Message.Warning("Vous n'avez pas défini de prix de revient dans la table des taux de MO pour le code " & rResult!code_txtmo & "!")
+    Else
+      If IsNull(NumF) Then
+        rSuivi = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabSuivis") & " where numdev = &1 and code = &2", Numdev.Text, Code.text)
+      Else
+        rSuivi = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabSuivis") & " where numfac = &1 and code = &2", NumF, Cod)
+      Endif
+      If rSuivi.Available Then
+        Code.Text = rSuivi!code
+        Nom.Text = rSuivi!nom
+        Numdev.Text = rSuivi!numdev
+        Datedev.Text = Utils.Cdate_Aff(rSuivi!datedev)
+        Numfac.Text = rSuivi!numfac
+        Datefac.Text = Utils.Cdate_Aff(rSuivi!datefac)
+        If Left$(Datefac.Text, 2) = "00" Then Datefac.Text = ""
+        Qte.Text = rSuivi!qte
+        PuMo.Text = rSuivi!pu
+        TotMo.Text = rSuivi!total
+        MargeMo.Text = rSuivi!margemo
+        Ach.Text = rSuivi!ach
+        Vtes.Text = rSuivi!vtes
+        Qte2.Text = rSuivi!qte2
+        PuMo2.Text = rSuivi!pu2
+        TotMo2.Text = rSuivi!total2
+        MargeMo2.Text = rSuivi!margemo2
+        Ach2.Text = rSuivi!ach2
+        Vtes2.Text = rSuivi!vtes2
+        Calc_MargeArt()
+        Calc_MargeArt2()
+      Endif
+    Endif
+  Else
+    If son Then
+      Music.Play
+    Endif
+    Message.Warning("Vous n'avez pas défini, dans les préférences, le taux de MO a utiliser \n pour les calculs du suivi des affaires !")
+  Endif
+  
+End
+
+Public Sub Button3_Click()
+  
+  Me.close
+  
+End
+
+Public Sub Qte_KeyPress()
+  
+  If Devis Then
+    Chkinput()
+    If Key.Code = Key.tab Or Key.code = Key.enter Or Key.code = Key.return Then
+      Ach.SetFocus
+      Ach_GotFocus()
+      Stop Event
+    Endif
+  Endif
+  
+End
+
+Public Sub Qte_GotFocus()
+  
+  Try Utils.ObsGotf(Qte)
+  
+End
+
+Public Sub Qte_LostFocus()
+  
+  If Devis Then
+    If Val(Utils.cpoint(Qte.Text)) = 0 Or If IsNull(Qte.text) Then
+      Message.Error("Veuillez vérifier votre saisie SVP !")
+      Qte.SetFocus
+      Qte.Select
+    Else
+      Utils.Formattage(Qte)
+      Try Utils.ObsLstf(Qte)
+      Calc_MargeMo()
+    Endif
+  Endif
+  
+End
+
+Public Sub Ach_KeyPress()
+  
+  If devis Then
+    Chkinput()
+    If Key.Code = Key.tab Or Key.code = Key.enter Or Key.code = Key.return Then
+      Vtes.SetFocus
+      Vtes_GotFocus()
+      Stop Event
+    Endif
+  Endif
+  
+End
+
+Public Sub Ach_GotFocus()
+  
+  Try Utils.ObsGotf(Ach)
+  
+End
+
+Public Sub Ach_LostFocus()
+  
+  If Devis Then
+    Utils.Formattage(Ach)
+    Try Utils.ObsLstf(Ach)
+    Calc_MargeArt()
+  Endif
+  
+End
+
+Public Sub Vtes_KeyPress()
+  
+  If Devis Then
+    Chkinput()
+    If Key.Code = Key.tab Or Key.code = Key.enter Or Key.code = Key.return Then
+      Qte2.SetFocus
+      Qte2_GotFocus()
+      Stop Event
+    Endif
+  Endif
+  
+End
+
+Public Sub Vtes_GotFocus()
+  
+  Try Utils.ObsGotf(Vtes)
+  
+End
+
+Public Sub Vtes_LostFocus()
+  
+  If Devis Then
+    Utils.Formattage(Vtes)
+    Try Utils.ObsLstf(Vtes)
+    Calc_MargeArt()
+  Endif
+  
+End
+
+Public Sub Qte2_KeyPress()
+  
+  Chkinput()
+  If Key.Code = Key.tab Or Key.code = Key.enter Or Key.code = Key.return Then
+    Ach2.SetFocus
+    Ach2_GotFocus()
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Qte2_GotFocus()
+  
+  Try Utils.ObsGotf(Qte2)
+  
+End
+
+Public Sub Qte2_LostFocus()
+  
+  Utils.Formattage(Qte2)
+  Try Utils.ObsLstf(Qte2)
+  Calc_MargeMo2()
+  
+End
+
+Public Sub Ach2_KeyPress()
+  
+  Chkinput()
+  If Key.Code = Key.tab Or Key.code = Key.enter Or Key.code = Key.return Then
+    Vtes2.SetFocus
+    Vtes2_GotFocus()
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Ach2_GotFocus()
+  
+  Try Utils.ObsGotf(Ach2)
+  
+End
+
+Public Sub Ach2_LostFocus()
+  
+  Utils.Formattage(Ach2)
+  Try Utils.ObsLstf(Ach2)
+  Calc_MargeArt2()
+  
+End
+
+Public Sub Vtes2_KeyPress()
+  
+  Chkinput()
+  If Key.Code = Key.tab Or Key.code = Key.enter Or Key.code = Key.return Then
+    If Devis Then
+      Qte.SetFocus
+      Qte_GotFocus()
+    Else
+      Qte2.SetFocus
+      Qte2_GotFocus()
+    Endif
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Vtes2_GotFocus()
+  
+  Try Utils.ObsGotf(Vtes2)
+  
+End
+
+Public Sub Vtes2_LostFocus()
+  
+  Utils.Formattage(Vtes2)
+  Try Utils.ObsLstf(Vtes2)
+  Calc_MargeArt2()
+  
+End
+
+Public Sub Chkinput()
+  
+  If InStr("0123456789,.", Key.Text) = 0 Then
+    If key.code <> key.BackSpace And Key.Code <> Key.tab And Key.Code <> Key.Delete And Key.code <> Key.enter And Key.code <> Key.return Then
+      Stop Event
+    Endif
+  Endif
+  
+End
+
+Public Sub Calc_MargeMo()
+  
+  TotMo.Text = Format$(Val(Utils.cpoint(Qte.text)) * Val(Utils.cpoint(PUmo.Text)), "0.00")
+  MargeMo.text = Format$((Val(Utils.cpoint(TotMo.Text)) - Val(Utils.cpoint(PrMo)) * Val(Utils.cpoint(Qte.text))), "0.00")
+  Utils.Coulfonds(MargeMo)
+  Calc_MargeTotale()
+  
+End
+
+Public Sub Calc_MargeArt()
+  
+  MargeArt.Text = Format$(Val(Utils.cpoint(Vtes.text)) - Val(Utils.cpoint(Ach.Text)), "0.00")
+  Utils.Coulfonds(MargeArt)
+  Calc_MargeTotale()
+  
+End
+
+Public Sub Calc_MargeTotale()
+  
+  TotMarge.Text = Format$(Val(Utils.cpoint(MargeMo.text)) + Val(Utils.cpoint(MargeArt.Text)), "0.00")
+  Utils.Coulfonds(Totmarge)
+  Calc_Emarge()
+  
+End
+
+Public Sub Calc_MargeMo2()
+  
+  TotMo2.Text = Format$(Val(Utils.cpoint(Qte2.text)) * Val(Utils.cpoint(PUmo2.Text)), "0.00")
+  MargeMo2.text = Format$((Val(Utils.cpoint(TotMo2.Text)) - Val(Utils.cpoint(PrMo)) * Val(Utils.cpoint(Qte2.text))), "0.00")
+  Utils.Coulfonds(MargeMo2)
+  Calc_MargeTotale2()
+  
+End
+
+Public Sub Calc_MargeArt2()
+  
+  MargeArt2.Text = Format$(Val(Utils.cpoint(Vtes2.text)) - Val(Utils.cpoint(Ach2.Text)), "0.00")
+  Utils.Coulfonds(MargeArt2)
+  Calc_MargeTotale2()
+  
+End
+
+Public Sub Calc_MargeTotale2()
+  
+  TotMarge2.Text = Format$(Val(Utils.cpoint(MargeMo2.text)) + Val(Utils.cpoint(MargeArt2.Text)), "0.00")
+  Utils.Coulfonds(Totmarge2)
+  Calc_Emarge()
+  
+End
+
+Public Sub Calc_Emarge()
+  
+  If Val(Utils.cpoint(MargeMo2.Text)) > Val(Utils.cpoint(MargeMo.Text)) Then
+    EmargeMO.Text = Format$(Val(Utils.cpoint(MargeMo2.text)) - Val(Utils.cpoint(MargeMO.Text)), "0.00")
+    EmargeMO.Text = "-" & EmargeMO.Text
+    Utils.Coulfonds(EmargeMO)
+  Else
+    EmargeMO.Text = Format$(Val(Utils.cpoint(MargeMO.Text)) - Val(Utils.cpoint(MargeMo2.Text)), "0.00")
+    Utils.Coulfonds(EmargeMO)
+  Endif
+  If Val(Utils.cpoint(MargeArt2.Text)) < Val(Utils.cpoint(MargeArt.Text)) Then
+    EmargeArt.Text = Format$(Val(Utils.cpoint(MargeArt.text)) - Val(Utils.cpoint(MargeArt2.Text)), "0.00")
+    EmargeArt.Text = "-" & EmargeArt.Text
+    Utils.Coulfonds(EmargeArt)
+  Else
+    EmargeArt.Text = Format$(Val(Utils.cpoint(MargeArt2.text)) - Val(Utils.cpoint(MargeArt.Text)), "0.00")
+    Utils.Coulfonds(EmargeArt)
+  Endif
+  EmargeTot.text = Format$(Val(Utils.cpoint(EmargeMO.text)) + Val(Utils.cpoint(EmargeArt.Text)), "0.00")
+  Utils.Coulfonds(EmargeTot)
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim rSuivi As Result
+  
+  With utils
+    rSuivi = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabSuivis") & " WHERE numdev = &1", Numdev.Text)
+    If rSuivi.Available Then
+      Utils.db.Exec("UPdate  " & Cbase.Table("TabSuivis") & "  SET  code = &1, nom = &2, numdev =&3, datedev = &4, numfac= &5, datefac = &6, qte = &7, pu = &8, total = &9, margemo = &{10}, ach = &{11}, vtes = &{12}, qte2 = &{13}, pu2 = &{14}, total2 = &{15}, margemo2 = &{16}, ach2 = &{17}, vtes2 = &{18} WHERE numdev = &3", code.Text, nom.Text, Numdev.Text, .Cdate_Dbase(datedev.Text), numfac.Text, .Cdate_Dbase(datefac.Text), Val(.cpoint(qte.Text)), Val(.cpoint(PUmo.Text)), Val(.cpoint(TotMo.Text)), Val(.cpoint(margemo.Text)), Val(.cpoint(ach.Text)), Val(.cpoint(vtes.Text)), Val(.cpoint(qte2.Text)), Val(.cpoint(PUmo2.Text)), Val(.cpoint(TotMo2.Text)), Val(.cpoint(margemo2.Text)), Val(.cpoint(ach2.Text)), Val(.cpoint(Vtes2.Text)))
+    Else
+      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabSuivis") & "(code, nom, numdev, datedev, numfac, datefac, qte, pu, total, margemo, ach, vtes, qte2, pu2, total2, margemo2, ach2, vtes2) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18})", code.Text, nom.Text, Numdev.Text, .Cdate_Dbase(datedev.Text), numfac.Text, .Cdate_Dbase(datefac.Text), Val(.cpoint(qte.Text)), Val(.cpoint(PUmo.Text)), Val(.cpoint(TotMo.Text)), Val(.cpoint(margemo.Text)), Val(.cpoint(ach.Text)), Val(.cpoint(vtes.Text)), Val(.cpoint(qte2.Text)), Val(.cpoint(PUmo2.Text)), Val(.cpoint(TotMo2.Text)), Val(.cpoint(margemo2.Text)), Val(.cpoint(ach2.Text)), Val(.cpoint(Vtes2.Text)))
+    Endif
+  End With
+  
+End
+
+Public Sub Button1_Click()
+  
+  Dim Rsuivi As Result
+  
+  If son Then
+    Music.Play
+  Endif
+  If Message.Question("Etes vous sur de vouloir effacer cet enregistrement", "Oui", "Non") = 1 Then
+    Utils.db.Exec("DELETE FROM " & Cbase.Table("TabSuivis") & " where numdev = &1 and code = &2", Numdev.Text, Code.text)
+    Me.Close
+  Endif
+  
+End
+
+'**********************************
+'*    Appel de la doc html        *
+'**********************************
+Public Sub Button4_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Suivi.html"]
+  
+End

@@ -1,0 +1,1730 @@
+' Gambas class file
+
+'#######################################################
+'# Modification Fabrice Lalande <fabrice@flcc.fr>
+'# ajout de la fonction choix d'import
+'# Juin 2011
+'########################################################
+
+Ecotaxe As String
+B As Integer
+Tvavente As Integer
+son As Integer
+Dne As String 'texte recherché par F2 ou clic sur bouton
+CoulZns As Integer ' Variable pour la couleur du background des zones de saisie et des columnviews
+CoulZnaf As Integer ' Variable pour la couleur du background des columnviews
+CoulFc As Integer ' Variable pour la couleur du focus
+Derart As String
+Nbdec As String = "0.00"
+Ref As String
+CodeA As String
+Intitule As String
+Intitule2 As String
+FamImport As String
+FourImport As String
+PbHT As String ' Prix de base
+PaHT As String 'Prix achat en UV
+Txconv As String ' Taux de conversion
+Paua As String ' Prix d'achat en UA = prix d'achat/taux de conversion
+Prvt As String 'Prix de revient = Paht + frais
+PHTn As String ' Prix HT net
+Pvht As String ' Prix de vente HT  = Paua * Coefficient de vente ou = fichier
+Pvttc As String ' Prix de vente TTC
+Pvcons As String ' Prix de vente conseillé
+Pmp As String 'Prix moyen pondéré
+Stocke As String ' si le produit est stocké
+Margem As String ' Marge en montant
+Margep As String 'Marge en pourcentage
+arr As String ' Arrondi (sert à arrondir le prix de vente TTC)
+Remise As String
+Remise2 As String
+Remise3 As String
+Remise4 As String
+Coeff As String ' Coefficient de vente
+Mtva As String ' Taux de la TVA
+Cbarre As String
+Cequ As String
+Poids As String
+Volumes As String
+Copie As String
+Ecot As String
+Code As String
+Frais As String
+Divers As String
+Marque As String
+minCom As String
+Gpvcons As Boolean
+col_[20] As String
+db_[20] As String
+lg_[20] As String
+pos_[20] As String
+porg_[20] As String
+Type_Champs As String
+Private filename As String
+Private filename2 As String
+Private Lig As String
+Private Lig2 As String[]
+Private KeyLaurux As String
+Private Org As String
+Private Maj As Boolean = True
+Private cda As Boolean = False
+Private Etiqb As Boolean ' Si true on demande si on veut imprimer les etiquettes
+
+Public Sub Form_Open()
+  
+  Dim Frmt As New String[]
+  
+  son = Settings["/son"]
+  Frmt = Utils.FColr(Settings["/Coul/Znaff"])
+  CoulZnaf = Val(Frmt[0])
+  Frmt = Utils.FColr(Settings["/Coul/Focus"])
+  Coulfc = Val(Frmt[0])
+  Frmt = Utils.FColr(Settings["/Coul/Znss"])
+  CoulZns = Val(Frmt[0])
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Try Gpvcons = Settings["/Soc" & Start.Societe & "/Pvcons"]
+  If Error Then Gpvcons = False
+  If Not Gpvcons Then Majpvcons.Visible = False
+  Utils.Observers(Me)
+  Date.Text = Format$(Now, "dd.mm.yyyy")
+  Sauves.SetFocus
+  sauves.Select
+  
+End
+
+Public Sub Button3_Click()
+  
+  If Exist(filename) Then Try Kill filename
+  If Exist(filename2) Then Try Kill filename2
+  Me.Close()
+  
+End
+
+Public Sub Cmpt_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+        
+      Case 4
+        Fam_LostFocus()
+        If b = 1 Then
+          Fam.SetFocus
+          Fam.select
+          b = 0
+          Stop Event
+        Else
+          b = 0
+          Txchg.SetFocus
+          Txchg.Select
+        Endif
+        Stop Event
+        
+      Case 5
+        Txchg_LostFocus()
+        If b = 1 Then
+          Txchg.SetFocus
+          Txchg.select
+          b = 0
+          Stop Event
+        Else
+          b = 0
+          four.SetFocus
+          four.Select
+        Endif
+        Stop Event
+      Case 6
+        If Not IsNull(Four.Text) Then
+          Four_LostFocus()
+          If b = 1 Then
+            four.SetFocus
+            four.select
+            b = 0
+            Stop Event
+          Else
+            b = 0
+            Fam.SetFocus
+            Fam.select
+          Endif
+          Stop Event
+        Else
+          If son Then
+            Music.Play
+          Endif
+          Message.Warning("Vous devez saisir un fournisseur")
+          Four.SetFocus
+          Four.select
+        Endif
+    End Select
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+  If key.code = key.F2 Then
+    Select Case Last.tag
+      Case 4
+        Dne = Fam.Text
+        ToggleButton3_Click()
+        Stop Event
+        
+      Case 6
+        Dne = four.Text
+        ToggleButton1_Click()
+        Stop Event
+    End Select
+  Endif
+  
+End
+
+Public Sub Fam_LostFocus()
+  
+  If Not IsNull(Fam.Text) Then
+    FamMan()
+  Else
+    If son Then
+      Music.Play
+    Endif
+    Message.Warning("Vous devez saisir une famille")
+    b = 1
+    Fam.SetFocus
+    Fam.select
+  Endif
+  
+End
+
+Public Sub Txchg_LostFocus()
+  
+  With Utils
+    If IsNull(Txchg.Text) Then Txchg.Text = "0,00"
+    If Val(.cpoint(Txchg.Text)) = Null Then
+      If son Then
+        Music.Play
+      Endif
+      message.Warning("Veuillez vérifier votre saisie du taux de change SVP !")
+      b = 1
+    Else
+      Txchg.Text = Format$(Val(.cpoint(Txchg.Text)), "0.000")
+      b = 0
+    Endif
+  End With
+  
+End
+
+Public Sub Four_LostFocus()
+  
+  If Not IsNull(Four.Text) Then
+    FourMan()
+  Else
+    If son Then
+      Music.Play
+    Endif
+    Message.Warning("Vous devez saisir un fournisseur")
+    b = 1
+    Four.SetFocus
+    Four.select
+  Endif
+  
+End
+
+'********************************************
+'* Saisie d'une famille manuellement        *
+'********************************************
+Public Sub FamMan()
+  
+  Dim Rfams As Result
+  Dim Tvav As Result
+  Dim Tvavt As Result
+  Dim tvavn As String
+  Dim tvan As String
+  
+  tvavn = "Fiches_Tvaav" 
+  tvan = "Fiches_Comptes" 
+  Rfams = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " WHERE code_fam = &1", Fam.Text)
+  LibelFam.Text = Rfams!libell_fam
+  Tva.Text = Rfams!cdtva_fam
+  Mtva = Format$(Rfams!txtva_fam, "0.00")
+  Try Ecotaxe = Format$(Rfams!ect_fam, "0.00")
+  B = 0
+  Tvav = Utils.db.Exec("SELECT * FROM " & tvavn & " WHERE code_tva = &1", Rfams!cdtva_fam)
+  Tvavt = Utils.db.Exec("SELECT * FROM " & tvan & " WHERE compte_cc = &1", Tvav!cc_tva)
+  If Not Tvavt.Available Then
+    If son Then
+      Music.Play
+    Endif
+    Message.Warning("Le compte de tva associé à cette famille n'existe pas \n Veuillez créer ce compte SVP !", "OK")
+    Tvavente = 1
+    Fam.SetFocus
+    Fam.Select
+  Endif
+Catch
+  message.Error(Error.Text & " " & Error.where)
+  B = 1
+  If son Then
+    Music.Play
+  Endif
+  Message.Warning("Cette famille n'existe pas !", "OK")
+  
+End
+
+'********************************************
+'* Saisie d'un fournisseur manuellement     *
+'********************************************
+Public Sub fourMan()
+  
+  Dim Rfours As Result
+  
+  Rfours = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFour") & " WHERE fo_code = &1", four.Text)
+  fournom.Text = Rfours!fo_nom
+  b = 0
+Catch
+  B = 1
+  If son Then
+    Music.Play
+  Endif
+  Message.Warning("Ce fournisseur n'existe pas !", "OK")
+  
+End
+
+'*********************************************
+'*Appel de la liste des familles             *
+'*********************************************
+Public Sub ToggleButton3_Click()
+  
+  Dim Rfams As Result
+  
+  If FamList.visible Then
+    FamList.clear
+    FamList.visible = False
+  Else
+    FamList.visible = True
+    FamList.Columns.count = 2
+    FamList.Columns[0].Width = 65
+    FamList.Columns[1].Width = 180
+    FamList.Columns[0].Text = "code"
+    FamList.Columns[1].Text = "Intitulé"
+    If Not Dne Then
+      Rfams = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " order by code_fam ASC")
+    Else
+      Rfams = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " where left(code_fam,'" & Len(Fam.Text) & "') = '" & Fam.Text & "'")
+    Endif
+    If Rfams.Available Then
+      Do
+        FamList.Add(Rfams!code_fam, Rfams!code_fam)
+        FamList.Item[0] = Rfams!code_fam
+        FamList.Item[1] = Rfams!libell_fam
+        FamList.Item[2] = Rfams!coef_fam
+        FamList.Item[3] = Rfams!cdtva_fam
+        FamList.Item[4] = Rfams!txtva_fam
+        FamList.Item[5] = Rfams!rem_fam
+      Loop Until Rfams.MoveNext()
+      FamList.MoveFirst
+      FamList.SetFocus
+      FamList.Item.Selected = True
+    Endif
+  Endif
+  
+End
+
+'************************************
+'* Saisie d'une famille a la souris *
+'************************************
+Public Sub FamList_Click()
+  
+  Fam.text = FamList.Item[0]
+  LibelFam.text = FamList.Item[1]
+  Coef.Text = Format$(Famlist.Item[2], "00.000")
+  Tva.Text = Famlist.Item[3]
+  Mtva = Format$(Famlist.Item[4], "00.00")
+  Tr.Text = Format$(Famlist.Item[5], "00.00")
+  FamList.clear
+  FamList.visible = False
+  four.SetFocus
+  Fam2()
+  
+End
+
+'***************************************************
+'* Saisie d'une famille manuellement        *
+'***************************************************
+Public Sub FamList_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    FamList_Click()
+  Endif
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    FamList.visible = False
+    FamList.clear
+    'fam_Gotfocus()
+    'Fam.Select
+    Fam.SetFocus
+    Stop Event
+  Endif
+  
+End
+
+'********************************************
+'* Saisie d'une famille manuellement        *
+'********************************************
+Public Sub Fam2()
+  
+  Dim Rfams As Result
+  Dim Tvav As Result
+  Dim Tvavt As Result
+  Dim tvavn As String
+  Dim tvan As String
+  
+  tvavn = "Fiches_Tvaav" 
+  tvan = "Fiches_Comptes" 
+  Rfams = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " WHERE code_fam = &1", Fam.Text)
+  LibelFam.Text = Rfams!libell_fam
+  Tva.Text = Rfams!cdtva_fam
+  Mtva = Format$(Rfams!txtva_fam, "0.00")
+  Try Ecotaxe = Format$(Rfams!ect_fam, "0.00")
+  B = 0
+  Tvav = Utils.db.Exec("SELECT * FROM " & tvavn & " WHERE code_tva = &1", Rfams!cdtva_fam)
+  Tvavt = Utils.db.Exec("SELECT * FROM " & tvan & " WHERE compte_cc = &1", Tvav!cc_tva)
+  If Not Tvavt.Available Then
+    If son Then
+      Music.Play
+    Endif
+    Message.Warning("Le compte de tva associé à cette famille n'existe pas \n Veuillez créer ce compte SVP !", "OK")
+    b = 1
+    Tvavente = 1
+    Fam.SetFocus
+    Fam.Select
+  Endif
+Catch
+  B = 1
+  If son Then
+    Music.Play
+  Endif
+  Message.Warning("Cette famille n'existe pas !", "OK")
+  
+End
+
+'************************************************
+'* On appelle la liste des fournisseurs         *
+'************************************************
+Public Sub ToggleButton1_Click()
+  
+  Dim Rfour As Result
+  
+  Org = "Four"
+  If fourlist.visible Then
+    fourlist.clear
+    fourlist.visible = False
+  Else
+    fourlist.visible = True
+    fourlist.Columns.count = 2
+    fourlist.Columns[0].Width = 65
+    fourlist.Columns[1].Width = 180
+    fourlist.Columns[0].Text = "code"
+    fourlist.Columns[1].Text = "Intitulé"
+    If Not Dne Then
+      Rfour = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFour") & " ")
+    Else
+      Rfour = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFour") & " where left(fo_code,'" & Len(four.Text) & "') = '" & four.Text & "'")
+    Endif
+    If Rfour.Available Then
+      Do
+        fourlist.Add(Rfour!fo_code, Rfour!fo_code)
+        fourlist.Item[0] = Rfour!fo_code
+        fourlist.Item[1] = Rfour!fo_nom
+      Loop Until Rfour.MoveNext()
+      fourList.MoveFirst
+      fourList.SetFocus
+      fourList.Item.Selected = True
+    Endif
+  Endif
+  
+End
+
+'**************************************************
+'* Selection d'un fournisseur a la souris         *
+'**************************************************
+Public Sub fourList_Click()
+  
+  If Org = "Four" Then
+    four.text = fourList.Item[0]
+    fournom.text = fourList.Item[1]
+  Else
+    four2.text = fourList.Item[0]
+    fournom2.text = fourList.Item[1]
+  Endif
+  fourList.clear
+  fourList.visible = False
+  
+End
+
+'***************************************************
+'* Selection d'un fournisseur manuellement         *
+'***************************************************
+Public Sub fourList_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    fourList_Click()
+  Endif
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    fourList.visible = False
+    fourList.clear
+    four.SetFocus
+    Stop Event
+  Endif
+  
+End
+
+'************************************************
+'*   On appelle la liste des centrales         *
+'************************************************
+Public Sub ToggleButton2_Click()
+  
+  Dim Rfour As Result
+  
+  Org = "Centrale"
+  If fourlist.visible Then
+    fourlist.clear
+    fourlist.visible = False
+  Else
+    fourlist.visible = True
+    fourlist.Columns.count = 2
+    fourlist.Columns[0].Width = 65
+    fourlist.Columns[1].Width = 180
+    fourlist.Columns[0].Text = "code"
+    fourlist.Columns[1].Text = "Intitulé"
+    Rfour = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCentrales") & " ")
+    If Rfour.Available Then
+      Do
+        fourlist.Add(Rfour!code, Rfour!code)
+        fourlist.Item[0] = Rfour!code
+        fourlist.Item[1] = Rfour!libelle
+      Loop Until Rfour.MoveNext()
+      fourList.MoveFirst
+      fourList.SetFocus
+      fourList.Item.Selected = True
+    Endif
+  Endif
+  
+End
+
+'***************************************
+'*      On lance l'import      *
+'***************************************
+Public Sub Button2_Click()
+  
+  Dim Der As Result
+  Dim a$ As String
+  
+  If centrale.value = True Then
+    If son Then
+      Music.Play
+    Endif
+    If IsNull(Four2.Text) Then 
+      Message.Warning("Attention ! Veuillez sélectionner un code centrale SVP.")
+      Four2.setfocus
+    Else
+      If Message.Question("Attention ! Vous allez lancer la mise à jour du code centrale.", "Oui", "Non") = 1 Then
+        Maj_Centrale()
+      Endif
+    Endif
+  Else
+    If MajRefour.value = True Then
+      If Message.Question("Attention ! Vous allez lancer la mise à jour des références fournisseur.", "Oui", "Non") = 1 Then
+        Maj_Ref_fournisseur()
+      Endif
+    Else
+      If MajZones.value = False Then
+        If son Then
+          Music.Play
+        Endif
+        a$ = "Le code du dernier article est alphanumérique ! \nLa numérotation des nouveaux produits à créer ne sera donc pas possible\n"
+        a$ = a$ & "Que voulez-vous faire ? \n"
+        a$ = a$ & "1- Quitter \n2- Saisir le code de départ pour la création \n3- Lancer la mise à jour sans créer les nouveaux produits.\n"
+        Fam_LostFocus()
+        If b <> 1 Then
+          Four_LostFocus()
+          If b <> 1 Then
+            If IsNull(Sauves.Text) Then
+              If son Then
+                Music.Play
+              Endif
+              Message.Warning("Veuillez saisir les coordonnées du fichier d'import SVP !")
+              Sauves.SetFocus
+              Sauves.Select
+            Endif
+          Endif
+        Endif
+        ChargementFichierDef()
+        If b = 0 And IsNull(code) And If cda = False Then
+          Der = Utils.db.Exec("SELECT art_code from " & Cbase.Table("TabArt") & " order by lpad(art_code,15,' ') asc limit 1")
+          If Der.Available Then
+            Try Derart = Val(Der!art_code)
+            If Error Or If IsNull(Derart) Then
+              Select Case Message.Question(a$, "1", "2", "3")
+                Case 1
+                  b = 1
+                  Me.Close
+                Case 2
+                  b = 1
+                  Panel3.Visible = True
+                  TextBox1.SetFocus
+                  Return
+                Case 3
+                  Creation.value = False
+              End Select
+            Else
+              code = Derart
+            Endif
+          Else
+            Message.Warning("Vous devez créer au moins un article dans la table des articles !")
+            Return
+          Endif
+        Endif
+        If b = 0 Then 
+          If son Then
+            Music.Play
+          Endif
+          If Message.Question("Attention ! Vous allez lancer la mise à jour des produits.", "Oui", "Non") = 1 Then
+            Import()
+          Endif
+        Endif
+      Else
+        If son Then
+          Music.Play
+        Endif
+        If Message.Question("Attention ! Vous allez lancer la mise à jour des codes équivalents ou des codes barres.", "Oui", "Non") = 1 Then
+          Maj_Equ()
+        Endif
+      Endif
+    Endif
+  Endif 
+  
+End
+
+Public Sub Maj_Equ()
+  
+  Dim rbarre, RDef As Result
+  Dim hfil As File
+  Dim codep, codequ, separateurFichier, champs, TableM As String
+  Dim Tab As String = "Fiches_ImpArtDef2"
+  
+  If IsNull(Sep.Text) Then
+    separateurFichier = ";"
+  Else
+    separateurFichier = Sep.Text
+    ChargementFichierDef()
+  End If
+  Try HFil = Open Sauves.Text For Read
+  If Not Error Then
+    Me.Mouse = Mouse.Wait
+    While Not Eof(hFil)
+      Line Input #hFil, Lig
+      Lig2 = Split(Lig, separateurFichier)
+      RDef = Utils.db.Exec("SELECT * FROM " & Tab & " where num = &1", Cdef.Text)
+      If RDef.Available Then
+        Champs = LTrim$(Left$(Rdef!col_2, 2))
+      Endif
+      If Champs = "3" Then 
+        TableM = Cbase.Table("TabCequ")
+        Champs = "codequ"
+      Endif
+      If Champs = "4" Then 
+        TableM = Cbase.Table("TabCdBarre")
+        Champs = "codeb"
+      Endif
+      Codep = RTrim$(Lig2[0])
+      Codequ = RTrim$(Lig2[1])
+      Try Rbarre = Utils.db.Exec("SELECT * FROM " & TableM & " left join " & Cbase.Table("TabArt") & " on art_code = codep where " & Champs & " = &1 or " & Champs & " = &2", Codequ, codep)
+      If Not Error Then
+        'On met à jour les codes équivalents ou les codes barres
+        If Champs = "codequ" Then
+          Utils.db.Exec("Update  " & Cbase.Table("TabArt") & "  SET  art_cequ = &2 where art_code = &1", codep, codequ)
+          MajEqu.Maj(codep, codequ)
+        Else
+          Utils.db.Exec("Update  " & Cbase.Table("TabArt") & "  SET  art_cbarre = &2 where art_code = &1", codep, codequ)
+          Try Utils.db.Exec("INSERT INTO " & TableM & " (codep, " & Champs & ") VALUES (&1, &2)", codep, Codequ)
+          Try Utils.db.Exec("INSERT INTO " & TableM & " (" & Champs & ", codep) VALUES (&1, &2)", codep, Codequ)
+        Endif
+      Else
+        Message.Warning("Mise à jour impossible ! Aucun champs code équivalent ou code barre n'est défini !")
+        Break
+      Endif
+    Wend
+    Me.Mouse = Mouse.Default
+    If son Then
+      Music.Play
+    Endif
+    Message.Info("Traitement terminé.", "Ok")
+  Else
+    Message.Warning("Impossible de trouver le fichier de mise à jour.", "Ok")
+    Cdef.setfocus
+  Endif 
+  
+End
+
+Public Sub Maj_Centrale()
+  
+  Dim rbarre, RDef As Result
+  Dim hfil As File
+  Dim codep, codec, separateurFichier, champs As String
+  Dim Tab As String = "Fiches_ImpArtDef2"
+  Dim cle As String
+  Dim x As Integer 
+  
+  If IsNull(Sep.Text) Then
+    separateurFichier = ";"
+  Else
+    separateurFichier = Sep.Text
+    ChargementFichierDef()
+  End If
+  Try HFil = Open Sauves.Text For Read
+  If Not Error Then
+    Me.Mouse = Mouse.Wait
+    While Not Eof(hFil)
+      Line Input #hFil, Lig
+      Lig2 = Split(Lig, separateurFichier)
+      RDef = Utils.db.Exec("SELECT * FROM " & Tab & " where num = &1", Cdef.Text)
+      If RDef.Available Then
+        x = 1
+        Repeat
+          cle = "col_" & Str(x)
+          If Left$(Rdef[cle], 2) = " 2" Then 
+            Codep = Replace$(cle, "col_", "pos_")
+            Codep = Rdef[Codep]
+            Codep = RTrim$(Lig2[Val(Codep) - 1])
+          Endif
+          If Left$(Rdef[cle], 2) = "24" Then 
+            Champs = Replace$(cle, "col_", "pos_")
+            Champs = Rdef[Champs]
+            Codec = RTrim$(Lig2[Val(Champs) - 1])
+          Endif
+          Inc x
+        Until x = 25
+      Endif
+      Try Rbarre = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_refcentrale = &1 and art_centrale <> &2", Codec, Four2.Text)
+      If Not Rbarre.Available Then
+        Try Rbarre = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", Codep)
+        If Rbarre.Available Then
+          'On met à jour la zone centrale
+          Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET  art_centrale = &1, art_refcentrale = &2 WHERE art_code = &3", Four2.Text, Codec, Codep)
+        Endif
+      Endif
+      'Else
+      'Message.Warning("Mise à jour impossible ! Aucun champs code article ou code fournisseur n'est défini !")
+      'Break
+      'Endif
+    Wend
+    Me.Mouse = Mouse.Default
+    If son Then
+      Music.Play
+    Endif
+    Message.Info("Traitement terminé.", "Ok")
+  Else
+    Message.Warning("Impossible de trouver le fichier de mise à jour.", "Ok")
+    Cdef.setfocus
+  Endif 
+  
+End
+
+Public Sub Maj_Ref_fournisseur()
+  
+  Dim rbarre, RDef As Result
+  Dim hfil As File
+  Dim codep, codef, separateurFichier, champs As String
+  Dim Tab As String = "Fiches_ImpArtDef2"
+  Dim x As Integer = 0
+  Dim cle As String
+  
+  If IsNull(Sep.Text) Then
+    separateurFichier = ";"
+  Else
+    separateurFichier = Sep.Text
+    ChargementFichierDef()
+  End If
+  Try HFil = Open Sauves.Text For Read
+  If Not Error Then
+    Me.Mouse = Mouse.Wait
+    While Not Eof(hFil)
+      Line Input #hFil, Lig
+      Lig2 = Split(Lig, separateurFichier)
+      RDef = Utils.db.Exec("SELECT * FROM " & Tab & " where num = &1", Cdef.Text)
+      If RDef.Available Then
+        x = 1
+        Repeat
+          cle = "col_" & Str(x)
+          If Left$(Rdef[cle], 2) = " 2" Then 
+            Codep = Replace$(cle, "col_", "pos_")
+            Codep = Rdef[Codep]
+            Codep = RTrim$(Lig2[Val(Codep) - 1])
+          Endif
+          If Left$(Rdef[cle], 2) = " 1" Then 
+            Champs = Replace$(cle, "col_", "pos_")
+            Champs = Rdef[Champs]
+            Codef = RTrim$(Lig2[Val(Champs) - 1])
+          Endif
+          Inc x
+        Until x = 25
+      Endif
+      
+      Try Rbarre = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", Codep)
+      If Not Error Then
+        'On met à jour la zone centrale
+        Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET  art_cfour = &1 WHERE art_code = &2", Codef, Codep)
+      Endif
+    Wend
+    Me.Mouse = Mouse.Default
+    If son Then
+      Music.Play
+    Endif
+    Message.Info("Traitement terminé.", "Ok")
+  Else
+    Message.Warning("Impossible de trouver le fichier de mise à jour.", "Ok")
+    Cdef.setfocus
+  Endif 
+  
+End
+
+Public Sub Import()
+  
+  Dim rArt, rFam, rFour As Result
+  Dim RDef As Result
+  Dim hfil As File
+  Dim Hnew As File
+  Dim Hmaj As File
+  Dim Keyf As String
+  Dim i As Integer
+  Dim x As Integer
+  Dim L As Integer
+  Dim nv As Integer = 0
+  Dim mj As Integer = 0
+  Dim separateurFichier As String
+  Dim Tab As String = "Fiches_ImpArtDef2" 
+  Dim debut As String
+  Dim Longueur, Code_centrale As String
+  Dim stck, centrale As Boolean = False
+  
+  If IsNull(Sep.Text) Then
+    separateurFichier = ";"
+  Else
+    separateurFichier = Sep.Text
+    ChargementFichierDef()
+  End If
+  filename = User.Home & "/Artnew.txt"
+  filename2 = User.Home & "/Artmaj.txt"
+  If Exist(filename) Then Try Kill filename
+  If Exist(filename2) Then Try Kill filename2
+  Coeff = Coef.Text
+  With utils
+    'On lance le traitement
+    Hnew = Open filename For Write Create
+    Hmaj = Open filename2 For Write Create
+    Print #Hnew, " "
+    Print #Hnew, "***************************************************    Liste des produits créés     ********************************************************************"
+    Print #Hnew, " "
+    Print #Hnew, "code                       Intitule                                  Ref fournisseur       Ean13         PbHT        remise     PaHT      Coeff    PvHT       Tva   Pvttc"
+    Print #Hmaj, " "
+    If MajPrix.Value = True Then
+      Print #Hmaj, "***************************************************  Liste des produits mis à jour  ********************************************************************"
+      Print #Hmaj, " "
+      Print #Hmaj, "code                       Intitule                               Ref fournisseur   Ancien PbHT  remise  Ancien PaHT  Nouveau PbHT  remise Nouveau PaHT   Coeff     PvHT       Tva   Pvttc"
+    Else
+      Print #Hmaj, "********************************  Liste des produits dont la future base tarif a été mise à jour  ****************************************"
+      Print #Hmaj, " "
+      Print #Hmaj, "code                       Intitule                            PbHT du produit  Future base tarif"
+    Endif
+    Try HFil = Open Sauves.Text For Read
+    If Not Error Then
+      Me.Mouse = Mouse.Wait
+      While Not Eof(hFil)
+        If Type_Champs = "S" Then
+          Initialisation()
+          Line Input #hFil, Lig
+          Lig2 = Split(Lig, separateurFichier)
+          RDef = Utils.db.Exec("SELECT * FROM " & Tab & " where num = &1", Cdef.Text)
+          If RDef.Available Then
+            For x = 0 To 24
+              keyf = "pos_" & Str(x + 1)
+              KeyLaurux = "posorg_" & Str(x + 1)
+              Try keyf = RDef[keyf]
+              If Not Error Then
+                If Not IsNull(keyf) Then
+                  keyLaurux = RDef[KeyLaurux]
+                  If Not IsNull(Sep.Text) Then
+                    keyf = rechercheKey(keyf, keyLaurux)
+                  Endif
+                Endif
+              Endif
+            Next
+          Endif
+        Endif
+        If Type_Champs = "F" Then
+          Initialisation()
+          RDef = Utils.db.Exec("SELECT * FROM " & Tab & " where num = &1", Cdef.Text)
+          Line Input #hFil, Lig
+          For i = 1 To 23
+            debut = "db_" & i
+            Longueur = "lg_" & i
+            Keyf = "col_" & i
+            debut = RDef[debut]
+            Longueur = RDef[Longueur]
+            Try x = Replace$(Left$(RDef[keyf], 2), " ", "")
+            If Not Error Then
+              Select Case x
+                Case 1
+                  Ref = Mid$(lig, debut, Longueur)
+                  Ref = Replace$(Ref, " ", "")
+                Case 2
+                  CodeA = Mid$(lig, debut, Longueur)
+                  CodeA = Replace$(CodeA, " ", "")
+                  If Not IsNull(CodeA) Then code = CodeA
+                Case 3
+                  Cequ = Mid$(lig, debut, Longueur)
+                Case 4
+                  Cbarre = Mid$(lig, debut, Longueur)
+                  For L = 1 To Len(cbarre)
+                    If InStr("0123456789", Mid$(cbarre, L, 1)) = 0 Then
+                      cbarre = ""
+                      Break
+                    Endif
+                  Next
+                  If Len(cbarre) < 8 Then cbarre = ""
+                Case 5
+                  Intitule = Mid$(lig, debut, Longueur)
+                Case 6
+                  Intitule2 = Mid$(lig, debut, Longueur)
+                Case 7
+                  Pbht = Mid$(lig, debut, Longueur)
+                  Pbht = Utils.cpoint(Pbht)
+                  If Val(Pbht) = Null Then Pbht = "0"
+                Case 8
+                  Paht = Mid$(lig, debut, Longueur)
+                  Paht = Utils.cpoint(Paht)
+                  If Val(Paht) = Null Then Paht = "0"
+                Case 9
+                  remise = Mid$(lig, debut, Longueur)
+                  If Val(remise) = Null Then remise = Tr.text
+                  remise = Utils.cpoint(remise)
+                Case 10
+                  remise2 = Mid$(lig, debut, Longueur)
+                  remise2 = Utils.cpoint(remise2)
+                  If Val(remise2) = Null Then remise2 = "0"
+                Case 11
+                  remise3 = Mid$(lig, debut, Longueur)
+                  remise3 = Utils.cpoint(remise3)
+                  If Val(remise3) = Null Then remise3 = "0"
+                Case 12
+                  remise4 = Mid$(lig, debut, Longueur)
+                  remise4 = Utils.cpoint(remise4)
+                  If Val(remise4) = Null Then remise4 = "0"
+                Case 13
+                  Coeff = Mid$(lig, debut, Longueur)
+                Case 14
+                  Pvht = Mid$(lig, debut, Longueur)
+                  Pvht = Utils.cpoint(Pvht)
+                  If Val(Pvht) = Null Then Pvht = "0"
+                Case 15
+                  Poids = Mid$(lig, debut, Longueur)
+                  Poids = Utils.cpoint(Poids)
+                  If Val(Poids) = Null Then Poids = "0"
+                Case 16
+                  Volumes = Mid$(lig, debut, Longueur)
+                  Volumes = Utils.cpoint(Volumes)
+                  If Val(Volumes) = Null Then Volumes = "0"
+                Case 17
+                  Copie = Mid$(lig, debut, Longueur)
+                  Copie = Utils.cpoint(Copie)
+                  If Val(Copie) = Null Then Copie = "0"
+                Case 18
+                  Ecot = Mid$(lig, debut, Longueur)
+                  Ecot = Utils.cpoint(Ecot)
+                  If Val(Ecot) = Null Then Ecot = "0"
+                Case 19
+                  Pvcons = Mid$(lig, debut, Longueur)
+                  Pvcons = Utils.cpoint(Pvcons)
+                  If IsNull(Val(pvcons)) Then pvcons = 0
+                Case 20
+                  Marque = Mid$(lig, debut, Longueur)
+                Case 21
+                  minCom = Mid$(lig, debut, Longueur)
+                  MinCom = Val(Utils.cpoint(minCom))
+                  If Val(Utils.cpoint(MinCom)) = Null Then MinCom = "1"
+                Case 22
+                  FamImport = Mid$(lig, debut, Longueur)
+                Case 23
+                  FourImport = Mid$(lig, debut, Longueur)
+              End Select
+            Endif
+          Next
+        Endif
+        If Val(remise) = Null Then remise = Tr.text
+        remise = Utils.cpoint(remise)
+        If Val(Utils.cpoint(Coeff)) = Null Then Coeff = Coef.Text
+        Coeff = Format$(Val(Utils.cpoint(Coeff)), "0.0000")
+        If Not IsNull(FamImport) Then
+          Try rFam = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " WHERE code_fam = &1", FamImport)
+          If Not rFam.Available Then
+            FamImport = Fam.Text
+          Endif
+        Else
+          FamImport = Fam.Text
+        Endif
+        If Not IsNull(FourImport) Then
+          Try rFour = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFour") & " WHERE fo_code = &1", FourImport)
+          If Not rFour.Available Then
+            FourImport = Four.text
+          Endif
+        Else
+          FourImport = Four.text
+        Endif
+        Try rFour = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFour") & " WHERE fo_code = &1", Four.Text)
+        If rFour.Available Then
+          If Rfour!fo_centrale Then
+            code_centrale = Rfour!fo_ccentrale
+            Centrale = True
+          Else
+            FourImport = Four.text
+            Centrale = False
+          Endif
+        Endif
+        'Endif
+        If Not IsNull(CodeA) Then 
+          'If centrale Then
+          'rArt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_code= &1  and art_centrale = &2", CodeA, FourImport)
+          'Else
+          rArt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_code = &1  and art_four = &2", CodeA, FourImport)
+          'Endif
+          If rArt.Available Then
+            code = CodeA
+            Maj = True
+          Else
+            If centrale Then 
+              rArt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_code = &1  and art_centrale = &2", CodeA, Code_centrale)
+              If rArt.Available Then
+                code = CodeA
+                Maj = True
+              Else
+                rArt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_refcentrale = &1  and art_centrale = &2", CodeA, Code_centrale)
+                If rArt.Available Then
+                  code = rArt!art_code
+                  Maj = True
+                Else
+                  If Creation.value = True Then
+                    Maj = True
+                  Else
+                    Maj = False
+                  Endif
+                Endif
+              Endif
+            Else
+              Maj = True
+            Endif
+          Endif
+        Else
+          If Not IsNull(Cbarre) And If Len(cbarre) > 7 Then
+            rArt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCdBarre") & " WHERE codeb = &1", Cbarre)
+            If Not rArt.Available Then
+              rArt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_cfour = &1 and art_four = &2", Ref, FourImport)
+              If rArt.Available Then
+                code = rArt!art_code
+              Else
+                Code = Val(code) + 1
+                Maj = True
+              Endif
+            Else
+              rArt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_code= &1 and art_four = &2", rArt!codep, FourImport)
+            Endif
+          Else
+            Try rArt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_cfour = &1 and art_four = &2", Ref, FourImport)
+            If rArt.Available Then
+              code = rArt!art_code
+              Maj = True
+            Else
+              Try rArt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_cfour = &1  and art_four = &2", Ref, FourImport)
+              'message.Error("Mise à jour impossible sur le produit :\n" & ref & " du fournisseur " & rArt!art_four)
+              If Error Then
+                Maj = False
+              Else
+                If Not rArt.Available Then
+                  Try Code = Val(code) + 1
+                  Maj = True
+                Endif
+              Endif
+            Endif
+          Endif
+        Endif
+        ' On verifie que la référence fournisseur ne soit pas utilisée par un code produit existant
+        rFour = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_code = &1", FourImport)
+        If rFour.Available Then 
+          Maj = False
+          Try Print #Hmaj, "Le produit " & code & " ne peut pas être créé car sa référence fournisseur " & FourImport & " est utilisée par un produit existant."
+        Endif
+        'If IsNull(code) Then Try Code = Val(code) + 1
+        If Not IsNull(code) Then
+          If Not rArt.Available And If Maj = True Then
+            If Creation.value = True
+              Txconv = "1"
+              Frais = "0"
+              If Tbrut.Value = True Then
+                Prix_base()
+              Else
+                Prix_achat()
+              Endif
+              If Maj = True Then
+                If IsNull(code) Then 
+                  Code = CodeA
+                Endif
+                Try Utils.db.Exec("INSERT INTO " & Cbase.Table("TabArt") & " (art_code,art_design,art_fam,art_four,art_cequ,art_cbarre,art_cfour,art_pbht,art_tr,art_pauaht,art_coef,art_pvht,art_tva,art_pvttc,art_cdarr, art_dec, art_stocke, art_qte, art_pmp, art_dpa, art_stkdep, art_nbd, art_design2, art_ect, art_eco, art_paht, art_txconv, art_stkmin, art_stkmax, art_suspendu, art_cpp, art_copp, art_frais, art_prvt, qte1, qte2, rem1, qte3, qte4, rem2, qte5, qte6, rem3, qte7, qte8, rem4, qte9, qte10, rem5, qte11, qte12, rem6, art_etiq, art_poids2, art_mincom, art_photo, art_crst, art_marque) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24}, &{25}, &{26}, &{27}, &{28}, &{29}, &{30}, &{31}, &{32}, &{33}, &{34}, &{35}, &{36}, &{37}, &{38}, &{39}, &{40}, &{41}, &{42}, &{43}, &{44}, &{45}, &{46}, &{47}, &{48}, &{49}, &{50}, &{51}, &{52}, &{53}, &{54}, &{55}, &{56}, &{57}, &{58})", code, Left$(Intitule, 50), FamImport, fourImport, Cequ, CBarre, Ref, Val(pbht), Val(remise), Val(Paua), Val(.cpoint(Coef.Text)), Val(Pvht), Tva.Text, Val(Pvttc), "0,01", "0", 0, 0, Val(Prvt), 0, 0, 2, "", 0, 0, Val(paht), 1, 0, 0, 0, 0, 0, 0, Val(Prvt), "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", 0, Val(Poids), minCom, "", "", Marque)
+                If Not Error Then
+                  If Stockes Then 
+                    stck = 1
+                  Else
+                    stck = 0
+                  Endif 
+                  'stck = Stockes.value
+                  Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET  art_design2 = &2, art_remcas1 = &3, art_remcas2 = &4, art_remcas3 = &5, art_pvcons = &6, art_stocke = &7 WHERE art_code = &1", Code, Left$(Intitule2, 50), Val(remise2), Val(remise3), Val(Remise4), Val(Pvcons), Utils.convBool(Stockes.Value))
+                  If Not IsNull(Cbarre) Then Try Utils.db.Exec("INSERT INTO " & Cbase.Table("TabCdBarre") & " (codep,codeb) VALUES (&1, &2)", code, CBarre)
+                  Intitule = Left$(Intitule, 50)
+                  Try Print #Hnew, code & String$(13 - Len(code), " ") & " ; " & Intitule & String$(50 - Len(Intitule), " ") & " ; " & ref & String$(15 - Len(ref), " ") & " ; " & cbarre & String$(13 - Len(cbarre), " ") & " ; " & pbht & String$(10 - Len(pbht), " ") & " ; " & remise & String$(5 - Len(remise), " ") & " ; " & Paua & String$(10 - Len(paua), " ") & " ; " & Coef.Text & String$(5 - Len(Coef.Text), " ") & " ; " & Pvht & String$(10 - Len(pvht), " ") & " ; " & Tva.Text & " ; " & Pvttc & String$(10 - Len(pvttc), " ")
+                  If Error Then Try Print #Hnew, code & " ; " & Intitule & " ; " & ref & " ; " & cbarre & " ; " & pbht & " ; " & remise & " ; " & Paua & " ; " & Coef.Text & " ; " & Pvht & " ; " & Tva.Text & " ; " & Pvttc
+                  nv = 1
+                  'Try Code = Val(code) + 1
+                Endif
+              Endif
+            Endif
+          Else
+            If Maj = True Then
+              Txconv = rArt!art_txconv
+              Frais = Utils.cpoint(rArt!art_frais)
+              If MajCoeff.value = False Then Coeff = Utils.cpoint(rArt!art_coef)
+              If Val(remise) = 0 Then Remise = Utils.cpoint(rArt!art_tr)
+              If IsNull(remise) Then remise = "0,00"
+              If Tbrut.Value = True Then
+                Prix_base()
+              Else
+                Prix_achat()
+              Endif
+              If MajPrix.Value = True Then
+                If Rart!art_pbht <> Val(pbht) Then
+                  Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET  art_pbht = &3, art_tr = &4, art_pauaht = &5, art_pvht = &6, art_pvttc = &7, art_prvt = &8, art_paht = &9,  art_pbfbt = &{10}, art_datefbt = &{11}, art_coef = &{12}, art_remcas1 = &{13}, art_remcas2 = &{14}, art_remcas3 = &{15}   WHERE art_code = &{16}", Left$(Intitule, 50), CBarre, Val(pbht), Val(remise), Val(Paua), Val(Pvht), Val(Pvttc), Val(Prvt), Val(paht), "", "", Val(Utils.cpoint(coeff)), Val(remise2), Val(remise3), Val(Remise4), rArt!art_code)
+                  Intitule = Left$(Intitule, 50)
+                  Try Print #Hmaj, rArt!art_code & String$(13 - Len(rArt!art_code), " ") & " ; " & Intitule & String$(50 - Len(Intitule), " ") & " ; " & ref & String$(15 - Len(ref), " ") & " ; " & Str$(Rart!art_pbht) & String$(10 - Len(Str(Rart!art_pbht)), " ") & " ; " & Str(Rart!art_tr) & String$(5 - Len(Str(Rart!art_tr)), " ") & " ; " & Str(Rart!art_pauaht) & String$(10 - Len(Str(Rart!art_pauaht)), " ") & " ; " & pbht & String$(10 - Len(pbht), " ") & " ; " & remise & String$(5 - Len(remise), " ") & " ; " & paua & String$(10 - Len(paua), " ") & " ; " & Coef.text & String$(6 - Len(Coef.text), " ") & " ; " & pvht & String$(10 - Len(pvht), " ") & " ; " & Tva.text & " ; " & pvttc & String$(10 - Len(pvttc), " ")
+                  mj = 1
+                  If RArt!art_etiq Then 
+                    Maj_Etiqp(code, Rart!art_qte)
+                    Maj_Etiqg(code)
+                  Endif
+                Endif
+              Else
+                If nv <> 1 Then
+                  If rArt!art_pbht <> Val(pbht) Then
+                    Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET  art_pbfbt = &1, art_datefbt = &2 WHERE art_code = &3", Val(pbht), Utils.Cdate_Dbase(Date.Text), rArt!art_code)
+                    Intitule = Left$(Intitule, 50)
+                    Try Print #Hmaj, rArt!art_code & String$(13 - Len(rArt!art_code), " ") & " ; " & Intitule & String$(50 - Len(Intitule), " ") & " ; " & Str$(Rart!art_pbht) & String$(10 - Len(Str(Rart!art_pbht)), " ") & " ; " & pbht
+                    mj = 1
+                  Endif
+                Endif
+              Endif
+              If Majdesg.Value = True And Not IsNull(intitule) Then
+                Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET  art_design = &1, art_design2 = &3 WHERE art_code = &2", Left$(Intitule, 50), rArt!art_code, Left$(Intitule2, 50))
+              Endif
+              If MajCbarre.Value = True Then
+                If Not IsNull(Cbarre) Then Try Utils.db.Exec("UPdate  " & Cbase.Table("TabCdBarre") & "  SET codeb = &1 WHERE codep = &2", CBarre, rArt!art_code)
+              Endif
+              If MajCequ.Value = True Then
+                Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET art_cequ = &1 WHERE art_code = &2", Cequ, rArt!art_code)
+                MajEqu.Maj(Cequ, rArt!art_code)
+              Endif
+              If Majpvcons.Value = True Then
+                Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET art_pvcons = &1 WHERE art_code = &2", Val(Pvcons), rArt!art_code)
+              Endif
+            Else
+              Try Print #Hmaj, "Un produit ne peut pas être mis à jour ou créé car les fournisseurs sont différents ou bien parce qu'il n'y a pas de PBHT ou de PAHT."
+              mj = 1
+            Endif
+            'Endif
+          Endif
+        Endif
+      Wend
+      Me.Mouse = Mouse.Default
+      If son Then
+        Music.Play
+      Endif
+      If Maj = True Then Message.Info("Traitement terminé.", "Ok")
+      Close #hfil
+      Close #Hnew
+      Close #Hmaj
+      If nv = 1 Then Editeur.Prog_Editeur(Filename)
+      If mj = 1 Then Editeur.Prog_Editeur(filename2)
+      If Etiqb = True Then
+        If Message.Warning("Des étiquettes ont été préparées ! Voulez-vous les imprimer ?", "Oui", "Non") = 1 Then
+          EtiqRecpt.Show
+        Endif
+      Endif
+    Else
+      If son Then
+        Music.Play
+      Endif
+      Message.error("Ce fichier n'existe pas.", "Ok")
+    Endif
+  End With
+  
+End
+
+'***********************************On gère les étiquettes articles*****************************
+Public Sub Maj_Etiqp(Cart As String, Stk As Integer)
+  
+  Dim Tabp As String
+  Dim Qteetiq As Integer
+  Dim Etiqp As Result
+  
+  Tabp = "Fiches_EtiProd" 
+  Etiqp = Utils.db.Exec("SELECT * FROM " & Tabp & " where code = &1", Cart)
+  If Etiqp.Available Then
+    Qteetiq = Etiqp!nombre + Stk
+    Utils.db.Exec("UPdate  " & tabp & "  SET code = &1, nombre = &2 WHERE code = &1", Cart, Qteetiq)
+  Else
+    Qteetiq = Stk
+    Utils.db.Exec("INSERT INTO " & Tabp & "(code,nombre) VALUES (&1, &2)", Cart, Qteetiq)
+  Endif
+  Etiqb = True
+  
+End
+
+'***********************************On gère les étiquettes de gondole*****************************
+Public Sub Maj_Etiqg(Cart As String)
+  
+  Dim Tabp As String
+  Dim Etiqg As Result
+  
+  Tabp = "Fiches_EtiGond" 
+  Etiqg = Utils.db.Exec("SELECT * FROM " & Tabp & " where code = &1", Cart)
+  If Etiqg.Available Then
+    Utils.db.Exec("UPdate  " & tabp & "  SET code = &1, nombre = &2 WHERE code = &1", Cart, 1)
+  Else
+    Utils.db.Exec("INSERT INTO " & Tabp & "(code,nombre) VALUES (&1, &2)", Cart, 1)
+  Endif
+  Etiqb = True
+  
+End
+
+Public Sub InitCode()
+  
+  Panel3.visible = True
+  TextBox1.Clear
+  TextBox1.SetFocus
+  
+End
+
+Public Sub Button4_MouseDown()
+  
+  If IsNumber(TextBox1.text) Then
+    Code = TextBox1.Text
+    CodeA = code
+    Panel3.visible = False
+  Else 
+    Message.Error("Veuillez controler votre saisie SVP !")
+    TextBox1.SetFocus
+    TextBox1.Select
+  Endif
+  
+End
+
+'On initialise les variables
+Public Sub Initialisation()
+  
+  Ref = ""
+  Intitule = ""
+  PbHT = ""
+  PaHT = ""
+  Txconv = ""
+  Paua = ""
+  Prvt = ""
+  PHTn = ""
+  Pvht = ""
+  Pvttc = ""
+  Pvcons = ""
+  Pmp = ""
+  Margem = ""
+  Margep = ""
+  arr = ""
+  Remise = ""
+  Coeff = ""
+  Cbarre = ""
+  Cequ = ""
+  Poids = ""
+  Volumes = ""
+  Copie = ""
+  Ecot = ""
+  'Code = ""
+  Frais = ""
+  Divers = ""
+  Marque = ""
+  minCom = ""
+  TextBox1.Clear
+  
+End
+
+'***********************************
+'*   On gère le prix de base ht    *
+'***********************************
+Public Sub prix_base()
+  
+  If Not IsNull(pbht) Then
+    If Val(Utils.cpoint(Txchg.text)) <> 0 Then
+      Pbht = Format$(Val(Pbht) * Val(Utils.cpoint(Txchg.text)), "0.000")
+    Endif
+    If Val(remise) > 0 Then
+      Try Paht = Format$(Val(PbHT) - (Val(PbHT) * Val(remise) / 100), Nbdec)
+    Else
+      Paht = Pbht
+    Endif
+    If Not IsNull(remise2) And If remise2 <> "0" Then Try Paht = Format$(CPrix.Cascade(paht, remise2), nbdec)
+    If Not IsNull(remise2) And If remise3 <> "0" Then Try Paht = Format$(CPrix.Cascade(paht, remise3), nbdec)
+    If Not IsNull(remise2) And If remise4 <> "0" Then Try Paht = Format$(CPrix.Cascade(paht, remise4), nbdec)
+    If Error Then Paht = "0"
+    Prvt = Format(Val(paht) + Val(Frais), nbdec)
+    Prvt = Format(Val(paht) + Val(Frais), nbdec)
+    If IsNull(pvht) Or If pvht = 0 Then
+      Pvht = Format$(Val(prvt) * Val(Utils.cpoint(Coeff)), nbdec)
+    Else
+      Coeff = Format$(Val(pvht) / Val(paht), "0.0000")
+    Endif
+    Tva_Calcul()
+    PvTTC_arrondi()
+    Calc_Marge()
+    If IsNull(Paua) Then Paua = Paht
+    Maj = True
+  Else
+    Maj = False
+  Endif
+Catch
+  If son Then
+    Music.Play
+  Endif
+  message.Error(Error.Text & " " & Error.where)
+  Maj = False
+  
+End
+
+'*********************************************
+'*    On gère le taux de remise fournisseur  *
+'*********************************************
+Public Sub TrC()
+  
+  With Utils
+    remise = .cpoint(remise)
+    If Val(remise) = Null Then remise = "0"
+    remise = Format$(Val(remise), "0.000")
+    If remise > 0 Then
+      PaUA = Format$(Val(PbHT) - (Val(PbHT) * Val(remise) / 100), Nbdec)
+    Else
+      Paua = Pbht
+    Endif
+  End With
+Catch
+  If son Then
+    Music.Play
+  Endif
+  message.Error(Error.Text & " " & Error.where)
+  
+End
+
+Public Sub Prix_achat()
+  
+  Maj = False
+  With Utils
+    Paht = .cpoint(Paht)
+    If Val(Paht) = Null Then Paht = "0"
+    If Val(Utils.cpoint(Txchg.text)) <> 0 Then
+      Paht = Val(Paht) * Val(Utils.cpoint(Txchg.text))
+    Endif
+    Paht = Format$(Val(Paht), nbdec)
+    pbht = Format$(Val(Utils.cpoint(Paht)) / (1 - (Val(remise) / 100)), nbdec)
+    If Not IsNull(remise2) And If remise2 <> "0" Then pbht = Format$(Val(Utils.cpoint(Pbht)) / (1 - (Val(remise2) / 100)), nbdec)
+    If Not IsNull(remise2) And If remise3 <> "0" Then pbht = Format$(Val(Utils.cpoint(Pbht)) / (1 - (Val(remise3) / 100)), nbdec)
+    If Not IsNull(remise2) And If remise4 <> "0" Then pbht = Format$(Val(Utils.cpoint(Pbht)) / (1 - (Val(remise4) / 100)), nbdec)
+    Prvt = Format(Val(Utils.cpoint(paht)) + Val(Frais), nbdec)
+    If IsNull(pvht) Or If pvht = 0 Then
+      Pvht = Format$(Val(prvt) * Val(Utils.cpoint(Coeff)), nbdec)
+    Else
+      Coeff = Format$(Val(pvht) / Val(Utils.cpoint(paht)), "0.0000")
+    Endif
+    Tva_Calcul()
+    PvTTC_arrondi()
+    Calc_Marge()
+    If IsNull(Paua) Then Paua = Paht
+    Maj = True
+    'Endif
+  End With
+Catch
+  If son Then
+    Music.Play
+  Endif
+  message.Error(Error.Text & " " & Error.where)
+  Maj = False
+  
+End
+
+'***************************************************************
+'*   On calcule le montant de la tva et le prix de vente TTC   *
+'***************************************************************
+Public Sub Tva_Calcul()
+  
+  With Utils
+    If PvTTc <> "" Or Pvht <> "" Then
+      Mtva = Format$(Val(.cpoint(Mtva)), "00.00")
+      Try PvTTc = Format$(Val(Pvht) + (Val(Pvht) * Val(Mtva) / 100), nbdec)
+    End If
+  End With
+  
+End
+
+'***********************************
+'*       On calcule la marge       *
+'***********************************
+Public Sub Calc_Marge()
+  
+  If IsNull(Pmp) Then Pmp = prvt
+  If stocke Then
+    Margem = Format$(Val(Pvht) - Val(Pmp), nbdec)
+    Try Margep = Format$((Val(Margem) * 100) / Val(Pmp), nbdec)
+  Else
+    If Val(prvt) <> 0 Then
+      Margem = Format$(Val(Pvht) - Val(prvt), nbdec)
+      Try Margep = Format$((Val(Pvht) - Val(Pmp)) / Val(Pvht) * 100, nbdec)
+    Endif
+  Endif
+  
+End
+
+Public Sub Svs_Click()
+  
+  Dialog.Title = "Choisir un fichier"
+  Dialog.Path = User.home
+  Dialog.Filter = ["*.csv", "Fichiers csv", "*.txt", "Fichiers texte", "*", "Tous les fichiers"]
+  If Dialog.OpenFile() Then Return
+  Sauves.Text = Dialog.Path
+  
+End
+
+'***********************************
+'*        On gère l' arrondi       *
+'***********************************
+Public Sub PvTTC_arrondi()
+  
+  If Not PvTTc Then PvTTc = "0,00"
+  Pvttc = Utils.cpoint(Pvttc)
+  If arr = "0,05" Then
+    If Right$(pvTTc) Like "[34567]*" Then
+      PvTTC = Left$(PvTTC, (Len(PvTTC) - 1)) & "5"
+    Else
+      PvTTC = Round(Val(PvTTC), -1)
+      PvTTC = Format$(PvTTC, nbdec)
+    Endif
+  Endif
+  
+  If arr = "0,10" Then
+    PvTTC = Round(Val(PvTTC), -1)
+    PvTTC = Format$(PvTTC, nbdec)
+  Endif
+  
+  If arr = "0,50" Then
+    If Val(pvTTc) <= Val(Left$(pvTTc, (Len(pvTTc) - 2)) & 25) Then
+      PvTTC = Left$(PvTTC, (Len(PvTTC) - 2)) & "00"
+    Else
+      If Val(pvTTc) <= Val(Left$(pvTTc, (Len(pvTTc) - 2)) & 75) Then
+        PvTTC = Left$(PvTTC, (Len(PvTTC) - 2)) & "50"
+      Endif
+      If Val(pvTTc) >= Val(Left$(pvTTc, (Len(pvTTc) - 2)) & 76) Then
+        PvTTC = Round(Val(PvTTC))
+        PvTTC = Format$(PvTTC, nbdec)
+      Endif
+    Endif
+  Endif
+  
+  If arr = "1,00" Then
+    PvTTC = Round(Val(PvTTC))
+    PvTTC = Format$(PvTTC, nbdec)
+  Endif
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Cmpt_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  
+End
+
+'***************************************
+'*      Appel de la documentation      *
+'***************************************
+Public Sub Button1_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Majtarif.html"]
+  
+End
+
+Public Sub TgleBtnFDef_Click()
+  
+  Dim RDef As Result
+  Dim Tab As String = "Fiches_ImpArtDef" 
+  
+  If DefList.visible Then
+    DefList.clear
+    DefList.visible = False
+  Else
+    DefList.visible = True
+    DefList.Columns.count = 4
+    DefList.Columns[0].Width = 65
+    DefList.Columns[1].Width = 250
+    DefList.Columns[2].Width = 120
+    DefList.Columns[3].Width = 200
+    DefList.Columns[0].Text = "Numéro"
+    DefList.Columns[1].Text = "Libellé"
+    DefList.Columns[2].Text = "Code fournisseur"
+    DefList.Columns[3].Text = "Nom fournisseur"
+    RDef = Utils.db.Exec("SELECT num, nom, cfour, nfour FROM " & Tab & " ")
+    If RDef.Available Then
+      Do
+        DefList.Add(RDef!num, RDef!num)
+        DefList.Item[0] = RDef!num
+        DefList.Item[1] = RDef!nom
+        DefList.Item[2] = RDef!cfour
+        DefList.Item[3] = RDef!nfour
+        
+      Loop Until RDef.MoveNext()
+      DefList.MoveFirst
+      DefList.SetFocus
+      DefList.Item.Selected = True
+    End If
+  Endif
+  
+End
+
+Public Sub DefList_Click()
+  
+  Dim RDef As Result
+  Dim Tab As String = "Fiches_ImpArtDef" 
+  
+  DefList.Columns[1].Width = 180
+  Cdef.text = DefList.Item[0]
+  NmDef.text = DefList.Item[1] & " " & DefList.Item[2]
+  DefList.visible = False
+  RDef = Utils.db.Exec("SELECT * FROM " & Tab & " where num = &1", Cdef.Text)
+  Fam.text = RDef!cfam
+  Libelfam.text = RDef!nfam
+  four.text = RDef!cfour
+  fournom.text = RDef!nfour
+  Sauves.Text = RDef!adrfic
+  Sep.Text = RDef!sep
+  Type_Champs = RDef!typesep
+  DefList.clear
+  ' [GB2:BCOL] Four.BackColor = &H00FF0000&
+  Four.Background = &H00FF0000&
+  ' [GB2:BCOL] Fam.BackColor = &H00FF0000&
+  Fam.Background = &H00FF0000&
+  RDef = Utils.db.Exec("SELECT fo_code, fo_nom FROM " & Cbase.Table("TabFour") & " where fo_code = &1", four.text)
+  ' [GB2:BCOL] If RDef.Available Then Four.BackColor = &H0000FF00&
+  If RDef.Available Then Four.Background = &H0000FF00&
+  RDef = Utils.db.Exec("SELECT code_fam, libell_fam FROM " & Cbase.Table("TabFam") & " where code_fam = &1", Fam.text)
+  If RDef.Available Then
+    ' [GB2:BCOL] Fam.BackColor = &H0000FF00&
+    Fam.Background = &H0000FF00&
+    RDef = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " where left(code_fam,'" & Len(Fam.Text) & "') = '" & Fam.Text & "'")
+    Coef.Text = Format$(RDef!coef_fam, "00.000")
+    Tva.Text = RDef!cdtva_fam
+    Mtva = Format$(RDef!txtva_fam, "00.00")
+    Tr.Text = Format$(RDef!rem_fam, "00.00")
+  End If
+  
+End
+
+Public Sub ChargementFichierDef()
+  
+  Dim Tab1 As String = "Fiches_ImpArtDef2" 
+  Dim RDef As Result
+  Dim x As Integer
+  Dim Cols, dbs, lgs, sps, posorgs As String
+  
+  cda = False
+  RDef = Utils.db.Exec("SELECT * FROM " & Tab1 & " where num = &1", Cdef.Text)
+  If RDef.Available Then
+    For x = 1 To 18
+      cols = "col_" & x
+      dbs = "db_" & x
+      lgs = "lg_" & x
+      sps = "pos_" & x
+      posorgs = "posorg_" & x
+      If Type_Champs = "S" Then
+        col_[x] = RDef[cols]
+        pos_[x] = RDef[sps]
+        'porg_[x] = RDef[posorgs]
+      Else
+        col_[x] = RDef[cols]
+        db_[x] = RDef[dbs]
+        lg_[x] = RDef[lgs]
+        porg_[x] = RDef[posorgs]
+      Endif
+      If col_[x] = " 2 - Code article" Then 
+        cda = True
+      Endif
+    Next
+  Endif
+  
+End
+
+Public Sub rechercheKey(cle As Integer, KeyL As String) As String
+  
+  Dim L As Integer = 0
+  
+  Dec cle
+  Select Case keyL
+    Case 1
+      Ref = RTrim$(Lig2[cle])
+      Ref = Replace$(Ref, " ", "")
+    Case 2
+      CodeA = RTrim$(Lig2[cle])
+      CodeA = Replace$(CodeA, " ", "")
+      If Not IsNull(CodeA) Then code = CodeA
+    Case 3
+      Cequ = RTrim$(Lig2[cle])
+    Case 4
+      Cbarre = RTrim$(Lig2[cle])
+      For L = 1 To Len(cbarre)
+        If InStr("0123456789", Mid$(cbarre, L, 1)) = 0 Then
+          cbarre = ""
+        Endif
+      Next
+    Case 5
+      Intitule = RTrim$(Lig2[cle])
+    Case 6
+      Intitule2 = RTrim$(Lig2[cle])
+    Case 7
+      Pbht = RTrim$(Lig2[cle])
+      Pbht = Utils.cpoint(Pbht)
+      If Val(Pbht) = Null Then Pbht = "0"
+    Case 8
+      Paht = RTrim$(Lig2[cle])
+      Paht = Utils.cpoint(Paht)
+      If Val(Paht) = Null Then Paht = "0"
+    Case 9
+      remise = RTrim$(Lig2[cle])
+      If Val(remise) = Null Then remise = Tr.text
+      remise = Utils.cpoint(remise)
+    Case 10
+      remise2 = RTrim$(Lig2[cle])
+      remise2 = Utils.cpoint(remise2)
+      If Val(remise2) = Null Then remise2 = "0"
+    Case 11
+      remise3 = RTrim$(Lig2[cle])
+      remise3 = Utils.cpoint(remise3)
+      If Val(remise3) = Null Then remise3 = "0"
+    Case 12
+      remise4 = RTrim$(Lig2[cle])
+      remise4 = Utils.cpoint(remise4)
+      If Val(remise4) = Null Then remise4 = "0"
+    Case 13
+      Coeff = RTrim$(Lig2[cle])
+      If Val(Utils.cpoint(Coeff)) = Null Then Coeff = Coef.Text
+      Coeff = Val(Utils.cpoint(Coeff))
+    Case 14
+      Pvht = RTrim$(Lig2[cle])
+      Pvht = Utils.cpoint(Pvht)
+      If Val(Pvht) = Null Then Pvht = "0"
+    Case 15
+      Poids = RTrim$(Lig2[cle])
+      Poids = Utils.cpoint(Poids)
+      If Val(Poids) = Null Then Poids = "0"
+    Case 16
+      Volumes = RTrim$(Lig2[cle])
+      Volumes = Utils.cpoint(Volumes)
+      If Val(Volumes) = Null Then Volumes = "0"
+    Case 17
+      Copie = RTrim$(Lig2[cle])
+      Copie = Utils.cpoint(Copie)
+      If Val(Copie) = Null Then Copie = "0"
+    Case 18
+      Ecot = RTrim$(Lig2[cle])
+      Ecot = Utils.cpoint(Ecot)
+      If Val(Ecot) = Null Then Ecot = "0"
+    Case 19
+      Pvcons = RTrim$(Lig2[cle])
+      Pvcons = Utils.cpoint(Pvcons)
+      If IsNull(Val(pvcons)) Then pvcons = 0
+    Case 20
+      Marque = RTrim$(Lig2[cle])
+    Case 21
+      minCom = RTrim$(Lig2[cle])
+      MinCom = Val(Utils.cpoint(minCom))
+      If Val(Utils.cpoint(MinCom)) = Null Then MinCom = "1"
+    Case 22
+      FamImport = RTrim$(Lig2[cle])
+    Case 23
+      FourImport = RTrim$(Lig2[cle])
+  End Select
+  Return "OK"
+  
+End
+
+Public Sub MajFtbt_Click()
+  
+  If MajFtbt.Value Then
+    Panel2.visible = True
+  Else
+    Panel2.Visible = False
+  Endif
+  
+End
+
+Public Sub MajPrix_Click()
+  
+  If MajPrix.Value Then
+    Panel2.Visible = False
+  Else
+    Panel2.Visible = True
+  Endif
+  
+End
+
+Public Sub MajZones_Click()
+  
+  If MajZones.Value Then
+    Panel2.Visible = False
+  Else
+    Panel2.Visible = False
+  Endif
+  
+End
+
+Public Sub ToggleBtnDate_Click()
+  
+  If DateChooser1.Visible = False Then
+    DateChooser1.visible = True
+  Else
+    DateChooser1.Visible = False
+  Endif
+  
+End
+
+Public Sub DateChooser1_Activate()
+  
+  Date.text = Format$(DateChooser1.Value, "dd.mm.yyyy")
+  DateChooser1.Visible = False
+  
+End
+
+Public Sub centrale_Click()
+  
+  If centrale.value = True Then
+    Panel4.visible = True
+  Else
+    Panel4.visible = False
+  Endif
+  
+End

@@ -1,0 +1,530 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : FpromoArt.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 28/01/2010
+'# Gestion de la table des articles en promos
+'################################################
+
+Tri As String
+sel As String
+PArtTable[7] As String
+Txtva As Float 'Taux de Tva
+rResult As Result
+son As Integer = Start.Son
+CoulZns As Integer ' Variable pour la couleur du background des zones de saisie
+CoulZnaf As Integer ' Variable pour la couleur du background des columnviews
+Coulfc As Integer ' Variable pour la couleur du focus
+stva As String ' code Tva
+Margem As String 'variable pour calcul marge
+Margep As String 'variable pour calcul marge
+Prvt As String 'prix de reveient du produit pour calcul de la marge.
+B As Integer = 0 'flag de controle marge
+Public Codearticle As String
+Public Bsel As Boolean = False
+
+Public Sub _New()
+  
+  Dim Frmt As New String[]
+  
+  Balloon.Delay = 1500
+  Frmt = Utils.FColr(Settings["/Coul/Znaff"])
+  CoulZnaf = Val(Frmt[0])
+  Frmt = Utils.FColr(Settings["/Coul/Znss"])
+  CoulZns = Val(Frmt[0])
+  Frmt = Utils.FColr(Settings["/Coul/Focus"])
+  Coulfc = Val(Frmt[0])
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  CO.Text = "Code produit"
+  Inte.Text = "Libellé"
+  FO.Text = "Prix promo HT"
+  FA.Text = "Prix promo TTC"
+  With ColPromo
+    .Columns.count = 4
+    .Columns[0].Width = CO.Width
+    .Columns[1].Width = Inte.Width
+    .Columns[2].Width = FO.Width
+    .Columns[2].Alignment = 2
+    .Columns[3].Width = FA.Width
+    .Columns[3].Alignment = 2
+  End With
+  With ColArtPromo
+    .Columns.count = 4
+    .Columns[0].Width = CO.Width
+    .Columns[1].Width = Inte.Width
+    .Columns[2].Width = FO.Width
+    .Columns[2].Alignment = 2
+    .Columns[3].Width = FA.Width
+    .Columns[3].Alignment = 2
+  End With
+  Sel = ""
+  Tri = "code"
+  code.SetFocus
+  code.Select
+  
+End
+
+'**************************************************
+'*       Selection d'une promo a la main          *
+'**************************************************
+Public Sub Code_KeyPress()
+  
+  Dim prArt As Result
+  
+  If Key.code = Key.enter Or Key.code = Key.return Then
+    prArt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabPromo") & " where code = &1", code.text)
+    If prArt.Available Then
+      Desg.text = prArt!libelle
+      Date1.text = prArt!datedeb
+      Date2.Text = prArt!datefin
+      Tri = "code"
+      Deb2()
+      Cart.SetFocus
+    Else
+      Balloon.Warning(("Ce code promotion n'existe pas !"), Code)
+      Code.Select
+    Endif
+  Endif
+  
+End
+
+'**************************************************
+'*      Selection d'une promo a la souris         *
+'**************************************************
+Public Sub Button5_Click()
+  
+  Dim prArt As Result
+  
+  Colpromo.clear
+  If Colpromo.visible Then
+    Colpromo.visible = False
+  Else
+    Colpromo.visible = True
+    Colpromo.Columns.count = 2
+    Colpromo.Columns[0].Width = 65
+    Colpromo.Columns[1].Width = 180
+    Colpromo.Columns[0].Text = "Code"
+    Colpromo.Columns[1].Text = "Libellé"
+    prArt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabPromo") & " ")
+    If prArt.Available Then
+      Repeat
+        Colpromo.Add(prArt!code, prArt!code)
+        Colpromo.Item[0] = prArt!code
+        Colpromo.Item[1] = prArt!libelle
+        Colpromo.Item[2] = Utils.Cdate_Aff(prArt!datedeb)
+        Colpromo.Item[3] = Utils.Cdate_Aff(prArt!datefin)
+      Until prart.MoveNext()
+      Colpromo.MoveFirst
+      Colpromo.SetFocus
+      Colpromo.Item.Selected = True
+    Endif
+  Endif
+  
+End
+
+Public Sub Colpromo_Click()
+  
+  Code.Text = Colpromo.Item[0]
+  Desg.Text = Colpromo.Item[1]
+  Date1.Text = Replace$(Colpromo.Item[2], "/", ".")
+  Date2.Text = Replace$(Colpromo.Item[3], "/", ".")
+  Colpromo.Visible = False
+  Tri = "code"
+  Deb2()
+  
+End
+
+Public Sub Colpromo_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Then Colpromo_Click()
+  
+  If Key.code = Key.F2 Or If Key.code = Key.Esc Or If Key.code = Key.Delete Then
+    If ColPromo.Visible = True Then
+      ColPromo.Visible = False
+      Colpromo.Clear
+      Code.SetFocus
+    Else
+      Button5_Click()
+    Endif
+  Endif
+  
+End
+
+Public Sub Cpromo()
+  
+  Dim prArt As Result
+  
+  prArt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabPromo") & " where code = &1", Code.text)
+  If prart.Available Then
+    Code.Text = prArt!code
+    Desg.Text = prArt!libelle
+    Date1.Text = prArt!datedeb
+    Date1.text = Replace$(Date1.text, "/", ".")
+    Date2.Text = prArt!datefin
+    Date2.text = Replace$(Date2.text, "/", ".")
+  Else
+    If son Then
+      Music.Play
+    Endif
+    Message.Error("Ce code promo n'existe pas ! Veuillez vérifier votre saisie SVP.")
+    Code.SetFocus
+    Code.Select
+  Endif
+  
+End
+
+Public Sub Cmpt_Keypress()
+  
+  Select Case Last.tag
+    Case 4
+      ChkPrx()
+      
+    Case 5
+      ChkPrx()
+  End Select
+  
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+      Case 1
+        Cpromo()
+        Stop Event
+        
+      Case 2
+        Art_Man()
+        If Cart.text <> "" Then Desg2.SetFocus
+        
+      Case 3
+        Pht.SetFocus
+        
+      Case 4
+        Marge.Text = Format$(Val(Utils.cpoint(pht.text)) - Val(Utils.cpoint(Pht2.Text)), "0.00")
+        If Val(Utils.cpoint(Marge.text)) <= 0 Then
+          Message.Warning("Attention ! votre marge est négative. vérifiez votre saisie SVP")
+          B = 1
+          Pht.SetFocus
+          Pht.Select
+        Endif
+        If b = 0 Then
+          Pht.Text = Format$(Val(Utils.cpoint(Pht.Text)), "0.00")
+          CalcTTC()
+          Pttc.SetFocus
+        Endif
+        b = 0
+        
+      Case 5
+        CalcHt()
+        Marge.Text = Format$(Val(Utils.cpoint(pht.text)) - Val(Utils.cpoint(Pht2.Text)), "0.00")
+        If Val(Utils.cpoint(Marge.text)) <= 0 Then
+          Message.Warning("Attention ! votre marge est négative. vérifiez votre saisie SVP")
+          B = 1
+          Pht.SetFocus
+          Pht.Select
+        Endif
+        Pttc.Text = Format$(Val(Utils.cpoint(Pttc.Text)), "0.00")
+        Button3.SetFocus
+        If Val(Utils.cpoint(pht.text)) > Val(Utils.cpoint(Pht3.Text)) Then
+          If Message.Question("Le prix de vente promo est supérieur au prix de vente normal !, Voulez-vous continuer ?", "Oui", "Non") = 2 Then
+            Pht.Clear
+            Pttc.Clear
+            Pht.SetFocus
+          Endif
+        Endif
+    End Select
+  Endif
+  If Key.code = Key.F2 Then
+    Select Case Last.tag
+      Case 1
+        If ColPromo.Visible = True Then
+          ColPromo.Visible = False
+          Colpromo.Clear
+        Else
+          Button5_Click()
+        Endif
+        
+      Case 2
+        If ColPromo.Visible = True Then
+          ColPromo.Visible = False
+          Colpromo.Clear
+        Else
+          Button6_Click()
+        Endif
+    End Select
+  Endif
+  
+End
+
+Public Sub ChkPrx()
+  
+  If InStr("0123456789,.", Key.Text) = 0 Then
+    If key.code <> key.BackSpace And Key.Code <> Key.tab And Key.Code <> Key.Delete And Key.code <> Key.enter And Key.code <> Key.return Then
+      Stop Event
+    Endif
+  Endif
+  
+End
+
+Public Sub Colartpromo_Data(Row As Integer, Column As Integer)
+  
+  With Utils
+    PArtTable[0] = "code"
+    PArtTable[1] = "libelle"
+    PArtTable[2] = "pht"
+    PArtTable[3] = "pttc"
+    Try .rs1.MoveTo(Row)
+    Try Colartpromo.data.Text = Str(.rs1[PArtTable[Column]])
+    If Column = 2 Or If column = 3 Then Try Colartpromo.data.Text = Format$(Val(Utils.cpoint(Colartpromo.data.Text)), "0.00")
+  End With
+  
+End
+
+Public Sub Deb2()
+  
+  Utils.Base(Colartpromo, "select * from " & Cbase.Table("TabArtPromo") & " where code_promo = " & code.text & " order by " & Tri & "")
+  
+End
+
+Public Sub button3_KeyPress()
+  
+  Button3_Click()
+  
+End
+
+Public Sub Button3_Click()
+  
+  Dim prArt As Result
+  
+  If Not IsNull(Code.Text) And Not IsNull(Cart.text) And Not IsNull(Pht.text) Then
+    prArt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArtPromo") & " where code = &1 and code_promo = &2", Cart.Text, Code.Text)
+    If prArt.Available Then
+      If Message.Question("Ce produit est déjà utilisé dans cette promo ! Voulez-vous enregistrer votre modification ?", "Oui", "Non") = 1 Then
+        Utils.db.Exec("UPdate " & Cbase.Table("TabArtPromo") & "  SET libelle = &1, pht = &2, pttc = &3 where code_promo = &4 and code = &5", Desg2.text, Val(Pht.text), Val(Pttc.text), Code.text, Cart.Text)
+      Endif
+    Else
+      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabArtPromo") & " (code_promo, code, libelle, pmp, pht, pttc) VALUES (&1, &2, &3, &4, &5, &6)", code.Text, Cart.Text, Desg2.Text, Val(Pht2.Text), Val(Pht.Text), Val(Pttc.Text))
+    Endif
+    Tri = "code"
+    Deb2()
+    cleanChamps()
+    Cart.SetFocus
+  Else
+    Message.Warning("Veuillez vérifier votre saisie SVP !")
+  Endif
+  
+End
+
+Public Sub Button4_Click()
+  
+  Me.Close
+  
+End
+
+Public Sub Button6_Click()
+  
+  If Not IsNull(Code.Text) Then
+    SelectionArt()
+  Else
+    Message.Warning("Veuillez saisir un code promo SVP !")
+    Code.SetFocus
+  Endif
+  
+End
+
+Public Sub CleanChamps()
+  
+  Cart.Clear
+  Desg2.Clear
+  Pht.Clear
+  Pttc.Clear
+  Pht2.Clear
+  Pht3.Clear
+  Marge.Clear
+  
+End
+
+'**************************************************
+'*            Modification d'un produit           *
+'**************************************************
+Public Sub ColArtPromo_Click()
+  
+  Cart.text = ColArtPromo[ColArtPromo.row, 0].Text
+  Desg2.text = ColArtPromo[ColArtPromo.row, 1].Text
+  Pht.text = ColArtPromo[ColArtPromo.row, 2].Text
+  Pttc.text = ColArtPromo[ColArtPromo.row, 3].Text
+  art_man()
+  Try Marge.Text = Format$(Val(Utils.cpoint(pht.text)) - Val(Utils.cpoint(Pht2.Text)), "0.00")
+  
+End
+
+'**************************************************
+'*            Suppression d'un produit            *
+'**************************************************
+Public Sub ColArtPromo_KeyPress()
+  
+  If Key.Code = Key.Delete Then button2_Click()
+  
+End
+
+Public Sub button2_Click()
+  
+  Dim prArt As Result
+  
+  prArt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigbl") & " where code_ligbl = &1", Cart.Text)
+  If prArt.Available Then
+    If Message.Question("Ce produit existe dans les lignes de BL, maintenez-vous sa suppression de la promo ?", "Oui", "Non") = 1 Then
+      delArt()
+    Endif
+  Else
+    delArt()
+  Endif
+  
+End
+
+Public Sub delArt()
+  
+  Utils.db.Exec("DELETE FROM " & Cbase.Table("TabArtPromo") & "  WHERE code_promo = &1 and code = &2", code.Text, Cart.Text)
+  Tri = "code"
+  Deb2()
+  CleanChamps()
+  
+End
+
+'****************************************Gestion des articles**************************************************
+Public Sub SelectionArt()
+  
+  Dim MyForm As TriArticles
+  
+  sel = ""
+  Tri = "art_code"
+  MyForm = New TriArticles(True, "", Tri, "FpromoArt", "", "")
+  MyForm.Showmodal()
+  If Bsel = True Then
+    Cart.text = Codearticle
+    art_man()
+  Endif
+  
+End
+
+'***************************************************
+'* Saisie d'un code article manuellement en direct *
+'***************************************************
+Public Sub art_man()
+  
+  Dim rarts As Result
+  Dim Rtvaav As Result
+  
+  With utils
+    If Cart.text <> "" Then
+      If Left$(Cart.Text) = "*" Then
+        Cart.Text = Mid$(Cart.Text, 2, Len(Cart.Text))
+        Cart.Text = "*" & Utils.Find_Cbarre(Cart.Text)
+      Endif
+      rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1 and art_stocke = &2", Cart.Text, True)
+      If Not rarts.Available Then
+        rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_cfour = &1 and art_stocke = &2", Cart.Text, True)
+        If Not rarts.Available Then
+          rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_cequ = &1 and art_stocke = &2", Cart.Text, True)
+        Endif
+      Endif
+      If rarts.Available Then
+        Cart.Text = rarts!art_code
+        Desg2.text = rarts!art_design
+        Pht2.Text = Format$(rarts!art_prvt, "0.00")
+        Pht3.Text = Format$(rarts!art_pvht, "0.00")
+        stva = rarts!art_tva
+        Rtvaav = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTvav") & " where code_tva = &1", stva)
+        If Rtvaav.Available Then
+          Txtva = Rtvaav!taux_tva
+        Endif
+        Pht.SetFocus
+      Else
+        If son Then
+          Music.Play
+        Endif
+        message.Warning(" Cette référence n'existe pas ou elle n'est pas stockée! ")
+        Cart.SetFocus
+        Cart.Select
+      Endif
+    Endif
+  End With
+  
+End
+
+'*********************************
+'* Calcul du TTC du produit      *
+'*********************************
+Public Sub CalcTTC()
+  
+  Recup_Tva()
+  Pttc.Text = Format$(Val(Utils.CPoint(Pht.Text)) + (Val(Utils.CPoint(Pht.Text)) * Txtva / 100), "0.00")
+  
+End
+
+'*********************************
+'* Calcul du Ht du produit       *
+'*********************************
+Public Sub CalcHt()
+  
+  With Utils
+    Recup_Tva()
+    Txtva = 1 + (Txtva / 100)
+    Pht.Text = Format$(Val(.CPoint(pttc.Text)) / Txtva, "0.00")
+  End With
+  
+End
+
+'************************
+'* Recup de la Tva      *
+'************************
+Public Sub Recup_Tva()
+  
+  Txtva = 0
+  rResult = Utils.db.Exec("select * from " & Cbase.Table("TabTvav") & " where code_tva = &1", stva)
+  If rResult.Available Then
+    Txtva = rResult!taux_tva
+  Endif
+  
+End
+
+'***********************************
+'*       On calcule la marge       *
+'***********************************
+Public Sub Calc_Marge()
+  
+  If Not IsNull(Prvt) Then
+    If Val(Prvt) > 0 Then
+      Margem = Val(Pht.Text) - Val(Prvt)
+      Margep = (Val(Margem) * 100) / Val(Prvt)
+    Endif
+  Endif
+  
+End
+
+'********************
+'* On lance la doc  *
+'********************
+Public Sub Button1_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Promo.html"]
+  
+End

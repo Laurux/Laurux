@@ -1,0 +1,170 @@
+' Gambas class file
+
+Nligne As String
+
+'*********************************
+'*initialisation écrans          *
+'*********************************
+Public Sub _New()
+  
+  Me.Center
+  Init()
+  Maj_Zones()
+  Timer2.Enabled = True
+  V1.Text = Format$(Hour(Now), "00") & " : " & Format$(Minute(Now), "00") & " : " & Format$(Second(Now), "00")
+  
+End
+
+Public Sub Timer2_Timer()
+  
+  V1.Text = ""
+  V1.Text = Format$(Hour(Now), "00") & " : " & Format$(Minute(Now), "00") & " : " & Format$(Second(Now), "00")
+  
+End
+
+Public Sub Init()
+  
+  Dim i As Integer
+  Dim h As String = "06"
+  
+  With coldetail
+    .Columns.count = 2
+    .Rows.Count = 60
+    .Columns[0].Title = "Heures"
+    .Columns[1].Title = String$(32, " ") & "Actions"
+    .Columns[0].Width = 60
+    .Columns[1].Width = 300
+    For i = 0 To 56 Step 4
+      h = Format$(Val(h), "00")
+      Coldetail[i, 0].text = h & "h00"
+      Coldetail[i + 1, 0].text = h & "h15"
+      coldetail[i + 1, 0].Background = &HDFDFDF&
+      Coldetail[i + 2, 0].text = h & "h30"
+      coldetail[i + 2, 0].Background = &HBFBFBF&
+      Coldetail[i + 3, 0].text = h & "h45"
+      coldetail[i + 3, 0].Background = &H9F9F9F&
+      h = Val(h) + 1
+    Next
+    Label3.Text = (CInt(Now) - CInt(Date(Year(Now), 1, 1)) + 1) & " eme jours de l'année."
+    Label4.Text = "Semaine " & Week(Now)
+  End With
+  
+End
+
+Public Sub DateChooser1_Change()
+  
+  TextArea1.Visible = False
+  Button1.Visible = False
+  Coldetail.Clear
+  Maj_Zones()
+  
+End
+
+Public Sub Coldetail_Click()
+  
+  If TextArea1.Visible = False Then
+    Nligne = Coldetail[coldetail.row, 0].Text
+    TextArea1.width = Coldetail.Width - Coldetail.Columns[0].Width - 6
+    TextArea1.Visible = True
+    Button1.Visible = True
+    TextArea1.text = Coldetail[coldetail.row, 1].Text
+    TextArea1.SetFocus
+  Else
+    TextArea1.Clear
+    TextArea1.Visible = False
+    Button1.Visible = False
+  Endif
+  
+End
+
+Public Sub Button1_Click()
+  
+  Coldetail[coldetail.row, 1].Text = TextArea1.Text
+  Coldetail[coldetail.row, 1].Alignment = Align.TopLeft
+  TextArea1.Visible = False
+  Button1.Visible = False
+  Ecr_action()
+  TextArea1.Clear
+  
+End
+
+'******************************************* On enregistre l'action *************************************************
+'PUBLIC SUB Ecr_action()
+'  DIM Action AS result
+'  Action = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabAgenda") & " where daction = &1 and haction = &2", Format$(DateChooser1.Value, "yyyy-mm-dd"), Nligne)
+'  IF NOT Action.Available THEN
+'   Utils.db.Exec("INSERT INTO " & Cbase.Table("TabAgenda") & "(daction, haction, iaction) VALUES (&1, &2, &3)", Format$(DateChooser1.Value, "yyyy-mm-dd"), Nligne, TextArea1.text)
+' ELSE
+'    Utils.db.Exec("UPdate " & Cbase.Table("TabAgenda") & "  SET iaction = &3 where daction = &1 and haction = &2", Format$(DateChooser1.Value, "yyyy-mm-dd"), Nligne, TextArea1.text)
+'  ENDIF
+'END
+
+Public Sub Ecr_action()
+  
+  Dim Action As Result
+  
+  Action = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabAgenda") & " where daction = &1 and haction = &2 and nuser = &3", Format$(DateChooser1.Value, "yyyy-mm-dd"), Nligne, User.Name)
+  If Not Action.Available Then
+    Utils.db.Exec("INSERT INTO " & Cbase.Table("TabAgenda") & "(daction, haction, iaction, nuser) VALUES (&1, &2, &3, &4)", Format$(DateChooser1.Value, "yyyy-mm-dd"), Nligne, TextArea1.text, User.Name)
+  Else
+    Utils.db.Exec("UPdate " & Cbase.Table("TabAgenda") & "  SET iaction = &3 where daction = &1 and haction = &2", Format$(DateChooser1.Value, "yyyy-mm-dd"), Nligne, TextArea1.text)
+  Endif
+  
+End
+
+'******************************************* On met a jour le gridview des actions ************************************
+Public Sub Maj_Zones()
+  
+  Dim Action As Result
+  Dim Countrow As Integer
+  Dim Date_action As String
+  
+  Init()
+  Coldetail.Rows.Count = 60
+  Action = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabAgenda") & " where daction = &1", Format$(DateChooser1.Value, "yyyy-mm-dd"))
+  If Action.Count > 0 Then
+    Repeat
+      Date_Action = Action!daction
+      Date_Action = Left$(Date_Action, 10)
+      For CountRow = 0 To (Coldetail.Rows.Count - 1)
+        If Coldetail[CountRow, 0].Text = Action!haction Then
+          Coldetail[CountRow, 1].Text = Action!iaction
+          Coldetail[CountRow, 1].Alignment = Align.TopLeft
+        Endif
+      Next
+    Until Action.MoveNext()
+  Endif
+  
+End
+
+Public Sub Button2_Click()
+  
+  Timer2.Enabled = False
+  ' LCD2.Value = 0
+  Me.Close
+  
+End
+
+Public Sub TextArea1_KeyPress()
+  
+  If Key.code = Key.Esc Then Coldetail_Click()
+  
+End
+
+Public Sub TextArea1_DblClick()
+  
+  Coldetail_Click()
+  
+End
+
+Public Sub Button3_Click()
+  
+  Exec ["xdg-open", "http://www.calendrier-365.fr"]
+  
+End
+
+Public Sub Button4_Click()
+  
+  Exec ["xdg-open", "http://www.almanach.free.fr"]
+  
+End

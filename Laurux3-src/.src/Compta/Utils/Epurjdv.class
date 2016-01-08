@@ -1,0 +1,226 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Epurjdv.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 01/02/2008
+'# Epuration des écritures de ventes
+'################################################
+'
+
+Private Tab As String
+Private Dtpc As String
+Private Dpc As String
+Private datec As String
+Private datec2 As String
+Private dtepc As String
+Private jour As String
+Private son As Integer = Start.Son
+Private Dtecl As String ' nouvelle date de fin d'exercice
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  
+End
+
+Public Sub Form_Open()
+  
+  Dim rResult As Result
+  Dim Annee As String ' Pour le calcul de fin d'exo
+  
+  Tab = "Fiches_Parametres"
+  With Utils
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
+    Dtpc = rResult!dteclec1
+    dtepc = Left(Dtpc, 2)
+    Dpc = Right$(Dtpc, 4)
+    Dpc = Val(Dpc)
+    Aff_date()
+    datecl.Text = .Cdate_Aff(rResult!dteclec)
+    datecl.Text = Format$(Date(Right(datecl.Text, 4), Mid(datecl.Text, 4, 2), Left(datecl.Text, 2)), "dd mmmm yyyy")
+    datec = rResult!dtepec
+    If rResult!dtepp = "" Or Left$(rResult!dtepp, 2) = "00" Then Datec = Format$(Now, "mm.yyyy")
+    datec = Right$(datec, 4) & Left$(datec, 2)
+    datec2 = .Cdate_Comp(rResult!dteclec)
+    Annee = Str(Val(Mid$(Datec2, 3, 2)) + 1)
+    If Len(Annee) = 1 Then Annee = "0" & Annee
+    Annee = "20" & Annee
+    Dtecl = Annee & Mid$(Str(rResult!dteclec), 4, 2) & Left$(Str(rResult!dteclec), 2)
+  End With
+  jour = Format$(Now, "dd.mm.yyyy")
+  
+End
+
+Public Sub Aff_date()
+  
+  dtepc = Format(Val(dtepc) + 1, "00")
+  If Val(dtepc) > 12 Then
+    dtepc = "01"
+    dpc = Left$(Dtpc, 6) & Str(Val(Right$(dpc, 4)) + 1)
+  Endif
+  Dtpc = Format$(Date(Right(dpc, 4), dtepc, 01), "mmmm  yyyy")
+  datecl.Text = "  " & Dtpc
+  dtepc = Format$(Val(dtepc), "00")
+  dateprc.Text = Format$(Date(Right(dpc, 4), dtepc, 01), "dd mmmm  yyyy")
+  
+End
+
+Public Sub Button3_Click()
+  
+  Me.Close
+  
+End
+
+Public Sub Button1_Click()
+  
+  Dim rResult As Result
+  Dim num As String
+  Dim Tab0 As String
+  Dim Tab1 As String
+  Dim Tab2 As String
+  Dim Tab3 As String
+  Dim Tab4 As String
+  Dim Tab5 As String
+  Dim Tab6 As String
+  Dim Tab7 As String
+  Dim numecr As String = " "
+  Dim Numero As Integer
+  Dim lett As Boolean
+  Dim numlot As String
+  
+  lett = CheckBox1.value
+  Tab0 = "Fiches_Parametres"
+  With Utils
+    Numero = 0
+    If Settings["/dbase/Host"] = "localhost" Then
+      If datec <= Left(datec2, 6) Then
+        If son Then
+          Music.Play
+        Endif
+        Message.Warning("Epuration impossible ! La date de la dernière cloture est inférieure à la date de fin d'exercice.")
+      Else
+        If son Then
+          Music.Play
+        Endif
+        If Message.Question("Etes vous sur de vouloir effacer les écritures au " & datecl.Text, "Oui", "Non") = 1 Then
+          Me.Mouse = Mouse.Wait
+          Sauve()
+          Tab7 = "Fiches_Comptes"
+          Tab6 = "Report"
+          Tab5 = "Fiches_Mvt5"
+          Tab4 = "Fiches_Mvt4"
+          Tab3 = "Fiches_Mvt3"
+          Tab2 = "Fiches_Mvt2"
+          Tab1 = "Fiches_Mvt1"
+          Tab = "Fiches_Mvt"
+          Utils.db.Exec("drop Table IF exists " & Tab5 & "")
+          Utils.db.Exec("alter Table " & Tab4 & " Rename " & Tab5 & "")
+          Utils.db.Exec("alter Table " & Tab3 & " Rename " & Tab4 & "")
+          Utils.db.Exec("alter Table " & Tab2 & " Rename " & Tab3 & "")
+          Utils.db.Exec("alter Table " & Tab1 & " Rename " & Tab2 & "")
+          Utils.db.Exec("alter Table " & Tab & " Rename " & Tab1 & "")
+          
+          Utils.db.Exec("CREATE TABLE " & Tab &
+            " (jour Char(2)," &
+            "numero Integer(6) NOT NULL," &
+            "numerodef Integer(6) NOT NULL," &
+            "compte CHAR(8) NOT NULL," &
+            "collectif TINYINT," &
+            "intitule Char(30)," &
+            "dte date," &
+            "datee date, " &
+            "dateech date, " &
+            "numcol Char(3)," &
+            "numdoc CHAR(10) NOT NULL," &
+            "numlot CHAR(10) NOT NULL," &
+            "libelle CHAR(30)," &
+            "montantd Decimal(12,2)," &
+            "montantc Decimal(12,2)," &
+            "validee TINYINT(1)," &
+            "provisoire TINYINT(1)," &
+            "tresorerie  TINYINT(1)," &
+            "pointee TINYINT(1)," &
+            "nrlv INTEGER(8)," &
+            "lettree TINYINT(1)," &
+            "cloturee TINYINT(1)," &
+            "dteval date, " &
+            "relance INTEGER(1)," &
+            "lind INT NOT NULL AUTO_INCREMENT," &
+            "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+          rResult = Utils.db.Exec("SELECT * FROM " & Tab1 & " where left(compte,3) = &1 and collectif is null order by numero", "411")
+          If rResult.Available Then
+            Repeat
+              If .Cdate_Comp(rResult!dte) > datec2 Or If rResult!lettree = False Then
+                If num <> rResult!numero Then
+                  Inc numero
+                  If lett = True Then
+                    Utils.db.Exec("DELETE FROM " & Tab1 & " WHERE numero = &1", num)
+                  Endif
+                Endif
+                numlot = rResult!numlot
+                If IsNull(numlot) Then numlot = " "
+                If lett = True Then Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,numerodef,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,pointee,lettree,cloturee, collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18} )", rResult!jour, Numero, numecr, rResult!compte, rResult!intitule, rResult!dte, rResult!numdoc, numlot, rResult!libelle, rResult!montantd, rResult!montantc, rResult["validee"], rResult["provisoire"], rResult["tresorerie"], rResult!pointee, rResult!lettree, rResult!cloturee, rResult!collectif)
+                Num = rResult!numero
+              Endif
+            Until rResult.MoveNext()
+            'Utils.db.Exec("DELETE FROM " & Tab1 & " WHERE numero = &1", num)
+          Endif
+          Csolde.Recalc_solde()
+          Me.Mouse = Mouse.Default
+          If son Then
+            Music.Play
+          Endif
+          Message.Warning(" Traitement terminé ! ", "OK")
+          rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " ")
+          Utils.db.Exec("UPdate  " & Tab0 & "  SET  dteclec = &1, dteclec1 = &2, dteclec2 = &3, dteclec3= &4, dteclec4 = &5, dteclec5 = &6, dtetdec= &7, dtefedec = &8, numecriture1 = &9, numecriture2 = &9, numecriture = &9 ", Dtecl, rResult!dteclec, rResult!dteclec1, rResult!dteclec2, rResult!dteclec3, rResult!dteclec4, .Cdate_Dbase(jour), rResult!dteclec, Numero, 0)
+          Settings["/Soc" & Start.Societe & "/Numdoc_exprt"] = "0"
+        Endif
+      Endif
+    Else
+      Message.Warning("Ce traitement doit être lancé uniquement sur le serveur !")
+    Endif
+  End With
+  Me.Close
+  
+End
+
+Public Sub Sauve()
+  
+  Dim cp As New Compress
+  Dim dte As String
+  
+  cp.type = "zlib"
+  dte = Format$(Now, "yyyy")
+  Shell "mysqldump -h " & Settings["/dbase/Host"] & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " " & "Laurux" & " " & "--add-drop-table" & " " & ">" & " " & User.home & "/Laurux_" & dte & ".sql" Wait
+  If Exist(User.home & "/Laurux_" & dte & ".sql") Then
+    cp.File(user.home & "/Laurux_" & dte & ".sql", user.home & "/Laurux." & dte & ".gz", cp.Max)
+  Endif
+  
+End
+
+Public Sub Button2_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Epurationjdv.html"]
+  
+End

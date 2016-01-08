@@ -1,0 +1,262 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : FEditrel.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 01/11/2004
+'# Edition des relances
+'################################################
+'
+
+Private Filename As String
+Private Filetxt As String
+Private Coulfond As New String[]
+Private PosY As Integer
+
+Public Sub _New()
+  
+  Coulfond = Utils.Coulfd()
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  filetxt = User.home & "/Relances.txt"
+  Me.Center
+  compteRel.Columns.count = 7
+  compteRel.Columns[0].Alignment = 4
+  compteRel.Columns[0].Width = 70
+  compteRel.Columns[1].Width = 60
+  compteRel.Columns[2].Width = 220
+  compteRel.Columns[3].Width = 80
+  compteRel.Columns[4].Width = 220
+  compteRel.Columns[5].Width = 100
+  compteRel.Columns[6].Width = 100
+  compteRel.Columns[0].Text = "Code"
+  compteRel.Columns[1].Text = "RS"
+  compteRel.Columns[2].Text = "Nom"
+  compteRel.Columns[3].Text = "CP"
+  compteRel.Columns[4].Text = "Ville"
+  compteRel.Columns[5].Alignment = 2
+  compteRel.Columns[5].Text = "Débit"
+  compteRel.Columns[6].Alignment = 2
+  compteRel.Columns[6].Text = "Crédit"
+  MajTab()
+  
+End
+
+Public Sub MajTab()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  Dim cpt As String
+  Dim Totdeb As Float
+  Dim Totcred As Float
+  
+  Tab = "Fiches_relances" 
+  compteRel.clear
+  With utils
+    rResult = Utils.db.Exec("SELECT * FROM " & tab & " order by compte ")
+    If rResult.Available Then
+      Repeat
+        If cpt <> rResult!compte Then
+          Totdeb = rResult!montantd
+          Totcred = rResult!montantc
+          compteRel.Add(rResult!compte, rResult!compte)
+          compteRel.Item[0] = rResult!compte
+          compteRel.Item[1] = rResult!rs
+          compteRel.Item[2] = rResult!intitule
+          compteRel.Item[3] = rResult!cp
+          compteRel.Item[4] = rResult!ville
+          cpt = rResult!compte
+          compteRel.Item[5] = Format$(Totdeb, "0.00")
+          compteRel.Item[6] = Format$(Totcred, "0.00")
+        Else
+          Totdeb = Totdeb + rResult!montantd
+          Totcred = Totcred + rResult!montantc
+          compteRel.Item[5] = Format$(Totdeb, "0.00")
+          compteRel.Item[6] = Format$(Totcred, "0.00")
+        Endif
+      Until rResult.MoveNext()
+    Endif
+  End With
+  
+End
+
+Public Sub relances()
+  
+  Dim rRESULT As RESULT
+  Dim rrRESULT As RESULT
+  Dim Tab As String
+  Dim Tab2 As String
+  Dim Tab3 As String
+  Dim Tab4 As String
+  Dim adr1 As String
+  Dim adr2 As String
+  Dim adr21 As String
+  Dim adr22 As String
+  Dim ville As String
+  Dim ville2 As String
+  Dim Pays As String
+  Dim Mail As String
+  Dim Rcs As String
+  Dim Siret As String
+  Dim Tvaintra As String
+  Dim Cap As String
+  Dim Ape As String
+  Dim Iban As String
+  Dim Tel As String
+  Dim portable As String
+  Dim Fax As String
+  Dim Site As String
+  Dim Rs As String
+  Dim Rs2 As String
+  Dim Niv As String
+  Dim Txt1 As String
+  Dim Txt2 As String
+  Dim dte As String
+  Dim num As String
+  Dim Lib As String
+  Dim Mtd As String
+  Dim Mtc As String
+  Dim jour As String
+  Dim pdf As Creleve
+  
+  Tab = "Fiches_relances" 
+  Tab2 = "Fiches_Societes"
+  Tab3 = "Fiches_Txt_Relances" 
+  Tab4 = "Fiches_Mvt" 
+  Me.Mouse = Mouse.wait
+  jour = Format$(Now, "dd.mm.yyyy")
+  Filename = User.home & "/Relances.pdf"
+  With utils
+    Shell "cd " & User.Home & ""
+    pdf = New Creleve("Portrait", "mm", "A4")
+    pdf.Open()
+    pdf.AliasNbPages()
+    rResult = Utils.db.Exec("SELECT * FROM " & tab2 & " where cd_sc = &1", Start.Societe)
+    Rs = rResult!type_sc & " " & rResult!int_sc
+    adr1 = rResult!adr1_sc
+    adr2 = rResult!adr2_sc
+    ville = rResult!cp_sc & "  " & rResult!burdis_sc
+    jour = rResult!burdis_sc & "  le  " & jour
+    If rResult!villerc_sc Then Rcs = "Rcs : " & rResult!rcs_sc & " " & rResult!villerc_sc
+    If rResult!siret_sc Then Siret = Settings["/Soc" & Start.Societe & "/Siret"] & " : " & rResult!siret_sc
+    If rResult!tvaintra_sc Then Tvaintra = "Tva intra : " & rResult!tvaintra_sc
+    If rResult!cap_sc Then Cap = "Capital : " & rResult!cap_sc
+    If rResult!ape_sc Then Ape = "Naf : " & rResult!ape_sc
+    If rResult!tel_sc Then Tel = "Tel : " & rResult!tel_sc
+    If rResult!port_sc Then Portable = "Portable : " & rResult!port_sc
+    If rResult!fax_sc Then Fax = "Fax : " & rResult!fax_sc
+    If rResult!email_sc Then Mail = "Courriel : " & rResult!email_sc
+    If rResult!site Then Site = "Site : " & rResult!site
+    If rResult!banq Then Iban = "Iban : " & rResult!banq & " Bic : " & rResult!bic
+    If compteRel.Available Then
+      compteRel.MoveFirst
+      Repeat
+        If RB2.Value And Not compteRel.Item.selected Then
+        Else
+          If RB2.Value And compteRel.Item.selected Then rResult = Utils.db.Exec("SELECT * FROM " & tab & " where compte = &1 order by dte", compteRel.Item[0])
+          If RB1.Value Then rResult = Utils.db.Exec("SELECT * FROM " & tab & " where compte = &1 order by dte", compteRel.Item[0])
+          If rResult.Available Then
+            Rs2 = rResult!rs & " " & rResult!intitule
+            adr21 = rResult!adr1
+            adr22 = rResult!adr2
+            ville2 = rResult!cp & "  " & rResult!ville
+            Pays = rResult!pays
+            If Pays = "France" Then Pays = ""
+            Niv = rResult!niveau
+            pdf.Entete(rs, adr1, adr2, ville, cap, rcs, siret, ape, Tvaintra, Tel, portable, fax, mail, site, Pays, Iban, False)
+            pdf.Entete2(rs2, adr21, adr22, ville2, Pays, "", False)
+            pdf.Level5(Jour)
+            posy = 110
+            rrResult = Utils.db.Exec("select * from " & Tab3 & " where niveau = &1", Niv)
+            If rrResult.Available Then
+              Txt1 = rrResult!libell1
+              Txt2 = rrResult!libell2
+            Endif
+            pdf.Level8(Txt1, Posy)
+            Posy += 30
+            pdf.Level6()
+            posy += 6
+            Repeat
+              'dte = (Mid$(rResult!dte, 5, 2) & "." & Right$(rResult!dte, 2) & "." & Left$(rResult!dte, 4))
+              dte = .Cdate_Aff(rResult!dte)
+              num = rResult!numdoc
+              Lib = rResult!libelle
+              Mtd = Format$(rResult!montantd, "0.00")
+              Mtc = Format$(rResult!montantc, "0.00")
+              pdf.Level7(dte, num, Lib, Mtd, Mtc, PosY)
+              posy += 4
+              Utils.db.Exec("UPdate  " & Tab4 & "  SET  relance = &1 WHERE compte = &2 and numdoc = &3", Niv, compteRel.Item[0], num)
+              If PosY >= 283 Then
+                pdf.Entete(rs, adr1, adr2, ville, cap, rcs, siret, ape, Tvaintra, Tel, portable, fax, mail, site, Pays, Iban, False)
+                pdf.Entete2(rs2, adr21, adr22, ville2, Pays, "", False)
+                pdf.Level5(Jour)
+                posy = 110
+                pdf.Level8(Txt1, Posy)
+                Posy += 30
+                pdf.Level6()
+                posy += 6
+              Endif
+            Until rResult.MoveNext()
+          Endif
+          Posy += 8
+          pdf.Level8(Txt2, Posy)
+        Endif
+      Until compteRel.Movenext()
+      pdf.Output(Filename, False)
+      Impression.Prog_Editeur(Filename)
+    Endif
+  End With
+  
+  Me.Mouse = Mouse.Custom
+  MajTab()
+  
+End
+
+Public Sub Button6_Click()
+  
+  If Exist(filename) Then Try Kill filename
+  Me.Close
+  
+End
+
+Public Sub Button1_Click()
+  
+  relances()
+  
+End
+
+Public Sub RB1_Click()
+  
+  MajTab()
+  
+End
+
+Public Sub RB2_Click()
+  
+  MajTab()
+  
+End
+
+Public Sub Button7_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Edrelances.html"]
+  
+End

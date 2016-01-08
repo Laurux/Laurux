@@ -1,0 +1,1821 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'################################################
+'# nom du fichier           : Facturefm.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 01/09/2007
+'# Facturation fin de mois
+'################################################
+'
+
+son As Integer = Start.Son
+b As Integer
+Tab As String
+Tab2 As String
+Tab3 As String
+Tab4 As String
+rResult As Result
+CblRslt As Result
+numbl As Result
+Nfac As String
+Jnl As String
+cpt As String
+Intit As String
+numecr As String
+numr As Integer
+numr2 As Integer ' numero ecriture définitif
+cptRem As String
+Ctva As String
+Ctx As String
+cpttva As String
+IntitTva As String
+Txtleg As String
+Txtleg2 As String
+Remmo As String
+Remart As String
+Mgart As String ' Montant marge article
+Mgmo As String ' Montant marge mo
+Ttva As Float
+dateech As String
+Filename As String
+jour As String
+Nbl As Integer
+Nlgn As String
+Totalmo As String
+Totalart As String
+Totalrem As String
+totalht As String
+Totht As String
+typeL As String
+Fam As String
+Ardi As String
+nbdec As String
+Totttc As String
+Brutht As String
+Rem As String
+TotEuros As String = "0"
+nom As String
+Mttc As String
+adr211 As String
+adr222 As String
+numbonl As String
+intituleb As String
+Bonl As Result
+dtex As String
+dte As String
+Devises As String
+PosY As Integer
+Visudoc As Boolean
+Coulfond As New String[]
+Private sclient As String
+Private sclient2 As String
+Public Bsel As Boolean = False
+Public Cclient As String
+Private ty As String
+Private Ccli As String
+Private dateech2 As String
+Private pdf As Cdocuments
+Private hnew As File
+Private mail2 As String
+Private $rs_soc As String
+Private $cli_nom As String
+Private $cli_pnm As String
+Private $cli_adr1 As String
+Private $cli_adr2 As String
+Private $cli_cd_ptl As String
+Private $cli_ville As String
+Private scode As String
+
+'**********************************************************
+'*initialisation écrans et gestion onglet client          *
+'**********************************************************
+Public Sub _New()
+  
+  Tab = "Fiches_Parametres"
+  rResult = Utils.db.Exec("SELECT * FROM " & tab & "")
+  If rResult.Available Then
+    devises = rResult!devise
+    If IsNull(devises) Then devises = "Euros"
+  Endif
+  Coulfond = Utils.Coulfd()
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Music.Load(Start.Musique)
+  Me.Center
+  
+  Colbl.Columns.count = 6
+  Colbl.Columns[0].Width = 80
+  Colbl.Columns[1].Width = 150
+  Colbl.Columns[2].Width = 60
+  Colbl.Columns[3].Width = 120
+  Colbl.Columns[4].Width = 100
+  Colbl.Columns[0].Text = "Code"
+  Colbl.Columns[0].Alignment = 1
+  Colbl.Columns[1].Text = "Nom"
+  Colbl.Columns[1].Alignment = 1
+  Colbl.Columns[2].Text = "Cp"
+  Colbl.Columns[2].Alignment = 1
+  Colbl.Columns[3].Text = "Ville"
+  Colbl.Columns[4].Text = "Total ht"
+  Colbl.Columns[4].Alignment = 2
+  Colbl.Columns[5].Text = "Total ttc"
+  Colbl.Columns[5].Alignment = 2
+  
+  Coldetail.Columns.count = 4
+  Coldetail.Columns[0].Width = 120
+  Coldetail.Columns[2].Alignment = Align.Left
+  Coldetail.Columns[1].Width = 120
+  Coldetail.Columns[2].Width = 120
+  Coldetail.Columns[0].Text = "N° BL"
+  Coldetail.Columns[1].Text = "Date BL"
+  Coldetail.Columns[2].Text = "montant HT"
+  Coldetail.Columns[2].Alignment = 2
+  Coldetail.Columns[3].Text = "montant TTC"
+  Coldetail.Columns[3].Alignment = 2
+  ComboBox1.Text = "1- Messagerie"
+  Datej.text = Format$(Now, "dd.mm.yyyy")
+  Datej.SetFocus
+  
+End
+
+'**************************
+'*  On récupère les BL    *
+'**************************
+Public Sub recup_bl()
+  
+  Dim Tab1 As String
+  Dim Tab3 As String
+  Dim Tab4 As String
+  Dim Client As Result
+  Dim Bl As Result
+  Dim totf As Result
+  Dim Total, totalttc As String
+  Dim dteN2, DateAb, DateAb2, Aban, DteFac, codecli As String
+  Dim impok As Boolean = False
+  Dim nb As Integer = 0
+  
+  Tab = "Fiches_Bl"
+  Tab1 = "Fiches_Ligbl"
+  Tab3 = "Facturefm"
+  Tab4 = "Bl"
+  Total = "0"
+  Utils.db.Exec("drop Table IF exists " & Tab3 & "")
+  Utils.db.Exec("CREATE TABLE " & Tab3 &
+    "(code Char(8) NOT NULL," &
+    "nom Char(35)," &
+    "cp Char(5)," &
+    "ville Char(35)," &
+    "totf Char(12)," &
+    "tottc Char(12)," &
+    "PRIMARY KEY (code))" & "ENGINE = MYISAM")
+  Utils.db.Exec("drop Table IF exists " & Tab4 & "")
+  Utils.db.Exec("CREATE TABLE " & Tab4 &
+    "(num Char(12) NOT NULL," &
+    "code Char(10)," &
+    "date date," &
+    "ht Char(12)," &
+    "ttc Char(12)," &
+    "PRIMARY KEY (num))" & "ENGINE = MYISAM")
+  DteN2 = Format$(Now, "dd.mm.yyyy")
+  If Radiobutton1.Value = True Then
+    codeclient.Background = &HD4D0C8&
+    Client = Utils.db.Exec("SELECT * FROM " & Tab & " Left join " & Cbase.Table("TabCli") & " on cli_code = cdclibl where type = &1 and totalht <> &2 and dtefac <= &3 or type = &1 and totalht <> &2 and isnull(dtefac) order by cdclibl asc, dtefac desc", "A", 0, Utils.cdate_dbase(dteN2))
+  Else
+    Client = Utils.db.Exec("SELECT * FROM " & Tab & " Left join " & Cbase.Table("TabCli") & " on cli_code = cdclibl  where cdclibl = &1 and type = &2 and totalht <> &3 and dtefac <= &4 or cdclibl = &1 and type = &2 and totalht <> &3 and isnull(dtefac) order by dtefac desc", codeclient.Text, "A", 0, Utils.cdate_dbase(dteN2))
+  Endif
+  If Client.Available Then
+    Repeat
+      dateAb = Client!cli_datab
+      Aban = Client!cli_aban
+      DteFac = Client!dtefac
+      If IsNull(Aban) Then
+        Message.Warning("Le client " & Client!cdclibl & " ne pas pas être traité! Veuillez complèter sa fiche SVP")
+      Else
+        If codecli <> client!cdclibl Then
+          If Not IsNull(DteFac) Then
+            Select Case Aban
+              Case "1- Mensuel"
+                dateAb2 = (Val(Mid$(Datej.Text, 4, 2)) - 1)
+                If Val(DateAb2) <= 0 Then DateAb2 = Str(12 - Val(DateAb2))
+                If Val(Left$(DteFac, 2)) = DateAb2 Then
+                  If Val(Mid$(DteFac, 4, 2)) <= (Val(Left$(Datej.Text, 2))) Then impok = True
+                Endif
+              Case "2- Bimensuel"
+                dateAb2 = (Val(Mid$(Datej.Text, 4, 2)) - 2)
+                If Val(DateAb2) <= 0 Then DateAb2 = Str(12 - Val(DateAb2))
+                If Val(Left$(DteFac, 2)) = DateAb2 Then
+                  If Val(Mid$(DteFac, 4, 2)) <= (Val(Left$(Datej.Text, 2))) Then impok = True
+                Endif
+              Case "3- Trimestriel"
+                dateAb2 = (Val(Mid$(Datej.Text, 4, 2)) - 3)
+                If Val(DateAb2) <= 0 Then DateAb2 = Str(12 - Val(DateAb2))
+                If Val(Left$(DteFac, 2)) = DateAb2 Then
+                  If Val(Mid$(DteFac, 4, 2)) <= (Val(Left$(Datej.Text, 2))) Then impok = True
+                Endif
+              Case "4- Semestriel"
+                dateAb2 = (Val(Mid$(Datej.Text, 4, 2)) - 6)
+                If Val(DateAb2) <= 0 Then DateAb2 = Str(12 - Val(DateAb2))
+                If Val(Left$(DteFac, 2)) = DateAb2 Then
+                  If Val(Mid$(DteFac, 4, 2)) <= (Val(Left$(Datej.Text, 2))) Then impok = True
+                Endif
+              Case "5- Annuel"
+                dateAb2 = (Val(Mid$(Datej.Text, 4, 2)) - 6)
+                If Val(Left$(DteFac, 2)) = Val(Mid$(Datej.Text, 4, 2)) Then
+                  If Val(Right$(DteFac, 4)) = (Val(Right$(Datej.Text, 4)) - 1) Then
+                    If Val(Mid$(DteFac, 4, 2)) <= (Val(Left$(Datej.Text, 2))) Then impok = True
+                  Endif
+                Endif
+            End Select
+            If IsNull(dtefac) Then impok = True
+          Else
+            impok = True
+            Inc nb
+          Endif
+          If impok = True Then
+            totf = Utils.db.Exec("SELECT * FROM " & Tab3 & " WHERE code = &1", Client!cdclibl)
+            If totf.Available Then
+              Total = Format$(Val(totf!totf) + Val(Utils.cpoint(Client!totalht)), "0.00")
+              Totalttc = Format$(Val(totf!tottc) + Val(Utils.cpoint(Client!totalttc)), "0.00")
+              Utils.db.Exec("UPdate " & Tab3 & " SET totf = &1, tottc = &2 WHERE code = &3", Total, Totalttc, Client!cdclibl)
+            Else
+              Try Total = Format$(Client!totalht, "0.00")
+              Try Totalttc = Format$(Client!totalttc, "0.00")
+              Utils.db.Exec("INSERT INTO " & Tab3 & " (code, nom, cp, ville, totf, tottc) Values (&1, &2, &3,&4,&5, &6)", Client!cdclibl, Client!nmclibl, Client!cpbl, Client!villebl, Total, totalttc)
+            Endif
+            Total = 0
+            Bl = Utils.db.Exec("SELECT * FROM " & Tab1 & " where num_ligbl = &1 order by num_ligbl", Client!numbl)
+            If Bl.Available Then
+              Utils.db.Exec("INSERT INTO " & Tab4 & " (num, code, date, ht, ttc) Values (&1, &2, &3, &4, &5)", Client!numbl, Client!cdclibl, Client!datebl, Client!totalht, Client!totalttc)
+            Endif
+            impok = False
+          Endif
+        Endif
+        codecli = client!cdclibl
+      Endif
+    Until Client.MoveNext()
+    Client = Utils.db.Exec("SELECT * FROM " & Tab3 & " order by nom")
+    If Client.Available Then
+      Repeat
+        Colbl.Add(Client!code, Client!code)
+        Colbl.Item[0] = Client!code
+        Colbl.Item[1] = Client!nom
+        Colbl.Item[2] = Client!cp
+        Colbl.Item[3] = Client!ville
+        Colbl.Item[4] = Client!totf
+        Colbl.Item[5] = Client!tottc
+      Until Client.MoveNext()
+    Endif
+  Endif  
+  
+End
+
+Public Sub Colbl_Click()
+  
+  Dim Client As Result
+  
+  Tab4 = "Bl"
+  Coldetail.clear
+  With Utils
+    If Not Colbl.Available Then
+      Colbl.clear
+    Else
+      Client = Utils.db.Exec("SELECT * FROM " & Tab4 & " where code = &1 order by num", Colbl.Item[0], "B", "F", 0)
+      sclient = Colbl.Item[0]
+      If Client.Available Then
+        Repeat
+          Coldetail.Add(Client!num, Client!num)
+          Coldetail.Item[0] = Client!num
+          Coldetail.Item[1] = .Cdate_Aff(Client!date)
+          Coldetail.Item[2] = Format$(Val(.cpoint(Client!ht)), "0.00")
+          Coldetail.Item[3] = Format$(Val(.cpoint(Client!ttc)), "0.00")
+        Until Client.MoveNext()
+      Endif
+    Endif
+  End With
+  
+End
+
+Public Sub Colbl_Keypress()
+  
+  Dim Client As Result
+  
+  Tab3 = "Facturefm"
+  Tab4 = "Bl"
+  If Key.code = Key.Delete And Colbl.Count <> 0 Then
+    Utils.db.Exec("delete from " & Tab3 & " WHERE code = &1 ", sclient)
+    Utils.db.Exec("delete from " & Tab4 & " WHERE code = &1 ", sclient)
+  Endif
+  Colbl.Clear
+  Coldetail.Clear
+  Client = Utils.db.Exec("SELECT * FROM " & Tab3 & " order by nom")
+  If Client.Available Then
+    Repeat
+      Colbl.Add(Client!code, Client!code)
+      Colbl.Item[0] = Client!code
+      Colbl.Item[1] = Client!nom
+      Colbl.Item[2] = Client!cp
+      Colbl.Item[3] = Client!ville
+      Colbl.Item[4] = Client!totf
+      Colbl.Item[5] = Client!tottc
+    Until Client.MoveNext()
+  Endif
+  
+End
+
+Public Sub Coldetail_Click()
+  
+  sclient2 = Coldetail.Item[0]
+  
+End
+
+Public Sub Coldetail_Keypress()
+  
+  Dim Client As Result
+  Dim Total As String = "0"
+  
+  Tab3 = "Facturefm"
+  Tab4 = "Bl"
+  With Utils
+    If Key.code = Key.Delete And Coldetail.Count <> 0 Then
+      Utils.db.Exec("delete from " & Tab4 & " WHERE num = &1 ", sclient2)
+    Endif
+    Client = Utils.db.Exec("SELECT * FROM " & Tab4 & " where code = &1 order by num", sclient)
+    Coldetail.Clear
+    If Client.Available Then
+      Repeat
+        Coldetail.Add(Client!num, Client!num)
+        Coldetail.Item[0] = Client!num
+        Coldetail.Item[1] = .Cdate_Aff(Client!date)
+        Coldetail.Item[2] = Client!ht
+        Colbl.Item[3] = Client!ttc
+        Total = Format$(Val(.cpoint(Total)) + Val(.cpoint(Client!ht)), "0.00")
+      Until Client.MoveNext()
+    Endif
+    Colbl.MoveFirst()
+    Repeat
+      Colbl.Item.Selected = True
+      If Colbl.Item[0] = sclient Then
+        Colbl.Item[4] = Total
+        Break
+      Endif
+    Until Colbl.MoveNext()
+    
+  End With
+  
+End
+
+'**********************************************************
+'*  On controle si la date saisie est dans les bornes     *
+'**********************************************************
+Public Sub Quittedate()
+  
+  Dim dte2 As String
+  Dim dte3 As String
+  Dim ye As String
+  
+  Tab = "Fiches_Parametres"
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
+  dtex = rResult!dteclec ' On recupere la date de fin d'exercice
+  dte = rResult!dtepc
+  dte3 = Right$(dte, 4) & Left$(dte, 2)
+  dte2 = rResult!dteclec1
+  ye = Right$(dte2, 4)
+  Ye = Val(Ye) + 1
+  With utils
+    datej.text = .Cdate_calc(datej.text)
+    datej.Text = .Cdate_aff(datej.Text)
+    b = 0
+    If datej.Text = "00.00.0:00" Then
+      datej.Text = Format$(Now, "dd.mm.yyyy")
+      b = 1
+      datej.SetFocus
+    Else
+      dte3 = rResult!dtepec
+      dte3 = Right$(dte3, 4) & Left$(dte3, 2)
+      If Right$(datej.text, 4) & Mid$(datej.text, 4, 2) < dte3 Then
+        If son Then
+          Music.Play
+        Endif
+        If Message.Warning("Attention ! La date saisie est inférieure au début de la période en cours.", "Ok") = 1 Then
+          datej.SetFocus
+          B = 1
+        Endif
+      Else
+        If Right$(datej.text, 4) & Mid$(datej.text, 4, 2) > dte3 Then
+          If son Then
+            Music.Play
+          Endif
+          If Message.Warning("Attention ! La date saisie est supérieure à la période en cours.", "Ok") = 1 Then
+            datej.SetFocus
+            B = 1
+          Endif
+        Else
+        Endif
+      Endif
+    Endif
+    Try numecr = "numecriture"
+  End With
+  
+End
+
+Public Sub Button1_KeyPress()
+  
+  Button1_Click()
+  
+End
+
+Public Sub Button1_Click()
+  
+  Colbl.Clear
+  Coldetail.Clear
+  Quittedate()
+  If B <> 1 Then
+    recup_bl()
+  Else
+    b = 0
+  Endif
+  
+End
+
+Public Sub Button5_Click()
+  
+  If Exist(filename) Then Try Kill filename
+  Try Settings["/Soc" & Start.Societe & "/EnvoiFtp"] = ComboBox1.text
+  Me.close
+  
+End
+
+Public Sub Radiobutton1_Click()
+  
+  codeclient.Background = &HD4D0C8&
+  codeclient.ReadOnly = True
+  Colbl.clear
+  Coldetail.clear
+  
+End
+
+Public Sub Radiobutton2_Click()
+  
+  Dim Frmt As New String[]
+  
+  Frmt = Utils.FColr(Settings["/Coul/Znss"])
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then codeclient.Background = Val(Frmt[0])
+  codeclient.ReadOnly = False
+  Colbl.clear
+  Coldetail.clear
+  codeclient.SetFocus
+  
+End
+
+Public Sub codeclient_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    rResult = Utils.db.Exec("select * from " & Cbase.Table("TabCli") & " where cli_code = &1", codeclient.Text)
+    If rResult.Available Then
+      Button1.SetFocus()
+    Else
+      Message.Error("Ce client n'existe pas !")
+      codeclient.Select
+      codeclient.SetFocus
+    Endif
+  Endif
+  
+End
+
+Public Sub Togglebutton1_Click()
+  
+  Dim MyForm As Triclients
+  
+  If Radiobutton2.Value = False Then Radiobutton2.Value = True
+  bsel = False
+  MyForm = New Triclients("FacturefmA")
+  MyForm.Showmodal()
+  If Bsel = True Then
+    codeclient.Text = Cclient
+  Else
+    Codeclient.SetFocus
+  Endif
+  
+End
+
+'**********************************************************
+'*   Activation de l'écran d'édition des documents        *
+'**********************************************************
+Public Sub Bl_Edit()
+  
+  Edit.Visible = True
+  Try ComboBox1.text = Settings["/Soc" & Start.Societe & "/EnvoiFtp"]
+  Try Entete.Value = Settings["/Soc" & Start.Societe & "/Entete"]
+  Try Reserve.Value = Settings["/Soc" & Start.Societe & "/Conditions"]
+  dtef.Text = datej.Text
+  dtef.ReadOnly = False
+  Try Rcp.Value = Settings["/Soc" & Start.Societe & "/Recap"]
+  If Left$(ComboBox1.text, 1) = "4" Then 
+    Button14.Text = "Imprimer"
+  Else
+    Button14.text = "Envoyer"
+  Endif
+  
+End
+
+Public Sub combobox1_Change()
+  
+  If Left$(ComboBox1.text, 1) = "4" Then 
+    Button14.Text = "Imprimer"
+  Else
+    Button14.text = "Envoyer"
+  Endif
+  
+End
+
+Public Sub dtef_LostFocus()
+  
+  dtef.text = Utils.Cdate_calc(dtef.text)
+  dtef.Text = Utils.Cdate_aff(dtef.Text)
+  If dtef.Text = "00.00.0:00" Or If dtef.Text = ".." Then 
+    dtef.Text = Format$(Now, "dd.mm.yyyy")
+    dtef.SetFocus
+  Endif
+  
+End
+
+Public Sub Button14_Click()
+  
+  Dim Tab As String
+  Dim Tab0 As String
+  Dim Tab1 As String
+  Dim Tab5 As String
+  Dim Tab6 As String
+  Dim Tab7 As String
+  Dim Tab8 As String
+  Dim Tab9 As String
+  Dim Tab10 As String
+  Dim adr11 As String
+  Dim adr22 As String
+  Dim ville As String
+  Dim ville2 As String
+  Dim Rs, Libre As String
+  Dim Rs2 As String
+  Dim Cde As String
+  Dim Mail As String
+  Dim site As String
+  Dim Rcs As String
+  Dim Siret As String
+  Dim Tvaintra As String
+  Dim Cap As String
+  Dim Ape As String
+  Dim Iban As String
+  Dim Tel As String
+  Dim portable As String
+  Dim Fax As String
+  Dim ty2, Tp As String
+  Dim Stry As String[]
+  Dim code As String
+  Dim Txtva As String
+  Dim Pu As String
+  Dim qte As String
+  Dim cptlig As Integer
+  Dim Txtbf As String
+  Dim P As Integer 'Flag pour lignes si pied de facture
+  Dim Npage As Float ' Flag pour calcul nombre de page
+  Dim Pge As Integer ' numero de page
+  Dim Page As String
+  Dim ech As String
+  Dim dureech As String
+  Dim jours As String
+  Dim finmois As Boolean
+  Dim Teco As Float
+  Dim Toteco As String
+  Dim Tmo As String
+  Dim Tart As String
+  Dim Trem As String
+  Dim Bl As Result
+  Dim Ligbl As Result
+  Dim intitule As String
+  Dim Logo As Image
+  Dim Imagewidth As Integer
+  Dim Imageheight As Integer
+  Dim Nbexpl As String
+  Dim nbfac As Integer
+  Dim TvaCli As String
+  Dim Pays As String
+  Dim sline As String
+  Dim Cfac As Boolean = False
+  Dim Acpt As Float = 0
+  Dim TotAcpt As Float = 0
+  Dim Mtdut As Float = 0
+  Dim Mfacttc As Float = 0
+  Dim Mrgt As String
+  Dim Regmt As String
+  
+  If Message.Question("Attention ! Vous allez effectuer un envoi groupé par " & Mid$(ComboBox1.Text, 3, Len(Combobox1.Text) - 2), "Oui", "Non") = 1 Then
+    If Not Exist(User.home & "/Abonnements") Then Try Mkdir User.home & "/Abonnements"
+    Try Hnew = Open User.home & "/Abonnements/Factabon" & Datej.Text & ".txt" For Write Create
+    Print #Hnew, " "
+    Print #Hnew, "*************************   Liste des factures abonnement  émises à la date du " & Datej.Text & " *************************"
+    Print #Hnew, " "
+    Print #Hnew, "     Ces factures ont été envoyées par l'option " & ComboBox1.Text
+    Print #Hnew, "     Les documents PDF sont stockés sous le répertoire ~/Abonnements et sous celui défini dans les préférences en cas de gestion des dossiers liés."
+    Print #Hnew, " "
+    Print #Hnew, "   Répertoire     code                 Intitule                                Numéro facture      Montant TTC        Courriel"
+    P = 31
+    Pge = 1
+    tart = 0
+    nbfac = 1
+    Totht = "0,00"
+    Totttc = "0"
+    Remart = "0"
+    Remmo = "0"
+    Totalrem = "0"
+    Teco = 0
+    Imagewidth = 1000
+    Imageheight = 500
+    Tab = "Fiches_Parametres"
+    Tab0 = "Fiches_Bl"
+    Tab1 = "Fiches_Ligbl"
+    Tab2 = "Fiches_Societes"
+    Tab3 = "Fiches_LibelFac"
+    Tab4 = "Fiches_Echeances"
+    Tab5 = "Fiches_Cli"
+    Tab6 = "Fiches_Art"
+    Tab7 = "Fiches_Mo"
+    Tab8 = "Facturefm"
+    Tab9 = "Bl"
+    Tab10 = "Totalisation"
+    If Left$(ComboBox1.Text, 1) = "3" Then
+      Ftpclient1.User = Settings["/Soc" & Start.Societe & "/Idftp3"]
+      Ftpclient1.Password = hexdblKey.crypt("de", Settings["/Soc" & Start.Societe & "/MdpFTP3"], "Laurux")
+      Ftpclient1.Async = False
+      Ftpclient1.Debug = True
+    Endif
+    Utils.db.Exec("LOCK TABLES " & Tab & " read, " & Tab0 & " WRITE, " & Tab1 & " WRITE, " & Tab2 & " WRITE," & Tab3 & " WRITE, " & Tab4 & " WRITE, " & Tab5 & " WRITE, " & Tab6 & " WRITE, " & Tab7 & " WRITE, " & Tab8 & " WRITE, " & Tab9 & " WRITE, " & Tab10 & " WRITE," & Cbase.Table("TabTleg") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, " & Cbase.Table("TabHisFac") & " WRITE," & "Fiches_Suivis" & " WRITE, " & "Docs_Clients" & " WRITE")
+    If Settings["/Soc" & Start.Societe & "/glogo"] Then Try Logo = Image.Load(Settings["/Soc" & Start.Societe & "/Logo"])
+    Shell "cd " & User.Home & ""
+    Filename = User.home & "/Facture.pdf"
+    With Utils
+      Me.Mouse = Mouse.Wait
+      Quittedate()
+      If datej.Text = "00.00.0:00" Then
+        datej.Text = Format$(Now, "dd.mm.yyyy")
+        datej.SetFocus
+        datej.Select
+      Else
+        Tmo = "0"
+        Txtleg = ""
+        Txtleg2 = ""
+        rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTleg") & "")
+        If rResult.Available Then Txtleg2 = rResult!intitule
+        cptlig = Coldetail.Count
+        rResult = Utils.db.Exec("SELECT * FROM " & Tab3 & "")
+        If rResult.Available Then Txtbf = rResult!txtfac
+        Me.Mouse = Mouse.Wait
+        Tab2 = "Fiches_Societes"
+        rResult = Utils.db.Exec("SELECT * FROM " & tab2 & " where cd_sc = &1", Start.Societe)
+        Rs = rResult!type_sc & " " & rResult!int_sc
+        Libre = rResult!libre
+        adr11 = rResult!adr1_sc
+        adr22 = rResult!adr2_sc
+        ville = rResult!cp_sc & "  " & rResult!burdis_sc
+        If rResult!villerc_sc Then Rcs = "Rcs : " & rResult!rcs_sc & " " & rResult!villerc_sc
+        If rResult!siret_sc Then Siret = Settings["/Soc" & Start.Societe & "/Siret"] & " : " & rResult!siret_sc
+        If rResult!tvaintra_sc Then Tvaintra = "Tva intra : " & rResult!tvaintra_sc
+        If rResult!cap_sc Then Cap = "Capital : " & rResult!cap_sc
+        If rResult!ape_sc Then Ape = "APE : " & rResult!ape_sc
+        If rResult!tel_sc Then Tel = "Tel : " & rResult!tel_sc
+        If rResult!port_sc Then Portable = "Portable : " & rResult!port_sc
+        If rResult!fax_sc Then Fax = "Fax : " & rResult!fax_sc
+        If rResult!email_sc Then Mail = "Courriel : " & rResult!email_sc
+        If rResult!site Then site = "site : " & rResult!site
+        If rResult!banq Then Iban = "Iban : " & rResult!banq & " Bic : " & rResult!bic
+        Parametres()
+        If Jnl Then
+          Colbl.MoveFirst()
+          Repeat
+            Variables.bRemise = False
+            pdf = New Cdocuments("Portrait", "mm", "A4")
+            pdf.Open()
+            pdf.AliasNbPages()
+            Colbl.Item.Selected = True
+            Pge = 1
+            Nfac = Format$(Val(Nfac) + 1, "000000")
+            numbl = Utils.db.Exec("SELECT * FROM " & tab0 & " where cdclibl = &1 order by numbl", Colbl.Item[0])
+            If numbl.Count <> 0 Then
+              Ventilation()
+              Repeat
+                Bl = Utils.db.Exec("SELECT * FROM " & tab9 & " where num = &1", numbl!numbl)
+                If Bl.Count <> 0 Then
+                  Repeat
+                    Ligbl = Utils.db.Exec("SELECT * FROM " & tab1 & " where num_ligbl = &1", Bl!num)
+                    cptlig = cptlig + Ligbl.Count
+                  Until Bl.MoveNext()
+                Endif
+              Until numbl.MoveNext()
+            Endif
+            ' On calcule le nombre de pages
+            P = 31
+            If Rcp.Value = False And Pied.Value = False Then p = 34
+            Npage = cptlig / p
+            If Npage = 0 Then Npage = 1
+            If Cptlig < p Then Npage = 1
+            If Cptlig > p Then
+              Npage = Cptlig / 31
+              Npage = Val(Format$(Npage, "##.##"))
+              If Val(Right$(Str(Npage), 2)) > 56 Then Npage = Round(Npage) + 1
+            Endif
+            If Cptlig > p And Cptlig <= 56 Then Npage = 2
+            Npage = Round(Npage)
+            Page = "Page " & Pge
+            cptlig = 0
+            Ecritures(numecr)
+            Totalart = "0"
+            Totalmo = "0"
+            Totalrem = "0"
+            Tmo = "0"
+            numr = numr + 1
+            numr2 = numr2 + 1
+            ty = "Facture N° "
+            Tp = "Facture "
+            If Val(Colbl.Item[4]) < 0 Then
+              ty = "Avoir N° "
+              Tp = "Avoir "
+              Txtleg = ""
+            Endif
+            If dtef.Text = "" Then
+              Syntheses.Message(" Veuillez saisir une date d'édition s'il vous plait.")
+              Message.Warning(" Veuillez saisir une date d'édition Svp !", "Ok")
+            Else
+              CblRslt = Utils.db.Exec("SELECT * FROM " & tab5 & " where cli_code = &1", Colbl.Item[0])
+              CCli = CblRslt!cli_code
+              nom = CblRslt!cli_nom
+              ech = CblRslt!cli_cdech
+              Rs2 = CblRslt!cli_rs_soc & " " & CblRslt!cli_nom & " " & CblRslt!cli_pnm
+              adr211 = CblRslt!cli_adr1
+              adr222 = CblRslt!cli_adr2
+              ville2 = CblRslt!cli_cd_ptl & " " & CblRslt!cli_ville
+              Nbexpl = CblRslt!cli_expl
+              Pays = CblRslt!cli_pays
+              Cfac = CblRslt!cli_copie
+              Regmt = CblRslt!cli_reg
+              If Pays = "France" Then Pays = ""
+              If Not IsNull(CblRslt!cli_id_tva) Then
+                TvaCli = "Tva intracommunautaire " & CblRslt!cli_id_tva
+              Else
+                Tvacli = ""
+              Endif
+              Mail2 = CblRslt!cli_email
+              If IsNull(Nbexpl) Then Nbexpl = "2"
+              Cde = "code client " & Colbl.Item[0]
+              If ech Then
+                rResult = Utils.db.Exec("SELECT * FROM " & tab4 & " where num = &1", ech)
+                If rResult.available Then
+                  dureech = rResult!duree
+                  jours = rResult!jours
+                  finmois = rResult!finmois
+                  ech = "1"
+                Else
+                  ech = "0"
+                Endif
+              Else
+                ech = "0"
+              Endif
+              If ech = "1" Then
+                dateech = Utils.Calcech(dureech, jours, finmois, datej.Text)
+                Dateech2 = dateech
+              Else
+                dateech = " à réception."
+              Endif
+              If dureech = "00" Then
+                ech = "0"
+                dateech = " à réception."
+              Endif
+              If ech = "0" Or If dureech = "00" Then
+                If IsNull(Regmt) Then
+                  Txtleg = " Règlement à réception."
+                Else
+                  Txtleg = " Règlement par " & Regmt & " à réception."
+                Endif
+              Else
+                If IsNull(Regmt) Then
+                  Txtleg = "Règlement au " & dateech
+                Else
+                  Txtleg = " Règlement par " & Regmt & " au " & dateech
+                Endif
+              Endif
+              jour = ty & Format$(Right$(dtef.Text, 4)) & nfac & " du " & dtef.Text
+              If Entete.Value Then
+                pdf.Entete(rs, adr11, adr22, ville, cap, rcs, siret, ape, Tvaintra, Tel, portable, fax, mail, site, Visudoc, Pays, Iban, False, Libre)
+                pdf.Entete2(rs2, adr211, adr222, ville2, Pays, "", False)
+              Else
+                pdf.Entete2(rs2, adr211, adr222, ville2, Pays, "", True)
+              Endif
+              pdf.Level1F(Jour, Cde, Page, TvaCli)
+              PosY = 108
+              numbl = Utils.db.Exec("SELECT * FROM " & tab0 & " where cdclibl = &1 order by numbl", Colbl.Item[0])
+              If numbl.Count <> 0 Then
+                Repeat
+                  If Val(.cpoint(numbl!remmobl)) <> 0 Or Val(.cpoint(numbl!remartbl)) <> 0 Then
+                    Variables.bRemise = True
+                  Endif
+                Until numbl.MoveNext()
+              Endif
+              pdf.Level2F(Coulfond, "", PosY)
+              Nbl = 0
+              PosY = 114
+              Tart = "0"
+              Trem = "0"
+              Tmo = "0"
+              Teco = 0
+              numbl = Utils.db.Exec("SELECT * FROM " & tab0 & " where cdclibl = &1 order by numbl", Colbl.Item[0])
+              If numbl.Count <> 0 Then
+                Repeat
+                  numbonl = numbl!numbl
+                  Bl = Utils.db.Exec("SELECT * FROM " & tab9 & " where num = &1", numbl!numbl)
+                  If Bl.Count <> 0 Then
+                    Try mgart = Val(mgart) + numbl!marge_art
+                    Try mgmo = Val(mgmo) + numbl!marge_mo
+                    Try Acpt = numbl!acpt
+                    Try TotAcpt = TotAcpt + numbl!acpt
+                    Try Mfacttc = Mfacttc + numbl!totalttc
+                    Toteuros = Val(.cpoint(Toteuros)) + Val(.cpoint(Bl!ht))
+                    Ligbl = Utils.db.Exec("SELECT * FROM " & tab1 & " where num_ligbl = &1", Bl!num)
+                    If Ligbl.Count <> 0 Then
+                      PosY = PosY + 4
+                      Nbl = Nbl + 2
+                      Repeat
+                        code = Ligbl!code_ligbl
+                        intitule = Ligbl!libel_ligbl
+                        Txtva = Ligbl!tx_ligbl
+                        Pu = Ligbl!pu_ligbl
+                        If Len(pu) - InStr(pu, ",") = 2 Then pu = pu & " "
+                        If Settings["/Soc" & Start.Societe & "/Prxdec"] Then Try Pu = Round(Val(pu))
+                        qte = Ligbl!qte_ligbl
+                        Brutht = Ligbl!brut_ligbl
+                        If Len(Brutht) - InStr(Brutht, ",") = 2 Then Brutht = Brutht & " "
+                        If Settings["/Soc" & Start.Societe & "/Prxdec"] Then Try Brutht = Round(Val(Brutht))
+                        Rem = Ligbl!rem_ligbl
+                        totalht = Ligbl!netht_ligbl
+                        If Len(totalht) - InStr(totalht, ",") = 2 Then totalht = totalht & " "
+                        If Settings["/Soc" & Start.Societe & "/Prxdec"] Then Try Totalht = Round(Val(Totalht))
+                        typeL = Ligbl!typel_ligbl
+                        If typeL = "C" Or If typeL = "R" Then intitule = Ligbl!com_ligbl
+                        Totttc = Ligbl!nettc_ligbl
+                        If Len(Totttc) - InStr(Totttc, ",") = 2 Then Totttc = Totttc & " "
+                        If Settings["/Soc" & Start.Societe & "/Prxdec"] Then Try Totttc = Round(Val(Totttc))
+                        Fam = Ligbl!fam_ligbl
+                        If Totttc = "" Then Totttc = "0"
+                        If totalht = "" Then totalht = "0"
+                        If Brutht = "" Then Brutht = "0"
+                        If Remmo = "" Then Remmo = "0"
+                        If Rem = "0,00" Then Rem = ""
+                        If typeL = "M" Then
+                          Remmo = Val(.cpoint(Remmo)) + Val(.cpoint(Brutht)) - Val(.cpoint(totalht))
+                          Totalmo = Format$(Val(.cpoint(Totalmo)) + Val(.cpoint(totalht)), "0.00")
+                          RemArt = 0
+                        Endif
+                        If typeL = "A" Then
+                          Remart = Val(.cpoint(Remart)) + Val(.cpoint(Brutht)) - Val(.cpoint(totalht))
+                          Totalart = Format$(Val(.cpoint(Totalart)) + Val(.cpoint(totalht)), "0.00")
+                          Remmo = 0
+                        Endif
+                        If typeL = "E" "" Then
+                          qte = ""
+                          Pu = ""
+                          Brutht = "0"
+                        Endif
+                        If typeL <> "C" And typeL <> "T" And typeL <> "E" And typeL <> "P" And typeL <> "R" And typeL <> "O" Then
+                          totht = Format$(Val(totht) + Val(totalht), "0.00")
+                          If Settings["/Soc" & Start.Societe & "/Prxdec"] Then
+                            pu = Format$(Val(pu), "0")
+                            Totalht = Format$(Val(totalht), "0")
+                            Brutht = Format$(Val(Brutht), "0")
+                            pu = Format$(Val(pu), "0")
+                          Endif
+                          pdf.Level3F(code, intitule, Pu, qte, Brutht, Rem, Totalht, Txtva, PosY)
+                          PosY = PosY + 4
+                          If Rem Then Totalrem = Format$(Val(.cpoint(Totalrem)) + Val(.cpoint(Remart)) + Val(.cpoint(Remmo)), "0.00")
+                          Maj_Totalisation()
+                        Endif
+                        If typeL = "T" Then
+                          pdf.Level4aF(intitule, PosY)
+                          PosY = PosY + 4
+                        Endif
+                        If typeL = "O" Then
+                          pdf.Level8F(code, intitule, qte, PosY)
+                          PosY = PosY + 4
+                        Endif
+                        If typeL = "C" Or If typeL = "R" Then
+                          For Each sline In Split(Intitule, "\n")
+                            pdf.Level4aF(sline, PosY)
+                            PosY = PosY + 4
+                            Nbl = Nbl + 1
+                            If Nbl >= 39 Then
+                              Inc Pge
+                              Page = "Page " & Pge
+                              pdf.Level12F(Totht, PosY, Devises)
+                              If Entete.Value Then
+                                pdf.Entete(rs, adr11, adr22, ville, cap, rcs, siret, ape, Tvaintra, Tel, portable, fax, mail, site, Visudoc, Pays, Iban, False, Libre)
+                                pdf.Entete2(rs2, adr211, adr222, ville2, Pays, "", False)
+                              Else
+                                pdf.Entete2(rs2, adr211, adr222, ville2, Pays, "", True)
+                              Endif
+                              pdf.Level1F(Jour, Cde, Page, TvaCli)
+                              PosY = 108
+                              pdf.Level2F(Coulfond, "", PosY)
+                              Nbl = 0
+                              PosY = 114
+                            Endif
+                          Next
+                          Nbl = Nbl - 1
+                        Endif
+                        If typeL = "E" Then
+                          intitule = "Dont " & Totalht & " " & devises & "  HT d' Eco-participation"
+                          Teco = Teco + Val(Totalht)
+                          Coldetail.MoveNext()
+                          Try Coldetail.item.Selected = True
+                          If Not Error Then
+                            If Coldetail.Item[9] = "P" Then
+                              Totalht = Coldetail.Current[7]
+                              Intitule = Intitule & " et " & Totalht & " " & devises & " HT de taxe copie privée."
+                            Else
+                              Coldetail.MovePrevious()
+                              Coldetail.Item.Selected = True
+                            Endif
+                          Endif
+                          pdf.Level4F(intitule, PosY)
+                          PosY = PosY + 4
+                        Endif
+                        If typeL = "P" Then
+                          intitule = "Dont " & Totalht & " " & devises & " HT de taxe copie privée."
+                          pdf.Level4F(intitule, PosY)
+                          PosY = PosY + 4
+                        Endif
+                        Nbl = Nbl + 1
+                        If Npage > 1 Then
+                          If Nbl >= 39 Then
+                            Inc Pge
+                            Page = "Page " & Pge
+                            pdf.Level12F(Totht, PosY, Devises)
+                            If Entete.Value Then
+                              pdf.Entete(rs, adr11, adr22, ville, cap, rcs, siret, ape, Tvaintra, Tel, portable, fax, mail, site, Visudoc, Pays, Iban, False, Libre)
+                              pdf.Entete2(rs2, adr211, adr222, ville2, Pays, "", False)
+                            Else
+                              pdf.Entete2(rs2, adr211, adr222, ville2, Pays, "", True)
+                            Endif
+                            pdf.Level1F(Jour, Cde, Page, TvaCli)
+                            PosY = 108
+                            pdf.Level2F(Coulfond, "", PosY)
+                            Nbl = 0
+                            PosY = 114
+                          Endif
+                        Endif
+                        Remmo = 0
+                        RemArt = 0
+                      Until Ligbl.MoveNext()
+                    Endif
+                  Endif
+                Until numbl.MoveNext()
+                If Nbl > P Then
+                  Inc Pge
+                  Page = "Page " & Pge
+                  pdf.Level12F(Totht, PosY, Devises)
+                  If Entete.Value Then
+                    pdf.Entete(rs, adr11, adr22, ville, cap, rcs, siret, ape, Tvaintra, Tel, portable, fax, mail, site, Visudoc, Pays, Iban, False, Libre)
+                    pdf.Entete2(rs2, adr211, adr222, ville2, Pays, "", False)
+                  Else
+                    pdf.Entete2(rs2, adr211, adr222, ville2, Pays, "", True)
+                  Endif
+                  pdf.Level1F(Jour, Cde, Page, TvaCli)
+                  PosY = 108
+                  pdf.Level2F(Coulfond, "", PosY)
+                  Nbl = 0
+                  PosY = 114
+                Endif
+                ' On imprime l'acompte
+                If TotAcpt > 0 Then
+                  Mtdut = Mfacttc - Acpt
+                  If Settings["/Soc" & Start.Societe & "/Prxdec"] Then
+                    Mtdut = Round(Mtdut)
+                    Mtdut = Format$(Mtdut, "###########")
+                  Endif
+                  If Settings["/Soc" & Start.Societe & "/Prxdec"] Then
+                    Mfacttc = Round(Val(Mfacttc))
+                    Mfacttc = Format$(Val(Mfacttc), "###########")
+                  Endif
+                  Mrgt = "Total acomptes : "
+                  If Settings["/Soc" & Start.Societe & "/Prxdec"] Then
+                    Totacpt = Round(Val(Totacpt))
+                    Totacpt = Format$(Val(Totacpt), "###########")
+                  Endif
+                  pdf.Level13F(Format$(Mfacttc, "0.00"), Mrgt, Format$(Totacpt, "0.00"), Format$(Mtdut, "0.00"), PosY, Devises, Tp)
+                  PosY = PosY + 4
+                  Nbl = Nbl + 1
+                Endif
+                PosY = 240
+                If Teco <> 0 Then
+                  Toteco = "  Total Eco-participation : " & Teco & " " & devises & " ht."
+                  pdf.Level5F(TotEco, PosY)
+                  Toteco = 0
+                Endif
+                Nbl = Nbl + 1
+                If Val(.cpoint(TotalRem)) <> 0 Then
+                  Trem = "Total remise : " & Totalrem & " ht"
+                Else
+                  Trem = ""
+                Endif
+                If Val(.cpoint(Totalart)) <> 0 Then
+                  Tart = "Total article : " & Totalart & " ht"
+                Else
+                  Tart = ""
+                Endif
+                If Val(.cpoint(Totalmo)) <> 0 Then
+                  Tmo = "Total MO : " & Totalmo & " ht"
+                Else
+                  Tmo = ""
+                Endif
+                PosY = 240
+                If Pied.Value And Rcp.Value Then
+                  pdf.Level6F(Tmo, Tart, Trem, Txtbf, PosY)
+                  PosY = PosY + 4
+                Else
+                  If Rcp.Value And Not Pied.Value Then
+                    Txtbf = ""
+                    pdf.Level6F(Tmo, Tart, Trem, Txtbf, PosY)
+                    PosY = PosY + 4
+                  Else
+                    If Not Rcp.Value And Pied.Value Then
+                      Tmo = ""
+                      Tart = ""
+                      Trem = ""
+                      pdf.Level6F(Tmo, Tart, Trem, Txtbf, PosY)
+                      PosY = PosY + 4
+                    Endif
+                  Endif
+                Endif
+                PosY = 258
+                pdf.Level7F(Coulfond, PosY, "", "", "")
+                PosY = PosY + 5
+                Calc_tva()
+                Utils.db.Exec("INSERT INTO " & Tab10 & "(compte, intitule, totalht) VALUES (&1, &2, &3)", Colbl.Item[0], nom, Mttc)
+                Verif_solde()
+                Nfac = Right$(Dtef.text, 4) & Nfac
+                Toteuros = 0
+              Endif
+            Endif
+            pdf.Output(Filename, False)
+            Impressfac.Prog_Editeur(Filename, Val(Nbexpl), False)
+            Wait 1
+            ty = ""
+            Nom = Replace$(Nom, " ", "")
+            Nom = Replace$(Nom, "/", "")
+            Nom = Replace$(Nom, "'", "")
+            Stry = Split("F" & nfac & Nom, " ")
+            For Each ty2 In Stry
+              ty = ty & ty2
+            Next
+            Copie.Dupli("Facture.pdf", "/Impressions", ty, dtef.Text)
+            If Cfac Then Copie.Dupli2("Facture.pdf", User.home & "/Impressions", ty, dtef.Text, Ccli, "Facs")
+            If Left$(ComboBox1.Text, 1) = "1" Then
+              EnvMail.Envoi2(Mail2, "Votre facture du " & dtef.Text, "Veuillez trouver ci-joint votre facture numéro " & Left$(ty, 11) & " du " & dtef.Text & "\n\nCordialement", Copie.spiece)
+            Else
+              If Left$(ComboBox1.Text, 1) = "2" Then
+                Shell "echo " & "\"" & "Veuillez trouver ci-joint votre facture numéro " & Left$(ty, 11) & " du " & dtef.Text & "\n\nCordialement" & "\"" & " | mutt -s " & "\"" & "Votre facture du " & dtef.Text & "\"" & " -a " & Copie.spiece & " -- " & Mail2
+              Else
+                If Left$(ComboBox1.Text, 1) = "3" Then
+                  EnvoiFTP(CCli) 
+                  If Ftpclient1.Status = 0 Then Shell "echo " & "\"" & "Votre facture numéro " & Left$(ty, 11) & " du " & dtef.Text & " est disponible à " & Settings["/Soc" & Start.Societe & "/Adrbase3"] & "/" & scode & "/" & ty & "\n\nCordialement " & "\"" & " | mutt -s " & "\"" & "Votre facture du " & dtef.Text & "\"" & " -- " & Mail2
+                Endif
+              Endif
+            Endif
+            If Left$(ComboBox1.Text, 1) <> "3" Or If Left$(ComboBox1.Text, 1) = "3" And Ftpclient1.Status = 0 Then
+              Maj_Compta()
+              Majnum()
+              Ventilation()
+              Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisFac") & "(numfac,datefac,cdclifac,cvclifac, nmclifac, rmofac, rartfac, pnmclifac, adr1fac, adr2fac, cpfac, villefac, Exofac, remmofac, remartfac, totfac, reg, ech, numerobl, acpt, mreg, marge_art, marge_mo, totfacttc) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13},&{14},&{15},&{16},&{17},&{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24})", Right$(dtef.Text, 4) & nfac, .Cdate_Dbase(datej.Text), Colbl.Item[0], $rs_soc, $cli_nom, 0, 0, $cli_pnm, $cli_adr1, $cli_adr2, $cli_cd_ptl, $cli_ville, "", .cpoint(Remmo), Utils.cpoint(Remart), Val(.cpoint(Totht)), "", .Cdate_Dbase(dateech), "", 0, "", mgart, mgmo, Val(.cpoint(Mttc)))
+              Ent_Archives()
+              Utils.db.Exec("UPDATE  " & Cbase.Table("TabBl") & "  SET  numfac = &3, dtefac = &4 WHERE cdclibl = &1 and type = &2", Colbl.Item[0], "A", Format$(Right$(dtef.Text, 4)) & nfac, .Cdate_Dbase(datej.Text))
+              If Left$(ComboBox1.Text, 1) <> "3" Then Print #Hnew, String$(18, " "), Colbl.Item[0] & String$(20 - Len(Colbl.Item[0]), "") & " " & $rs_soc & " " & $cli_nom & " " & $cli_pnm & String$(50 - Len($rs_soc & " " & $cli_nom & " " & $cli_pnm), " ") & " " & nfac & String$(30 - Len(Right$(dtef.Text, 4) & nfac), " ") & mttc & String$(14 - Len(mttc), " ") & mail2
+              Maj_Parametres()
+            Endif
+            Nbl = 0
+            P = 31
+            Inc nbfac
+            Acpt = 0
+            Totht = 0
+            Totacpt = 0
+            Mfacttc = 0
+            Totalrem = 0
+            Remmo = 0
+            Remart = 0
+          Until Colbl.MoveNext()
+          Edit.Visible = False
+          Me.Mouse = Mouse.Default
+          Editeur.Prog_Editeur(User.home & "/Abonnements/Factabon" & Datej.Text & ".txt")
+          Message.Info("Traitement terminé !")
+        Else
+          If son Then
+            Music.Play
+          Endif
+          Me.Mouse = Mouse.Default
+          Message.Warning(" Impression impossible ! Veuillez saisir un code journal dans les parametres Svp !", "Ok")
+        Endif
+      Endif
+    End With
+    Utils.db.Exec("UNLOCK TABLES")
+    Colbl.Clear
+    Coldetail.Clear
+    Close #Hnew
+    If Ftpclient1.Status = Net.Connecting Then 
+      Ftpclient1.Close
+    Endif
+  Else
+    Return
+  Endif
+  
+End
+
+Public Sub EnvoiFTP($code As String)
+  
+  Dim Cmdmk As New String[]
+  Dim Chemin As String
+  
+  $code = hexdblKey.crypt("en", Right$($code, Len($code) - 3), $code)
+  chemin = "/" & $code
+  scode = Chemin
+  Ftpclient1.URL = Settings["/Soc" & Start.Societe & "/Adrbase3"] & chemin & "/" & ty
+  FTPClient1.Put(Copie.spiece)
+  If Ftpclient1.Status <> 0 Then
+    Ftpclient1.URL = Settings["/Soc" & Start.Societe & "/Adrbase3"] & chemin
+    Cmdmk = ["MKD " & $code]
+    Ftpclient1.Exec(Cmdmk)
+    Ftpclient1.URL = Settings["/Soc" & Start.Societe & "/Adrbase3"] & chemin & "/" & ty
+    FTPClient1.Put(Copie.spiece)
+  Endif
+  If Ftpclient1.Status = 0 Then
+    Print #Hnew, $code & String$(18 - Len($code), " ") & Colbl.Item[0] & String$(10 - Len(Colbl.Item[0]), " ") & $rs_soc & " " & $cli_nom & " " & $cli_pnm & String$(52 - Len($rs_soc & " " & $cli_nom & " " & $cli_pnm), " ") & " " & nfac & String$(24 - Len(Right$(dtef.Text, 4) & nfac), " ") & mttc & String$(14 - Len(mttc), " ") & mail2
+  Else  
+    Message.warning("Il y a un problème d'envoi sur le serveur FTP pour le client " & $code & " !")
+    Print #Hnew, "******************************************************************************************************************************"
+    Print #Hnew, "Attention ! Problème d'envoi sur serveur FTP pour le client " & Colbl.Item[0] & " facture numéro " & nfac
+    Print #Hnew, "******************************************************************************************************************************"
+  Endif
+  
+End
+
+Public Sub Ftpclient1_read()
+  
+End
+
+Public Sub FtpClient1_Error()
+  
+End
+
+Public Sub FtpClient1_Connect()
+  
+End
+
+Public Sub FtpClient1_Finished()
+  
+End
+
+'**********************************************************
+'*                   Recup parametres                     *
+'**********************************************************
+Public Sub Parametres()
+  
+  Tab = "Fiches_Parametres"
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
+  If rResult.Available Then
+    Nfac = rResult!dnfac
+    Jnl = rResult!jrnal
+  Endif
+  
+End
+
+'**********************************************************
+'*                   Maj parametres                     *
+'**********************************************************
+Public Sub Maj_Parametres()
+  
+  Dim Nfac2 As String
+  
+  Tab = "Fiches_Parametres"
+  With Utils
+    Nfac2 = Val(Right$(Nfac, 6))
+    Nfac2 = Format$(Nfac2, "000000")
+    'rResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
+    Utils.db.Exec("UPDATE  " & Tab & "  SET  dnfac = &1", Nfac2)
+    Nfac = Nfac2
+  End With
+  
+End
+
+'**********************************************************
+'*      Creation table temporaire pour totalisation       *
+'**********************************************************
+Public Sub Ventilation()
+  
+  Dim Tab5 As String
+  
+  Tab5 = "Totalisation"
+  Utils.db.Exec("LOCK TABLES " & Tab5 & " WRITE")
+  Utils.db.Exec("DROP TABLE IF EXISTS  Totalisation ")
+  Utils.db.Exec("CREATE TABLE " & Tab5 &
+    "(compte Char(8) NOT NULL," &
+    "intitule Char(25)," &
+    "totalht Char(25)," &
+    "totaltva Char(25)," &
+    "codetva Char(1)," &
+    "PRIMARY KEY (compte,codetva))" & "ENGINE = MYISAM")
+  
+End
+'**********************************************************
+'*                   Maj Totalisation                     *
+'**********************************************************
+
+Public Sub Maj_Totalisation()
+  
+  Dim Mtva As String
+  Dim Totht As String
+  Dim Tottva As String
+  Dim Remise As String
+  Dim Tab3 As String
+  Dim Tab4 As String
+  Dim Tab5 As String
+  Dim rrResult As Result
+  
+  Tab = "Fiches_Fam"
+  Tab5 = "Totalisation"
+  Tab3 = "Fiches_Comptes"
+  Tab4 = "Fiches_Tvaav"
+  TotTva = "O.OO"
+  With utils
+    Utils.db.Exec("LOCK TABLES " & Tab & " WRITE, " & Tab4 & " WRITE, " & Tab5 & " WRITE, " & Cbase.Table("TabComptes") & " WRITE")
+    ' On recupere le compte vente et le code TVa de la famille
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " Where code_fam = &1", Fam)
+    If rResult.Available Then
+      cpt = rResult!compt_fam
+      Ctva = rResult!cdtva_fam
+      cptRem = rResult!cptrem_fam
+    Endif
+    ' On recupere les données du compte vente de la famille
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " Where compte_cc = &1", cpt)
+    If rResult.Available Then
+      Intit = rResult!intitule_cc
+    Endif
+    'On recupere le compte de TVA et son taux de TVA
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab4 & " Where code_tva = &1", Ctva)
+    If rResult.Available Then
+      cpttva = rResult!cc_tva
+      Ttva = rResult!taux_tva
+    Endif
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " Where compte_cc = &1", cpttva)
+    If rResult.Available Then
+      IntitTva = rResult!intitule_cc
+    Endif
+    'On calcule le montant de la TVA
+    Mtva = Format$(Val(.cpoint(Totttc)) - (Val(.cpoint(totalht))), "0.00")
+    'Si ce n'est pas un compte TVA on regarde si le compte existe deja dans la table temporaire
+    If Left$(cpt, 4) <> "4457" Then
+      rrResult = Utils.db.Exec("SELECT * FROM " & Tab5 & " Where compte = &1 AND codetva = &2", cpt, 0)
+    Else
+      'Sinon on recupere le compte TVA correspondant au taux
+      rrResult = Utils.db.Exec("SELECT * FROM " & Tab5 & " Where compte = &1 and codetva = &2", cpt, Ctva)
+    Endif
+    'Si le compte existe dans la table temporaire
+    If rrResult.Available Then
+      Totht = Format$(Val(.cpoint(rrResult!totalht)) + Val(.cpoint(totalht)), "0.00")
+      TotTva = Format$(Val(.cpoint(rrResult!totaltva)) + Val(.cpoint(Mtva)), "0.00")
+      'Si ce n'est pas un compte TVA on met a jour sans le code TVA
+      If Left$(cpt, 4) <> "4457" Then
+        Utils.db.Exec("UPdate " & Tab5 & " set compte = &1, intitule = &2, totalht = &3, totaltva =&4 Where compte = &1 and codetva = &5", cpt, Intit, Totht, TotTva, 0)
+      Else
+        'Si c'est un compte TVA on met a jour avec le code TVA
+        Utils.db.Exec("UPdate " & Tab5 & " set compte = &1, intitule = &2, totalht = &3, totaltva =&4 Where compte = &1 and codetva = &5", cpt, Intit, Totht, TotTva, Ctva)
+      Endif
+    Else
+      'Si le compte n'existe pas dans la table temporaire
+      Totht = Format$(Val(.cpoint(totalht)), "0.00")
+      'Si ce n'est pas un compte TVA on crée avec un code TVA a zéro
+      If Left$(cpt, 4) <> "4457" Then
+        Utils.db.Exec("INSERT INTO " & Tab5 & "(compte, intitule, totalht, totaltva, codetva) VALUES (&1, &2, &3, &4, &5)", cpt, Intit, Totht, Mtva, 0)
+      Else
+        'Sinon on crée avec le code TVA
+        Utils.db.Exec("INSERT INTO " & Tab5 & "(compte, intitule, totalht, totaltva, codetva) VALUES (&1, &2, &3, &4, &5)", cpt, Intit, Totht, Mtva, Ctva)
+      Endif
+    Endif
+    rrResult = Utils.db.Exec("SELECT * FROM " & Tab5 & " Where compte = &1 and codetva = &2", cpttva, Ctva)
+    If rrResult.Available Then
+      TotTva = Format$(Val(.cpoint(rrResult!totaltva)) + Val(.cpoint(Mtva)), "0.00")
+      Utils.db.Exec("UPdate " & Tab5 & " set compte = &1, intitule =&2, totaltva =&3, codetva = &4 Where compte = &1 and codeTva = &4", cpttva, Intittva, Tottva, Ctva)
+    Else
+      Utils.db.Exec("INSERT INTO " & Tab5 & "(compte, intitule, totaltva, codetva) VALUES (&1, &2, &3, &4)", cpttva, Intittva, Mtva, Ctva)
+    Endif
+    'Totht = 0
+    Remise = 0
+    Utils.db.Exec("UNLOCK TABLES")
+  End With
+  
+End
+
+Public Sub Verif_solde()
+  
+  Dim hResult As Result
+  Dim sCompte As String
+  Dim sTotalD As String = "0"
+  Dim sTotalC As String = "0"
+  Dim sdif As Float
+  
+  With utils
+    hResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("Totalisation") & " order by compte")
+    If hResult.Available Then
+      Repeat
+        If Left$(hResult!compte, 3) = "411" Then
+          sTotalD = hResult!totalht
+        Else
+          If Left$(hResult!compte, 3) = "445" Then
+            sTotalC = Val(.cpoint(sTotalC)) + Val(.cpoint(hResult!totaltva))
+          Else
+            sTotalC = Val(.cpoint(sTotalC)) + Val(.cpoint(hResult!totalht))
+          Endif
+          sCompte = hResult!compte
+        Endif
+      Until hResult.MoveNext()
+      hResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("Totalisation") & " Where compte = &1", sCompte)
+      If Val(.cpoint(sTotalD)) < Val(.cpoint(sTotalC)) Then
+        sDif = Val(.cpoint(sTotalC)) - Val(.cpoint(sTotalD))
+        sDif = Val(.cpoint(hResult!totalht)) - sDif
+        Utils.db.Exec("UPDATE " & Cbase.Table("Totalisation") & " set totalht = &2 Where compte = &1 ", sCompte, sDif)
+      Else
+        If Val(.cpoint(sTotalD)) > Val(.cpoint(sTotalC)) Then
+          sDif = Val(.cpoint(sTotalD)) - Val(.cpoint(sTotalC))
+          sDif = Val(.cpoint(hResult!totalht)) + sDif
+          Utils.db.Exec("UPDATE " & Cbase.Table("Totalisation") & " set totalht = &2 Where compte = &1 ", sCompte, sDif)
+        Endif
+      Endif
+    Endif
+  End With
+  
+End
+
+'**********************************************************
+'*                   Maj comptabilité                     *
+'**********************************************************
+Public Sub Maj_Compta()
+  
+  Dim cpt As String
+  Dim coll As String
+  Dim collectif As String
+  Dim Libel As String
+  Dim Mtc As Float
+  Dim Mtd As Float
+  Dim Sld As Float
+  Dim Valid As Integer
+  Dim Prov As Integer
+  Dim Tresor As Integer
+  Dim pointee As Integer
+  Dim lettree As Integer
+  Dim cloturee As Integer
+  Dim relance As Integer
+  Dim rrResult As Result
+  Dim Tmvt As String
+  
+  Tmvt = "Fiches_Mvt"
+  Tab2 = "Totalisation"
+  Tab3 = "Fiches_Comptes"
+  Valid = 1
+  Prov = 0
+  Tresor = 0
+  pointee = 0
+  lettree = 0
+  cloturee = 1
+  relance = 0
+  numecr = "numecriture"
+  numr = Ecritures(numecr)
+  numr = numr + 1
+  numecr = "numecriture2"
+  numr2 = Ecritures(numecr)
+  numr2 = numr2 + 1
+  With Utils
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab2 & "")
+    If rResult.Available Then
+      Repeat
+        collectif = ""
+        cpt = rResult!compte
+        Intit = rResult!intitule
+        If Left$(cpt, 3) = "411" Then
+          rrResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " Where compte_cc = &1", cpt)
+          coll = rrResult!coll_cc
+          collectif = "1"
+          If Val(.cpoint(Mttc)) > 0 Then
+            Libel = "Facture " & Intit
+          Else
+            Libel = "Avoir " & Intit
+          Endif
+          If rResult!totalht <> "" And Val(.cpoint(rResult!totalht)) > 0 Then
+            Mtd = Val(.cpoint(rResult!totalht))
+            Mtc = 0
+          Else
+            Mtc = Abs(Val(.cpoint(rResult!totalht)))
+            Mtd = 0
+          Endif
+          Utils.db.Exec("INSERT INTO " & Tmvt & "(jour, numero, compte, collectif, intitule, dte, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18})", Jnl, numr, coll, collectif, Intit, .Cdate_Dbase(dtef.Text), Nfac, Libel, Mtd, Mtc, Valid, Prov, Tresor, pointee, lettree, cloturee, relance, numr2)
+          rrResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " Where compte_cc = &1", coll)
+          If rrResult!solde = "" Then
+            Sld = Mtd - Mtc
+          Else
+            Sld = rrResult!solde + Mtd - Mtc
+          Endif
+          Utils.db.Exec("UPdate " & Tab3 & " set solde = &2 Where compte_cc = &1", coll, Sld)
+          collectif = ""
+        Endif
+        If Left$(cpt, 3) <> "411" And Left$(cpt, 3) <> "445" Then
+          If Left$(rResult!compte, 3) <> "709" Then
+            If Val(.cpoint(rResult!totalht)) > 0 Then
+              Mtc = Val(.cpoint(rResult!totalht))
+              Mtd = 0
+            Else
+              Mtd = Val(.cpoint(rResult!totalht))
+              Mtc = 0
+            Endif
+          Else
+            If Val(Mttc) > 0 Then
+              If Val(.cpoint(rResult!totalht)) > 0 Then
+                Mtd = Val(.cpoint(rResult!totalht))
+                Mtc = 0
+              Else
+                Mtc = Val(.cpoint(rResult!totalht))
+                Mtd = 0
+              Endif
+            Else
+              If Val(.cpoint(rResult!totalht)) > 0 Then
+                Mtd = Val(.cpoint(rResult!totalht))
+                Mtc = 0
+              Else
+                Mtc = Val(.cpoint(rResult!totalht))
+                Mtd = 0
+              Endif
+            Endif
+          Endif
+        Endif
+        If Left$(cpt, 3) = "445" Then
+          If rResult!totaltva <> "" And Val(rResult!totaltva) > 0 Then
+            Mtc = Val(rResult!totaltva)
+            Mtd = 0
+          Else
+            Mtd = Abs(Val(rResult!totaltva))
+            Mtc = 0
+          Endif
+        Endif
+        If Val(.cpoint(Mttc)) > 0 Then
+          Libel = "Facture " & nom
+        Else
+          Libel = "Avoir " & nom
+        Endif
+        Mtd = Abs(mtd)
+        Mtc = Abs(Mtc)
+        'Utils.db.Exec("INSERT INTO " & Tmvt & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnl, numr, cpt, Intit, .Cdate_Dbase(dtef.Text), Right$(Dtef.text, 2) & Mid$(Dtef.text, 4, 2) & Nfac, Libel, Mtd, Mtc, Valid, Prov, Tresor, pointee, lettree, cloturee, relance, numr2)
+        Utils.db.Exec("INSERT INTO " & Tmvt & "(jour, numero, compte, intitule, dte, dateech, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18})", Jnl, numr, Cpt, Intit, .Cdate_Dbase(dtef.Text), .Cdate_Dbase(dateech2), Nfac, Libel, Mtd, Mtc, Valid, Prov, Tresor, Pointee, lettree, Cloturee, Relance, numr2)
+        rrResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " Where compte_cc = &1", cpt)
+        If rrResult!solde = "" Then
+          Sld = Mtd - Mtc
+        Else
+          Sld = rrResult!solde + Mtd - Mtc
+        Endif
+        Utils.db.Exec("UPdate " & Tab3 & " set solde = &2 Where compte_cc = &1", cpt, Sld)
+        Mtd = 0
+        Mtc = 0
+        sld = 0
+      Until rResult.MoveNext()
+      Maj_Parametres()
+    Endif
+  End With
+  
+End
+
+'**********************************************************
+'*       Calcul de la Tva pour le bas de facture          *
+'**********************************************************
+Public Sub Calc_tva()
+  
+  Dim cpt As String
+  Dim Mtva As String
+  Dim Mtva2 As String
+  Dim Mttc2 As String
+  Dim efacs As String
+  Dim Mht As String
+  Dim Ttx As String
+  Dim Tva As String
+  Dim CResult As Result
+  Dim entf As String
+  Dim cptrst As Result
+  Dim efac As Result
+  Dim NbTx As Integer ' flag pour calcul du nombre de taux de tva utilisé dans la facture
+  Dim ImpAuto, Franchise As Boolean = False
+  
+  Entf = "Fiches_HistoFac"
+  Tab = "Fiches_Tvaav"
+  Tab2 = "Totalisation"
+  Efacs = "Fiches_Cli"
+  Nbtx = 1
+  Tva = "0"
+  If Settings["/Soc" & Start.Societe & "/AutoEnt"] <> 0 Then
+    ImpAuto = True
+  Else
+    ImpAuto = False
+  Endif
+  If IsNull(Settings["/Soc" & Start.Societe & "/AutoEnt"]) Then ImpAuto = False
+  If Settings["/Soc" & Start.Societe & "/Franchise"] <> 0 Then
+    Franchise = True
+  Else
+    Franchise = False
+  Endif
+  If IsNull(Settings["/Soc" & Start.Societe & "/Franchise"]) Then Franchise = False
+  With Utils
+    cptrst = Utils.db.Exec("SELECT * FROM " & Tab & "")
+    If cptrst.Available Then
+      Repeat
+        Ttx = Format$(cptrst!taux_tva, "00.00")
+        Ctx = cptrst!code_tva
+        Cresult = Utils.db.Exec("SELECT * FROM " & Tab2 & " Where codetva = &1", Ctx)
+        If Cresult.Available Then
+          Repeat
+            cpt = CResult!compte
+            If Left$(cpt, 3) = "445" Then
+              Mtva2 = Format$(Val(CResult!totaltva), "0.00")
+              If Mtva2 = "" Then Mtva2 = "0,00"
+              If Val(Mtva2) <> 0 Then
+                If Settings["/Soc" & Start.Societe & "/Prxdec"] Then
+                  Mtva = Format$(Val(Mtva2), "0" & " " & devises)
+                  ctx = Format$(Val(ctx), "0")
+                  Mtva2 = Format$(Val(Mtva2), "0")
+                Else
+                  Mtva = Mtva2 & " " & devises
+                Endif
+                Tva = Val(.cpoint(Tva)) + Val(Mtva2)
+                If ImpAuto = False Then pdf.Level9F(Ctx, Mht, Ttx, Mtva2, Mttc, PosY)
+                PosY = PosY + 5
+                Inc Nbtx
+              Endif
+            Endif
+          Until Cresult.MoveNext()
+        Else
+          Mtva = "0,00"
+        Endif
+      Until cptrst.MoveNext()
+    Endif
+    Posy = 274
+    If Not Reserve.Value Then
+      Txtleg = ""
+      Txtleg2 = ""
+    Endif
+    Mttc = Format$(Val(.cpoint(Toteuros)) + Val(.cpoint(Tva)), "0.00")
+    'Level7(CStr(Toteuros), CStr(Format$(Tva, "0.00")), CStr(Mttc), CStr(Txtleg))
+    'Level7()
+    If Settings["/Soc" & Start.Societe & "/Prxdec"] Then
+      Tva = Format$(Val(Tva), "0")
+    Else
+      Tva = Format$(Tva, "0.00")
+    Endif
+    If Settings["/Soc" & Start.Societe & "/Prxdec"] Then
+      Mttc2 = Format$(Val(Mttc), "0" & " " & devises)
+      Toteuros = Format$(Toteuros, "0")
+    Else
+      Mttc2 = Mttc & " " & devises
+      Toteuros = Format$(Toteuros, "0.00")
+    Endif
+    pdf.Level10F(Toteuros, Tva, Mttc2, Txtleg, PosY - 6, Impauto, "", Franchise)
+    'PosY = PosY + 3
+    If Settings["/Soc" & Start.Societe & "/Coupon"] Then pdf.Level15F(CCli, Nfac, Toteuros, PosY, Devises)
+    PosY = PosY + 8
+    pdf.Level11F(Txtleg2, PosY)
+    efac = Utils.db.Exec("SELECT * FROM " & efacs & " where cli_code = &1", Colbl.Item[0])
+    'Utils.db.Exec("INSERT INTO " & Entf & "(numfac,datefac,cdclifac,cvclifac, nmclifac, rmofac, rartfac, pnmclifac, adr1fac, adr2fac, cpfac, villefac, Exofac, remmofac, remartfac, totfac, reg, ech, numerobl, acpt, mreg, marge_art, marge_mo, totfacttc) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13},&{14},&{15},&{16},&{17},&{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24})", Right$(dtef.Text, 4) & nfac, .Cdate_Dbase(datej.Text), Colbl.Item[0], efac!cli_rs_soc, efac!cli_nom, 0, 0, efac!cli_pnm, efac!cli_adr1, efac!cli_adr2, efac!cli_cd_ptl, efac!cli_ville, "", .cpoint(Remmo), .cpoint(Remart), Val(Totht), "", .Cdate_Dbase(dateech), "", 0, "", mgart, mgmo, Val(Mttc))
+    Nlgn = "0000"
+    'Totht = "0"
+    mgart = "0"
+    mgmo = "0"
+    'Ent_Archives()
+    'Utils.db.Exec("UPDATE  " & Cbase.Table("TabBl") & "  SET  numfac = &3, dtefac = &4 WHERE cdclibl = &1 and type = &2", Colbl.Item[0], "A", Format$(Right$(dtef.Text, 4)) & nfac, .Cdate_Dbase(datej.Text))
+    $rs_soc = efac!cli_rs_soc
+    $cli_nom = efac!cli_nom 
+    $cli_pnm = efac!cli_pnm
+    $cli_adr1 = efac!cli_adr1
+    $cli_adr2 = efac!cli_adr2
+    $cli_cd_ptl = efac!cli_cd_ptl 
+    $cli_ville = efac!cli_ville
+    'Print #Hnew, Colbl.Item[0] & String$(20 - Len(Colbl.Item[0]), "") & " " & efac!cli_rs_soc & " " & efac!cli_nom & " " & efac!cli_pnm & String$(50 - Len(efac!cli_rs_soc & " " & efac!cli_nom & " " & efac!cli_pnm), " ") & " " & Right$(dtef.Text, 4) & nfac & String$(30 - Len(Right$(dtef.Text, 4) & nfac), " ") & mttc & String$(14 - Len(mttc), " ") & mail2
+  End With
+  
+End
+
+'***************************************************
+'*                   Maj  Archives                 *
+'***************************************************
+Public Sub Ent_Archives()
+  
+  Dim Entbonl As Result
+  Dim Ligbonl As Result
+  Dim rTva As Result
+  Dim Ligf As String
+  Dim bn As String
+  Dim Entbon As String
+  Dim Ligbon As String
+  Dim Dt As String
+  Dim TauxTva As String
+  
+  Dt = Format$(Right$(dtef.Text, 4)) & nfac
+  Ligf = "Fiches_HistoLigfac" 
+  Entbon = "Fiches_Bl" 
+  Ligbon = "Fiches_Ligbl" 
+  Bn = "Bl" 
+  With Utils
+    Bonl = Utils.db.Exec("SELECT * FROM " & Bn & " where code = &1 order by num", Colbl.Item[0])
+    If Bonl.Available Then
+      Repeat
+        Entbonl = Utils.db.Exec("SELECT * FROM " & Entbon & " where numbl = &1", Bonl!num)
+        Ligbonl = Utils.db.Exec("SELECT * FROM " & Ligbon & " where num_ligbl = &1", Bonl!num)
+        If Ligbonl.Available Then
+          intituleb = "Bon n° " & Entbonl!numbl & " du " & .Cdate_AffData(Entbonl!datebl)
+          Nlgn = Format$(Val(Nlgn) + 1, "0000")
+          Utils.db.Exec("INSERT INTO " & Ligf & "(num_ligfac,numlig_ligfac, com_ligfac, typel_ligfac) VALUES (&1, &2, &3, &4)", Dt, Nlgn, intituleb, "C")
+          Repeat
+            Nlgn = Format$(Val(Nlgn) + 1, "0000")
+            Try rTva = Utils.db.Exec("select * from " & Cbase.Table("TabTvav") & " where code_tva = &1", Ligbonl!tx_ligbl)
+            If rTva.available Then TauxTva = rTva!taux_tva
+            Utils.db.Exec("INSERT INTO " & Ligf & "(num_ligfac,numlig_ligfac,code_ligfac,libel_ligfac, fam_ligfac, pu_ligfac, qte_ligfac, brut_ligfac, rem_ligfac, netht_ligfac, tx_ligfac, nettc_ligfac, typel_ligfac, tm_ligfac, com_ligfac, bloc, mtx_ligfac) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13},&{14},&{15},&{16}, &{17})", Dt, Nlgn, Ligbonl!code_ligbl, Ligbonl!libel_ligbl, Ligbonl!fam_ligbl, Ligbonl!pu_ligbl, Ligbonl!qte_ligbl, Ligbonl!brut_ligbl, Ligbonl!rem_ligbl, Ligbonl!netht_ligbl, Ligbonl!tx_ligbl, Ligbonl!nettc_ligbl, Ligbonl!typel_ligbl, Ligbonl!tm_ligbl, Ligbonl!com_ligbl, Ligbonl!block_ligbl, TauxTva)
+          Until Ligbonl.MoveNext()
+        Endif
+        'Bl_Sup()
+      Until Bonl.MoveNext()
+    Endif
+    'UNTIL Colbl.MoveNext()
+  End With
+  
+End
+
+'*****************************************************
+'*  Récuperation du dernier numéro d'écriture        *
+'*****************************************************
+Public Function Ecritures(numecr As String) As String
+  
+  Dim Params As Result
+  Dim Tab As String
+  Dim nro As String
+  
+  Tab = "Fiches_Parametres"
+  Params = Utils.db.Exec("SELECT " & numecr & " FROM " & Tab & " ")
+  If Params.Available Then
+    If IsNull(Params["" & numecr & ""]) Then
+      nro = 0
+    Else
+      nro = Params["" & numecr & ""]
+    Endif
+  Endif
+  Return nro
+  
+End
+
+'************************************************
+'*  Mise a jour du dernier numéro d'écriture    *
+'************************************************
+Public Sub Majnum()
+  
+  Dim Tab As String
+  
+  Tab = "Fiches_Parametres"
+  Utils.db.Exec("UPDATE " & Tab & " set numecriture = &1, numecriture2 = &2", numr, numr2)
+  
+End
+
+'**********************************************************
+'*      Suppression Bon après édition de facture          *
+'**********************************************************
+Public Sub Bl_Sup()
+  
+  Dim Entbn As String
+  Dim Ligbn As String
+  
+  Entbn = "Fiches_Bl"
+  Ligbn = "Fiches_Ligbl"
+  Utils.db.Exec("DELETE FROM " & Entbn & " where numbl = &1", Bonl!num)
+  Utils.db.Exec("DELETE FROM " & Ligbn & " where num_ligbl = &1", Bonl!num)
+  
+End
+
+Public Sub Button9_Click()
+  
+  If Colbl.Count <> 0 Then
+    Bl_Edit()
+  Else
+    Message.Warning("Veuillez lancer votre traitement avant d'imprimer SVP ! ")
+  Endif
+  
+End
+
+'***********************************
+'*        On gère l' arrondi       *
+'***********************************
+Public Function ard(Puttc As String) As String
+  
+  If Not PuTTc Then PuTTc = "0,00"
+  If ardi = "0,05" Then
+    If Right$(Puttc) Like "[34567]*" Then
+      Puttc = Left$(Puttc, (Len(Puttc) - 1)) & "5"
+    Else
+      Puttc = Round(Val(Puttc), -1)
+      If typeL = "A" Then Puttc = Format$(Puttc, nbdec)
+    Endif
+  Endif
+  
+  If ardi = "0,10" Then
+    Puttc = Round(Val(Puttc), -1)
+    If typeL = "A" Then Puttc = Format$(Puttc, nbdec)
+  Endif
+  
+  If ardi = "0,50" Then
+    If Abs(Val(Puttc)) <= Abs(Val(Left$(Puttc, (Len(Puttc) - 2)) & 25)) Then
+      Puttc = Left$(Puttc, (Len(Puttc) - 2)) & "00"
+    Else
+      If Abs(Val(Puttc)) <= Abs(Val(Left$(Puttc, (Len(Puttc) - 2)) & 75)) Then
+        Puttc = Left$(Puttc, (Len(Puttc) - 2)) & "50"
+      Endif
+      If Abs(Val(Puttc)) >= Abs(Val(Left$(Puttc, (Len(Puttc) - 2)) & 76)) Then
+        Puttc = Round(Val(Puttc))
+        If typeL = "A" Then Puttc = Format$(Puttc, nbdec)
+      Endif
+    Endif
+  Endif
+  
+  If ardi = "1,00" Then
+    Puttc = Round(Val(Puttc))
+    If typeL = "A" Then Puttc = Format$(Puttc, nbdec)
+  Endif
+  Return Puttc
+  
+End
+
+Public Sub Button16_Click()
+  
+  If Exist(filename) Then Try Kill filename
+  Try Settings["/Soc" & Start.Societe & "/EnvoiFtp"] = ComboBox1.text
+  Settings.Save
+  Settings.Reload
+  Me.Close
+  
+End
+
+Public Sub Datej_DblClick()
+  
+  If DateChooser1.visible = False Then
+    DateChooser1.visible = True
+  Else
+    DateChooser1.Visible = False
+  Endif
+  
+End
+
+Public Sub Datej_KeyPress()
+  
+  If Key.code = Key.Escape Then  
+    If DateChooser1.Visible = True Then DateChooser1.Visible = False
+  Endif
+  If Key.code = Key.F2 Then  
+    If DateChooser1.Visible = True Then 
+      DateChooser1.Visible = False
+    Else
+      DateChooser1.Visible = True 
+    Endif
+  Endif
+  
+End
+
+Public Sub DateChooser1_Activate()
+  
+  Datej.text = Format$(DateChooser1.Value, "dd.mm.yyyy")
+  DateChooser1.Visible = False
+  
+End
+
+'**********************************************
+'*     Affichage de la documentation Html     *
+'**********************************************
+Public Sub Button7_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Cabonnement.html"]
+  
+End

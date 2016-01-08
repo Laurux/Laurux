@@ -1,0 +1,546 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : FTvav.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 01/11/2004
+'# Gestion de la tables des codes Tva sur ventes
+'################################################
+'
+
+Private Tab As String
+Private Dne As String 'texte recherché par F2 ou clic sur bouton
+Private Enr As Integer ' Flag utilisé pour le focus si larepeatnnée a recuperer existe ou non
+Private son As Integer = Start.Son
+Private Txtva2 As String
+Private rResult3 As Result
+Private arr As String
+Private nbdec As String
+Private Pvttc As String
+Private b As Boolean = False
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  Tvalist.Columns.count = 3
+  Tvalist.Columns[0].Width = 80
+  Tvalist.Columns[1].Width = 80
+  Tvalist.Columns[0].Text = "code"
+  Tvalist.Columns[0].Alignment = 2
+  Tvalist.Columns[1].Text = "Taux    "
+  Tvalist.Columns[1].Alignment = 2
+  Tvalist.Columns[2].Text = "Compte        "
+  Tvalist.Columns[2].Alignment = 2
+  Cdtva_Gotfocus()
+  Cdtva.SetFocus
+  
+End
+
+Public Sub Form_Open()
+  
+  Dim rResult As Result
+  
+  Tab = "Fiches_Tvaav" 
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
+  If rResult.Available Then
+    Repeat
+      Tvalist.Add(rResult!code_tva, rResult!code_tva)
+      If rResult!taux_tva <> "" Then
+        Tvalist.Item[1] = Format$(rResult!taux_tva, "-0.00")
+      Endif
+      Tvalist.Item[2] = rResult!cc_tva
+    Until rResult.MoveNext()
+  Endif
+  
+End
+
+Public Sub Refresh()
+  
+  Tvalist.clear
+  Cdtva.clear
+  Txtva.clear
+  Txtva.clear
+  Tvacc.clear
+  form_Open()
+  'Maj_Zones()
+  
+End
+
+Public Sub Maj_Zones()
+  
+  Dim montante As Float
+  
+  With Utils
+    If Tvalist.Count > 0 Then
+      Cdtva.Text = Tvalist.Current[0]
+      Txtva.text = Tvalist.current[1]
+      Try montante = Val(.cpoint(Txtva.Text))
+      Txtva.Text = Format$(montante, "00.00")
+      Tvacc.text = Tvalist.current[2]
+    Endif
+  End With
+  Cdtva_GotFocus()
+  Cdtva.SetFocus
+  
+End
+
+Public Sub Cleanchamps()
+  
+  Cdtva.Clear
+  Txtva.Clear
+  Tvacc.Clear
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Tva_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+    Select Case Last.tag
+        
+      Case 2
+        b = False
+        Txtva2 = Txtva.Text
+    End Select
+  End With
+  
+End
+
+Public Sub Tva_KeyPress()
+  
+  Select Case Last.tag
+      
+    Case 1
+      If Key.code = Key.enter Or Key.code = Key.RETURN Or Key.code = Key.Tab Then
+        Txtva.SetFocus
+        Txtva.Select
+        Stop Event
+      Endif
+      
+    Case 2
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        Txtva_LostFocus()
+        Tvacc_GotFocus()
+        Tvacc.SetFocus
+        Tvacc.Select
+        Stop Event
+      Endif
+      
+    Case 3
+      Dne = Tvacc.Text
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        If Enr = 0 Then
+          Tvacc_GotFocus()
+          Tvacc.SetFocus
+          Tvacc.Select
+          Stop Event
+        Else
+          Enr = 1
+          Button1.SetFocus
+        Endif
+        Stop Event
+      Endif
+      
+      If key.code = key.F1 Then
+        Button5_Click()
+        Stop Event
+      Endif
+      
+      If Key.code = Key.F2 Then
+        Button4_click()
+        Stop Event
+      Endif
+  End Select
+  
+End
+
+Public Sub Btn_KeyPress()
+  
+  Select Case Last.tag
+      
+    Case 2
+      Button1_Click()
+      
+  End Select
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Button3_Click()
+      
+    Case 2
+      Txtva_LostFocus()
+      If b = False Then Button1_Click()
+      
+    Case 3
+      Me.Close
+      
+  End Select
+  
+End
+
+Public Sub Cdtva_GotFocus()
+  
+  Cdtva.Background = &HAAFF7F&
+  
+End
+
+Public Sub Txtva_LostFocus()
+  
+  Dim montante As Float
+  
+  With Utils
+    Txtva.Text = .cpoint(Txtva.Text)
+    If Val(Txtva.text) = Null Then
+      Txtva.Text = "0.00"
+    Else
+      montante = Val(.cpoint(Txtva.Text))
+      Txtva.Text = Format$(montante, "00.00")
+    Endif
+    If Txtva.Text <> Txtva2 Then
+      If Message.Warning("Attention ! Vous venez de modifier le taux de TVa. Voulez-vous mettre vos données à jour ?", "Oui", "Non") = 2 Then
+        Txtva.Text = Txtva2
+      Else
+        Me.mouse = Mouse.Wait
+        Recalcul()
+        Me.mouse = Mouse.Default
+        'Button1_Click()
+      Endif
+    Endif
+  End With
+  
+End
+
+Public Sub Tvacc_GotFocus()
+  
+  Tvacc.Background = &HAAFF7F&
+  
+End
+
+Public Sub Tvalist_Click()
+  
+  Maj_Zones()
+  
+End
+
+Public Sub Button1_Click()
+  
+  Dim rResult As Result
+  
+  Tab = "Fiches_Tvaav" 
+  If CdTva.Text <> "" Then
+    With Utils
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE cc_tva = &1", Tvacc.text)
+      If rResult.Available Then
+        If rResult!code_tva <> Cdtva.Text Then
+          If son Then
+            Music.Play
+          Endif
+          Message.Question("Attention ! Vous ne pouvez pas attribuer le meme compte Tva \n pour des taux de Tva différents \n Veuillez vérifier votre saisie SVP.", "Ok")
+          Return
+        Endif
+      Endif
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE code_tva = '" & Cdtva.Text & "'")
+      If rResult.Available Then
+        Utils.db.Exec("UPdate  " & Tab & "  SET  code_tva = '" & Cdtva.Text & "' , taux_tva = '" & .PointBase(Txtva.Text) & "'  , cc_tva = '" & Tvacc.Text & "'WHERE code_tva = '" & Cdtva.Text & "'")
+        Utils.db.Exec("UPdate  " & Cbase.Table("TabComptes") & "  SET  taux_tvente = &1 WHERE code_tvente = &2", .PointBase(Txtva.Text), Cdtva.Text)
+      Else
+        Utils.db.Exec("INSERT INTO " & Tab & "(code_tva,taux_tva, cc_tva) VALUES ('" & Cdtva.Text & "', '" & .PointBase(Txtva.Text) & "', '" & Tvacc.Text & "')")
+      Endif
+      Refresh()
+      Cdtva_GotFocus()
+      Cdtva.SetFocus
+      Cdtva.Select
+    End With
+  Endif
+  Tvacc.Select
+  
+End
+
+Public Sub Button3_Click()
+  
+  Dim Rtva As Result
+  
+  Tab = "Fiches_Tvaav" 
+  If CdTva.Text <> "" Then
+    If son Then
+      Music.Play
+    Endif
+    If Message.Question("Etes vous sur de vouloir effacer cet enregistrement", "Oui", "Non") = 1 Then
+      Rtva = utils.db.Exec("select * from " & Cbase.Table("TabComptes") & " where code_tvente = &1", Tvalist.Current[0])
+      If Rtva.Available Then
+        Message.Warning("Suppression impossible ! Cette tva est utilisée par le compte " & Rtva!compte_cc)
+      Else
+        Utils.db.Exec("DELETE FROM " & Tab & " WHERE code_tva = '" & Tvalist.Current[0] & "'")
+        Refresh()
+      Endif
+    Endif
+  Else
+  Endif
+  
+End
+
+Public Sub Button4_Click()
+  
+  Dim Rcompte As Result
+  
+  Tab = "Fiches_Comptes" 
+  If Tvavlist.visible Then
+    Tvavlist.Clear
+    Tvavlist.visible = False
+  Else
+    Tvavlist.visible = True
+    Tvavlist.Columns.count = 2
+    Tvavlist.Columns[0].Width = 65
+    Tvavlist.Columns[1].Width = 180
+    Tvavlist.Columns[0].Text = "code"
+    Tvavlist.Columns[1].Text = "Intitulé"
+    If Not Dne Then
+      Rcompte = Utils.db.Exec("SELECT * FROM " & Tab & " where left(compte_cc,3) = '445'")
+    Else
+      Rcompte = Utils.db.Exec("SELECT * FROM " & Tab & " where left(compte_cc,'" & Len(Tvacc.Text) & "') = '" & Tvacc.Text & "'")
+    Endif
+    If Rcompte.Available Then
+      Repeat
+        Tvavlist.Add(Rcompte!compte_cc, Rcompte!compte_cc)
+        Tvavlist.Item[0] = Rcompte!compte_cc
+        Tvavlist.Item[1] = Rcompte!intitule_cc
+      Until Rcompte.MoveNext()
+      Tvavlist.MoveFirst
+      Tvavlist.SetFocus
+      Tvavlist.Item.Selected = True
+    Endif
+  Endif
+  
+End
+
+Public Sub Tvavlist_Click()
+  
+  tvacc.text = Tvavlist.Item[0]
+  Tvavlist.visible = False
+  Tvavlist.clear
+  Button1.SetFocus
+  
+End
+
+'**********************************************************
+'* Gestion du columnview lors d'une saisie manuelle       *
+'**********************************************************
+Public Sub Tvavlist_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Tvavlist.MoveCurrent
+    Tvavlist_Click()
+    Stop Event
+  Endif
+  
+  If key.code = key.F1 Then
+    Button5_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Tvavlist.visible = False
+    Tvavlist.clear
+    Tvacc_GotFocus()
+    Tvacc.SetFocus
+    Tvacc.Select
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Button5_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Tvaventes.html"]
+  
+End
+
+Public Sub Tvaman()
+  
+  Dim rResult As Result
+  
+  Tab = "Fiches_Comptes" 
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where compte_cc = &1", Tvacc.Text)
+  If Not rResult.Available Then
+    If son Then
+      Music.Play
+    Endif
+    Message.Error("Attention ! Ce compte n'existe pas.")
+    Enr = 0
+  Else
+    Enr = 1
+  Endif
+  
+End
+
+Public Sub Recalcul()
+  
+  Dim rResult As Result
+  Dim rResult2 As Result
+  Dim Netht As String
+  
+  rResult = Utils.db.Exec("select * from " & Cbase.Table("TabFam") & "  where cdtva_fam = &1", Cdtva.text)
+  If rResult.Available Then
+    Repeat
+      Utils.db.Exec("UPdate  " & Cbase.Table("TabFam") & "  SET  txtva_fam = &1 WHERE code_fam = &2", Txtva.Text, rResult!code_fam)
+    Until rResult.MoveNext()
+  Endif
+  '********************** On traite les documents clients **********************************
+  rResult = Utils.db.Exec("select * from " & Cbase.Table("TabBl") & "  where type <> &1 or type = &1 and imp = &2", "F", 0)
+  If rResult.Available Then
+    Repeat
+      rResult2 = Utils.db.Exec("select * from " & Cbase.Table("TabLigbl") & "  where num_ligbl = &1 and tx_ligbl = &2 and typel_ligbl = &3 or num_ligbl = &1 and tx_ligbl = &2 and typel_ligbl = &4 ", rResult!numbl, Cdtva.Text, "A", "M")
+      If rResult2.Available Then
+        Repeat
+          If rResult2!typel_ligbl = "A" Then
+            rResult3 = Utils.db.Exec("select * from " & Cbase.Table("TabArt") & "  where art_code = &1", rResult2!code_ligbl)
+            If rResult3.Available Then
+              Try Nbdec = rResult3!art_nbd
+              Try nbdec = Utils.Find_nbdec(nbdec)
+              Arr = rResult3!art_cdarr
+              Netht = rResult2!netht_ligbl
+              Pvttc = Val(Utils.cpoint(netht)) + Val(Utils.cpoint(netht)) * Val(Utils.cpoint(Txtva.Text)) / 100 
+              arrondi()
+              Utils.db.Exec("UPdate  " & Cbase.Table("TabLigbl") & "  SET  nettc_ligbl = &1 WHERE num_ligbl = &2 and numlig_ligbl = &3", Pvttc, rResult2!num_ligbl, rResult2!numlig_ligbl)
+            Endif
+          Else
+            If rResult2!typel_ligbl = "M" Then
+              rResult3 = Utils.db.Exec("select * from " & Cbase.Table("TabMo") & "  where mo_code = &1", rResult2!code_ligbl)
+              Netht = rResult2!netht_ligbl
+              Pvttc = Val(Utils.cpoint(netht)) + Val(Utils.cpoint(netht)) * Val(Utils.cpoint(Txtva.Text)) / 100 
+              Utils.db.Exec("UPdate  " & Cbase.Table("TabLigbl") & "  SET  nettc_ligbl = &1 WHERE num_ligbl = &2 and numlig_ligbl = &3", Pvttc, rResult2!num_ligbl, rResult2!numlig_ligbl)
+            Endif
+          Endif
+        Until rResult2.MoveNext()
+      Endif
+    Until rResult.MoveNext()
+  Endif 
+  ' On traite les bl entretien
+  rResult = Utils.db.Exec("select * from " & Cbase.Table("TabBlM") & "  where type <> &1 or type = &1 and imp = &2", "F", 0)
+  If rResult.Available Then
+    Repeat
+      rResult2 = Utils.db.Exec("select * from " & Cbase.Table("TabLigblM") & "  where num_ligbl = &1 and tx_ligbl = &2 and typel_ligbl = &3 or num_ligbl = &1 and tx_ligbl = &2 and typel_ligbl = &4 ", rResult!numbl, Cdtva.Text, "A", "M")
+      If rResult2.Available Then
+        Repeat
+          If rResult2!typel_ligbl = "A" Then
+            rResult3 = Utils.db.Exec("select * from " & Cbase.Table("TabArt") & "  where art_code = &1", rResult2!code_ligbl)
+            Nbdec = rResult3!art_nbd
+            nbdec = Utils.Find_nbdec(nbdec)
+            Arr = rResult3!art_cdarr
+            Netht = rResult2!netht_ligbl
+            Pvttc = Val(Utils.cpoint(netht)) + Val(Utils.cpoint(netht)) * Val(Utils.cpoint(Txtva.Text)) / 100 
+            arrondi()
+            Utils.db.Exec("UPdate  " & Cbase.Table("TabLigblM") & "  SET  nettc_ligbl = &1 WHERE num_ligbl = &2 and numlig_ligbl = &3", Pvttc, rResult2!num_ligbl, rResult2!numlig_ligbl)
+          Else
+            If rResult2!typel_ligbl = "M" Then
+              rResult3 = Utils.db.Exec("select * from " & Cbase.Table("TabMo") & "  where mo_code = &1", rResult2!code_ligbl)
+              Netht = rResult2!netht_ligbl
+              Pvttc = Val(Utils.cpoint(netht)) + Val(Utils.cpoint(netht)) * Val(Utils.cpoint(Txtva.Text)) / 100 
+              Utils.db.Exec("UPdate  " & Cbase.Table("TabLigblM") & "  SET  nettc_ligbl = &1 WHERE num_ligbl = &2 and numlig_ligbl = &3", Pvttc, rResult2!num_ligbl, rResult2!numlig_ligbl)
+            Endif
+          Endif
+        Until rResult2.MoveNext()
+      Endif
+    Until rResult.MoveNext()
+  Endif
+  '********************** On traite les articles ***************************************** 
+  rResult = Utils.db.Exec("select * from " & Cbase.Table("TabArt") & "  where art_tva = &1", Cdtva.text)
+  If rResult.Available Then
+    Repeat
+      Nbdec = rResult!art_nbd
+      nbdec = Utils.Find_nbdec(nbdec)
+      Arr = rResult!art_cdarr
+      Netht = rResult!art_pvht
+      Pvttc = Val(Utils.cpoint(netht)) + Val(Utils.cpoint(netht)) * Val(Utils.cpoint(Txtva.Text)) / 100 
+      arrondi()
+      Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET  art_pvttc = &1 WHERE art_code = &2", Val(Pvttc), rResult!art_code)
+    Until rResult.MoveNext()
+  Endif 
+  '********************** On traite les MO ***********************************
+  rResult = Utils.db.Exec("select * from " & Cbase.Table("TabMo") & "  where mo_tva = &1", Cdtva.text)
+  If rResult.Available Then
+    Repeat
+      If Not IsNull(rResult!mo_valeurht) And If rResult!mo_valeurht <> 0 Then
+        Nbdec = 2
+        nbdec = Utils.Find_nbdec(nbdec)
+        Arr = rResult!mo_cdarr
+        Netht = rResult!mo_valeurht
+        Pvttc = Val(Utils.cpoint(netht)) + Val(Utils.cpoint(netht)) * Val(Utils.cpoint(Txtva.Text)) / 100 
+        arrondi()
+        Utils.db.Exec("UPdate  " & Cbase.Table("TabMo") & "  SET  mo_valeurttc = &1 WHERE mo_code = &2", Val(Pvttc), rResult!mo_code)
+      Endif
+    Until rResult.MoveNext()
+  Endif  
+  
+End
+
+'***********************************
+'*        On gère l' arrondi       *
+'***********************************
+Public Sub arrondi()
+  
+  If Not PvTTc Then PvTTc = "0,00"
+  Pvttc = Utils.cpoint(Pvttc)
+  If arr = "0,01" Then Pvttc = Format$(Val(Pvttc), Nbdec)
+  If arr = "0,05" Then 
+    If Right$(Pvttc) Like "[34567]*" Then
+      Pvttc = Left$(Pvttc, (Len(Pvttc) - 1)) & "5"
+    Else
+      Pvttc = Round(Val(Pvttc), -1)
+      Pvttc = Format$(Pvttc, Nbdec)
+    Endif
+  Endif
+  
+  If arr = "0,10" Then
+    Pvttc = Round(Val(Pvttc), -1)
+    Pvttc = Format$(Pvttc, Nbdec)
+  Endif
+  
+  If arr = "0,50" Then
+    If Val(Pvttc) <= Val(Left$(Pvttc, (Len(Pvttc) - 2)) & 25) Then
+      Pvttc = Left$(Pvttc, (Len(Pvttc) - 2)) & "00"
+    Else
+      If Val(Pvttc) <= Val(Left$(Pvttc, (Len(Pvttc) - 2)) & 75) Then
+        Pvttc = Left$(Pvttc, (Len(Pvttc) - 2)) & "50"
+      Endif
+      If Val(Pvttc) >= Val(Left$(Pvttc, (Len(Pvttc) - 2)) & 76) Then
+        Pvttc = Round(Val(Pvttc))
+        Pvttc = Format$(Pvttc, Nbdec)
+      Endif
+    Endif
+  Endif
+  
+  If arr = "1,00" Then
+    Pvttc = Round(Val(Pvttc))
+    Pvttc = Format$(Pvttc, Nbdec)
+  Endif
+  
+End

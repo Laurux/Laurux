@@ -1,0 +1,498 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : EdMat.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : Juillet 2013
+'# Impression des matériels
+'################################################
+'
+
+Filename As String
+Tab As String
+son As Integer = Start.Son
+PosY As Integer
+PosX As Integer
+Public CodeMat As String
+Public CClient As String
+Public Bsel As Boolean = False
+Private Origine As String = "EdMat"
+Private b As Integer = 0
+Tri As String
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Music.Load(Start.Musique)
+  Me.Center
+  mat.Text = "00000"
+  mat2.Text = "ZZZZZ"
+  Cli.Text = "41100001"
+  Cli2.Text = "41199999"
+  Marque.Text = "AAAAAAAAAAAA"
+  Marque2.Text = "ZZZZZZZZZZZZ"
+  mat.Select
+  mat.SetFocus
+  
+End
+
+Public Sub ToggleButton1_Click()
+  
+  Origine = "1"
+  Selectionmat()
+  
+End
+
+Public Sub ToggleButton2_Click()
+  
+  Origine = "2"
+  Selectionmat()
+  
+End
+
+'************************************
+'*   Affichage des propriétaires    *
+'************************************
+Public Sub ToggleButton3_Click()
+  
+  Origine = "1"
+  SelectionProp()
+  
+End
+
+'****************************************Gestion des propriétaires**************************************************
+Public Sub SelectionProp()
+  
+  Dim sel As String = ""
+  Dim MyForm As Triclients
+  
+  sel = ""
+  Tri = "cli_code"
+  MyForm = New Triclients("EdMat")
+  MyForm.Showmodal()
+  If Bsel = True Then
+    b = 0
+    If origine = "1" Then
+      cli.text = Cclient
+      cli2.SetFocus
+      cli2.Select
+    Else
+      cli2.text = Cclient
+      Marque.SetFocus
+      Marque.Select
+    Endif
+  Else
+    b = 0
+    If origine = "1" Then
+      cli.SetFocus
+    Else
+      cli2.SetFocus
+    Endif
+  Endif
+  
+End
+
+Public Sub ToggleButton4_Click()
+  
+  Origine = "2"
+  SelectionProp()
+  
+End
+
+'***********************************************************
+'* Gestion du columnview Colfour lors d'une saisie manuelle *
+'***********************************************************
+Public Sub ColMarque_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    ColMarque.MoveCurrent
+    ColMarque_Click()
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    ColMarque.visible = False
+    ColMarque.clear
+    Marque.SetFocus
+    Marque.Select
+    Stop Event
+  Endif
+  
+End
+
+'****************************************Gestion des articles**************************************************
+Public Sub SelectionMat()
+  
+  Dim sel As String = ""
+  Dim MyForm As TriMat
+  
+  Tab = "Fiches_Materiels"
+  sel = ""
+  Tri = "mat_code"
+  MyForm = New TriMat(True, "", Tri, "EdMat")
+  MyForm.Showmodal()
+  If Bsel = True Then
+    b = 0
+    If origine = "1" Then
+      mat.text = CodeMat
+      mat2.SetFocus
+      mat2.Select
+    Else
+      mat2.text = CodeMat
+      Cli.SetFocus
+      Cli.Select
+    Endif
+  Else
+    b = 0
+    If origine = "1" Then
+      mat.SetFocus
+    Else
+      Mat2.SetFocus
+    Endif
+  Endif
+  
+End
+
+'********************************************
+'* Saisie d'un article manuellement         *
+'********************************************
+Public Sub Mat_man()
+  
+  Dim rmats As Result
+  
+  With utils
+    rmats = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMat") & " where mat_code = &1", mat.Text)
+    If Not rmats.Available Then
+      rmats = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMat") & " where mat_cfour = &1", mat.Text)
+    Endif
+    If Not rmats.Available Then
+      rmats = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMat") & " where mat_cbarre = &1", mat.Text)
+    Endif
+    If Not rmats.Available Then
+      rmats = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMat") & " where mat_refcentrale = &1", mat.Text)
+    Endif
+    If Not rmats.Available Then
+      If son Then
+        Music.Play
+      Endif
+      message.Warning(" Cette référence n'existe pas ! ")
+      b = 1
+    Else
+      b = 0
+    Endif
+  End With
+  
+End
+
+'*************************************
+'*    Selection de la 1ere marque    *
+'*************************************
+
+Public Sub ToggleButton5_Click()
+  
+  origine = "1"
+  Aff_Marques()
+  
+End
+
+Public Sub ToggleButton6_Click()
+  
+  origine = "2"
+  Aff_Marques()
+  
+End 
+
+Public Sub Aff_Marques()
+  
+  Dim Rmarques As Result
+  
+  Tab = "Fiches_Marques" 
+  With Utils
+    If ColMarque.visible Then
+      ColMarque.clear
+      ColMarque.visible = False
+    Else
+      If origine = "1" Then
+        ColMarque.x = 0
+        ColMarque.Y = 12
+      Else
+        ColMarque.x = ToggleButton5.x 
+        ColMarque.Y = 12
+      Endif
+      ColMarque.visible = True
+      ColMarque.Columns.count = 2
+      ColMarque.Columns[0].Width = 65
+      ColMarque.Columns[1].Width = 280
+      ColMarque.Columns[0].Text = "code"
+      ColMarque.Columns[1].Text = "Intitulé"
+      Rmarques = Utils.db.Exec("SELECT * FROM " & Tab & " order by code")
+      If Rmarques.Available Then
+        Repeat
+          ColMarque.Add(Rmarques!code, Rmarques!code)
+          ColMarque.Item[0] = Rmarques!code
+          ColMarque.Item[1] = Rmarques!intitule
+        Until Rmarques.MoveNext()
+      Endif
+      If ColMarque.Count Then
+        ColMarque.MoveFirst
+        ColMarque.SetFocus
+        ColMarque.Item.Selected = True
+      Endif
+    Endif
+  End With
+  
+End
+
+Public Sub ColMarque_Click()
+  
+  If origine = "1" Then
+    Marque.Text = ColMarque.Item[1]
+    Marque2.Select
+    Marque2.SetFocus
+  Else
+    Marque2.Text = ColMarque.Item[1]
+    Type.Select
+    Type.SetFocus
+  Endif
+  ColMarque.clear
+  ColMarque.visible = False
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Button1_Click()
+      
+    Case 2
+      Button2_Click()
+      
+    Case 3
+      If Exist(filename) Then Try Kill filename
+      Me.Close
+      
+  End Select
+  
+End
+
+Public Sub Btn_KeyPress()
+  
+  Select Case Last.tag
+    Case 2
+      Button2_Click()
+  End Select
+  
+End
+
+Public Sub Cmpt_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+      Case 1
+        mat_man()
+        If b = 1 Then
+          mat.SetFocus
+          mat.Select
+          b = 0
+        Else
+          mat2.SetFocus
+          mat2.Select
+        Endif
+        Stop Event
+        
+      Case 2
+        mat_man()
+        If b = 1 Then
+          mat.SetFocus
+          mat.Select
+          b = 0
+        Else
+          Cli.SetFocus
+          Cli.Select
+        Endif
+        Stop Event
+        
+      Case 3
+        Cli2.SetFocus
+        Cli2.Select
+        Stop Event
+        
+      Case 4
+        Marque.SetFocus
+        Marque.Select
+        Stop Event
+        
+      Case 5
+        Marque2.SetFocus
+        Marque2.Select
+        Stop Event
+        
+      Case 6
+        Button2.SetFocus
+        Stop Event
+    End Select
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+  If key.code = key.F2 Then
+    Select Case Last.tag
+      Case 1
+        ToggleButton1_Click()
+        Stop Event
+      Case 2
+        ToggleButton2_Click()
+        Stop Event
+      Case 3
+        ToggleButton3_Click()
+        Stop Event
+      Case 4
+        ToggleButton4_Click()
+        Stop Event
+      Case 5
+        ToggleButton5_Click()
+        Stop Event
+      Case 6
+        ToggleButton6_Click()
+        Stop Event
+    End Select
+  Endif
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Cmpt_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim rResult As Result
+  Dim code As String
+  Dim intitule As String
+  Dim Fami As String
+  Dim four3 As String
+  Dim Pvht As String
+  Dim Tva As String
+  Dim Pvttc As String
+  Dim $Marque, $serie, $type, $proprietaire, $tri As String
+  Dim dte As String
+  Dim nbdec As String
+  Dim nbd As String
+  Dim Nbpage As Integer
+  Dim Gpvcons, Matstocke, Matstocke2, Imp As Boolean
+  Dim pdf As Cmat
+  
+  Try Gpvcons = Settings["/Soc" & Start.Societe & "/Pvcons"]
+  If Error Then Gpvcons = False
+  Nbpage = 1
+  If Vendus.value = False And Vendus2.value = False Then 
+    Imp = False
+  Else
+    Imp = True
+  Endif
+  If Vendus.value = True And Vendus2.value = True Then 
+    Matstocke = True
+    Matstocke2 = False
+  Endif
+  If Vendus.value = True And Vendus2.value = False Then 
+    Matstocke = True
+    Matstocke2 = True
+  Endif
+  If Vendus.value = False And Vendus2.value = True Then
+    Matstocke = False
+    Matstocke2 = False
+  Endif
+  If Imp = True Then
+    Shell "cd " & User.Home & ""
+    Filename = User.home & "/Tarif2.pdf"
+    pdf = New Cmat("Portrait", "mm", "A4")
+    pdf.Open()
+    pdf.AliasNbPages()
+    If Vendus.value = True And Vendus2.value = False Then pdf.Entete("Liste des matériels vendus au " & Format$(Now, "dd.mm.yyyy"))
+    If Vendus.value = False And Vendus2.value = True Then pdf.Entete("Liste des matériels en stock au " & Format$(Now, "dd.mm.yyyy"))
+    If Vendus.value = True And Vendus2.value = True Then pdf.Entete("Liste de tous les matériels au " & Format$(Now, "dd.mm.yyyy"))
+    dte = Format$(Now, "dd.mm.yyyy")
+    Tab = "Fiches_Materiels"
+    pdf.Level1()
+    posx = 40
+    posy = 26
+    Me.Mouse = Mouse.Wait
+    If Radiobutton1.Value Then $Tri = "lpad(mat_code,15,' ')"
+    If Radiobutton2.Value Then $Tri = "mat_cli, lpad(mat_code,15,' ')"
+    If Radiobutton3.Value Then $Tri = "mat_marque, lpad(mat_code,15,' ')"
+    If Radiobutton4.Value Then $Tri = "mat_serie"
+    If Vendus.Value = True And Vendus2.Value = False Then
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE mat_code >= &1  and mat_code <= &2 and mat_cli >= &3 and mat_cli <= &4  and mat_marque >= &5 and mat_marque <= &6 order by &9", mat.Text, mat2.Text, Cli.Text, Cli2.Text, Marque.Text, Marque2.Text, Matstocke, Matstocke2, $Tri)
+    Endif
+    If Vendus.value = False And Vendus2.value = True Then
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE (mat_code >= &1  and mat_code <= &2 and mat_cli is null and mat_marque >= &5 and mat_marque <= &6 and mat_vendu = &7) or (mat_code >= &1  and mat_code <= &2 and mat_cli is null and mat_marque >= &5 and mat_marque <= &6 and mat_vendu = &8)  order by &9", mat.Text, mat2.Text, Cli.Text, Cli2.Text, Marque.Text, Marque2.Text, Matstocke, Matstocke2, $Tri)
+    Endif
+    If Vendus.value = True And Vendus2.value = True Then
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE (mat_code >= &1  and mat_code <= &2 and mat_cli >= &3 and mat_cli <= &4  and mat_marque >= &5 and mat_marque <= &6) or (mat_code >= &1  and mat_code <= &2 and mat_cli is null  and mat_marque >= &5 and mat_marque <= &6)  order by &9", mat.Text, mat2.Text, Cli.Text, Cli2.Text, Marque.Text, Marque2.Text, Matstocke, Matstocke2, $Tri)
+    Endif
+    If rResult.Available Then
+      Repeat
+        code = rResult!mat_code
+        intitule = rResult!mat_design
+        intitule = Left$(intitule, 36)
+        fami = rResult!mat_fam
+        four3 = rResult!mat_four
+        nbd = rResult!mat_nbd
+        nbdec = Utils.Find_nbdec(nbd)
+        pvht = Format$(rResult!mat_pvht, nbdec)
+        If Len(pvht) - InStr(pvht, ",") = 2 Then pvht = pvht & " "
+        tva = rResult!mat_tva
+        pvttc = Format$(rResult!mat_pvttc, nbdec)
+        If Len(pvttc) - InStr(pvttc, ",") = 2 Then pvttc = pvttc & " "
+        $Marque = rResult!mat_marque 
+        $Type = rResult!mat_type
+        $Serie = rResult!mat_serie
+        $proprietaire = rResult!mat_cli
+        pdf.level2(code, intitule, $Marque, $Type, $Serie, $Proprietaire, pvht, pvttc, PosY)
+        PosY = PosY + 5
+        If PosY >= 283 Then
+          pdf.Footer()
+          pdf.Entete("Liste des marériels au " & Format$(Now, "dd.mm.yyyy"))
+          pdf.Level1()
+          posy = 26
+        Endif
+      Until rResult.MoveNext()
+      pdf.Footer()
+      pdf.Output(Filename, False)
+      Visualiseur.Prog_Editeur(Filename)
+      Me.Mouse = Mouse.Default
+    Else
+      If son Then Music.Play
+      Me.Mouse = Mouse.Default
+      message(" Aucun article pour cette demande", "OK")
+    Endif
+  Else
+    If son Then Music.Play
+    Me.Mouse = Mouse.Default
+    message(" Votre demande n'est pas cohérente !\nVeuillez dire si le matériel est vendu ou en stock", "OK")
+  Endif
+  
+End
+
+Public Sub Button1_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Edtar.html"]
+  
+End

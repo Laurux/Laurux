@@ -1,0 +1,440 @@
+' Gambas class file
+
+Private Mattable[7] As String
+Private Dbl As Boolean = False
+Private sel As String
+Private Tri As String
+Private Bart As Boolean
+Private B2art As Boolean
+Private $Org As String
+Private NbEnreg As Integer = 0 ' Enregistrement de départ de la sélection
+Private lg As Integer
+Private chkfocus As Boolean = True
+
+'************************************** Gestion des articles *****************************************************
+Public Sub _new(Barticle As Boolean, B2article As Boolean, $Tri As String, Org As String)
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  lg = Int(ColMat.height / ColMat.Rows.Height) - 1
+  Me.Center
+  $Org = Org
+  Bart = Barticle
+  B2art = B2article
+  Tri = $Tri
+  TriMat()
+  Deb1()
+  Cb1.Text = "Propriétaire"
+  CO.Text = "Code"
+  It.Text = "Intitulé"
+  ColMat.MoveTo(0, 0)
+  Try ColMat.Current.EnsureVisible
+  It_GotFocus()
+  
+End
+
+Public Sub CO_click()
+  
+End
+
+Public Sub CO_DblClick()
+  
+  mat_Dblclk()
+  
+End
+
+Public Sub CO_GotFocus()
+  
+  Try Utils.ObsGotf(Co)
+  CO.Select
+  CO.SetFocus
+  chkfocus = False
+  sel = ""
+  Cb1.Text = "Propriétaire"
+  CO.Text = ""
+  It.Text = "Intitulé"
+  Tri = "mat_code"
+  NbEnreg = 0
+  Dbl = ""
+  Deb1()
+  
+  chkfocus = True
+  
+End
+
+Public Sub CO_LostFocus()
+  
+  Try Utils.ObsLstf(CO)
+  
+End
+
+Public Sub CO_KeyPress()
+  
+  Chkinput()
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then Me.close()
+  If key.code = key.Down Then
+    ColMat.SetFocus
+    ColMat.MoveTo(0, 0)
+  Endif
+  If key.code = key.Right Then IT.SetFocus
+  
+End
+
+'Public Sub Cb1_Click()
+
+'End
+
+Public Sub Cb1_DblClick()
+  
+  mat_Dblclk()
+  
+End
+
+Public Sub Cb1_GotFocus()
+  
+  Try Utils.ObsGotf(Cb1)
+  If chkfocus = True Then
+    sel = ""
+    If Cb1.Text = "Propriétaire" Then Tri = "mat_cli"
+    If Cb1.Text = "Numéro série" Then Tri = "mat_serie"
+    If Cb1.Text = "Marque" Then Tri = "mat_marque"
+    If Cb1.Text = "Type" Then Tri = "mat_type"
+    It.Text = "Intitulé"
+    CO.Text = "Code"
+    NbEnreg = 0
+    Dbl = ""
+    Deb1()
+    Cb1.Text = ""
+    Cb1.Select
+  Endif
+  
+End
+
+Public Sub Cb1_LostFocus()
+  
+  Try Utils.ObsLstf(Cb1)
+  
+End
+
+Public Sub Cb1_KeyPress()
+  
+  Chkinput()
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then Me.close()
+  If key.code = key.Down Then
+    ColMat.SetFocus
+    ColMat.MoveTo(0, 0)
+  Endif
+  
+End
+
+Public Sub It_DblClick()
+  
+  mat_Dblclk()
+  
+End
+
+Public Sub It_GotFocus()
+  
+  Try Utils.ObsGotf(it)
+  IT.Select
+  IT.SetFocus
+  sel = ""
+  Cb1.Text = "Propriétaire"
+  CO.Text = "Code"
+  It.Text = ""
+  Tri = "mat_design"
+  NbEnreg = 0
+  Dbl = ""
+  Deb1()
+  
+End
+
+Public Sub It_LostFocus()
+  
+  Try Utils.ObsLstf(It)
+  
+End
+
+Public Sub It_KeyPress()
+  
+  Chkinput()
+  If key.code = key.f2 Or If key.code = key.Escape Then Me.close()
+  If key.code = key.Down Then
+    ColMat.SetFocus
+    ColMat.MoveTo(0, 0)
+  Endif
+  If key.code = key.Left Then CO.SetFocus
+  If key.code = key.Right Then Cb1.SetFocus
+  
+End
+
+Public Sub mat_Dblclk()
+  
+  If Dbl = False Then
+    Deb2()
+    Dbl = True
+  Else
+    Deb1()
+    Dbl = False
+  Endif
+  
+End
+
+Public Sub ChkInput()
+  
+  If InStr("\"&", Key.Text) = 0 Then
+    sel = utils.Obstch(sel)
+    Deb1()
+  Else
+    Stop Event
+  Endif
+  
+End
+
+Public Sub TriMat()
+  
+  With ColMat
+    .Columns.count = 6
+    .Columns[0].Width = CO.Width
+    .Columns[1].Width = It.Width
+    .Columns[2].Width = Cb1.Width
+    .Columns[3].Width = PHTX.Width
+    .Columns[3].Alignment = 2
+    .Columns[4].Width = PVXTTC.Width
+    .Columns[4].Alignment = 2
+    .Columns[5].Width = QTESTK.Width - 22
+    .Columns[5].Alignment = 3
+  End With
+  
+End
+
+Public Sub ColMat_Data(Row As Integer, Column As Integer)
+  
+  With Utils
+    Mattable[0] = "mat_code"
+    Mattable[1] = "mat_design"
+    
+    If Tri = "mat_cli" Then
+      Mattable[2] = "mat_cli"
+    Else
+      If Tri = "mat_serie" Then
+        Mattable[2] = "mat_serie"
+      Else
+        If Tri = "mat_marque" Then
+          Mattable[2] = "mat_marque"
+        Else
+          If Tri = "mat_type" Then
+            Mattable[2] = "mat_type"
+          Else
+            Mattable[2] = "mat_cli"
+          Endif
+        Endif
+      Endif
+    Endif
+    Mattable[3] = "mat_pvht"
+    Mattable[4] = "mat_pvttc"
+    Mattable[5] = "mat_qte"
+    .rs2.MoveTo(Row)
+    ColMat.data.Text = Str(.rs2[Mattable[Column]])
+  End With
+  
+End
+
+Public Sub Deb1()
+  
+  Dim lpd As String
+  Dim Selection As String
+  
+  If RadioButton1.value = True Then Selection = ""
+  If RadioButton2.value = True Then Selection = "1"
+  If RadioButton3.value = True Then Selection = "0"
+  If Tri = "mat_code" Then
+    lpd = "lpad(mat_code,15,' ')"
+  Else
+    lpd = Tri 
+  Endif
+  If Tri = "mat_design" Then
+    If Selection = "" Then
+      Utils.Base2(ColMat, "SELECT  mat_code, mat_design, mat_cli, mat_fam, mat_four, mat_pvht, mat_pvttc, mat_qte, mat_serie, mat_marque, mat_type  FROM " & Cbase.Table("TabMat") & " where " & tri & " like  \"%" & sel & "%\" order by " & lpd & " limit " & NbEnreg & ", " & lg & "")
+    Else
+      Utils.Base2(ColMat, "SELECT  mat_code, mat_design, mat_cli, mat_fam, mat_four, mat_pvht, mat_pvttc, mat_qte, mat_serie, mat_marque, mat_type  FROM " & Cbase.Table("TabMat") & " where " & tri & " like  \"%" & sel & "%\" and mat_vendu like \"%" & selection & "%\" order by " & lpd & " limit " & NbEnreg & ", " & lg & "")
+    Endif
+  Else
+    If Selection = "" Then
+      Utils.Base2(ColMat, "SELECT  mat_code, mat_design, mat_cli, mat_fam, mat_four, mat_pvht, mat_pvttc, mat_qte, mat_serie, mat_marque, mat_type  FROM " & Cbase.Table("TabMat") & " where " & tri & " like  \"" & sel & "%\" order by " & lpd & " limit " & NbEnreg & ", " & lg & "")
+    Else
+      Utils.Base2(ColMat, "SELECT  mat_code, mat_design, mat_cli, mat_fam, mat_four, mat_pvht, mat_pvttc, mat_qte, mat_serie, mat_marque, mat_type  FROM " & Cbase.Table("TabMat") & " where " & tri & " like  \"" & sel & "%\" and mat_vendu like \"%" & selection & "%\" order by " & lpd & " limit " & NbEnreg & ", " & lg & "")
+    Endif
+  Endif
+  ColMat.Refresh
+  
+End
+
+Public Sub Deb2()
+  
+  Dim lpd As String
+  Dim Selection As String
+  
+  If RadioButton1.value = True Then Selection = ""
+  If RadioButton2.value = True Then Selection = "1"
+  If RadioButton3.value = True Then Selection = "0"
+  If tri = "mat_code" Then
+    lpd = "lpad(mat_code,15,' ')"
+  Else
+    lpd = tri
+  Endif
+  If Tri = "mat_design" Then
+    If Selection = "" Then
+      Utils.Base2(ColMat, "SELECT  mat_code, mat_design, mat_cli, mat_fam, mat_four, mat_pvht, mat_pvttc, mat_qte, mat_serie, mat_marque, mat_type  FROM " & Cbase.Table("TabMat") & " where " & tri & " like  \"%" & sel & "%\" order by " & lpd & " desc limit " & NbEnreg & ", " & lg & "")
+    Else
+      Utils.Base2(ColMat, "SELECT  mat_code, mat_design, mat_cli, mat_fam, mat_four, mat_pvht, mat_pvttc, mat_qte, mat_serie, mat_marque, mat_type  FROM " & Cbase.Table("TabMat") & " where " & tri & " like  \"%" & sel & "%\" and mat_vendu like \"%" & selection & "%\" order by " & lpd & " desc limit " & NbEnreg & ", " & lg & "")
+    Endif
+  Else
+    If Selection = "" Then
+      Utils.Base2(ColMat, "SELECT  mat_code, mat_design, mat_cli, mat_fam, mat_four, mat_pvht, mat_pvttc, mat_qte, mat_serie, mat_marque, mat_type  FROM " & Cbase.Table("TabMat") & " where " & tri & " like  \"" & sel & "%\" order by " & lpd & " desc limit " & NbEnreg & ", " & lg & "")
+    Else
+      Utils.Base2(ColMat, "SELECT  mat_code, mat_design, mat_cli, mat_fam, mat_four, mat_pvht, mat_pvttc, mat_qte, mat_serie, mat_marque, mat_type  FROM " & Cbase.Table("TabMat") & " where " & tri & " like  \"" & sel & "%\" and mat_vendu like \"%" & selection & "%\" order by " & lpd & " desc limit " & NbEnreg & ", " & lg & "")
+    Endif
+  Endif
+  ColMat.Refresh
+  
+End
+
+Public Sub ColMat_MouseWheel()
+  
+  If mouse.Delta = -1 Then
+    If ColMat.Rows.Count = lg Then NbEnreg = NbEnreg + lg
+  Else
+    If ColMat.Rows.Count <= lg Then NbEnreg = NbEnreg - lg
+  Endif
+  Deplacement()
+  'Endif
+  Try ColMat.MoveTo(0, 0)
+  Try ColMat.Current.EnsureVisible
+  Try ColMat.SetFocus
+  
+End
+
+Public Sub Remonter_Click()
+  
+  If ColMat.Rows.Count <= lg Then NbEnreg = NbEnreg - lg
+  Deplacement()
+  Try ColMat.MoveTo(0, 0)
+  Try ColMat.Current.EnsureVisible
+  Try ColMat.SetFocus
+  
+End
+
+Public Sub Descendre_Click()
+  
+  If ColMat.Rows.Count = lg Then NbEnreg = NbEnreg + lg
+  Deplacement()
+  Try ColMat.MoveTo(0, 0)
+  Try ColMat.Current.EnsureVisible
+  Try ColMat.SetFocus
+  
+End
+
+Public Sub Remonter_KeyPress()
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Me.Close
+  Endif
+  If key.code = key.PageDown Then Remonter_Click()
+  If key.code = key.PageUp Then Descendre_Click()
+  
+End
+
+Public Sub Descendre_KeyPress()
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Me.Close
+  Endif
+  If key.code = key.PageDown Then Remonter_Click()
+  If key.code = key.PageUp Then Descendre_Click()
+  
+End
+
+Public Sub Frame1_KeyPress()
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Me.Close
+  Endif
+  
+End
+
+Public Sub Deplacement()
+  
+  If NbEnreg < 0 Then NbEnreg = 0
+  If Dbl = True Then
+    Deb2()
+  Else
+    Deb1()
+  Endif
+  
+End
+
+Public Sub ColMat_Click()
+  
+  Select Case $Org
+      
+    Case "EdMat"
+      EdMat.Bsel = True
+      EdMat.CodeMat = ColMat[ColMat.row, 0].Text
+      
+  End Select
+  Me.close
+  
+End
+
+Public Sub ColMat_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    ColMat_Click()
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Me.Close
+  Endif
+  If Key.code = Key.Up Then
+    If ColMat.Row = 0 Then
+      Descendre_Click()
+    Endif
+  Endif
+  If Key.code = Key.down Then
+    If ColMat.Row = lg - 1 Then
+      Remonter_Click()
+    Endif
+  Endif
+  If Key.code = Key.PageDown Then
+    Remonter_Click()
+  Endif
+  
+  If Key.code = Key.PageUp Then
+    Descendre_Click()
+  Endif
+  
+End
+
+Public Sub RadioButton1_Click()
+  
+  Deb1()
+  ColMat.MoveTo(0, 0)
+  Try ColMat.Current.EnsureVisible
+  
+End
+
+Public Sub RadioButton2_Click()
+  
+  Deb1()
+  ColMat.MoveTo(0, 0)
+  Try ColMat.Current.EnsureVisible
+  
+End
+
+Public Sub RadioButton3_Click()
+  
+  Deb1()
+  ColMat.MoveTo(0, 0)
+  Try ColMat.Current.EnsureVisible
+  
+End

@@ -1,0 +1,511 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Remisecli.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 23/02/2010
+'# Gestion de la table des remises clients par famille
+'################################################
+'
+
+'Variable d'instance de la grille
+CoulZns As Integer ' Variable pour la couleur du background des zones de saisie
+CoulfOC As Integer ' Variable pour la couleur du FOCUS
+Tri As String
+Sel As String
+son As Integer = Start.Son
+sKey As String
+Clitable[3] As String
+Dbl As String
+
+Public Sub _New()
+  
+  Dim Frmt As New String[]
+  
+  Frmt = Utils.FColr(Settings["/Coul/Focus"])
+  CoulFoc = Val(Frmt[0])
+  Frmt = Utils.FColr(Settings["/Coul/Znss"])
+  CoulZns = Val(Frmt[0])
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  entete()
+  
+End
+
+Public Sub Form_Open()
+  
+  Tri = "codec"
+  Tris()
+  Deb2()
+  cdt.SetFocus
+  cdt.Select
+  
+End
+
+Public Sub Deb2()
+  
+  Dim tri2 As String
+  
+  If tri = "codec" Then tri2 = "codef"
+  If tri = "codef" Then tri2 = "codec"
+  Utils.Base(Tabcli, "select * from " & Cbase.Table("RemCliFam") & " where " & Tri & " like  \"" & sel & "%\" order by " & Tri & ", " & Tri2 & "")
+  
+End
+
+Public Sub Deb3()
+  
+  Utils.Base(Tabcli, "select * from " & Cbase.Table("RemCliFam") & " where " & Tri & " like  \"" & sel & "%\" order by " & Tri & " Desc")
+  
+End
+
+Public Sub Tris()
+  
+  Dim rResult As Result
+  
+  With Tabcli
+    .Columns.count = 3
+    .Columns[0].Width = CO.Width
+    .Columns[1].Width = FA.Width
+    .Columns[2].Width = Rem.Width
+  End With
+  
+End
+
+Public Sub Tabcli_Data(Row As Integer, Column As Integer)
+  
+  Dim Col As Integer
+  Dim sFormat As String
+  
+  With Utils
+    CliTable[0] = "codec"
+    CliTable[1] = "codef"
+    CliTable[2] = "remise"
+    Try .rs1.MoveTo(Row)
+    Try Tabcli.data.Text = Str(.rs1[Clitable[Column]])
+  End With
+  
+End
+
+Public Sub Maj_Zones()
+  
+  Dim Rcli As Result
+  Dim Rfam As Result
+  Dim Tab As String
+  
+  Try Rcli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("RemCliFam") & " where codec = &1 and codef = &2", Tabcli[Tabcli.row, 0].Text, Tabcli[Tabcli.row, 1].Text)
+  If Not Error Then
+    Cdt.Text = Rcli!codec
+    Cdf.Text = Rcli!codef
+    Remise.Text = Rcli!remise
+  Endif
+  
+End
+
+Public Sub CleanChamps()
+  'cdt.Clear
+  'Libel.Clear
+  
+  cdf.Clear
+  libelfam.Clear
+  remise.Clear
+  
+End
+
+Public Sub Tabcli_Select()
+  
+  CleanChamps()
+  Maj_Zones()
+  Quitte_Cdt()
+  Quitte_Cdf()
+  entete()
+  cdt.SetFocus
+  cdt.Select
+  
+End
+
+Public Sub ToggleButton1_Click()
+  
+  Dim Rcli As Result
+  
+  If Colcli.Visible = True Then
+    Colcli.Clear
+    Colcli.Visible = False
+  Else
+    Colcli.visible = True
+    Colcli.Columns.count = 3
+    Colcli.Columns[0].Width = 65
+    Colcli.Columns[1].Width = 140
+    Colcli.Columns[2].Width = 140
+    Colcli.Columns[0].Text = "Code"
+    Colcli.Columns[1].Text = "Nom"
+    Colcli.Columns[2].Text = "Prénom"
+    Rcli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & "")
+    If Rcli.Available Then
+      Repeat
+        Colcli.Add(Rcli!cli_code, Rcli!cli_code)
+        Colcli.Item[0] = Rcli!cli_code
+        Colcli.Item[1] = Rcli!cli_nom
+        Colcli.Item[2] = Rcli!cli_pnm
+      Until Rcli.MoveNext()
+      Colcli.MoveFirst
+      Colcli.SetFocus
+      Colcli.Item.Selected = True
+    Endif
+  Endif
+  
+End
+
+Public Sub colcli_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.Return Then
+    Colcli.MoveCurrent
+    Colcli_Click()
+  Endif
+  If Key.code = key.Esc Or key.code = key.F2 Then
+    Colcli.visible = False
+    Colcli.clear
+    cdt.SetFocus
+    cdt.Select
+  Endif
+  
+End
+
+Public Sub Colcli_Click()
+  
+  Cdt.text = Colcli.Item[0]
+  Libel.text = Colcli.Item[1]
+  Colcli.visible = False
+  Colcli.clear
+  cdf.SetFocus
+  cdf.Select
+  
+End
+
+Public Sub ToggleButton2_Click()
+  
+  Dim Rcli As Result
+  
+  If Colfam.Visible = True Then
+    Colfam.Clear
+    Colfam.Visible = False
+  Else
+    Colfam.visible = True
+    Colfam.Columns.count = 2
+    Colfam.Columns[0].Width = 65
+    Colfam.Columns[1].Width = 80
+    Colfam.Columns[0].Text = "code"
+    Colfam.Columns[1].Text = "Intitulé"
+    Rcli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & "")
+    If Rcli.Available Then
+      Repeat
+        Colfam.Add(Rcli!code_fam, Rcli!code_fam)
+        Colfam.Item[0] = Rcli!code_fam
+        Colfam.Item[1] = Rcli!libell_fam
+      Until Rcli.MoveNext()
+      Colfam.MoveFirst
+      Colfam.SetFocus
+      Colfam.Item.Selected = True
+    Endif
+  Endif
+  
+End
+
+Public Sub Colfam_Click()
+  
+  Cdf.text = Colfam.Item[0]
+  Libelfam.text = Colfam.Item[1]
+  Colfam.visible = False
+  Colfam.clear
+  remise.SetFocus
+  remise.Select
+  
+End
+
+Public Sub Quitte_Cdt()
+  '******************************************************************
+  '*    Recherche d'un client lors d'une saisie manuelle       *
+  '******************************************************************
+  
+  Dim Typc As Result
+  
+  Typc = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & "  WHERE cli_code = &1", cdt.Text)
+  If Not Typc.Available Then
+    Stop Event
+    If son Then
+      Music.Play
+    Endif
+    Balloon.Delay = 1000
+    Balloon.Warning(("Ce code client n'existe pas !\n Verifiez votre saisie SVP !"), Cdt)
+    Cdt.SetFocus
+    Cdt.Select
+  Else
+    Libel.Text = Typc!cli_nom
+    Cdf.SetFocus
+    Cdf.Select
+  Endif
+  
+End
+
+Public Sub Quitte_Cdf()
+  '******************************************************************
+  '*      Recherche d'une famille lors d'une saisie manuelle        *
+  '******************************************************************
+  
+  Dim Fams As Result
+  
+  Fams = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & "  WHERE code_fam = &1", cdf.Text)
+  If Not Fams.Available Then
+    Stop Event
+    If son Then
+      Music.Play
+    Endif
+    Balloon.Delay = 1000
+    Balloon.Warning(("Cette famille n'existe pas !\n Verifiez votre saisie SVP !"), Cdf)
+    Cdf.SetFocus
+    Cdf.Select
+  Else
+    LibelFam.Text = Fams!libell_fam
+    LibelFam.ReadOnly = True
+    Remise.SetFocus
+    Remise.Select
+  Endif
+  
+End
+
+Public Sub Quitte_Remise()
+  
+  With Utils
+    Remise.Text = .cpoint(Remise.Text)
+    If Val(Remise.text) = Null Then
+      Stop Event
+      Balloon.Delay = 1000
+      Balloon.Warning(("La saisie de la remise est erronée ! Veuillez verifier SVP !"), Remise)
+      Remise.SetFocus
+      Remise.Select
+    Else
+      Remise.Text = Format$(Val(.cpoint(Remise.Text)), "00.000")
+      Button3.SetFocus
+    Endif
+  End With
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim Rtpc As Result
+  
+  If son Then
+    Music.Play
+  Endif
+  If Message.Delete("Etes vous sur de vouloir effacer cet enregistrement", "Oui", "Non") = 1 Then
+    Rtpc = Utils.db.Exec("SELECT * FROM " & Cbase.Table("RemCliFam") & " WHERE  codec = &1 and codef = &2", Tabcli[Tabcli.row, 0].Text, Tabcli[Tabcli.row, 1].Text)
+    If Rtpc.Available Then
+      Utils.db.Exec("DELETE FROM " & Cbase.Table("RemCliFam") & " WHERE codec = &1 and codef = &2", Tabcli[Tabcli.row, 0].Text, Tabcli[Tabcli.row, 1].Text)
+    Endif
+    sKey = Tabcli.row
+    Form_Open()
+    cleanchamps()
+    Tabcli.MoveTo(skey, 0)
+  Endif
+  
+End
+
+Public Sub Button3_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.Return Or Key.code = Key.Tab Then Button3_Click()
+  
+End
+
+Public Sub Button3_Click()
+  
+  Dim Rcli As Result
+  
+  With Utils
+    If Not IsNull(remise.text) And If Not IsNull(Cdt.text) And If Not IsNull(Cdf.text) Then
+      Quitte_Cdt()
+      Quitte_Cdf()
+      Quitte_Remise()
+      Rcli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("RemCliFam") & " WHERE codec = &1 and codef = &2", Cdt.Text, Cdf.Text)
+      If Rcli.Available Then
+        Utils.db.Exec("UPdate  " & Cbase.Table("RemCliFam") & "  SET  codec = &1 , codef = &2 , remise = &3 WHERE codec = &1 and codef = &2", Cdt.Text, Cdf.Text, Val(.cpoint(Remise.Text)))
+        sKey = Tabcli.row
+      Else
+        Try Utils.db.Exec("INSERT INTO " & Cbase.Table("RemCliFam") & "(codec,codef,remise) VALUES(&1, &2, &3)", Cdt.Text, Cdf.Text, Val(.cpoint(Remise.Text)))
+        If Error Then Message.Error("Création impossible ! Il y a un problème sur l'index de la table des remises client par famille")
+        sKey = Cdt.Text
+      Endif
+      Try Tabcli.MoveTo(skey, 0)
+      CleanChamps()
+      Form_Open()
+    Else
+      Message.Info("Enregistrement impossible ! Veuillez controler votre saisie SVP !")
+    Endif
+  End With
+  
+End
+
+Public Sub Rem_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.Return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+        
+      Case 1
+        If Not IsNull(Cdt.Text) Then Quitte_Cdt()
+        'Cdf.SetFocus
+        Stop Event
+        
+      Case 2
+        If Not IsNull(Cdf.Text) Then Quitte_Cdf()
+        'Remise.SetFocus
+        
+      Case 3
+        If Not IsNull(Remise.Text) Then Quitte_Remise()
+    End Select
+  Endif
+  
+  If key.code = key.f2 Then
+    Select Case Last.tag
+        
+      Case 1
+        ToggleButton1_Click()
+    End Select
+  Endif
+  
+End
+
+Public Sub Button4_Click()
+  
+  Me.close
+  
+End
+
+' ************************* On gère l'entete de Tabcli *******************************************
+Public Sub entete()
+  
+  CO.Text = "Client"
+  FA.Text = "Famille"
+  Rem.text = "Remise"
+  
+End
+
+Public Sub Co_GotFocus()
+  
+  sel = ""
+  Ref()
+  Dbl = ""
+  entete()
+  Co.Text = ""
+  Tri = "codec"
+  Deb2()
+  
+End
+
+Public Sub Co_Dblclick()
+  
+  sel = ""
+  Ref()
+  entete()
+  Co.Text = ""
+  Tri = "codec"
+  Dbclk()
+  
+End
+
+Public Sub Co_KeyPress()
+  
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    Deb2()
+  Endif
+  
+End
+
+Public Sub FA_GotFocus()
+  
+  sel = ""
+  Dbl = ""
+  Ref()
+  entete()
+  Fa.Text = ""
+  Tri = "codef"
+  Deb2()
+  
+End
+
+Public Sub FA_Dblclick()
+  
+  sel = ""
+  Ref()
+  entete()
+  Fa.Text = ""
+  Tri = "codef"
+  Dbclk()
+  
+End
+
+Public Sub FA_KeyPress()
+  
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    Deb2()
+  Endif
+  
+End
+
+Public Sub Dbclk()
+  
+  If Not Dbl Then
+    Deb3()
+    Dbl = "1"
+  Else
+    Deb2()
+    Dbl = ""
+  Endif
+  
+End
+
+Public Sub Ref()
+  
+  Tri = "codec"
+  CleanChamps()
+  Tris()
+  
+End
+
+'********************
+'* On lance la doc  *
+'********************
+Public Sub Button1_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/RemClientFamille.html"]
+  
+End

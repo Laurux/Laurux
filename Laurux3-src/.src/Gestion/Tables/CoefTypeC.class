@@ -1,0 +1,399 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : CoefTypeC.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 15.07.2013
+'# Gestion de la table des coefficients de vente par type clients
+'################################################
+'
+CoulZns As Integer ' Variable pour la couleur du background des zones de saisie
+CoulfOC As Integer ' Variable pour la couleur du FOCUS
+Tabtype As String
+Tri As String
+$lind As String
+son As Integer = Start.Son
+
+Public Sub _New()
+  
+  Dim Frmt As New String[]
+  
+  Frmt = Utils.FColr(Settings["/Coul/Focus"])
+  CoulFoc = Val(Frmt[0])
+  Frmt = Utils.FColr(Settings["/Coul/Znss"])
+  CoulZns = Val(Frmt[0])
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  
+End
+
+Public Sub Form_Open()
+  
+  Dim hCond As Conditions
+  Dim Frmt As New String[]
+  
+  Frmt = Utils.FColr(Settings["/Coul/Znss"])
+  TabTypec.Columns.count = 5
+  TabTypec.Columns[0].Width = 30
+  TabTypec.Columns[0].Alignment = 3
+  TabTypec.Columns[1].Width = 80
+  TabTypec.Columns[1].Alignment = 3
+  TabTypec.Columns[2].Width = 250
+  TabTypec.Columns[3].Alignment = 3
+  TabTypec.Columns[3].Width = 60
+  TabTypec.Columns[4].Alignment = 3
+  TabTypec.Columns[4].Width = 60
+  TabTypec.Columns[0].Text = "Ligne"
+  TabTypec.Columns[1].Text = "Type client"
+  TabTypec.Columns[2].Text = String$(10, " ") & "Libellé"
+  TabTypec.Columns[3].Text = " Famille "
+  TabTypec.Columns[4].Text = " Coeff " 
+  If Variables.OrgCoefTypeCli = "Art" Then
+    Panel1.visible = True
+  Endif
+  Maj_TabTypec()
+  
+End
+
+Public Sub Maj_TabTypec()
+  
+  Dim Rtypec As Result
+  
+  Rtypec = utils.db.Exec("select *  from " & Cbase.Table("TabCtcli") & " As e inner join " & Cbase.Table("TabTypec") & " As a on a.code = e.coder")
+  If Rtypec.Available Then
+    Repeat
+      Try TabTypec.Add(Rtypec!lind, Rtypec!lind)
+      If Not Error Then
+        TabTypec.Item[0] = Rtypec!lind
+        TabTypec.Item[1] = Rtypec!coder
+        TabTypec.Item[2] = Rtypec!libelle
+        TabTypec.Item[3] = Rtypec!codef
+        TabTypec.Item[4] = Format$(Rtypec!coeff, "0.000")
+      Endif
+    Until Rtypec.MoveNext()
+    Cdt.SetFocus
+    Cdt.Select
+  Endif
+  Cdt.SetFocus
+  Cdt.Select
+  
+End
+
+Public Sub Cleanchamps()
+  
+  Cdt.SetFocus
+  Cdt.Select
+  Cdf.Clear
+  Cdt.Clear
+  Libelfam.Clear
+  LibelType.Clear
+  Coeff.Clear
+  Label8.Text = "Article :"
+  Label4.Text = "PA HT :"
+  Label6.Text = "Coeff :"
+  Label7.Text = "PV TTC :" 
+  
+End
+
+Public Sub Tabtypec_Select()
+  
+  'Maj_Zones()
+  'Quitte_Cdt()
+  'Quitte_Cdf()
+  
+End
+
+Public Sub ToggleButton1_Click()
+  
+  Dim Rtypec As Result
+  
+  If Coltype.Visible = True Then
+    Coltype.Clear
+    Coltype.Visible = False
+  Else
+    Coltype.visible = True
+    Coltype.Columns.count = 2
+    Coltype.Columns[0].Width = 65
+    Coltype.Columns[1].Width = 80
+    Coltype.Columns[0].Text = "code"
+    Coltype.Columns[1].Text = "Intitulé"
+    Rtypec = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTypec") & "")
+    If Rtypec.Available Then
+      Repeat
+        Coltype.Add(Rtypec!code, Rtypec!code)
+        Coltype.Item[0] = Rtypec!code
+        Coltype.Item[1] = Rtypec!libelle
+      Until Rtypec.MoveNext()
+      Coltype.MoveFirst
+      Coltype.SetFocus
+      Coltype.Item.Selected = True
+    Endif
+  Endif
+  
+End
+
+Public Sub Coltype_Click()
+  
+  Cdt.text = Coltype.Item[0]
+  Libeltype.text = Coltype.Item[1]
+  Coltype.visible = False
+  Coltype.clear
+  cdf.SetFocus
+  cdf.Select
+  
+End
+
+Public Sub ToggleButton2_Click()
+  
+  Dim Rtypec As Result
+  
+  If Colfam.Visible = True Then
+    Colfam.Clear
+    Colfam.Visible = False
+  Else
+    Colfam.visible = True
+    Colfam.Columns.count = 2
+    Colfam.Columns[0].Width = 65
+    Colfam.Columns[1].Width = 80
+    Colfam.Columns[0].Text = "code"
+    Colfam.Columns[1].Text = "Intitulé"
+    Rtypec = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & "")
+    If Rtypec.Available Then
+      Repeat
+        Colfam.Add(Rtypec!code_fam, Rtypec!code_fam)
+        Colfam.Item[0] = Rtypec!code_fam
+        Colfam.Item[1] = Rtypec!libell_fam
+      Until Rtypec.MoveNext()
+      Colfam.MoveFirst
+      Colfam.SetFocus
+      Colfam.Item.Selected = True
+    Endif
+  Endif
+  
+End
+
+Public Sub Colfam_Click()
+  
+  Cdf.text = Colfam.Item[0]
+  Libelfam.text = Colfam.Item[1]
+  Colfam.visible = False
+  Colfam.clear
+  Coeff.SetFocus
+  Coeff.Select
+  
+End
+
+Public Sub Quitte_Cdt()
+  '******************************************************************
+  '*    Recherche d'un type client lors d'une saisie manuelle       *
+  '******************************************************************
+  
+  Dim Typc As Result
+  Dim TAB As String
+  
+  Tab = "Fiches_Typec" 
+  Typc = Utils.db.Exec("SELECT * FROM " & Tab & "  WHERE code = &1", cdt.Text)
+  If Not Typc.Available Then
+    Stop Event
+    If son Then
+      Music.Play
+    Endif
+    Balloon.Delay = 1000
+    Balloon.Warning(("Ce code type client n'existe pas !\n Verifiez votre saisie SVP !"), Cdt)
+    Cdt.SetFocus
+    Cdt.Select
+  Else
+    LibelType.Text = Typc!libelle
+    Cdf.SetFocus
+    Cdf.Select
+  Endif
+  
+End
+
+Public Sub Quitte_Cdf()
+  '******************************************************************
+  '*      Recherche d'une famille lors d'une saisie manuelle        *
+  '******************************************************************
+  
+  Dim Fams As Result
+  Dim TAB As String
+  
+  Tab = "Fiches_Fam" 
+  Fams = Utils.db.Exec("SELECT * FROM " & Tab & "  WHERE code_fam = &1", cdf.Text)
+  If Not Fams.Available Then
+    Stop Event
+    If son Then
+      Music.Play
+    Endif
+    Balloon.Delay = 1000
+    Balloon.Warning(("Cette famille n'existe pas !\n Verifiez votre saisie SVP !"), Cdf)
+    Cdf.SetFocus
+    Cdf.Select
+  Else
+    LibelFam.Text = Fams!libell_fam
+    LibelFam.ReadOnly = True
+    Coeff.SetFocus
+    Coeff.Select
+  Endif
+  
+End
+
+Public Sub Quitte_Coeff()
+  
+  With Utils
+    Coeff.Text = .cpoint(Coeff.Text)
+    If Val(Coeff.text) = Null Then
+      Stop Event
+      Balloon.Delay = 1000
+      Balloon.Warning(("La saisie du coefficient est erronée ! Veuillez verifier SVP !"), Coeff)
+      Coeff.SetFocus
+      Coeff.Select
+    Else
+      Coeff.Text = Format$(Val(.cpoint(Coeff.Text)), "00.000")
+      Button3.SetFocus
+    Endif
+  End With
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim Rtpc As Result
+  Dim Tab As String
+  
+  Tab = "Fiches_CoeffTypec" 
+  If son Then
+    Music.Play
+  Endif
+  If Message.Delete("Etes vous sur de vouloir effacer cet enregistrement", "Oui", "Non") = 1 Then
+    Rtpc = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCtcli") & " WHERE lind = &1", $lind)
+    If Rtpc.Available Then
+      Utils.db.Exec("DELETE FROM " & Cbase.Table("TabCtcli") & " where lind = &1", $lind)
+    Endif
+    TabTypec.Clear
+    Maj_TabTypec()
+    Cleanchamps()
+  Endif
+  
+End
+
+Public Sub Button3_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.Return Or Key.code = Key.Tab Then Button3_Click()
+  
+End
+
+Public Sub Button3_Click()
+  
+  Dim Rtypec As Result
+  Dim Tab As String
+  Dim skey As String
+  
+  Tab = "Fiches_CoeffTypec" 
+  With Utils
+    If Not IsNull(Coeff.text) And If Not IsNull(Cdt.text) And If Not IsNull(Cdf.text) Then
+      Quitte_Cdt()
+      Quitte_Cdf()
+      Quitte_Coeff()
+      Rtypec = Utils.db.Exec("SELECT * FROM " & tab & " WHERE coder = &1 and codef = &2", Cdt.Text, Cdf.Text)
+      If Rtypec.Available Then
+        Utils.db.Exec("UPdate  " & tab & "  SET  coder = &1 , codef = &2 , coeff = &3 WHERE coder = &1 and codef = &2", Cdt.Text, Cdf.Text, Val(.cpoint(Coeff.Text)))
+        'sKey = Tabtypec.row
+      Else
+        Try Utils.db.Exec("INSERT INTO " & tab & "(coder,codef,coeff) VALUES(&1, &2, &3)", Cdt.Text, Cdf.Text, Val(.cpoint(Coeff.Text)))
+        If Error Then Message.Error("Création impossible ! Il y a un problème sur l'index de la table des coefficients par type client")
+        sKey = Cdt.Text
+      Endif
+      TabTypec.Clear
+      Maj_TabTypec()
+      'Try Tabtypec.MoveTo(skey, 0)
+      CleanChamps()
+    Else
+      Message.Info("Enregistrement impossible ! Veuillez controler votre saisie SVP !")
+    Endif
+  End With
+  
+End
+
+Public Sub Rem_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.Return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+        
+      Case 1
+        If Not IsNull(Cdt.Text) Then Quitte_Cdt()
+        Stop Event
+        
+      Case 2
+        If Not IsNull(Cdf.Text) Then Quitte_Cdf()
+        
+      Case 3
+        If Not IsNull(Coeff.Text) Then Quitte_Coeff()
+    End Select
+  Endif
+  
+End
+
+Public Sub Button4_Click()
+  
+  Me.close
+  
+End
+
+'********************
+'* On lance la doc  *
+'********************
+Public Sub Button1_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/CoefTypeclient.html"]
+  
+End
+
+Public Sub Tabtypec_Click()
+  
+  $lind = TabTypec.Item[0]
+  Cdt.Text = TabTypec.Item[1]
+  Libeltype.Text = TabTypec.Item[2]
+  Cdf.text = TabTypec.Item[3]
+  Coeff.Text = TabTypec.Item[4]
+  If Not IsNull(Cdf.Text) Then Quitte_Cdf()
+  If Variables.OrgCoefTypeCli = "Art" Then AffProduit()
+  
+End
+
+Public Sub AffProduit()
+  
+  Dim Tresult As Result
+  Dim Pvht, Pvttc As String
+  
+  If Variables.OrgCoefTypeCli = "Art" Then
+    Label8.Text = "Article " & Variables.ArtCode & "      " & Variables.Artintitule
+    Label2.Text = "PA HT : " & Variables.ArtHt
+    Label4.Text = "Coeff : " & Coeff.Text
+    pvht = Val(Utils.cpoint(Variables.ArtHt)) * Val(Utils.cpoint(coeff.Text))
+    pvht = Format$(Val(Utils.cpoint(Pvht)), "0.00")
+    Label6.Text = "PV HT : " & Pvht
+    PvTTc = Format$(Val(Pvht) + (Val(Pvht) * Val(Variables.ArtTva) / 100), "0.00")
+    Label7.Text = "PV TTC : " & Pvttc
+  Endif
+  
+End

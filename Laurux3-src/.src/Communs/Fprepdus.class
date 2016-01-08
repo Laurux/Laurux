@@ -1,0 +1,89 @@
+' Gambas class file
+
+Private Dte As String = Format$(Now, "dd.mm.yyyy")
+Private Devises As String
+
+Public Sub _new()
+  
+  Dim rParam As Result
+  
+  Me.Center
+  rParam = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabParam") & "")
+  If rParam.Available Then
+    devises = rParam!devise
+    If IsNull(devises) Then devises = "Euros"
+  Endif
+  TextLabel5.Text = "Synthèse au " & Dte
+  dte = Right$(dte, 4) & Mid$(dte, 4, 2) & Left$(dte, 2)
+  Me.mouse = Mouse.Wait
+  TraitementC()
+  TraitementF()
+  Me.mouse = mouse.Default
+  
+End
+
+Public Sub Button3_Click()
+  
+  Me.Close
+  
+End
+
+Public Sub TraitementC()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  Dim Tot As Float 
+  Dim nbc As Integer = 0
+  
+  Tab = "Fiches_Comptes" 
+  rResult = Utils.db.Exec("SELECT * FROM " & tab & " where type_cc = &1 and solde <> &2 order by compte_cc", "C", 0)
+  If rResult.Available Then
+    Repeat
+      If rResult.Available Then
+        If Val(Utils.cpoint(rResult!solde)) > 0 Then 
+          Tot = Tot + Val(Utils.cpoint(rResult!solde))
+          Inc nbc
+        Endif
+      Endif
+    Until rResult.MoveNext()
+    If nbc > 0 Then
+      If Tot > 0 And LCase$(Right$(Devises, 1)) <> "s" Then Devises = Devises & "s"
+      TextLabel1.Text = "   " & nbc & " clients vous doivent un total de " & Tot & " " & Devises
+    Else
+      TextLabel1.Text = "Aucun dû client à ce jour !"
+    Endif
+  Else
+    TextLabel1.Text = "Aucun dû client à ce jour !"
+  Endif
+  
+End
+
+Public Sub TraitementF()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  Dim Tot As Float
+  Dim Nbc As Integer = 0
+  
+  Tab = "Fiches_Comptes" 
+  rResult = Utils.db.Exec("SELECT * FROM " & tab & " where type_cc = &1 and solde <> &2", "F", 0)
+  If rResult.Available Then
+    Repeat
+      If rResult.Available Then
+        If Val(Utils.cpoint(rResult!solde)) < 0 Then 
+          Tot = Tot + Val(Utils.cpoint(rResult!solde))
+          Inc nbc
+        Endif
+      Endif
+    Until rResult.MoveNext()
+    If nbc > 0 Then
+      If Tot > 0 And LCase$(Right$(Devises, 1)) <> "s" Then Devises = Devises & "s"
+      TextLabel2.Text = "Vous devez un montant de " & Abs(Tot) & " " & Devises & " réparti sur " & Nbc & " fournisseurs !"
+    Else
+      TextLabel2.Text = "Aucun dû fournisseur à ce jour !"
+    Endif
+  Else
+    TextLabel2.Text = "Aucun dû fournisseur à ce jour !"
+  Endif
+  
+End

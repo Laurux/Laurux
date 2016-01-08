@@ -1,0 +1,79 @@
+' Gambas module file
+
+Public cpt2 As Integer = 0
+'******************************************
+'          Import des données             *
+'******************************************
+
+Public Sub Import(Org As String)
+  
+  Dim x As Integer
+  Dim Code As String
+  Dim Codeb As String
+  Dim cle As String
+  Dim hfil As File
+  Dim Hnew As File
+  Dim filename As String
+  Dim lig As String
+  Dim ipos As Integer
+  Dim nombretiq As String
+  Dim rarts As Result
+  Dim Tab2 As String = "Etiquettes"
+  
+  Shell "cd " & User.Home & ""
+  filename = User.Home & "/ImpT.txt"
+  Hnew = Open filename For Write Create
+  Try HFil = Open User.home & "/Portable/inventaire.txt" For Read Write
+  If Not Error Then
+    '****************************************On travaille avec les étiquettes***************************************
+    If Org = "Etiq" Then
+      Print #Hnew, "Les références suivantes n'ont pas pu être importées car elles n'existent pas dans la table des produits."
+      With utils
+        While Not Eof(hFil)
+          Line Input #hFil, Lig
+          If Not IsNull(Lig) Then
+            For x = 1 To 2
+              iPos = InStr(Lig, ";")
+              If iPos = 0 Then
+                cle = Lig
+              Else
+                cle = Left$(Lig, iPos - 1)
+                Lig = Mid$(Lig, iPos + 1)
+              Endif
+              Select Case x
+                Case 1
+                  If Not IsNull(cle) Then
+                    Codeb = Trim(cle)
+                    Code = Utils.Find_cbarre(Codeb)
+                  Else
+                    Print #Hnew, "Une saisie a été rejetée car elle ne possède pas de code barre."
+                    Inc cpt2
+                  Endif
+                  If IsNull(Code) Then
+                    Print #Hnew, "Une saisie a été rejetée car le code barre " & Codeb & " n'existe pas."
+                    Inc cpt2
+                  Endif
+                Case 2
+                  nombretiq = Format$(Val(Utils.cpoint(cle)), "#")
+              End Select
+            Next
+            If Not IsNull(code) Then
+              Rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", Code)
+              If Rarts.Available Then
+                Try Utils.db.Exec("INSERT INTO " & Tab2 & " (code, nombre) Values (&1, &2)", Rarts!art_code, Val(Utils.cpoint(Nombretiq)))
+              Else
+                Inc cpt2
+                Print #Hnew, code & " " & Codeb
+              Endif
+            Endif
+          Endif
+        Wend
+        Close #HFil
+      End With
+    Endif
+  Endif
+Catch
+  Music.Play
+  message.Error(Error.Text & " " & Error.where)
+  
+End

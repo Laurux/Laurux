@@ -1,0 +1,243 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Btqqart.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 01/12/2008
+'# Génération d'un fichier des mises à jour produit vers la boutique.
+'################################################
+'
+Static hfil As File
+Static hfil2 As File
+rarts As Result
+rtva As Result
+rfam As Result
+rsaisis As Result
+code As String
+CoulZns As Integer ' Variable pour la couleur du background des zones de saisie et des columnviews
+CoulZnaf As Integer ' Variable pour la couleur du background des columnviews
+CoulFc As Integer ' Variable pour la couleur du focus
+Public Codearticle As String
+Public Bsel As Boolean = False
+Private Origine As String = ""
+Private b As Integer = 0
+Tri As String = ""
+
+Public Sub _New()
+  
+  Dim Frmt As New String[]
+  
+  Utils.db.Exec("drop Table IF exists " & Cbase.Table("TabArtSaisis") & "")
+  Utils.db.Exec("CREATE TABLE " & Cbase.Table("TabArtSaisis") &
+    "(code Char(15) NOT NULL," &
+    "PRIMARY KEY (code))" & "ENGINE = MYISAM")
+  Me.Center
+  Music.Load(Start.Musique)
+  Frmt = Utils.FColr(Settings["/Coul/Znaff"])
+  CoulZnaf = Val(Frmt[0])
+  Frmt = Utils.FColr(Settings["/Coul/Focus"])
+  Coulfc = Val(Frmt[0])
+  Frmt = Utils.FColr(Settings["/Coul/Znss"])
+  CoulZns = Val(Frmt[0])
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Try Identifiant.Text = Settings["/Soc" & Start.Societe & "/Identifiant"]
+  Try Adradminart.Text = Settings["/Soc" & Start.Societe & "/Adradminart"]
+  Try Adradminphot.Text = Settings["/Soc" & Start.Societe & "/Adradminphot"]
+  Try Mdpadmin.Text = Settings["/Soc" & Start.Societe & "/Mdpadmin"]
+  Me.Center
+  HFil = Open User.Home & "/Prd.csv" For Write Create
+  HFil2 = Open User.Home & "/Photo.csv" For Write Create
+  Art.Text = "00000"
+  Art.Select
+  Art.SetFocus
+  
+End
+
+Public Sub ToggleButton1_Click()
+  
+  SelectionArt()
+  
+End
+
+'****************************************Gestion des articles**************************************************
+Public Sub SelectionArt()
+  
+  Dim sel As String = ""
+  Dim MyForm As TriArticles
+  Dim sFour As String = ""
+  Dim $centrale As String = ""
+  
+  sel = ""
+  Tri = "art_code"
+  MyForm = New TriArticles(True, "", Tri, "Btqart", "", "")
+  MyForm.Showmodal()
+  If Bsel = True Then
+    Art.text = Codearticle
+    Button4_Click()
+  Endif
+  
+End
+
+Public Sub button4_KeyPress()
+  
+  Button4_Click()
+  
+End
+
+Public Sub Cmpt_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+      Case 1
+        Button4.SetFocus
+        
+    End Select
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+  If key.code = key.F2 Then
+    Select Case Last.tag
+      Case 1
+        ToggleButton1_Click()
+        Stop Event
+    End Select
+  Endif
+  
+End
+
+'**************************************
+'* On Selectionne l'article saisi     *
+'**************************************
+Public Sub Art_man()
+  
+  With utils
+    b = 0
+    Rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", Art.Text)
+    If Rarts.Available Then
+      Try Utils.db.Exec("INSERT INTO " & Cbase.Table("TabArtSaisis") & " (code) Values (&1)", Art.Text)
+      If Error Then
+        If Start.son Then
+          Music.Play
+        Endif
+        message.Warning(" Cet article a déjà été saisi ! ")
+        b = 1
+        Art.SetFocus
+        Art.Select
+      Endif
+    Else
+      message.Warning(" Cet article n'existe pas ! ")
+      b = 1
+      Art.SetFocus
+      Art.Select
+    Endif
+  End With
+  
+End
+
+'***********************************************
+'*             On enregistre                   *
+'***********************************************
+Public Sub Button4_Click()
+  
+  Art_man()
+  If b = 0 Then
+    Rtva = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTvav") & " where code_tva = &1", Rarts!art_tva)
+    Rfam = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " where code_fam = &1", Rarts!art_fam)
+    Print #HFil, "" & ";" & "" & ";" & Rarts!art_design & ";" & Rfam!libell_fam & ";" & Rarts!art_pvht & ";" & Rtva!taux_tva & ";" & Rarts!art_paht & ";" & "0" & ";" & "" & ";" & "" & ";" & "" & ";" & "" & ";" & Rarts!art_code & ";" & Rarts!art_cfour & ";" & Rarts!art_four & ";" & "" & ";" & Rarts!art_cbarre & ";" & Rarts!art_poids2 & ";" & Rarts!art_eco & ";" & Rarts!art_qte & ";" & Rarts!art_crst & ";" & Rarts!art_crst & ";" & "" & ";" & "" & ";" & Rarts!art_crst & ";" & Rarts!art_crst & ";" & "Produit en stock" & ";" & "" & ";" & "" & ";" & "" & ";" ""
+    If Photo.Value = True Then Print #HFil2, Rarts!art_photo
+    listBart.Text = listBart.Text & " " & Rarts!art_code
+    Art.Clear
+    Art.SetFocus
+    Art.Select
+  Endif
+  
+End
+
+'***********************************************
+'*       On lance la mise à jour               *
+'***********************************************
+Public Sub Button2_Click()
+  
+  Dim Lig As String
+  
+  If Adradminart.Text <> "" And If Adradminphot.Text <> "" And If Identifiant.Text <> "" And If Mdpadmin.Text <> "" Then
+    If Not IsNull(ListBart.Text) Then
+      Me.Mouse = Mouse.Wait
+      Try Close #HFil
+      Try Close #HFil2
+      HFil2 = Open User.Home & "/Photo.csv" For Read
+      Shell "wput Prd.csv ftp://" & Identifiant.text & ":" & Mdpadmin.Text & "@" & adradminart.text & "/Prod.csv" Wait
+      While Not Eof(hFil2)
+        Line Input #hFil2, Lig
+        If lig Then Shell "wput " & lig & " " & "ftp://" & Identifiant.text & ":" & Mdpadmin.Text & "@" & adradminphot.text & "/" & File.Name(lig) Wait
+      Wend
+      Try Close #HFil2
+      Me.Mouse = Mouse.Default
+      Message.Info("Transfert terminé ! Veuillez effectuer l'import des produits et l'intégration des photos sur votre site.")
+      ListBart.Text = ""
+      Utils.db.Exec("drop Table IF exists " & Cbase.Table("TabArtSaisis") & "")
+      Utils.db.Exec("CREATE TABLE " & Cbase.Table("TabArtSaisis") &
+        "(code Char(15) NOT NULL," &
+        "PRIMARY KEY (code))" & "ENGINE = MYISAM")
+      HFil = Open User.Home & "/Prd.csv" For Write Create
+      HFil2 = Open User.Home & "/Photo.csv" For Write Create
+    Endif
+  Else
+    Message.Error("Veuillez completer les zones d'identification du site SVP !")
+  Endif
+  
+End
+
+Public Sub ChkInput()
+  
+  If InStr("0123456789", Key.Text) = 0 Then
+    If key.code <> key.BackSpace And Key.Code <> Key.Delete And Key.code <> Key.enter And Key.code <> Key.return Then
+      Stop Event
+    Endif
+  Endif
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Cmpt_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  
+End
+
+Public Sub Button1_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Btq.html"]
+  
+End
+
+Public Sub Button3_Click()
+  
+  Me.close
+  
+End

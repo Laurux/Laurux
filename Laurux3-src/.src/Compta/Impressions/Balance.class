@@ -1,0 +1,1057 @@
+' Gambas class file
+
+' Gambas class file
+'----------------------------------------------------------------------------
+'
+' Balance.class
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à  " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# Nom du fichier           : Balance.class
+'# Auteur                   : Jacky Tripoteau
+'# Date de création         : 01/11/2004
+'# Edition des balances
+'################################################
+
+Private DebHP As Float
+Private CredHP As Float
+Private TotSldHP As Float
+Private TotDeb As Float
+Private TotCred As Float
+Private TotSld As Float
+Private debit As Float
+Private credit As Float
+Private solde As Float
+Private Totbaldeb As Float
+Private Totbalcred As Float
+Private Totbalsld As Float
+Private dte As String
+Private dte1 As String
+Private dte2 As String
+Private Txt As String
+Private Filename As String
+Private Filetxt As String
+Private jour As String
+Private Type As String
+Private Type2 As String
+Private hfile As File
+Private Tab0 As String
+Private Nom As String
+Private Compt As String
+Private Debclass As Float
+Private Credclass As Float
+Private Sldclass As Float
+Private TotDeb2 As Float
+Private TotCred2 As Float
+Private TotSld2 As Float
+Private Debclasshp As Float
+Private Credclasshp As Float
+Private Sldclassdeb As Float
+Private Sldclasscred As Float
+Private Totdebclass As Float
+Private Totcredclass As Float
+Private Totbaldebhp As Float
+Private Totbalcredhp As Float
+Private sldbaldeb As Float
+Private sldbalcred As Float
+Private Sldbal As Float
+Private Clas As String
+Private p As Integer
+Private PosY As Integer
+Private PosX As Integer
+Private Nbpage As Integer
+Private Ste As String
+Private dateedition As String
+Private Tri As String
+Private pdf As Cbalances
+
+'*************************
+'* On initialise l'écran *
+'*************************
+Public Sub _New()
+  
+  filetxt = User.home & "/balances.txt"
+  Music.Load(Start.Musique)
+  Me.Center
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  E0_click()
+  Cpt.Text = "41100001"
+  Cpt2.Text = "99999999"
+  Type = "C"
+  Nom = "Client"
+  dteN0.SetFocus
+  dteN0.Select
+  
+End
+
+'*****************************************
+'* On travaille avec l'exercice en cours *
+'*****************************************
+Public Sub Ex1()
+  
+  Dim rResult As Result
+  
+  Raz()
+  With Utils
+    dteN0.Text = ""
+    dteN1.Text = ""
+    dte1 = ""
+    dte2 = ""
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabParam") & "")
+    dte = rResult!dteclec
+    dteN0.Text = .Calc_mois(dte)
+    jour = Format$(Now, "dd.mm.yyyy")
+    If Right$(Jour, 4) & Mid$(Jour, 4, 2) & Left$(Jour, 2) < Right$(dteN0.Text, 4) & Mid$(dteN0.Text, 4, 2) & Left$(dteN0.Text, 2) Then
+      Exo()
+    Else
+      dteN1.Text = Jour
+      dte1 = dteN0.Text
+      dte2 = dteN1.Text
+    Endif
+  End With
+Catch
+  If start.son Then
+    Music.Play
+  Endif
+  message.Error(Error.Text & " " & Error.where)
+  Me.Mouse = Mouse.Default
+  
+End
+
+'***********************************************************
+'*     On travaille avec l'excercice en cours de bilan     *
+'***********************************************************
+Public Sub Exo()
+  
+  Dim rResult As Result
+  
+  Raz()
+  With Utils
+    dteN0.Text = ""
+    dteN1.Text = ""
+    dte1 = ""
+    dte2 = ""
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabParam") & "")
+    dte = rResult!dteclec1
+    dteN0.Text = .Calc_mois(dte)
+    dte = rResult!dteclec
+    dteN1.Text = .Cdate_aff(dte)
+    dte1 = dteN0.Text
+    dte2 = dteN1.Text
+  End With
+Catch
+  If start.son Then
+    Music.Play
+  Endif
+  message.Error(Error.Text & " " & Error.where)
+  Me.Mouse = Mouse.Default
+  
+End
+
+'***************************************
+'* On travaille avec l'excercice N -1  *
+'***************************************
+Public Sub Exo1()
+  
+  Dim rResult As Result
+  
+  Raz()
+  With utils
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabParam") & "")
+    dte = rResult!dteclec2
+    dteN0.Text = .Calc_mois(dte)
+    dte = rResult!dteclec1
+    dteN1.Text = .Cdate_aff(dte)
+    dte1 = dteN0.Text
+    dte2 = dteN1.Text
+  End With
+Catch
+  If start.son Then
+    Music.Play
+  Endif
+  message.Error(Error.Text & " " & Error.where)
+  Me.Mouse = Mouse.Default
+  
+End
+
+'***************************************
+'* On travaille avec l'excercice N -2  *
+'***************************************
+Public Sub Exo2()
+  
+  Dim rResult As Result
+  
+  Raz()
+  With Utils
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabParam") & "")
+    dte = rResult!dteclec3
+    dteN0.Text = .Calc_mois(dte)
+    dte = rResult!dteclec2
+    dteN1.Text = .Cdate_aff(dte)
+    dte1 = dteN0.Text
+    dte2 = dteN1.Text
+  End With
+Catch
+  If start.son Then
+    Music.Play
+  Endif
+  message.Error(Error.Text & " " & Error.where)
+  Me.Mouse = Mouse.Default
+  
+End
+
+'***************************************
+'* On travaille avec l'excercice N -3  *
+'***************************************
+Public Sub Exo3()
+  
+  Dim rResult As Result
+  
+  Raz()
+  With utils
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabParam") & "")
+    dte = rResult!dteclec4
+    dteN0.Text = .Calc_mois(dte)
+    dte = rResult!dteclec3
+    dteN1.Text = .Cdate_aff(dte)
+    dte1 = dteN0.Text
+    dte2 = dteN1.Text
+  End With
+Catch
+  If start.son Then
+    Music.Play
+  Endif
+  message.Error(Error.Text & " " & Error.where)
+  Me.Mouse = Mouse.Default
+  
+End
+
+'***************************************
+'* On travaille avec l'excercice N -4  *
+'***************************************
+Public Sub Exo4()
+  
+  Dim rResult As Result
+  
+  Raz()
+  With utils
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabParam") & "")
+    dte = rResult!dteclec5
+    dteN0.Text = .Calc_mois(dte)
+    dte = rResult!dteclec4
+    dteN1.Text = .Cdate_aff(dte)
+    dte1 = dteN0.Text
+    dte2 = dteN1.Text
+  End With
+Catch
+  If start.son Then
+    Music.Play
+  Endif
+  message.Error(Error.Text & " " & Error.where)
+  Me.Mouse = Mouse.Default
+  
+End
+
+'***************************************
+'* On travaille avec l'excercice N -5  *
+'***************************************
+Public Sub Exo5()
+  
+  Dim rResult As Result
+  Dim Mois As Integer
+  
+  Raz()
+  With utils
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabParam") & "")
+    dte = rResult!dteclec5
+    Mois = Val(Right$(dte, 4))
+    dte = Left$(dte, 6) & (Mois - 1)
+    dteN0.Text = .Calc_mois(dte)
+    dte = rResult!dteclec5
+    dteN1.Text = .Cdate_aff(dte)
+    dte1 = dteN0.Text
+    dte2 = dteN1.Text
+  End With
+Catch
+  If start.son Then
+    Music.Play
+  Endif
+  message.Error(Error.Text & " " & Error.where)
+  Me.Mouse = Mouse.Default
+  
+End
+
+'***********************
+'* On gere nos touches *
+'***********************
+Public Sub Bal_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.tab Then
+    Select Case Last.tag
+        
+      Case 1
+        dteN0_LF()
+        dteN1.SetFocus
+        dteN1.Select
+        Stop Event
+        
+      Case 2
+        dteN1_LF()
+        Cpt.SetFocus
+        Cpt.Select
+        Stop Event
+        
+      Case 3
+        Cpt2.SetFocus
+        Cpt2.Select
+        Stop Event
+        
+      Case 4
+        dteN0.SetFocus
+        dteN0.Select
+        Stop Event
+        
+    End Select
+  Endif
+  
+  If key.code = key.F2 Then
+    Select Case Last.tag
+      Case 3
+        Button4_Click()
+        
+      Case 4
+        Button5_Click()
+    End Select
+  Endif
+  
+  If key.code = key.F1 Then
+    Button3_Click()
+    Stop Event
+  Endif
+  
+End
+
+'***********************
+'* On gere nos boutons *
+'***********************
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Button2_Click()
+      
+    Case 2
+      Button1_Click()
+      
+    Case 3
+      If Exist(filename) Then Try Kill filename
+      If Exist(Filetxt) Then Try Kill filetxt
+      Me.Close
+      
+  End Select
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Bal_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  
+End
+
+'****************************************
+'*      On controle les dates saisies   *
+'****************************************
+Public Sub dteN0_LF()
+  
+  With utils
+    dteN0.text = .CDate_calc(dteN0.text)
+    dteN0.Text = .Cdate_aff(dteN0.Text)
+  End With
+  If dteN0.Text = "00.00.0:00" Then dteN0.Text = Format$(Now, "dd.mm.yyyy")
+  If Val(Right$(dteN0.text, 4) & Mid$(dteN0.text, 4, 2) & Left$(dteN0.text, 2)) < Val(Right$(dte1, 4) & Mid$(dte1, 4, 2) & Left$(dte1, 2)) Then
+    Txt = "Attention ! La date saisie est inférieure au début de la période selectionnée."
+    Compdate()
+  Else
+    If Val(Right$(dteN0.text, 4) & Mid$(dteN0.text, 4, 2) & Left$(dteN0.text, 2)) > Val(Right$(dte2, 4) & Mid$(dte2, 4, 2) & Left$(dte2, 2)) Then
+      Txt = "Attention ! La date saisie est supérieure à  la fin de la période selectionnée."
+      Compdate()
+    Endif
+  Endif
+Catch
+  dteN0.setfocus
+  dteN0.Select
+  
+End
+
+Public Sub dteN1_LF()
+  
+  With utils
+    dteN1.text = .CDate_calc(dteN1.text)
+    dteN1.Text = .Cdate_aff(dteN1.Text)
+    If dteN1.Text = "00.00.0:00" Then dteN1.Text = Format$(Now, "dd.mm.yyyy")
+  End With
+  
+  If Val(Right$(dteN1.text, 4) & Mid$(dteN1.text, 4, 2) & Left$(dteN1.text, 2)) < Val(Right$(dte1, 4) & Mid$(dte1, 4, 2) & Left$(dte1, 2)) Then
+    Txt = "Attention ! La date saisie est inférieure au début de la période selectionnée."
+    Compdate2()
+  Else
+    If Val(Right$(dteN1.text, 4) & Mid$(dteN1.text, 4, 2) & Left$(dteN1.text, 2)) > Val(Right$(dte2, 4) & Mid$(dte2, 4, 2) & Left$(dte2, 2)) Then
+      Txt = "Attention ! La date saisie est supérieure à  la fin de la période selectionnée."
+      Compdate2()
+    Endif
+  Endif
+  
+  If Val(Right$(dteN1.text, 4) & Mid$(dteN1.text, 4, 2) & Left$(dteN1.text, 2)) < Val(Right$(dteN0.text, 4) & Mid$(dteN0.text, 4, 2) & Left$(dteN0.text, 2)) Then
+    If start.son Then
+      Music.Play
+    Endif
+    If Message.Warning("Attention ! Votre selection n'est pas possible.", "Ok") = 1 Then
+      exo()
+      
+    Endif
+  Endif
+Catch
+  dteN1.setfocus
+  dteN1.Select
+  
+End
+
+Public Sub Compdate()
+  
+  If start.son Then
+    Music.Play
+  Endif
+  If Message.Warning(Txt, "Ok") = 1 Then
+    Exo()
+    E0.Value = True
+    dteN0.setfocus
+    dteN0.Select
+  Endif
+  
+End
+
+Public Sub compdate2()
+  
+  If start.son Then
+    Music.Play
+  Endif
+  If Message.Warning(Txt, "Ok") = 1 Then
+    Exo()
+    E0.Value = True
+    dteN1.setfocus
+    dteN1.Select
+  Endif
+  
+End
+
+'********************
+'* On remet à  blanc *
+'********************
+Public Sub Raz()
+  
+  debhp = 0
+  credhp = 0
+  totsldhp = 0
+  totdeb = 0
+  totcred = 0
+  totsld = 0
+  solde = 0
+  debit = 0
+  credit = 0
+  totdeb2 = 0
+  totcred2 = 0
+  totsld2 = 0
+  debhp = 0
+  credhp = 0
+  
+End
+
+'*********************************
+'*   On veut une balance client  *
+'*********************************
+Public Sub Bclient_Click()
+  
+  Cpt.Text = "41100001"
+  Type = "C"
+  Type2 = "C"
+  nom = "Client"
+  Cpt.Setfocus
+  Cpt.Select
+  
+End
+
+'*************************************
+'*   On veut une balance fournisseur *
+'*************************************
+Public Sub Bfournisseur_Click()
+  
+  Cpt.Text = "40100001"
+  Type = "F"
+  Type2 = "F"
+  nom = "Fournisseur"
+  Cpt.Setfocus
+  Cpt.Select
+  
+End
+
+'*************************************
+'*    On veut une balance generale   *
+'*************************************
+Public Sub Bgestion_Click()
+  
+  Cpt.Text = "10000"
+  Type = "G"
+  Type2 = "B"
+  nom = "Generale"
+  Cpt.Setfocus
+  Cpt.Select
+  
+End
+
+'***********************************************************
+'*   On veut une balance sur l'exercice en cours de bilan  *
+'***********************************************************
+Public Sub E0_Click()
+  
+  Tab0 = Cbase.Table("TabMvt")
+  Ex1()
+  
+End
+
+'**************************************************
+'*   On veut une balance sur l'exercice en cours  *
+'**************************************************
+Public Sub E1_Click()
+  
+  Tab0 = Cbase.Table("TabMvt")
+  Exo()
+  
+End
+
+'**************************************************
+'*     On veut une balance sur l'exercice N -1    *
+'**************************************************
+Public Sub N1_Click()
+  
+  Tab0 = Cbase.Table("TabMvt1")
+  Exo1()
+  
+End
+
+'**************************************************
+'*     On veut une balance sur l'exercice N -2    *
+'**************************************************
+Public Sub N2_Click()
+  
+  Tab0 = Cbase.Table("TabMvt2")
+  Exo2()
+  
+End
+
+'**************************************************
+'*     On veut une balance sur l'exercice N -3    *
+'**************************************************
+Public Sub N3_Click()
+  
+  Tab0 = Cbase.Table("TabMvt3")
+  Exo3()
+  
+End
+
+'**************************************************
+'*     On veut une balance sur l'exercice N -4    *
+'**************************************************
+Public Sub N4_Click()
+  
+  Tab0 = Cbase.Table("TabMvt4")
+  Exo4()
+  
+End
+
+'**************************************************
+'*     On veut une balance sur l'exercice N -5    *
+'**************************************************
+Public Sub N5_Click()
+  
+  Tab0 = Cbase.Table("TabMvt5")
+  Exo5()
+  
+End
+
+Public Sub Button4_Click()
+  
+  Dim MyForm As TriComptes
+  
+  Tri = "cast(compte_cc AS char)"
+  MyForm = New TriComptes(Tri, Type, Type2, "D4", "")
+  MyForm.Showmodal()
+  If Comptabilite.Bsel = True Then
+    Cpt.text = Comptabilite.sCmpt
+    Cpt2.SetFocus
+  Endif
+  
+End
+
+Public Sub Button5_Click()
+  
+  Dim MyForm As TriComptes
+  
+  Tri = "cast(compte_cc AS char)"
+  MyForm = New TriComptes(Tri, Type, Type2, "D4", "")
+  MyForm.Showmodal()
+  If Comptabilite.Bsel = True Then
+    Cpt2.text = Comptabilite.sCmpt
+    Cpt2.SetFocus
+  Endif
+  
+End
+
+Public Sub donnees2(p1 As String, p2 As String, p3 As String, p4 As String, p5 As String, p6 As String, p7 As String, p8 As String, p9 As String, p10 As String, p11 As String)
+  
+  Print #hFile, p1 & ";" & p2 & ";" & "Cumul periode " & ";" & p3 & ";" & p4 & ";" & p5 & ";" & "Cumul hors periode" & ";" & p6 & ";" & p7 & ";" & p8 & ";" & "solde " & ";" & p9 & ";" & p10 & ";" & p11
+  
+End
+
+Public Sub donnees1(p1 As String, p2 As String, p3 As String, p4 As String, p5 As String)
+  
+  Print #hFile, p1 & ";" & p2 & ";" & p3 & ";" & p4 & ";" & p5
+  
+End
+
+'******************
+'*   On imprime   *
+'******************
+Public Sub Button1_Click()
+  
+  Dim i As Integer
+  Dim rResult As Result
+  Dim rrResult As Result
+  Dim SteResult As Result
+  Dim Intit As String
+  Dim p1 As Integer
+  Dim Stotdeb As String
+  Dim Stotcred As String
+  Dim Sdebhp As String
+  Dim Scredhp As String
+  
+  totsldhp = 0.00
+  p1 = 1
+  p = 4
+  solde = 0
+  dateedition = "du " & dteN0.Text & " au " & dteN1.Text
+  Nbpage = 1
+  Shell "cd " & User.Home & ""
+  Filename = User.home & "/Balance.pdf"
+  pdf = New Cbalances("Portrait", "mm", "A4")
+  pdf.Open()
+  pdf.AliasNbPages()
+  With Utils
+    Me.mouse = Mouse.wait
+    SteResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabSoc") & " Where cd_sc = &1", Start.Societe)
+    Ste = "Societe " & " " & SteResult!int_sc
+    rrResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " WHERE cast(compte_cc as char) >= &1  and cast(compte_cc as char) <= &2  and type_cc =&4 or cast(compte_cc as char) >= &1  and cast(compte_cc as char) <= &2  and type_cc =&5 order by cast(compte_cc AS char)", cpt.text, cpt2.text, 0, Type, Type2)
+    If rrResult.Available Then
+      pdf.Entete("Impression des balances")
+      posx = 40
+      posy = 26
+      pdf.Level0("Balance  " & nom, dateedition, Ste)
+      posy = posy + 5
+      If Impcumul.Value = True Then
+        pdf.Level1()
+        posy = posy + 4
+      Else
+        pdf.Level1a()
+        posy = posy + 4
+      Endif
+      Repeat
+        compt = rrResult!compte_cc
+        Intit = rrResult!intitule_cc
+        rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " WHERE compte = &1  and validee = &2  order by dte ", compt, 1)
+        If rrResult.count <> 0 Then
+          If Type <> "C" And Type2 <> "F" Then Classe()
+          i = 0
+          rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " WHERE compte = &1  and validee = &2  order by dte ", compt, 1)
+          While i < rResult.count
+            If Utils.Cdate_Comp(rResult!dte) >= Utils.Cdate_Dbase(dten0.Text) And Utils.Cdate_Comp(rResult!dte) <= Utils.Cdate_Dbase(dten1.Text) Then
+              debit = rResult!montantd
+              credit = rResult!montantc
+              solde = solde + debit - credit
+              totdeb = totdeb + debit
+              totcred = totcred + credit
+              totsld = totdeb - totcred
+              dte = .CDate_Aff(rResult!dte)
+              dte = Left(dte, 6) & Right(dte, 2)
+            Else
+              DebHP = DebHP + rResult!montantd
+              CredHP = CredHP + rResult!montantc
+              Totsldhp = debhp - credhp
+            Endif
+            Inc i
+            rResult.MoveNext
+          Wend
+          totdeb2 = totdeb + debhp
+          totcred2 = totcred + credhp
+          totsld2 = totdeb2 - totcred2
+          If totsld2 > 0 Then
+            totdeb2 = totsld2
+            totcred2 = 0
+          Else
+            totdeb2 = 0
+            totcred2 = Abs(totsld2)
+          Endif
+          If Totdeb = 0 Then
+            Stotdeb = ""
+          Else
+            Stotdeb = Str(Totdeb)
+            Stotdeb = Format$(Val(Stotdeb), ",0.00")
+          Endif
+          If Totcred = 0 Then
+            Stotcred = ""
+          Else
+            Stotcred = Str(Totcred)
+            stotcred = Format$(Val(stotcred), ",0.00")
+          Endif
+          If Debhp = 0 Then
+            Sdebhp = ""
+          Else
+            Sdebhp = Str(debhp)
+            Sdebhp = Format$(Val(Sdebhp), ",0.00")
+          Endif
+          If Credhp = 0 Then
+            Scredhp = ""
+          Else
+            Scredhp = Str(Credhp)
+            Scredhp = Format$(Val(Scredhp), ",0.00")
+          Endif
+          If sTotdeb = "" And stotcred = "" And Impc.value = False Then
+          Else
+            If Impcumul.Value = True Then
+              pdf.level2(Compt, intit, Stotdeb, Stotcred, Sdebhp, Scredhp, Format$(totdeb2, ",0.00"), Format$(totcred2, ",0.00"), Format$(totsld2, ",0.00"), PosY)
+            Else
+              pdf.level2a(Compt, intit, Stotdeb, Stotcred, PosY)
+            Endif
+            posy = posy + 5
+            Bas_page()
+          Endif
+          totbaldeb = totbaldeb + totdeb
+          totbalcred = totbalcred + totcred
+          totbaldebhp = totbaldebhp + debhp
+          totbalcredhp = totbalcredhp + credhp
+          Debclass = Debclass + totdeb
+          Credclass = Credclass + totcred
+          Debclasshp = Debclasshp + debhp
+          Credclasshp = Credclasshp + credhp
+          Sldclassdeb = Totdeb2 + Sldclassdeb
+          Sldclasscred = Totcred2 + Sldclasscred
+          Sldclass = Sldclassdeb - Sldclasscred
+          Totdebclass = Totdebclass + Sldclassdeb
+          Totcredclass = Totcredclass + Sldclasscred
+        Else
+          If Impc.value = True Then
+            If Impcumul.Value = True Then
+              pdf.level2(Compt, intit, "", "", "", "", "", "", "", PosY)
+            Else
+              pdf.level2a(Compt, intit, "", "", PosY)
+            Endif
+            posy = posy + 4
+          Endif
+        Endif
+        Bas_page()
+        raz()
+      Until rrResult.MoveNext()
+      If Type = "C" Then Clas = "Client"
+      If Type2 = "F" Then Clas = "Fournisseur"
+      PosY = Posy + 3
+      Bas_page()
+      If Impcumul.value = True Then
+        pdf.level3(Clas, Format$(Debclass, ",0.00"), Format$(Credclass, ",0.00"), Format$(Debclasshp, ",0.00"), Format$(Credclasshp, ",0.00"), Format$(Sldclassdeb, ",0.00"), Format$(Sldclasscred, ",0.00"), Format$(Sldclass, ",0.00"), PosY)
+      Else
+        pdf.level3a(Clas, Format$(Debclass, ",0.00"), Format$(Credclass, ",0.00"), PosY)
+      Endif
+      posy = posy + 5
+      Sldbaldeb = totbaldeb + totbaldebhp
+      Sldbalcred = totbalcred + totbalcredhp
+      Sldbal = Sldbaldeb - Sldbalcred
+      Posy = Posy + 4
+      If Impcumul.value = True Then
+        pdf.level4(Format$(totbaldeb, ",0.00"), Format$(totbalcred, ",0.00"), Format$(totbaldebhp, ",0.00"), Format$(totbalcredhp, ",0.00"), Format$(sldbaldeb, ",0.00"), Format$(sldbalcred, ",0.00"), Format$(sldbal, ",0.00"), PosY)
+      Else
+        pdf.level4a(Format$(totbaldeb, ",0.00"), Format$(totbalcred, ",0.00"), PosY)
+      Endif
+      p = p + 4
+      Bas_page()
+      Clas = ""
+      Raz()
+      totbaldeb = 0
+      totbalcred = 0
+      totdeb2 = 0
+      totcred2 = 0
+      totbalsld = 0
+      Debclass = 0
+      Credclass = 0
+      Totdebclass = 0
+      Totcredclass = 0
+      totbaldeb = 0
+      totbalcred = 0
+      totbaldebhp = 0
+      totbalcredhp = 0
+      Debclass = 0
+      Credclass = 0
+      Debclasshp = 0
+      Credclasshp = 0
+      Sldclassdeb = 0
+      Sldclasscred = 0
+      Sldbaldeb = 0
+      Sldbalcred = 0
+      Sldclass = 0
+      Posy = Posy + 5
+      pdf.Baspage()
+      pdf.Output(Filename, False)
+      Visualiseur.Prog_Editeur(Filename)
+    Else
+      If start.son Then
+        Music.Play
+      Endif
+      message(" Aucune ecriture pour cette demande", "OK")
+    Endif
+  End With
+  Me.Mouse = Mouse.Default
+Catch
+  If start.son Then
+    Music.Play
+  Endif
+  message.Error(Error.Text & " " & Error.where)
+  Me.Mouse = Mouse.Default
+  
+End
+
+Public Sub Bas_page()
+  
+  If PosY >= 268 Then
+    pdf.Baspage()
+    pdf.Entete("Impression des balances")
+    posx = 40
+    posy = 26
+    pdf.Level0("Balance  " & nom, dateedition, Ste)
+    posy = posy + 5
+    If Impcumul.Value = True Then
+      pdf.Level1()
+      posy = posy + 4
+    Else
+      pdf.Level1a()
+      posy = posy + 4
+    Endif
+  Endif
+  
+End
+
+'****************************************************************
+'*   On calcul le total de la classe pour les comptes généraux  *
+'****************************************************************
+
+Public Sub Classe()
+  
+  If Clas = "" Then
+    Clas = Left$(Compt, 1)
+  Else
+    If Clas <> Left$(compt, 1) Then
+      If PosY >= 274 Then
+        pdf.Entete("Impression des balances")
+        posx = 40
+        posy = 26
+        pdf.Level0("Balance  " & nom, dateedition, Ste)
+        posy = posy + 5
+        If Impcumul.Value = True Then
+          pdf.Level1()
+          posy = posy + 4
+        Else
+          pdf.Level1a()
+          posy = posy + 4
+        Endif
+      Endif
+      If Impcumul.value = True Then
+        pdf.level3(Clas, Format$(Debclass, ",0.00"), Format$(Credclass, ",0.00"), Format$(Debclasshp, ",0.00"), Format$(Credclasshp, ",0.00"), Format$(Sldclassdeb, ",0.00"), Format$(Sldclasscred, ",0.00"), Format$(Sldclass, ",0.00"), PosY)
+      Else
+        pdf.level3a(Clas, Format$(Debclass, ",0.00"), Format$(Credclass, ",0.00"), PosY)
+      Endif
+      posy = posy + 8
+      Sldclass = 0
+      debclasshp = 0
+      credclasshp = 0
+      totdebclass = 0
+      totcredclass = 0
+      Debclass = 0
+      Credclass = 0
+      Sldclassdeb = 0
+      sldclasscred = 0
+      P = P + 3
+    Endif
+    Clas = Left$(Compt, 1)
+  Endif
+  
+End
+
+'*************************************************************
+'*   On calcul le total de la classe pour les comptes tiers  *
+'*************************************************************
+Public Sub Classe2()
+  
+  If PosY >= 274 Then
+    pdf.Entete("Impression des balances")
+    posx = 40
+    posy = 26
+    pdf.Level0("Balance  " & nom, dateedition, Ste)
+    posy = posy + 5
+    If Impcumul.Value = True Then
+      pdf.Level1()
+      posy = posy + 4
+    Else
+      pdf.Level1a()
+      posy = posy + 4
+    Endif
+  Endif
+  If Impcumul.value = True Then
+    pdf.level3(Clas, Format$(Debclass, ",0.00"), Format$(Credclass, ",0.00"), Format$(Debclasshp, ",0.00"), Format$(Credclasshp, ",0.00"), Format$(Sldclassdeb, ",0.00"), Format$(Sldclasscred, "0.00"), Format$(Sldclass, ",0.00"), PosY)
+  Else
+    pdf.level3a(Clas, Format$(Debclass, ",0.00"), Format$(Credclass, ",0.00"), PosY)
+  Endif
+  posy = posy + 8
+  Sldclass = 0
+  debclasshp = 0
+  credclasshp = 0
+  totdebclass = 0
+  totcredclass = 0
+  Debclass = 0
+  Credclass = 0
+  Sldclassdeb = 0
+  sldclasscred = 0
+  Inc P
+  Clas = Left$(Compt, 1)
+  
+End
+
+'**************************************************
+'* On exporte les données dans un fichier texte   *
+'**************************************************
+Public Sub Button2_Click()
+  
+  Dim i As Integer
+  Dim rResult As Result
+  Dim rrResult As Result
+  Dim SteResult As Result
+  Dim Intit As String
+  Dim Imp As Boolean = False
+  
+  totsldhp = 0.00
+  If Exist(filetxt) Then Kill filetxt
+  hFile = Open filetxt For Write Create
+  With Utils
+    Me.mouse = Mouse.wait
+    SteResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabSoc") & " Where cd_sc = &1", Start.Societe)
+    Ste = "Société " & SteResult!int_sc
+    If Bgestion.Value = True Then
+      rrResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " WHERE cast(compte_cc as char) >= &1  and cast(compte_cc as char) <= &2  and coll <> &3 and type_cc =&4  or type_cc =&5 order by cast(compte_cc AS char)", cpt.text, cpt2.text, 1, type, type2)
+    Else
+      rrResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " WHERE cast(compte_cc as char) >= &1  and cast(compte_cc as char) <= &2  and coll <> &3 and type_cc =&4 order by cast(compte_cc AS char)", cpt.text, cpt2.text, 1, type)
+    Endif
+    If rrResult.Available Then
+      Repeat
+        compt = rrResult!compte_cc
+        Intit = rrResult!intitule_cc
+        rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " WHERE compte = &1  and validee = &2 and dte >= &3 and dte <= &4 order by dte ", compt, 1, .Cdate_Dbase(dten0.Text), .Cdate_Dbase(dten1.Text))
+        If rResult.count <> 0 Then
+          i = 0
+          While i < rResult.count
+            If .Cdate_Comp(rResult!dte) >= .Cdate_Dbase(dten0.Text) And .Cdate_Comp(rResult!dte) <= .Cdate_Dbase(dten1.Text) Then
+              debit = rResult!montantd
+              credit = rResult!montantc
+              solde = solde + debit - credit
+              totdeb = totdeb + debit
+              totcred = totcred + credit
+              totsld = totdeb - totcred
+              dte = .CDate_Aff(rResult!dte)
+              dte = Left(dte, 6) & Right(dte, 2)
+              If .Cdate_Comp(rResult!dte) <= .Cdate_dbase(dten0.Text) Then
+                DebHP = DebHP + rResult!montantd
+                CredHP = CredHP + rResult!montantc
+                Totsldhp = debhp - credhp
+              Endif
+            Endif
+            i = i + 1
+            rResult.MoveNext
+          Wend
+          totdeb2 = totdeb + debhp
+          totcred2 = totcred + credhp
+          totsld2 = totsld + totsldhp
+          donnees1(CStr(Compt), CStr(Intit), Format$(CStr(totdeb), "0.00"), Format$(CStr(totcred), "0.00"), Format$(CStr(totsld), "0.00"))
+          Imp = True
+        Else
+          If Impc.value = True Then
+            If Impcumul.Value = True Then
+              donnees1(Compt, intit, "", "", "")
+            Else
+              donnees1(Compt, intit, "", "", "")
+            Endif
+            Imp = True
+            posy = posy + 160
+          Endif
+        Endif
+        raz()
+      Until rrResult.MoveNext()
+      Me.mouse = Mouse.Default
+      If start.son Then
+        Music.Play
+      Endif
+      If Imp = True Then
+        If message.question("Le fichier  Balances.txt  a été correctement copié sous votre répertoire \n Voulez-vous l'ouvrir ?", "Oui", "Non") = 1 Then
+          Editeur.Prog_Editeur(Filetxt)
+        Endif
+      Else
+        message(" Aucune ecriture pour cette demande", "OK")
+      Endif
+    Else
+      If start.son Then
+        Music.Play
+      Endif
+      message(" Aucune ecriture pour cette demande", "OK")
+    Endif
+  End With
+  Me.mouse = Mouse.Default
+  Close #hFile
+Catch
+  If start.son Then
+    Music.Play
+  Endif
+  message.Error(Error.Text & " " & Error.where)
+  Me.Mouse = Mouse.Default
+  
+End
+
+'********************
+'* On lance la doc  *
+'********************
+
+Public Sub Button3_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Balances.html"]
+  
+End

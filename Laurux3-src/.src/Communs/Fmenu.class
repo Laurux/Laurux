@@ -1,0 +1,2128 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : FMenu.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 01/11/2004
+'# Menu général de Laurux avec facturation
+'################################################
+'#######################################################
+'# Modification Marc GUILLAUME <alarch@alarch.ath.cx>
+'# pour utilisation d'un tunnel ssh de connexion MySQL
+'# 07 janvier 2010
+'########################################################
+'
+Public Soc As String
+Public intitule As String
+Public Version As String
+Public PsX As Integer
+Public PsY As Integer
+
+Public Sub _new()
+  
+  Dim WidthME As String 
+  Dim spl As New String[2]
+  
+  If Settings["/Soc" & Start.Societe & "/Tme"] Then
+    WidthME = Trim(Settings["/Soc" & Start.Societe & "/Ecran"])
+    spl = Scan(WidthME, "*;*")
+    Try Me.Width = Trim(spl[0])
+    Try Me.height = Trim(spl[1])
+  Endif
+  Me.Center
+  
+End
+
+Public Sub Form_Open()
+  
+  Dim Exprt As String
+  Dim Btq As String
+  Dim Mat As String
+  Dim Cai As String
+  Dim $con_ok As Boolean = True ' flag d'autorisation de connexion
+  Dim promo As Boolean
+  Dim cpromo, lpromo As String
+  Dim rResult As Result
+  Dim Tab As String = "Fiches_Societes"
+  'Dim Chemin As String = User.home & "/Laurux3/Fonds_Laurux/"
+  Dim Chemin As String = Application.Path & "/Fonds_Laurux/"
+  
+  Tab = "Fiches_Parametres" 
+  Try Version = Settings["/dbase/Version"]
+  Try Soc = Settings["/Soc"]
+  Try intitule = Settings["/intitule"]
+  If Settings["/Soc" & Start.Societe & "/Exp"] = True Then Exprt = "1"
+  Menushowhide(Exprt)
+  If Settings["/Soc" & Start.Societe & "/Btq"] = True Then Btq = "1"
+  Menu2showhide(Btq)
+  If Settings["/Soc" & Start.Societe & "/Materiel"] = True Then Mat = "1"
+  Menu3showhide(Mat)
+  If Settings["/Soc" & Start.Societe & "/Caisse"] = True Then Cai = "1"
+  Menu4showhide(Cai)
+  'If Settings["/Soc" & Start.Societe & "/Admin"] = True Then Menu150.Visible = False
+  If Settings["/Soc" & Start.Societe & "/Blocsoc"] = True Then 
+    Menu26.Visible = False
+    'Menu65.visible = False
+    'Menu166.visible = False
+  Endif
+  If Not IsNull(Settings["/Soc" & Start.Societe & "/Fecran"]) Then
+    If Exist(Settings["/Soc" & Start.Societe & "/Fecran"]) Then
+      PictureBox1.Picture = picture[Settings["/Soc" & Start.Societe & "/Fecran"]]
+      TextLabel1.Visible = False
+    Endif
+  Endif
+  If Settings["/Soc" & Start.Societe & "/Slide"] Then
+    If Settings["/Soc" & Start.Societe & "/Fecran"] = chemin & "Laurux1.jpg" Then 
+      Settings["/Soc" & Start.Societe & "/Fecran"] = chemin & "Laurux2.jpg"
+    Else
+      If Settings["/Soc" & Start.Societe & "/Fecran"] = chemin & "Laurux2.jpg" Then 
+        Settings["/Soc" & Start.Societe & "/Fecran"] = chemin & "Laurux3.jpg"
+      Else
+        If Settings["/Soc" & Start.Societe & "/Fecran"] = chemin & "Laurux3.jpg" Then 
+          Settings["/Soc" & Start.Societe & "/Fecran"] = chemin & "Laurux4.jpg"
+        Else
+          If Settings["/Soc" & Start.Societe & "/Fecran"] = chemin & "Laurux4.jpg" Then 
+            Settings["/Soc" & Start.Societe & "/Fecran"] = chemin & "Laurux5.jpg"
+          Else
+            If Settings["/Soc" & Start.Societe & "/Fecran"] = chemin & "Laurux5.jpg" Then 
+              Settings["/Soc" & Start.Societe & "/Fecran"] = chemin & "Laurux1.jpg"
+            Else
+              If IsNull(Settings["/Soc" & Start.Societe & "/Fecran"]) Then
+                Settings["/Soc" & Start.Societe & "/Fecran"] = chemin & "Laurux1.jpg"
+              Endif
+            Endif
+          Endif
+        Endif
+      Endif
+    Endif
+  Endif
+  If Settings["/Soc" & Start.Societe & "/Vendeurs"] = False Then 
+    Menu287.Visible = False
+  Else
+    Menu287.Visible = True
+  Endif
+  If Settings["/Soc" & Start.Societe & "/Faca"] = 0 Then Menu299.visible = False
+  If Error Then
+    Message.Warning("Attention, le fichier de configuration n'existe pas ! \n Veuillez completer les zones nécéssaires à sa création SVP !")
+    preferences()
+    Config()
+  Endif
+  '# -- initialisation des informations SQL
+  '* MG - 07 janvier 2010
+  Utils.glb()
+  
+  '# -- montage éventuel du tunnel ssh
+  '* MG - 07 janvier 2010
+  If Settings["/dbase/Con-ssh"] Then
+    If Not Utils.monteTunnel() Then
+      $con_ok = False
+    Endif
+  Endif
+  
+  If $con_ok Then
+    Try Utils.db.Open
+    Try Utils.db.exec("SET NAMES 'latin1'")
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabSoc") & " where cd_sc = &1", Soc)
+    If rResult.Available Then Soc = rResult!type_sc & " - " & rResult!int_sc
+    Fmenu.text = "Société en cours : " & Soc
+    If Settings["/Soc" & Start.Societe & "/Infob"] Then Application.ShowTooltips = False
+    If Settings["/Soc" & Start.Societe & "/Cnomade"] Then 
+      Menu300.Visible = True
+    Else
+      Menu300.Visible = False
+    Endif
+    LauruxMaj.Verif_Version()
+    SetObserver(ScrollView1)
+    Try rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabPromo") & " where datedeb = &1", Format$(Now, "yyyy-mm-dd"))
+    If Not Error Then
+      If rResult.Available Then
+        Promo = True
+        Cpromo = rResult!code
+        Lpromo = rResult!libelle
+      Endif
+      If Promo = True Then
+        Syntheses.Message("La promotion " & Cpromo & ", " & Lpromo & ", débute aujourd'hui . Pensez aux impressions d' étiquettes de début de promotion")
+        Message.Info("Rappel: La promotion " & Cpromo & " " & Lpromo & " débute aujourd'hui !\n Pensez aux impressions d' étiquettes de début de promotion")
+      Endif
+      Promo = False
+      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabPromo") & " where datefin = &1", Format$(Now, "yyyy-mm-dd"))
+      If rResult.Available Then
+        Promo = True
+        Cpromo = rResult!code
+        Lpromo = rResult!libelle
+      Endif
+      If Promo = True Then
+        Syntheses.Message("La promotion " & Cpromo & ", " & Lpromo & ", se termine aujourd'hui ! Pensez aux impressions d'étiquettes de fin de promotion.")
+        Message.Info("Rappel: La promotion " & Cpromo & " " & Lpromo & " se termine aujourd'hui !\nPensez aux impressions d'étiquettes de fin de promotion.")
+      Endif
+      promo = False
+      If Settings["/Soc" & Start.Societe & "/Faca"] Then Abonnement()
+      If Start.son Then
+        Music.Load("son/menu.ogg")
+        Music.Play
+      Endif
+    Endif
+  Else
+    Message.Warnin2g("Le tunnel SSH n'a pu être établi, la connexion SQL est impossible")
+    Config()
+  Endif
+Catch
+  If Error.text = "Connection is not opened" Then 
+    Message.Warning("Attention, la base Laurux " & Settings["/Soc"] & " n 'existe pas !\n Veuillez remplir le fichier de configuration SVP !")
+  Else
+    If Left$(error.Text, 19) = "Driver name missing" Then
+      Message.Warning("Attention, le fichier de configuration n'existe pas ! \n Veuillez completer les zones nécéssaires à sa création SVP !")
+    Else
+      If Left$(error.Text, 13) = "type mismatch" Then
+        Message.Warning("Attention, le fichier de configuration n'existe pas ou est corrompu !")
+      Else
+        If Left$(error.Text, 27) = "Cannot open database: Acces" Then
+          Message.Warning("Attention, l' utilisateur ou le mot de passe est erroné ! \n Veuillez controler votre saisie SVP !")
+        Else
+          If Left$(error.Text, 38) = "Cannot open database: Unknown database" Then
+            Message.Warning("Attention, la base Laurux " & Settings["/Soc"] & " n 'existe pas !\n Veuillez remplir le fichier de configuration SVP !")
+          Else
+            message.Error(Error.Text & " " & Error.Where)
+          Endif
+        Endif
+      Endif
+    Endif
+  Endif
+  preferences()
+  Config()
+  
+End
+
+Public Sub Timer1_Timer()
+  
+  AffRdv.Calc_Timer(Timer1)
+  
+End
+
+Public Sub Abonnement()
+  
+  Dim DteN, DteN2, dateAb, dateAb2, Aban, DteFac, Code As String
+  Dim rClient As Result
+  Dim impok As Boolean = False
+  Dim nb As Integer = 0
+  
+  dteN = Format$(Now, "yyyymmdd")
+  DteN2 = Format$(Now, "dd.mm.yyyy")
+  'rClient = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBl") & " Left join " & Cbase.Table("TabCli") & " on cli_code = cdclibl where type = &1 and totalht <> &2 and dtefac <= &3 order by cdclibl asc, dtefac desc", "A", 0, Utils.cdate_dbase(dteN2))
+  rClient = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBl") & " Left join " & Cbase.Table("TabCli") & " on cli_code = cdclibl where type = &1 and totalht <> &2 and dtefac <= &3 or type = &1 and totalht <> &2 and isnull(dtefac) order by cdclibl asc, dtefac desc", "A", 0, Utils.cdate_dbase(dteN2))
+  If rClient.Available Then
+    'code = rClient!cdclibl
+    Repeat
+      dateAb = rClient!cli_datab
+      Aban = rClient!cli_aban
+      DteFac = rClient!dtefac
+      If code <> rClient!cdclibl Then
+        If Not IsNull(DteFac) Then
+          Select Case Aban
+            Case "1- Mensuel"
+              dateAb2 = (Val(Format$(Now, "mm")) - 1)
+              If Val(DateAb2) <= 0 Then DateAb2 = Str(12 - Val(DateAb2))
+              If Val(Left$(DteFac, 2)) = DateAb2 Then
+                If Val(Mid$(DteFac, 4, 2)) <= (Val(Left$(dteN2, 2))) Then 
+                  impok = True
+                  Inc nb
+                Endif
+              Endif
+            Case "2- Bimensuel"
+              dateAb2 = (Val(Mid$(dteN, 4, 2)) - 2)
+              If Val(DateAb2) <= 0 Then DateAb2 = Str(12 - Val(DateAb2))
+              If Val(Left$(DteFac, 2)) = DateAb2 Then
+                If Val(Mid$(DteFac, 4, 2)) <= (Val(Left$(dteN2, 2))) Then
+                  impok = True
+                  Inc nb
+                Endif
+              Endif
+            Case "3- Trimestriel"
+              dateAb2 = (Val(Mid$(dteN, 4, 2)) - 3)
+              If Val(DateAb2) <= 0 Then DateAb2 = Str(12 - Val(DateAb2))
+              If Val(Left$(DteFac, 2)) = DateAb2 Then
+                If Val(Mid$(DteFac, 4, 2)) <= (Val(Left$(dteN2, 2))) Then
+                  impok = True
+                  Inc nb
+                Endif
+              Endif
+            Case "4- Semestriel"
+              dateAb2 = (Val(Mid$(dteN, 4, 2)) - 6)
+              If Val(DateAb2) <= 0 Then DateAb2 = Str(12 - Val(DateAb2))
+              If Val(Left$(DteFac, 2)) = DateAb2 Then
+                If Val(Mid$(DteFac, 4, 2)) <= (Val(Left$(dteN2, 2))) Then
+                  impok = True
+                  Inc nb
+                Endif
+              Endif
+            Case "5- Annuel"
+              dateAb2 = (Val(Format$(Now, "yyyy")) - 1)
+              If Val(Right$(DteFac, 4)) <= Val(dateAb2) Then
+                If Val(Mid$(DteFac, 4, 2)) <= (Val(Right$(dteN2, 2))) Then
+                  impok = True
+                  Inc nb
+                Endif
+              Endif
+          End Select
+        Else
+          impok = True
+          Inc nb
+        Endif
+      Endif
+      code = rClient!cdclibl
+    Until rClient.MoveNext()
+    If impok = True Then
+      Syntheses.Message("Aujourd'hui, il y a " & nb & " factures périodiques a éditer.")
+      Message.Info("Aujourd'hui, il y a " & nb & " facture(s) périodique(s) a imprimer!")
+    Endif
+  Endif
+  
+End
+
+Public Sub preferences()
+  
+  Settings["/son"] = 0
+  Settings["/Tips"] = 1
+  Settings["/Soc" & Soc & "/Entete"] = 1
+  Settings["/Soc" & Soc & "/Conditions"] = 1
+  Settings["/Soc" & Soc & "/Tva550"] = 0
+  Settings["/Soc" & Soc & "/Codetva"] = " "
+  Settings["/Soc" & Soc & "/Compta"] = 0
+  Settings["/Soc" & Soc & "/Gestion"] = 0
+  Settings["/Soc" & Soc & "/CptFac"] = 1
+  Settings["/Soc" & Soc & "/Qt1"] = 0
+  Settings["/Soc" & Soc & "/Coul_fen"] = 0
+  Settings["/Soc" & Soc & "/Qt1"] = 0
+  Settings["/Soc" & Soc & "/Ctrlstk"] = 0
+  Settings["/Soc" & Soc & "/AutoEnt"] = 0
+  Settings["/Coul" & "/Fnets"] = "Background: &HDDDDDD&; "
+  Settings["/Coul" & "/Btns"] = "Background: &HBDBDBD&; "
+  Settings["/Coul" & "/Znss"] = "Background: &HFAFAFA&; "
+  Settings["/Coul" & "/Znaff"] = "Background: &HEEEEEE&; "
+  Settings["/Coul" & "/Focus"] = "Background: &HF9FFC7&; "
+  Settings["/Coul" & "/Coulfonds"] = "Background: &FFEE81&; "
+  Settings["/Coul" & "/Others"] = "Background: &FFE0B8&; "
+  Settings["/Coul" & "/Fcs"] = "Background: &HF9FFC7&"
+  Settings["/Coul" & "/Stk"] = "Background: &HCFF58E&; Font: serif,9; "
+  Settings["/Coul" & "/Coulfonds"] = "255,252,216,"
+  Settings["/Coul" & "/Others"] = "255,232,199,"
+  Settings["/Coul" & "/Facts"] = "Background: &HFFFFFF&; Font: Serif,9; "
+  Settings["/Coul" & "/Avs"] = "Background: &HFFFFFF&; Font: Serif,9; "
+  Settings["/Coul" & "/Bl"] = "Background: &HFFFFFF&; Font: Serif,9; "
+  Settings["/Coul" & "/Devis"] = "Background: &HFFFFFF&; Font: Serif,9; "
+  Settings["/Coul" & "/Cmde"] = "Background: &HFFFFFF&; Font: Serif,9; "
+  Settings["/Coul" & "/Prf"] = "Background: &HFFFFFF&; Font: Serif,9; "
+  Settings["/Coul" & "/Nstk"] = "Background: &HFFFFFF&; Font: Serif,9; "
+  Settings["/Coul" & "/Eps"] = "Background: &HFFFFFF&; Font: Serif,9; "
+  Settings["/Coul" & "/Spd"] = "Background: &HFFFFFF&; Font: Serif,9; "
+  Settings["/Soc" & Soc & "/Font"] = "Serif,+1"
+  Settings["/Soc" & Soc & "/Copie"] = 0
+  Settings["/Soc" & Soc & "/Siret"] = "Siret"
+  Settings["/Soc" & Soc & "/Prxdec"] = 0
+  Settings["/Soc" & Soc & "/Taxe"] = "TVA"
+  Settings.Save
+  Settings.Reload
+  
+End
+
+Public Sub Menushowhide(Exprt As String) As String
+  
+  If Exprt = "1" Then
+    Menu133.Visible = True
+    Menu134.Visible = False
+  Else
+    Menu133.Visible = False
+    Menu134.Visible = True
+  Endif
+  
+End
+
+Public Sub Menu2showhide(Btq As String) As String
+  
+  If Btq = "1" Then
+    Menu184.Visible = True
+    Menu183.Visible = True
+  Else
+    Menu184.Visible = False
+    Menu183.Visible = False
+  Endif
+  
+End
+
+Public Sub Menu3showhide(Mat As String) As String
+  
+  If Mat = "1" Then
+    Menu190.Visible = True
+    Menu193.Visible = True
+    HBox17.Visible = True
+    HBox18.Visible = True
+  Else
+    Menu190.Visible = False
+    Menu193.Visible = False
+    HBox17.Visible = False
+    HBox18.Visible = False
+  Endif
+  
+End
+
+Public Sub Menu4showhide(Cai As String) As String
+  
+  If Cai = "1" Then
+    Menu203.Visible = True
+    Menu296.Visible = True
+  Else
+    Menu203.Visible = False
+    Menu296.Visible = False
+  Endif
+  
+End
+
+Public Sub Config()
+  
+  LauruxConf.ShowModal()
+  
+End
+
+Public Sub Menu114_Click()
+  
+  Fcomptes.Show
+  
+End
+
+Public Sub Menu112_Click()
+  
+  FTvav.Show
+  
+End
+
+Public Sub Menu113_Click()
+  
+  FTvac.show
+  
+End
+
+Public Sub Menu111_Click()
+  
+  Fcollectif.show
+  
+End
+
+Public Sub Menu115_Click()
+  
+  Fjournaux.show
+  
+End
+
+Public Sub Menu12_Click()
+  
+  FClient.ShowModal()
+  
+End
+
+Public Sub Menu13_Click()
+  
+  Ffournisseur.ShowModal()
+  
+End
+
+Public Sub Client_Click()
+  
+  menu12_Click()
+  
+End
+
+Public Sub fournisseur_Click()
+  
+  Menu13_Click()
+  
+End
+
+Public Sub compte_Click()
+  
+  Menu114_Click()
+  
+End
+
+Public Sub Tva_Click()
+  
+  Menu113_Click()
+  
+End
+
+Public Sub Tvac_Click()
+  
+  Menu113_Click()
+  
+End
+
+Public Sub libellesaisies_Click()
+  
+  Menu24_Click()
+  
+End
+
+Public Sub journaux_Click()
+  
+  Menu115_Click()
+  
+End
+
+Public Sub collectif_Click()
+  
+  Menu111_Click()
+  
+End
+
+Public Sub Menu15_Click()
+  
+  Articles.ShowModal()
+  
+End
+
+Public Sub Menu20_Click()
+  
+  Fabout.Show
+  
+End
+
+Public Sub Menu26_Click()
+  
+  If Settings["/Soc" & Start.Societe & "/Admin"] Then
+    MDP.showmodal()
+    If Start.Motdepasse = "OK" Then
+      Fsoc.Show
+      Start.Motdepasse = ""
+    Endif
+  Else
+    Fsoc.Show
+  Endif
+  
+End
+
+Public Sub Menu21_Click()
+  
+  Dim hForm As Saisecrit
+  
+  hForm = New Saisecrit("")
+  hForm.Showmodal()
+  
+End
+
+Public Sub Menu22_Click()
+  
+  Dim hForm As Tresor
+  
+  hForm = New Tresor("")
+  hForm.Showmodal()
+  
+End
+
+Public Sub Menu24_Click()
+  
+  Flibelle.Show
+  
+End
+
+Public Sub Menu25_Click()
+  
+  If Settings["/Soc" & Start.Societe & "/Admin"] Then
+    MDP.showmodal()
+    If Start.Motdepasse = "OK" Then
+      Parametre.Show
+      Start.Motdepasse = ""
+    Endif
+  Else
+    Parametre.Show
+  Endif
+  
+End
+
+Public Sub Menu38_Click()
+  
+  Editcompte.Show
+  
+End
+
+Public Sub Menu51_Click()
+  
+  Dim hForm As Lettrage
+  
+  hForm = New Lettrage("", "")
+  hForm.Showmodal()
+  
+End
+
+Public Sub Menu61_Click()
+  
+  Pointage.Show
+  
+End
+
+Public Sub Menu16_Click()
+  
+  Dim hForm As Extrait
+  
+  hForm = New Extrait("", "", "", "")
+  hForm.Showmodal
+  'Extrait.Show(" ", " ", " ", " ")
+  
+End
+
+Public Sub Menu23_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/LauruxIndexParCategories.html"]
+  
+End
+
+Public Sub Menu31_Click()
+  
+  Balance.Show
+  
+End
+
+Public Sub Menu32_Click()
+  
+  journaux.Show
+  
+End
+
+Public Sub ToolButton1_Click()
+  
+  Menu121_Click()
+  
+End
+
+Public Sub Menu46_Click()
+  
+  FCloture.ShowModal()
+  
+End
+
+Public Sub Menu27_Click()
+  
+  Frelance.Show
+  
+End
+
+Public Sub Menu49_Click()
+  
+  FPrepRel.Show
+  
+End
+
+Public Sub Menu50_Click()
+  
+  FEditRel.Show
+  
+End
+
+Public Sub Menu30_Click()
+  
+  FRelcompte.Show
+  
+End
+
+Public Sub Menu52_Click()
+  
+  FRelFacture.Show
+  
+End
+
+Public Sub Menu40_Click()
+  
+  Fmontant.Show
+  
+End
+
+Public Sub Menu54_Click()
+  
+  EdFam.Show
+  
+End
+
+Public Sub Menu57_Click()
+  
+  FSauve.ShowModal()
+  
+End
+
+Public Sub Menu59_Click()
+  
+  Edmo.Show
+  
+End
+
+Public Sub Menu65_Click()
+  
+  If Settings["/Soc" & Start.Societe & "/Admin"] Then
+    MDP.showmodal()
+    If Start.Motdepasse = "OK" Then
+      FRestore.ShowModal()
+      Start.Motdepasse = ""
+    Endif
+  Else
+    FRestore.ShowModal()
+  Endif
+  
+End
+
+Public Sub Menu60_Click()
+  
+  FClotureAn.ShowModal()
+  
+End
+
+Public Sub Menu73_Click()
+  
+  EdArt1.Show
+  
+End
+
+Public Sub Menu74_Click()
+  
+  EdArt2.Show
+  
+End
+
+Public Sub Achat_Click()
+  
+  Menu21_Click
+  
+End
+
+Public Sub Menu14_Click()
+  
+  Famille.Show
+  
+End
+
+Public Sub Menu70_Click()
+  
+  Plancomptable.Show
+  
+End
+
+Public Sub Menu17_Click()
+  
+  Comment.Show
+  
+End
+
+Public Sub Menu28_Click()
+  
+  Txmo.Show
+  
+End
+
+Public Sub Article_Click()
+  
+  Menu15_Click()
+  
+End
+
+Public Sub Menu1_Click()
+  
+  Ecritures.Show
+  
+End
+
+Public Sub Menu37_Click()
+  
+  Movr.ShowModal()
+  
+End
+
+Public Sub Moeuvre_Click()
+  
+  Menu37_Click()
+  
+End
+
+Public Sub Menu42_Click()
+  
+  If Settings["/Soc" & Start.Societe & "/Vendeurs"] <> 0 And Not IsNull(Settings["/Soc" & Start.Societe & "/CodeVendeur"]) Then 
+    Facture.ShowModal()
+  Else
+    If Settings["/Soc" & Start.Societe & "/Vendeurs"] = 0 Or If IsNull(Settings["/Soc" & Start.Societe & "/Vendeurs"]) Then
+      Facture.ShowModal()
+    Else
+      ConVendeurs.ShowModal()
+    Endif
+  Endif
+  
+End
+
+Public Sub ToolButton2_Click()
+  
+  Menu42_Click()
+  
+End
+
+Public Sub Menu72_Click()
+  
+  Archives.ShowModal()
+  
+End
+
+Public Sub Tvav_Click()
+  
+  Menu112_Click()
+  
+End
+
+Public Sub Menu76_Click()
+  
+  Calcsolde.ShowModal()
+  
+End
+
+Public Sub ToolButton3_Click()
+  
+  Menu61_Click()
+  
+End
+
+Public Sub ToolButton4_Click()
+  
+  Menu1_Click()
+  
+End
+
+Public Sub ToolButton5_Click()
+  
+  Menu40_Click()
+  
+End
+
+Public Sub Menu78_Click()
+  
+  Receipt.showModal()
+  
+End
+
+Public Sub Blm_Click()
+  
+  Menu78_Click()
+  
+End
+
+Public Sub Menu79_Click()
+  
+  Mvtex.showModal()
+  
+End
+
+Public Sub Mvt_Click()
+  
+  Menu79_Click()
+  
+End
+
+Public Sub Menu88_Click()
+  
+  Commande.showModal()
+  
+End
+
+Public Sub com_Click()
+  
+  Menu88_Click()
+  
+End
+
+Public Sub Menu89_Click()
+  
+  Receipta.showModal()
+  
+End
+
+Public Sub Bla_Click()
+  
+  Menu89_Click()
+  
+End
+
+Public Sub Menu90_Click()
+  
+  Edbl.Show
+  
+End
+
+Public Sub Menu91_Click()
+  
+  Edregul.Show
+  
+End
+
+Public Sub Menu92_Click()
+  
+  Edcom.Show
+  
+End
+
+Public Sub Menu81_Click()
+  
+  Geninv.Show
+  
+End
+
+Public Sub Menu82_Click()
+  
+  Saisieinv.Show
+  
+End
+
+Public Sub Menu84_Click()
+  
+  Validinv.Show
+  
+End
+
+Public Sub Menu83_Click()
+  
+  Ecarts.Show
+  
+End
+
+Public Sub Menu85_Click()
+  
+  Edinv.Show
+  
+End
+
+Public Sub Menu93_Click()
+  
+  Ednsaisis.Show
+  
+End
+
+Public Sub Menu95_Click()
+  
+  GeninvT.Showmodal()
+  
+End
+
+Public Sub Menu96_Click()
+  
+  SaisieinvT.Show
+  
+End
+
+Public Sub Menu97_Click()
+  
+  EdnsaisisT.Show
+  
+End
+
+Public Sub Menu98_Click()
+  
+  EcartsT.Show
+  
+End
+
+Public Sub Menu99_Click()
+  
+  EdinvT.Show
+  
+End
+
+Public Sub Menu100_Click()
+  
+  ValidinvT.Show
+  
+End
+
+Public Sub Menu102_Click()
+  
+  EdStk.Show
+  
+End
+
+Public Sub Menu103_Click()
+  
+  EdNlettrees.Show
+  
+End
+
+Public Sub Menu104_Click()
+  
+  EDfour.Show
+  
+End
+
+Public Sub Menu105_Click()
+  
+  Hit.Show
+  
+End
+
+Public Sub Menu106_Click()
+  
+  EdNlettrees.Show
+  
+End
+
+Public Sub Menu107_Click()
+  
+  StatFam.Show
+  
+End
+
+Public Sub Menu110_Click()
+  
+  If Settings["/Soc" & Start.Societe & "/Admin"] Then
+    MDP.showmodal()
+    If Start.Motdepasse = "OK" Then
+      Prefs.Show()
+      Start.Motdepasse = ""
+    Endif
+  Else
+    Prefs.Show()
+  Endif
+  
+End
+
+Public Sub Menu109_Click()
+  
+  jourcent.Show
+  
+End
+
+Public Sub Menu201_Click()
+  
+  StatClimo.Show
+  
+End
+
+Public Sub Menu116_Click()
+  
+  StatCli.Show
+  
+End
+
+Public Sub Menu117_Click()
+  
+  StatClimo.Show
+  
+End
+
+Public Sub Menu118_Click()
+  
+  Menu121_Click()
+  
+End
+
+Public Sub Menu121_Click()
+  
+  Me.close
+  
+End
+
+Public Sub form_close()
+  
+  Try Kill User.home & "/Laurux.lock"
+  
+  Settings["/Soc" & Start.Societe & "/Ecran"] = Me.Width & ";" & Me.Height
+  If Settings["/Soc" & Start.Societe & "/Sauvauto"] And If Settings["/dbase/Maj"] Then SauvesAuto.Sauvegarde(Me)
+  If Start.son Then
+    Music.Load("son/fermeture-menu.ogg")
+    Music.Play
+    Wait 1.5
+  Endif
+  Utils.fermeTunnel()
+  Utils.db.Close
+  
+End
+
+Public Sub Tsr_Click()
+  
+  Menu22_Click
+  
+End
+
+Public Sub Menu122_Click()
+  
+  Rubresult.Show
+  
+End
+
+Public Sub Menu123_Click()
+  
+  Rubcompt.Show
+  
+End
+
+Public Sub Menu124_Click()
+  
+  RubImp.Show
+  
+End
+
+Public Sub journal_Click()
+  
+  Fjournaux.Show
+  
+End
+
+Public Sub Menu101_Click()
+  
+  EdClient.Show
+  
+End
+
+Public Sub Menu108_Click()
+  
+  EDfour.Show
+  
+End
+
+Public Sub Menu125_Click()
+  
+  Ftips.run
+  
+End
+
+Public Sub Menu126_Click()
+  
+  Lettragemontant.show
+  
+End
+
+Public Sub Menu127_Click()
+  
+  Lettragesoldes.show
+  
+End
+
+Public Sub Menu128_Click()
+  
+  Trecarts.Show
+  
+End
+
+Public Sub ToolButton6_Click()
+  
+  Menu16_Click()
+  
+End
+
+Public Sub ToolButton7_Click()
+  
+  Menu51_click()
+  
+End
+
+Public Sub Menu130_Click()
+  
+  LibelFac.Show
+  
+End
+
+Public Sub Menu131_Click()
+  
+  echeances.ShowModal
+  
+End
+
+Public Sub Menu132_Click()
+  
+  Verbal.ShowModal
+  
+End
+
+Public Sub Menu133_Click()
+  
+  ExportJdv.ShowModal
+  
+End
+
+Public Sub Menu134_Click()
+  
+  ImpJdv.ShowModal
+  
+End
+
+Public Sub Menu141_Click()
+  
+  Prgm.Show
+  
+End
+
+Public Sub Menu138_Click()
+  
+  Facturefm.ShowModal
+  
+End
+
+Public Sub Menu142_Click()
+  
+  Histovart.Show
+  
+End
+
+Public Sub Menu143_Click()
+  
+  Histovmo.Show
+  
+End
+
+Public Sub Menu145_Click()
+  
+  Changefam.ShowModal
+  
+End
+
+Public Sub Menu147_Click()
+  
+  ClotureF.ShowModal
+  
+End
+
+Public Sub Menu150_Click()
+  
+  If Settings["/Soc" & Start.Societe & "/Admin"] Then
+    MDP.showmodal()
+    If Start.Motdepasse = "OK" Then
+      Dup.showModal
+      Start.Motdepasse = ""
+    Endif
+  Else
+    Dup.showModal
+  Endif
+  
+End
+
+Public Sub Menu155_Click()
+  
+  StatCA.showModal
+  
+End
+
+Public Sub Menu154_Click()
+  
+  Remisec.show
+  
+End
+
+Public Sub Menu156_Click()
+  
+  Carch.show
+  
+End
+
+Public Sub Menu149_Click()
+  
+  Typec.show
+  
+End
+
+Public Sub SetObserver(hCont As Container)
+  
+  Dim hObs As Observer
+  Dim o As Control
+  
+  For Each o In hCont.Children
+    If o Is Label Then
+      hobs = New Observer(o) As "OBS"
+      o.Mouse = mouse.Pointing
+    Endif
+    If o Is Container Then SetObserver(o)
+  Next
+  
+End
+
+Public Sub OBS_Enter()
+  
+  ' [GB2:FCOL] Last.ForeColor = Color.Blue
+  Last.Foreground = Color.Blue
+  Last.Font.Underline = True
+  
+End
+
+Public Sub OBS_Leave()
+  
+  Last.Foreground = Color.ButtonForeground
+  Last.Font.Underline = False
+  
+End
+
+Public Sub lblCli_MouseDown()
+  
+  menu12_Click()
+  Stop Event
+  
+End
+
+Public Sub lblFour_MouseUp()
+  
+  Menu13_Click()
+  Stop Event
+  
+End
+
+Public Sub LblFam_MouseUp()
+  
+  Menu14_Click()
+  Stop Event
+  
+End
+
+Public Sub lblArt_MouseUp()
+  
+  Menu15_Click()
+  Stop Event
+  
+End
+
+Public Sub lblMO_MouseUp()
+  
+  Menu37_Click()
+  Stop Event
+  
+End
+
+Public Sub lblFac_MouseUp()
+  
+  Menu42_Click()
+  Stop Event
+  
+End
+
+Public Sub lblCom_MouseUp()
+  
+  Menu88_Click()
+  Stop Event
+  
+End
+
+Public Sub lblRcptM_MouseUp()
+  
+  Menu78_Click()
+  Stop Event
+  
+End
+
+Public Sub lblRcptA_MouseUp()
+  
+  Menu89_Click()
+  Stop Event
+  
+End
+
+Public Sub lblRgl_MouseUp()
+  
+  Menu79_Click()
+  Stop Event
+  
+End
+
+Public Sub lblVrecpt_MouseUp()
+  
+  Menu295_Click()
+  Stop Event
+  
+End
+
+Public Sub Menu153_Click()
+  
+  SetColors.ShowDialog
+  
+End
+
+Public Sub lblRem_MouseUp()
+  
+  Menu154_Click()
+  Stop Event
+  
+End
+
+Public Sub lblArch_MouseDown()
+  
+  Archives.ShowModal()
+  Stop Event
+  
+End
+
+Public Sub lblFacfm_MouseDown()
+  
+  Facturefm.ShowModal
+  Stop Event
+  
+End
+
+Public Sub lblClm_MouseDown()
+  
+  ClotureF.ShowModal
+  Stop Event
+  
+End
+
+Public Sub lblClm2_MouseDown()
+  
+  ConsultArt.Show
+  Stop Event
+  
+End
+
+Public Sub Menu152_Click()
+  
+  Impclient.show
+  
+End
+
+Public Sub Menu157_Click()
+  
+  Dim Myform As Etiqart
+  
+  MyForm = New Etiqart("")
+  MyForm.Showmodal()
+  
+End
+
+Public Sub Menu158_Click()
+  
+  Dim Myform As Etigond
+  
+  MyForm = New Etigond("")
+  MyForm.Showmodal()
+  
+End
+
+Public Sub Menu161_Click()
+  
+  Dim Myform As Etiqart
+  
+  MyForm = New Etiqart("")
+  MyForm.Showmodal()
+  
+End
+
+Public Sub Menu162_Click()
+  
+  Dim Myform As Etigond
+  
+  MyForm = New Etigond("")
+  MyForm.Showmodal()
+  
+End
+
+Public Sub Menu163_Click()
+  
+  Eticli.show
+  
+End
+
+Public Sub Menu164_Click()
+  
+  EtiqRecpt.show
+  
+End
+
+Public Sub Menu165_Click()
+  
+  Etiquettes.Show
+  
+End
+
+Public Sub Menu166_Click()
+  
+  If Settings["/Soc" & Start.Societe & "/Admin"] Then
+    MDP.showmodal()
+    If Start.Motdepasse = "OK" Then
+      LauruxConf.ShowModal
+      Start.Motdepasse = ""
+    Endif
+  Else
+    LauruxConf.ShowModal
+  Endif
+  
+End
+
+Public Sub Menu168_Click()
+  
+  Calcstock.ShowModal
+  
+End
+
+Public Sub Menu169_Click()
+  
+  StatFour.show
+  
+End
+
+Public Sub Menu170_Click()
+  
+  Expclient.show
+  
+End
+
+Public Sub Menu171_Click()
+  
+  Expbase.show
+  
+End
+
+Public Sub Menu175_Click()
+  
+  Emailing.ShowModal
+  
+End
+
+Public Sub Menu173_Click()
+  
+  If Settings["/Soc" & Start.Societe & "/Admin"] Then
+    MDP.showmodal()
+    If Start.Motdepasse = "OK" Then
+      Majversion.Verif_Maj()
+      Start.Motdepasse = ""
+    Endif
+  Else
+    Majversion.Verif_Maj()
+  Endif
+  
+End
+
+Public Sub Menu63_Click()
+  
+  Exec ["xdg-open", "http://www.laurux.fr"]
+  
+End
+
+Public Sub Menu176_Click()
+  
+  StatTypCli.Show
+  
+End
+
+Public Sub Menu181_Click()
+  
+  Cielcorspj.ShowModal()
+  
+End
+
+Public Sub Menu180_Click()
+  
+  Cielcorsp.ShowModal()
+  
+End
+
+Public Sub Menu182_Click()
+  
+  Cielimp.ShowModal()
+  
+End
+
+Public Sub Menu184_Click()
+  
+  Btqart.ShowModal()
+  
+End
+
+Public Sub Menu186_Click()
+  
+  Impart.ShowModal()
+  
+End
+
+Public Sub Menu189_Click()
+  
+  Cpostaux.Show()
+  
+End
+
+Public Sub Menu190_Click()
+  
+  Dim hForm As Materiel
+  
+  hForm = New Materiel("")
+  hForm.Showmodal()
+  
+End
+
+Public Sub lblMat_MouseDown()
+  
+  Dim hForm As Materiel
+  
+  hForm = New Materiel("")
+  hForm.Showmodal()
+  Stop Event
+  
+End
+
+Public Sub Menu191_Click()
+  
+  Marques.Show()
+  
+End
+
+Public Sub Menu193_Click()
+  
+  FactureMat.ShowModal()
+  
+End
+
+Public Sub lblFac2_MouseDown()
+  
+  FactureMat.ShowModal()
+  Stop Event
+  
+End
+
+Public Sub Menu194_Click()
+  
+  Edpaiement.ShowModal()
+  
+End
+
+Public Sub Menu195_Click()
+  
+  Identite.ShowModal()
+  
+End
+
+Public Sub Menu196_Click()
+  
+  RelvMo.Show()
+  
+End
+
+Public Sub Menu197_Click()
+  
+  RelMoprod.Show()
+  
+End
+
+Public Sub Menu198_Click()
+  
+  Abont.show()
+  
+End
+
+Public Sub Menu199_Click()
+  
+  Tleg.Show()
+  
+End
+
+Public Sub Menu202_Click()
+  
+  Agenda.show
+  
+End
+
+Public Sub Menu205_Click()
+  
+  Fcaisses.ShowModal()
+  
+End
+
+Public Sub Menu207_Click()
+  
+  LibelTicket.ShowModal()
+  
+End
+
+Public Sub Menu206_Click()
+  
+  Fvendeurs.ShowModal()
+  
+End
+
+Public Sub Menu214_Click()
+  
+  Bordereaux.ShowModal()
+  
+End
+
+Public Sub Menu208_Click()
+  
+  LibelAvoirs.ShowModal()
+  
+End
+
+Public Sub Menu209_Click()
+  
+  Fclientc.ShowModal()
+  
+End
+
+Public Sub Menu215_Click()
+  
+  Moulinage.ShowModal()
+  
+End
+
+Public Sub Menu218_Click()
+  
+  ArchivesTck.ShowModal()
+  
+End
+
+Public Sub Menu204_Click()
+  
+  Statcai.Showmodal()
+  
+End
+
+Public Sub Menu219_Click()
+  
+  Statut.Show()
+  
+End
+
+Public Sub Menu221_Click()
+  
+  Fpromo.ShowModal()
+  
+End
+
+Public Sub Menu222_Click()
+  
+  FpromoArt.ShowModal()
+  
+End
+
+Public Sub Menu223_Click()
+  
+  StatPromo.ShowModal()
+  
+End
+
+Public Sub Menu225_Click()
+  
+  EtiqPromo.ShowModal()
+  
+End
+
+Public Sub Menu226_Click()
+  
+  Remisecli.ShowModal()
+  
+End
+
+Public Sub Menu227_Click()
+  
+  Prodcomposes.ShowModal()
+  
+End
+
+Public Sub Menu229_Click()
+  
+  EpurMvtexp.ShowModal()
+  
+End
+
+Public Sub Menu230_Click()
+  
+  MvtProdcomp.ShowModal()
+  
+End
+
+Public Sub Menu232_Click()
+  
+  RazInv.ShowModal()
+  
+End
+
+Public Sub Menu233_Click()
+  
+  RazInvT.ShowModal()
+  
+End
+
+Public Sub Menu234_Click()
+  
+  SupprArt.ShowModal()
+  
+End
+
+Public Sub lblClm3_MouseDown()
+  
+  Fprepdus.show()
+  Stop Event
+  
+End
+
+Public Sub Menu238_Click()
+  
+  FClientcarte.ShowModal()
+  
+End
+
+Public Sub Menu239_Click()
+  
+  HitCarte.ShowModal()
+  
+End
+
+Public Sub Menu240_Click()
+  
+  EmailingCarte.ShowModal()
+  
+End
+
+Public Sub Menu241_Click()
+  
+  Centrales.Show()
+  
+End
+
+Public Sub Menu242_Click()
+  
+  Etiqfbtarif.ShowModal()
+  
+End
+
+Public Sub Menu245_Click()
+  
+  ImpartParam.ShowModal()
+  
+End
+
+Public Sub Menu246_Click()
+  
+  MajFbtarif2.Showmodal()
+  
+End
+
+Public Sub Menu247_Click()
+  
+  Etiqfbtarif.ShowModal()
+  
+End
+
+Public Sub Menu248_Click()
+  
+  MajTarifP.show()
+  
+End
+
+Public Sub Menu249_Click()
+  
+  MajTarifM.Show()
+  
+End
+
+Public Sub Menu250_Click()
+  
+  Statbase.ShowModal()
+  
+End
+
+Public Sub Menu251_Click()
+  
+  TBord.Show()
+  
+End
+
+Public Sub Menu252_Click()
+  
+  EdNjustifiees.Show()
+  
+End
+
+Public Sub Menu253_Click()
+  
+  EdRup.Show()
+  
+End
+
+Public Sub Menu254_Click()
+  
+  EdDocs.Show()
+  
+End
+
+Public Sub Menu255_Click()
+  
+  Tmail.Show()
+  
+End
+
+Public Sub Menu256_Click()
+  
+  Monip.Monip()
+  
+End
+
+Public Sub Menu259_Click()
+  
+  RazHistoFac.ShowModal()
+  
+End
+
+Public Sub Menu260_Click()
+  
+  RazHistoTk.ShowModal()
+  
+End
+
+Public Sub Menu261_Click()
+  
+  RazHistoFbl.ShowModal()
+  
+End
+
+Public Sub Menu262_Click()
+  
+  RazRlvb.ShowModal()
+  
+End
+
+Public Sub Menu263_Click()
+  
+  FTVA.show()
+  
+End
+
+Public Sub Menu265_Click()
+  
+  Traites.Show()
+  
+End
+
+Public Sub Menu264_Click()
+  
+  Edregulprdc.Show()
+  
+End
+
+Public Sub Menu266_Click()
+  
+  Fsystem.show
+  
+End
+
+Public Sub Menu268_Click()
+  
+  Depots.Show()
+  
+End
+
+Public Sub Menu269_Click()
+  
+  MvtDepots.Show()
+  
+End
+
+Public Sub Menu270_Click()
+  
+  Sdepots.show()
+  
+End
+
+Public Sub Menu272_Click()
+  
+  ImpDepots.show()
+  
+End
+
+Public Sub Menu273_Click()
+  
+  Edsdepots.Show()
+  
+End
+
+Public Sub Menu275_Click()
+  
+  Majcasier.Show()
+  
+End
+
+Public Sub Menu277_Click()
+  
+  Variables.OrgTarCli = ""
+  TarCli.Show()
+  
+End
+
+Public Sub Menu278_Click()
+  
+  Variables.OrgTarTypeCli = ""
+  TarTypeCli.Show()
+  
+End
+
+Public Sub Menu279_Click()
+  
+  RazArt.Show()
+  
+End
+
+Public Sub Menu281_Click()
+  
+  Expart.Show()
+  
+End
+
+Public Sub Menu282_Click()
+  
+  Prgm.show()
+  
+End
+
+Public Sub Menu283_Click()
+  
+  Expcontact.Show()
+  
+End
+
+Public Sub Menu284_Click()
+  
+  Impcpostaux.Show()
+  
+End
+
+Public Sub Menu286_Click()
+  
+  ImpSage.ShowModal()
+  
+End
+
+Public Sub Menu287_Click()
+  
+  Fvendeurs.Show()
+  
+End
+
+Public Sub Menu288_Click()
+  
+  CoefTypeC.Show()
+  
+End
+
+Public Sub Menu289_Click()
+  
+  EdMat.Show()
+  
+End
+
+Public Sub Menu290_Click()
+  
+  RazDevis.ShowModal()
+  
+End
+
+Public Sub Menu292_Click()
+  
+  JournauxA.ShowModal()
+  
+End
+
+Public Sub Menu293_Click()
+  
+  EditcompteA.ShowModal()
+  
+End
+
+Public Sub Menu294_Click()
+  
+  FPostes.show()
+  
+End
+
+Public Sub Menu295_Click()
+  
+  ValidBR.ShowModal()
+  
+End
+
+Public Sub Menu296_Click()
+  
+  RazClientd.ShowModal()
+  
+End
+
+Public Sub Menu297_Click()
+  
+  EdArt3.ShowModal()
+  
+End
+
+Public Sub Menu298_Click()
+  
+  ExportA47.ShowModal()
+  
+End
+
+Public Sub Menu299_Click()
+  
+  FacturefmA.ShowModal()
+  
+End
+
+Public Sub Menu300_Click()
+  
+  Fimport.ShowModal()
+  
+End
+
+Public Sub Menu301_Click()
+  
+  ModifBR.showModal()
+  
+End
+
+Public Sub Menu302_Click()
+  
+  Dim Myform As Etiqcasier
+  
+  MyForm = New Etiqcasier("")
+  MyForm.Showmodal()
+  
+End
+
+Public Sub Menu303_Click()
+  
+  Echeancier.ShowModal()  
+  
+End
+
+Public Sub Menu305_Click()
+  
+  Changefour.ShowModal()
+  
+End
+
+Public Sub Menu306_Click()
+  
+  Facturergbl.ShowModal()
+  
+End
+
+Public Sub Menu309_Click()
+  
+  Dim hForm As Gged
+  
+  hForm = New Gged("", "", "", "")
+  hForm.Showmodal()
+  
+End
+
+Public Sub Menu310_Click()
+  
+  GedR.ShowModal()
+  
+End
+
+Public Sub Menu311_Click()
+  
+  RazClos.ShowModal()
+  
+End
