@@ -1,0 +1,482 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Fcaisses.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 25/09/2009
+'# Gestion de la tables des caisses
+'################################################
+'
+Private Tab As String
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Music.Load(Start.Musique)
+  Me.Center
+  Caisse.Columns.count = 2
+  Caisse.Columns[0].Width = 40
+  Caisse.Columns[1].Width = 140
+  Caisse.Columns[0].Text = "code"
+  Caisse.Columns[0].Alignment = 1
+  Caisse.Columns[1].Text = "          Libellé"
+  Caisse.Columns[1].Alignment = 1
+  Code.SetFocus
+  
+End
+
+Public Sub Form_Open()
+  
+  Dim rResult As Result
+  
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCaisses") & " ")
+  If rResult.Available Then
+    Repeat
+      Caisse.Add(rResult!code, rResult!code)
+      Caisse.Item[0] = rResult!code
+      Caisse.Item[1] = rResult!intitule
+      Caisse.Item[2] = rResult!imp
+      Try Caisse.Item[3] = rResult!type
+      Try Caisse.Item[4] = rResult!ecole
+      Try Caisse.Item[5] = rResult!poste
+      Try Caisse.Item[6] = rResult!typeimp
+    Until rResult.MoveNext()
+  Endif
+  
+End
+
+Public Sub Refresh()
+  
+  Caisse.clear
+  form_Open()
+  Maj_Zones()
+  
+End
+
+Public Sub Maj_Zones()
+  
+  With Utils
+    If Caisse.Count <> 0 Then
+      Code.Text = Caisse.Item[0]
+      Libelle.text = Caisse.Item[1]
+      ComboBox1.text = Caisse.Item[2]
+      ComboBox3.text = Caisse.Item[6]
+      ComboBox2.text = Caisse.Item[3]
+      Try Ecole.value = Caisse.Item[4]
+      Poste.Text = Caisse.Item[5]
+      If IsNull(Poste.text) Then Poste.text = System.Host
+      If Left$(ComboBox1.text, 9) = "/dev/ttyS" Then
+        Label6.Visible = True
+        ComboBox3.Visible = True
+      Else
+        Label6.Visible = False
+        ComboBox3.Visible = False
+      Endif
+    Endif
+  End With
+  Code.SetFocus
+  
+End
+
+Public Sub Cleanchamps()
+  
+  Code.Clear
+  Libelle.Clear
+  ComboBox2.text = ""
+  ComboBox3.text = ""
+  ecole.Value = False
+  Poste.clear
+  Label6.Visible = False
+  ComboBox3.Visible = False
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Cais_GotFocus()
+  
+  Select Case Last.tag
+    Case 5
+      If IsNull(Poste.text) Then Poste.text = System.Host
+  End Select
+  
+End
+
+Public Sub Cais_KeyPress()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Chkcaisse()
+      If Key.code = Key.enter Or Key.code = Key.RETURN Or Key.code = Key.Tab Then
+        Libelle.SetFocus
+        Libelle.Select
+        Stop Event
+      Endif
+      
+    Case 2
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        ComboBox1.SetFocus
+        Stop Event
+      Endif
+      
+    Case 3
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        ComboBox2.SetFocus
+        Stop Event
+      Endif
+      
+    Case 4
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        Poste.SetFocus
+        If IsNull(poste.text) Then poste.text = System.Host
+        Stop Event
+      Endif
+      
+    Case 5
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        Ecole.SetFocus
+        Stop Event
+      Endif
+      
+    Case 6
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        Button1.SetFocus
+        Stop Event
+      Endif
+      
+  End Select
+  
+End
+
+Public Sub Btn_KeyPress()
+  
+  Select Case Last.tag
+      
+    Case 2
+      Button1_Click()
+      
+  End Select
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Button3_Click()
+      
+    Case 2
+      If Left$(Combobox2.text, 1) = "M" And If Poste.text <> System.host Then
+        Music.Play
+        Try Message.Error("Attention ! Vous ne pouvez pas définir un type Monoposte avec une adresse host différente du serveur")
+        Poste.text = ""
+        Poste.SetFocus
+      Else
+        If Left$(Combobox2.text, 1) = "R" And If Poste.text = System.host Then
+          Music.play
+          Try Message.Error("Attention ! Vous ne pouvez pas définir un type Réseau avec une adresse host identique à celle du serveur")
+          Poste.text = ""
+          Poste.SetFocus
+        Else
+          Button1_Click()
+        Endif
+      Endif
+      
+    Case 3
+      Me.Close
+      
+  End Select
+  
+End
+
+Public Sub Caisse_Click()
+  
+  Maj_Zones
+  
+End
+
+Public Sub Button1_Click()
+  
+  Dim Rcai As Result
+  
+  If Code.Text <> "" Then
+    With utils
+      Rcai = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCaisses") & " WHERE code = &1", Code.text)
+      If Rcai.Available Then
+        Utils.db.Exec("UPdate  " & Cbase.Table("TabCaisses") & "  SET intitule = &2, imp = &3, type = &4, ecole = &5, poste = &6, typeimp = &7 WHERE code = &1", Code.text, Libelle.Text, Combobox1.text, ComboBox2.text, ecole.value, Poste.text, ComboBox3.Text)
+        Tab = "Fiches_Reglts" & Code.text 
+        Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (date Char(17))")
+        Tab = "Fiches_Regltz"
+        Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (date Char(17))")
+        Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (caisse Char(2))")
+      Else
+        Utils.db.Exec("INSERT INTO " & Cbase.Table("TabCaisses") & " (code,intitule, imp, type, ecole, poste, typeimp) VALUES (&1, &2, &3, &4, &5, &6, &7)", Code.text, Libelle.Text, Combobox1.text, Combobox2.text, ecole.value, Poste.Text, ComboBox3.Text)
+        Tab = "Fiches_EntTickets" & Code.text 
+        Try Utils.db.EXEC("CREATE TABLE " & Tab &
+          "(lInd INT NOT NULL AUTO_INCREMENT," &
+          "caisse Char(1)," &
+          "vendeur Char(35)," &
+          "numero Char(7)," &
+          "date Char(17)," &
+          "client Char(30)," &
+          "scheque Char(1)," &
+          "mcheque Char(12)," &
+          "nmcheque Char(30)," &
+          "scarte  Char(1)," &
+          "nmcarte Char(30)," &
+          "mcarte Char(12)," &
+          "sespeces Char(1)," &
+          "mespeces Char(12)," &
+          "scredit  Char(1)," &
+          "mcredit Char(12)," &
+          "nmcredit Char(30)," &
+          "sbachat  Char(1)," &
+          "mbachat Char(12)," &
+          "scavoir  Char(1)," &
+          "mavoir Char(12)," &
+          "nmavoir Char(30)," &
+          "sbonus Char(1)," &
+          "mbonus Char(12)," &
+          "mht Char(12)," &
+          "mtva Char(12)," &
+          "mttc Char(12)," &
+          "statut Char(1)," &
+          "savoir Char(1) ," &
+          "type Char(1) ," &
+          "mrem Char(12)," &
+          "carte Char(13)," &
+          "points Decimal(12,3)," &
+          "sresto Char(1)," &
+          "mresto Char(12)," &
+          "PRIMARY KEY (lInd))" & "ENGINE = MYISAM")
+        
+        Tab = "Fiches_LigTickets" & Code.text 
+        Try Utils.db.EXEC("CREATE TABLE " & Tab &
+          "(lInd INT NOT NULL AUTO_INCREMENT," &
+          "numero Char(7)," &
+          "numlig Char(3)," &
+          "code Char(15)," &
+          "intitule  Char(50)," &
+          "montant Char(12)," &
+          "qte Char(12)," &
+          "type Char(1)," &
+          "fam Char(5)," &
+          "mht Char(12)," &
+          "mrem Char(12)," &
+          "mtva Char(12)," &
+          "block Char(4)," &
+          "tva VarChar(10)," &
+          "PRIMARY KEY (lInd))" & "ENGINE = MYISAM")
+        
+        Tab = "Fiches_Ticketx" & Code.text 
+        Try Utils.db.EXEC("CREATE TABLE " & Tab &
+          "(lInd INT NOT NULL AUTO_INCREMENT," &
+          "numero Char(7)," &
+          "fam Char(5)," &
+          "montant Char(12)," &
+          "qte Char(12)," &
+          "PRIMARY KEY (lInd))" & "ENGINE = MYISAM")
+        
+        Tab = "Fiches_Reglts" & Code.text 
+        Try Utils.db.EXEC("CREATE TABLE " & Tab & 
+          "(lInd INT NOT NULL AUTO_INCREMENT," &
+          "intitule Char(30)," &
+          "type Char(15)," &
+          "montant Char(12)," &
+          "qte Char(12)," &
+          "date Char(17)," &
+          "caisse Char(2)," &
+          "PRIMARY KEY (lInd))" & "ENGINE = MYISAM")
+        
+        Tab = "Fiches_Regltz" 
+        Try Utils.db.EXEC("CREATE TABLE " & Tab &
+          "(lInd INT NOT NULL AUTO_INCREMENT," &
+          "intitule Char(30)," &
+          "type Char(15)," &
+          "montant Char(12)," &
+          "qte Char(12)," &
+          "caisse Char(2)," &
+          "date Char(17)," &
+          "PRIMARY KEY (lInd))" & "ENGINE = MYISAM")
+        
+      Endif
+    End With
+    Refresh()
+    Cleanchamps()
+  Else
+    Code.Select
+  Endif
+Catch
+  Music.Play
+  Try message.Error(Error.Text & " " & Error.where)
+  
+End
+
+Public Sub Button3_Click()
+  
+  Dim Tab2 As String
+  Dim Tab3 As String
+  Dim Tab4 As String
+  Dim Tab5 As String
+  Dim rTkt As Result
+  Dim rResult As Result
+  Dim Moulinage As Integer = 0
+  
+  Tab = "Fiches_EntTickets" & Code.text 
+  Tab2 = "Fiches_LigTickets" & Code.text 
+  Tab3 = "Fiches_Ticketx" & Code.text 
+  Tab4 = "Fiches_Reglts" & Code.text 
+  Tab5 = "Fiches_Regltz" & Code.text 
+  If Code.Text <> "" Then
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCaisses") & " where code = &1", Code.text)
+    If rResult.Available Then
+      If Not rResult!ecole Then
+        If rResult!connecte = 1 Then
+          Message.Error("Cette caisse est connectée!\n Veuillez déconnecter votre caisse avant de faire votre suppression SVP")
+          Moulinage = 0
+        Else
+          If rResult!tkz = 0 Then
+            If Not rResult!ecole Then
+              Message.Error("La bande Z de cette caisse n'a pas été tiré !\n Veuillez imprimez la bande Z avant de faire votre suppression SVP")
+              Moulinage = 0
+            Else
+              Moulinage = 1
+            Endif
+          Else
+            Moulinage = 1
+          Endif
+        Endif
+      Else
+        Moulinage = 1
+      Endif
+    Endif
+    If Moulinage = 1 Then
+      Music.Play
+      If Message.Question("Etes vous sur de vouloir effacer cet enregistrement", "Oui", "Non") = 1 Then
+        rTkt = Utils.db.Exec("SELECT * FROM " & tab & "")
+        If Not rTkt.Available Or If moulinage = 1 Then
+          Utils.db.Exec("DELETE FROM  " & Cbase.Table("TabCaisses") & " WHERE code = '" & Caisse.Current[0] & "'")
+          Utils.db.Exec("drop Table IF exists " & Tab & "")
+          Utils.db.Exec("drop Table IF exists " & Tab2 & "")
+          Utils.db.Exec("drop Table IF exists " & Tab3 & "")
+          Utils.db.Exec("drop Table IF exists " & Tab4 & "")
+          Utils.db.Exec("drop Table IF exists " & Tab5 & "")
+          
+          Refresh()
+          Cleanchamps()
+        Else
+          Music.Play
+          Message.Delete("Suppression impossible, il reste des tickets dans le fichier des tickets")
+        Endif
+      Endif
+    Endif
+  Endif
+Catch
+  Music.Play
+  Try message.Error(Error.Text & " " & Error.where)
+  
+End
+
+'**********************************************************
+'* Gestion du columnview lors d'une saisie manuelle       *
+'**********************************************************
+Public Sub Caisse_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Or If Key.Code = Key.Tab Then
+    Caisse.MoveCurrent
+    Caisse_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Caisse.visible = False
+    Caisse.clear
+    Code.SetFocus
+    Code.Select
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Chkcaisse()
+  
+  If InStr("123456789", Key.Text) = 0 Then
+    If key.code <> key.BackSpace And Key.Code <> Key.tab And Key.Code <> Key.Delete And Key.code <> Key.enter And Key.code <> Key.return And key.code <> 37 And key.code <> 42 And key.code <> 43 And key.code <> 45 And key.code <> 47 Then
+      Stop Event
+    Endif
+  Endif
+  
+End
+
+Public Sub Cais_LostFocus()
+  
+  Select Case Last.tag
+    Case 4
+      If Not IsNull(Poste.Text) Then
+        If Left$(Combobox2.text, 1) = "M" And If Poste.text <> System.host Then
+          Try Message.Error("Attention ! Vous ne pouvez pas définir un type Monoposte avec une adresse host différente du serveur")
+          Combobox2.text = ""
+          ComboBox2.SetFocus
+        Endif
+      Endif
+      Stop Event
+    Case 5
+      If Left$(Combobox2.text, 1) = "M" And If Poste.text <> System.host Then
+        Try Message.Error("Attention ! Vous ne pouvez pas définir un type Monoposte avec une adresse host différente du serveur")
+        Poste.text = ""
+        Poste.SetFocus
+      Endif
+      Stop Event
+      '  IF Left$(ComboBox2.Text) = "R" THEN
+      '    Label5.Visible = TRUE
+      '    Poste.Visible = TRUE
+      '  ENDIF
+  End Select
+  
+End
+
+'**********************************
+'*    Appel de la doc html        *
+'**********************************
+Public Sub Button4_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Doc_Caisse/Table.Caisses.html"]
+  
+End
+
+Public Sub Cais_Click()
+  
+  Select Case Last.tag
+    Case 3
+      If Left$(ComboBox1.text, 9) = "/dev/ttyS" Then
+        Label6.Visible = True
+        ComboBox3.Visible = True
+        ComboBox3.SetFocus
+        ComboBox3.Select
+      Else
+        Label6.Visible = False
+        ComboBox3.Visible = False
+      Endif
+  End Select
+  
+End

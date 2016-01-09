@@ -1,0 +1,41 @@
+' Gambas class file
+
+Public Sub _new()
+  
+  Me.center
+  
+End
+
+Public Sub Button2_Click()
+  
+  Me.close
+  
+End
+
+'**********************************************On lance le traitement**************************************
+Public Sub Button1_Click()
+  
+  Dim rResult As Result
+  Dim chemin As String = "/Sauve"
+  Dim Nb As Integer = 0
+  Dim cs As String = Settings["/Soc"]
+  
+  If Start.son Then Music.play
+  If Message.Question("Ce programme va effacer les tickets archivés\nantérieurs à la date saisie !\nEtes-vous d'accord pour lancer le traitement ?", "Oui", "Non") = 1 Then
+    Me.mouse = mouse.Wait
+    If Not Exist(User.home & chemin) Then Mkdir User.home & chemin
+    Shell "mysqldump --lock-tables=0 -h " & Settings["/dbase/Host"] & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " Laurux" & cs & " --add-drop-table > " & User.home & "/Sauve/Laurux" & cs & "EffaceT.sql" Wait
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHEntTck") & " where date < &1", Format$(DateChooser1.Value, "yyyymmdd"))
+    If rResult.Available Then
+      Repeat
+        Utils.db.Exec("delete FROM " & Cbase.Table("TabHLigTck") & " where numero = &1", rResult!numero)
+        Utils.db.Exec("delete FROM " & Cbase.Table("TabHEntTck") & " where numero = &1", rResult!numero)
+        Inc nb
+      Until rResult.MoveNext()
+    Endif
+    Me.mouse = mouse.Default
+    Syntheses.Message("Traitement terminé ! " & nb & " tickets ont été effacés.")
+    Message.Info("Traitement terminé ! " & nb & " tickets ont été effacés.")
+  Endif
+  
+End

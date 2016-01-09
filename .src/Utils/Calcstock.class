@@ -1,0 +1,197 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Calcstock.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 17/08/2007
+'# Recalcul des stocks à partir des historiques.
+'################################################
+
+Public Codearticle As String
+Public Bsel As Boolean = False
+Private Tri As String
+
+'*************************
+'* On initialise l'écran *
+'*************************
+Public Sub _New()
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+End
+
+Public Sub Button3_Click()
+  
+  Me.Close
+  
+End
+
+'******************
+'*   On calcule   *
+'******************
+Public Sub Button2_Click()
+  
+  Dim rResult As Result
+  Dim Tab As String = "Fiches_Caisses" 
+  
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
+  If rResult.Available Then
+    Repeat
+      If rResult!connecte = "1" Then
+        message.Warning("Traitement impossible, la caisse numéro " & rResult!code & "est connectée !")
+        Return
+      Endif
+    Until rResult.MoveNext()
+  Endif
+  Me.Mouse = Mouse.Wait
+  If Cbx.value = True Then
+    Cstock.Calc_stock(Textbox1.Text, "")
+  Else
+    If Cbx2.value = True Then
+      If Not IsNull(Textbox2.Text) And Not IsNull(Textbox3.text) Then
+        Cstock.Calc_stock(Textbox2.Text, Textbox3.Text)
+      Else
+        Message.Info("Veuillez saisir les deux bornes SVP !")
+      Endif
+    Else
+      If Cbx3.value = True Then
+        Cstock.Calc_stock("", "")
+      Else
+        If Cbx4.value = True Then
+          Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabArt") & " WRITE")
+          Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET  art_qte = &2 where art_stocke = &1", "0", "0")
+          Utils.db.Exec("UNLOCK TABLES") 
+        Endif
+      Endif
+    Endif
+  Endif
+  If Start.son Then
+    Music.Play
+  Endif
+  Me.Mouse = Mouse.Pointing
+  Message.Warning("Traitement terminé", "Ok")
+  Textbox1.Clear
+  
+End
+
+Public Sub Cbx_Click()
+  
+  If Cbx.value = True Then
+    TextLabel1.visible = True
+    TextBox1.Visible = True
+    Button4.Visible = True
+    TextLabel2.visible = False
+    TextBox2.Visible = False
+    TextLabel3.visible = False
+    TextBox3.Visible = False
+    TextBox1.SetFocus
+    'Else
+    'TextLabel1.visible = False
+    'TextBox1.Visible = False
+    'Button4.Visible = False
+  Endif
+  
+End
+
+Public Sub Cbx2_Click()
+  
+  If Cbx2.value = True Then
+    TextLabel1.visible = False
+    TextBox1.Visible = False
+    Button4.Visible = False
+    TextLabel2.visible = True
+    TextBox2.Visible = True
+    TextLabel3.visible = True
+    TextBox3.Visible = True
+    TextBox2.SetFocus
+    'Else
+    'TextLabel2.visible = False
+    'TextBox2.Visible = False
+  Endif
+  
+End
+
+Public Sub Cbx3_Click()
+  
+  If Cbx3.value = True Then
+    TextLabel1.visible = False
+    TextBox1.Visible = False
+    Button4.Visible = False
+    TextLabel2.visible = False
+    TextBox2.Visible = False
+    TextLabel3.visible = False
+    TextBox3.Visible = False
+  Endif
+  
+End
+
+Public Sub Button4_Click()
+  
+  SelectionArt()
+  
+End
+
+'**********************************************************
+'*                 Gestion onglet Saisie Articles         *
+'**********************************************************
+Public Sub SelectionArt()
+  
+  Dim sel As String = ""
+  Dim MyForm As TriArticles
+  
+  sel = ""
+  Tri = "art_code"
+  MyForm = New TriArticles(True, "", Tri, "Calcstock", "", "")
+  MyForm.Showmodal()
+  If Bsel = True Then
+    Textbox1.Text = Codearticle
+  Endif
+  
+End
+
+'**************************************
+'* On Selectionne l'article saisi     *
+'**************************************
+Public Sub Art_man()
+  
+  Dim Tab As String
+  Dim Rarts As Result
+  
+  Tab = "Fiches_Art" 
+  Rarts = Utils.db.Exec("SELECT * FROM " & Tab & " where art_code = &1", Textbox1.Text)
+  If Rarts.Available Then
+    Textbox1.text = Rarts!art_code
+  Else
+    If Start.son Then
+      Music.Play
+    Endif
+    message.Warning(" Cet article n'existe pas ! ")
+    TextBox1.SetFocus
+    TextBox1.Select
+  Endif
+Catch
+  If Start.son Then
+    Music.Play
+  Endif
+  message.Error(Error.Text & " " & Error.where)
+  
+End

@@ -1,0 +1,303 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : EdFam.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 23/05/2005
+'# Edition des familles
+'################################################
+'
+
+Filename As String
+Tab As String
+son As Integer = Start.Son
+PosY As Integer
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  Fam.Text = "00000"
+  Fam2.Text = "ZZZZZ"
+  Fam.Select
+  Fam.SetFocus
+  
+End
+
+Public Sub ToggleButton1_Click()
+  
+  Dim rResult As Result
+  
+  Tab = "Fiches_Fam" 
+  With Utils
+    If Colfam.visible Then
+      Colfam.clear
+      Colfam.visible = False
+    Else
+      Colfam.visible = True
+      Colfam.Columns.count = 2
+      Colfam.Columns[0].Width = 65
+      Colfam.Columns[1].Width = 280
+      Colfam.Columns[0].Text = "code"
+      Colfam.Columns[1].Text = "Intitulé"
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by code_fam ")
+      If rResult.Available Then
+        Repeat
+          Colfam.Add(rResult!code_fam, rResult!code_fam)
+          Colfam.Item[0] = rResult!code_fam
+          Colfam.Item[1] = rResult!libell_fam
+        Until rResult.MoveNext()
+      Endif
+      If Colfam.Count Then
+        ColFam.MoveFirst
+        ColFam.SetFocus
+        ColFam.Item.Selected = True
+      Endif
+    Endif
+  End With
+  
+End
+
+'***********************************************************
+'* Gestion du columnview ColFam lors d'une saisie manuelle *
+'***********************************************************
+Public Sub Colfam_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    ColFam.MoveCurrent
+    Colfam_Click()
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    ColFam.visible = False
+    ColFam.clear
+    Fam.SetFocus
+    Fam.Select
+    Stop Event
+  Endif
+  
+End
+
+Public Sub ToggleButton2_Click()
+  
+  Dim rResult As Result
+  
+  Tab = "Fiches_Fam" 
+  With Utils
+    If Colfam2.visible Then
+      Colfam2.clear
+      Colfam2.visible = False
+    Else
+      Colfam2.visible = True
+      Colfam2.Columns.count = 2
+      Colfam2.Columns[0].Width = 65
+      Colfam2.Columns[1].Width = 280
+      Colfam2.Columns[0].Text = "code"
+      Colfam2.Columns[1].Text = "Intitulé"
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by code_fam")
+      If rResult.Available Then
+        Repeat
+          Colfam2.Add(rResult!code_fam, rResult!code_fam)
+          Colfam2.Item[0] = rResult!code_fam
+          Colfam2.Item[1] = rResult!libell_fam
+        Until rResult.MoveNext()
+      Endif
+      If ColFam2.Count Then
+        ColFam2.MoveFirst
+        ColFam2.SetFocus
+        ColFam2.Item.Selected = True
+      Endif
+    Endif
+  End With
+  
+End
+
+'***********************************************************
+'* Gestion du columnview ColFam2 lors d'une saisie manuelle *
+'***********************************************************
+Public Sub ColFam2_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    ColFam2.MoveCurrent
+    ColFam2_Click()
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    ColFam2.visible = False
+    ColFam2.clear
+    Fam2.SetFocus
+    Fam2.Select
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Button1_Click()
+      
+    Case 2
+      Button2_Click()
+      
+    Case 3
+      If Exist(Filename) Then Try Kill Filename
+      Me.Close
+      
+  End Select
+  
+End
+
+Public Sub Cmpt_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+      Case 1
+        Fam2.SetFocus
+        Fam2.Select
+        Stop Event
+        
+      Case 2
+        Fam.SetFocus
+        Fam.Select
+        Stop Event
+    End Select
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Cmpt_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  
+End
+
+Public Sub Colfam_Click()
+  
+  Fam.Text = Colfam.Item[0]
+  Colfam.clear
+  Colfam.visible = False
+  Fam2.Select
+  Fam2.SetFocus
+  
+End
+
+Public Sub Colfam2_Click()
+  
+  Fam2.Text = Colfam2.Item[0]
+  Colfam2.clear
+  Colfam2.visible = False
+  Fam.Select
+  Fam.SetFocus
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim rResult As Result
+  Dim code As String
+  Dim intitule As String
+  Dim compte As String
+  Dim Coef As String
+  Dim codetva As String
+  Dim rem As String
+  Dim cptrem As String
+  Dim ect As String
+  Dim dte As String
+  Dim pdf As Cdocuments
+  
+  dte = Format$(Now, "dd.mm.yyyy")
+  Tab = "Fiches_Fam" 
+  Shell "cd " & User.Home & ""
+  Filename = User.home & "/Famille.pdf"
+  pdf = New Cdocuments("p", "mm", "A4")
+  pdf.Open()
+  pdf.AliasNbPages()
+  pdf.EnteteN("Liste des familles")
+  Me.Mouse = Mouse.Wait
+  posy = 16
+  pdf.Level1FAM(PosY)
+  Posy += 8
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE code_fam >= &1  and code_fam <= &2 order by code_fam", Fam.text, Fam2.text)
+  If rResult.Available Then
+    Repeat
+      code = rResult!code_fam
+      intitule = rResult!libell_fam
+      compte = rResult!compt_fam
+      coef = Format$(rResult!coef_fam, "00.000")
+      codetva = rResult!cdtva_fam
+      rem = rResult!rem_fam
+      cptrem = rResult!cptrem_fam
+      Try ect = Format$(rResult!ect_fam, "0.00")
+      If Error Then ect = ""
+      pdf.level2FAM(code, intitule, compte, cptrem, coef, codetva, rem, ect, PosY)
+      PosY += 5
+      If PosY >= 278 Then
+        pdf.Baspage()
+        pdf.EnteteN("Liste des familles")
+        Posy = 16
+        pdf.Level1FAM(posy)
+        Posy += 8
+      Endif
+    Until rResult.MoveNext()
+    PosY += 3
+    pdf.Lines(PosY)
+    pdf.Baspage()
+    pdf.Output(Filename, False)
+    Impression.Prog_Editeur(Filename)
+  Else
+    If son Then
+      Music.Play
+    Endif
+    message(" Aucune Famille pour cette demande", "OK")
+  Endif
+  Me.Mouse = Mouse.Pointing
+  
+End
+
+Public Sub Button1_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Edfam.html"]
+  
+End

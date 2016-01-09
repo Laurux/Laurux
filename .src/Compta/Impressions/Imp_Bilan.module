@@ -1,0 +1,827 @@
+' Gambas module file
+
+'################################################
+'# nom du fichier           : Imp_Bilan.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 01/07/2012
+'# Edition du bilan
+'################################################
+
+Private dteN0 As String
+Private dteN1 As String
+Private dtes1 As String
+Private dtes2 As String
+Private Det As String
+Private Filename As String
+Private Tab0 As String
+Private PosY As Integer
+Private Nbpage As Integer = 1
+Private Ste As String
+Private dateedition As String
+Private exo As String
+Private pdf As Cbilan
+Private compt As String
+Private totsldhp As Float = 0.00
+Private Imp1 As String = "0" ' variable pour l'impression des lignes période
+Private Imp2 As String = "0" ' variable pour l'impression des lignes période précédente
+Private Imp3 As String = "0" ' variable pour l'impression des lignes d'amrtissement
+Private Imp4 As String = "0" ' variable pour l'impression des lignes période N -1
+Private Imp5 As String = "0" ' variable pour l'impression des lignes période N -1 (avec les amortissements)
+
+Public Sub Lancement(Detail As Boolean, dte0 As String, dte1 As String, dt1 As String, dt2 As String, exercice As String)
+  
+  Dim Tab, Tabc As String
+  Dim Tab1 As String
+  Dim Tab2 As String
+  Dim Tab3 As String
+  Dim Tab4 As String
+  Dim Tab5 As String
+  Dim Tab6 As String
+  Dim Tab7 As String
+  Dim prefix As String
+  Dim Rub As String
+  Dim RubE As String
+  Dim RubO As String
+  Dim intitcpt As String
+  Dim intitrub As String
+  Dim intitrub2 As String
+  Dim intitrubE As String
+  Dim DetE As String
+  Dim Compte As String
+  Dim cpt As String
+  Dim cpt1 As String
+  Dim cpt2 As String
+  Dim cpt3 As String
+  Dim cptE As String
+  Dim type As String
+  Dim typeE As String
+  Dim typer As Integer 'Pour le résultat
+  Dim periode As String
+  Dim RTot1 As Float = 0 ' Total debit des achats
+  Dim RTot2 As Float = 0 ' Total credit des achats
+  Dim RTot3 As Float = 0 ' Total debit des ventes
+  Dim RTot4 As Float = 0 ' Total credit des ventes
+  Dim RTot5 As Float = 0 ' Solde du resultat N
+  Dim RTot6 As Float = 0 ' Solde du resultat N-1
+  Dim ETot1 As Float ' Total de l'entete
+  Dim ETot2 As Float ' Total de l'entete
+  Dim ETot3 As Float ' Total de l'entete
+  Dim ETot4 As Float ' Total de l'entete
+  Dim Ltot1 As Float ' Total de la ligne
+  Dim Ltot2 As Float ' Total de la ligne
+  Dim Ltot3 As Float ' Tot2al d11e la ligne
+  Dim Ltot4 As Float ' Total de la ligne
+  Dim Ltot5 As Float ' variable d'écriture pour total ligne période
+  Dim STot1 As Float ' Sous-Total
+  Dim STot2 As Float ' Sous-Total
+  Dim STot3 As Float ' Sous-Total
+  Dim STot4 As Float ' Sous-Total
+  Dim Otot1 As Float
+  Dim Otot2 As Float
+  Dim Otot3 As Float
+  Dim Atot3 As Float ' Variable d'écriture pour amortissement
+  Dim Ttot1 As Float
+  Dim Ttot2 As Float
+  Dim Ttot3 As Float
+  Dim Ttot4 As Float
+  Dim rResult As Result
+  Dim Tab1Rslt As Result
+  Dim Tab3Rslt As Result
+  Dim Tab5Rslt As Result
+  Dim steresult As Result
+  Dim IntResult As Result
+  Dim Rubcompt As Result
+  Dim p As Integer 'compteur de lignes
+  Dim p1 As Integer
+  Dim p5 As String
+  Dim amort, actif, imp As Boolean = False
+  Dim titre As String
+  Dim sens As String
+  Dim i As Integer
+  Dim rrResult As Result
+  Dim Intit As String
+  Dim Debit As Float
+  Dim credit As Float
+  Dim totdeb As Float
+  Dim totcred As Float
+  Dim totsld As Float
+  
+  dtes1 = dt1
+  dtes2 = dt2
+  dteN0 = dte0
+  dteN1 = dte1
+  Tab0 = "centralisation"
+  Tab = "Comptes"
+  Tab1 = "Fiches_Rubriques" 
+  Tab2 = "Fiches_Parametres" 
+  Tab3 = "Fiches_RubCompt" 
+  Tab4 = "Fiches_Comptes" 
+  Exo = exercice
+  If Exo = "E1" Then
+    Tab5 = "Fiches_Mvt" 
+    Tab6 = "Fiches_Mvt1" 
+  Endif
+  If Exo = "N1" Then
+    Tab5 = "Fiches_Mvt1" 
+    Tab6 = "Fiches_Mvt2" 
+  Endif
+  If Exo = "N2" Then
+    Tab5 = "Fiches_Mvt2" 
+    Tab6 = "Fiches_Mvt3" 
+  Endif
+  If Exo = "N3" Then
+    Tab5 = "Fiches_Mvt3" 
+    Tab6 = "Fiches_Mvt4" 
+  Endif
+  If Exo = "N4" Then
+    Tab5 = "Fiches_Mvt4" 
+    Tab6 = "Fiches_Mvt5" 
+  Endif
+  If Exo = "N5" Then
+    Tab5 = "Fiches_Mvt5" 
+  Endif
+  Tab7 = "Fiches_Societes"
+  SteResult = Utils.db.Exec("SELECT * FROM " & Tab7 & " Where cd_sc = &1", Start.Societe)
+  Ste = "Societe " & " " & SteResult!int_sc
+  Etot1 = 0
+  Etot2 = 0
+  Etot3 = 0
+  Etot4 = 0
+  Ltot3 = 0
+  Ltot4 = 0
+  Etot2 = 0
+  Otot1 = 0
+  Ttot1 = 0
+  P1 = 0
+  RubE = "0"
+  RubO = "0"
+  With utils
+    'On supprime la table Centralisation si elle existe
+    Utils.db.Exec("DROP TABLE IF EXISTS centralisation")
+    
+    'Puis on la crée
+    Utils.db.Exec("CREATE TABLE " & Tab0 & 
+      "(numrub Char(5) NOT NULL," &
+      "intitrub Char(70)," &
+      "type Char(1)," &
+      "detail Char(1)," &
+      "compte Char(8)," &
+      "intitcpt Char(50)," &
+      "Col1 Char(12)," &
+      "Col2 Char(12)," &
+      "col3 Char(12)," &
+      "col4 Char(12)," &
+      "amortissement Tinyint(1)," &
+      "amortissement2 Tinyint(1)," &
+      "actif Tinyint(1)," &
+      "actif2 Tinyint(1)," &
+      "PRIMARY KEY (numrub, amortissement, amortissement2))" & "ENGINE = MYISAM")
+    
+    'On supprime la table Comptes si elle existe
+    Utils.db.Exec("DROP TABLE IF EXISTS Comptes")
+    
+    'Puis on la créée
+    Utils.db.Exec("CREATE TABLE " & Tab & 
+      "(compte char(8) NOT NULL ," &
+      "intitule VarCHAR(40) , " &
+      "solde Decimal(14,4) NOT NULL ," &
+      "solde2 Decimal(14,4) NOT NULL ," &
+      "annee char(2), " &
+      "numrub Char(5)," &
+      "intitrub VarCHAR(40) , " &
+      "type Char(1)," &
+      "detail char(1), " &
+      "Col1 Char(14)," &
+      "Col2 Char(14)," &
+      "col3 Char(14)," &
+      "col4 Char(14)," &
+      "amortissement Tinyint(1)," &
+      "amortissement2 Tinyint(1)," &
+      "actif Tinyint(1)," &
+      "actif2 Tinyint(1)," &
+      "PRIMARY KEY (compte))" & "ENGINE = MYISAM")
+    
+    ' On récupère le type d'impression
+    Prefix = "B"
+    Periode = "Période du " & dteN0 & " au " & dteN1 & ""
+    
+    '******************************************************************
+    '*         On calcule le solde du résultat (ventes - achats) N    *
+    '******************************************************************
+    For typer = 6 To 7
+      Tab1Rslt = Utils.db.Exec("SELECT * FROM " & Tab5 & " WHERE left(compte,1) = &1 and dte >= &2 and dte <= &3 and validee = &4 order by compte", Typer, Utils.Cdate_Dbase(dten0), Utils.Cdate_Dbase(dten1), 1)
+      If Tab1Rslt.Count Then
+        Repeat
+          If typer = 6 Then
+            Rtot1 = Rtot1 + Tab1Rslt!montantd
+            Rtot2 = Rtot2 + Tab1Rslt!montantc
+          Else
+            Rtot3 = Rtot3 + Tab1Rslt!montantd
+            Rtot4 = Rtot4 + Tab1Rslt!montantc
+          Endif
+        Until Tab1Rslt.MoveNext()
+      Endif
+    Next
+    Rtot5 = (Rtot4 - Rtot3) - (Rtot1 - Abs(Rtot2))
+    RTot1 = 0
+    RTot2 = 0
+    RTot3 = 0
+    RTot4 = 0
+    
+    '******************************************************************
+    '*         On calcule le solde du résultat (ventes - achats) N-1   *
+    '*******************************************************************
+    dtes1 = Val(Right$(dten0, 4)) - 1
+    dtes1 = Left$(Dten0, 6) & dtes1
+    dtes2 = Val(Right$(dten1, 4)) - 1
+    dtes2 = Left$(Dten1, 6) & dtes2
+    For typer = 6 To 7
+      Tab1Rslt = Utils.db.Exec("SELECT * FROM " & Tab6 & " WHERE left(compte,1) = &1  and dte >= &2 and dte <= &3  order by compte", Typer, .Cdate_Dbase(dtes1), .Cdate_Dbase(dtes2))
+      If Tab1Rslt.Count Then
+        Repeat
+          If typer = 6 Then
+            Rtot1 = Rtot1 + Tab1Rslt!montantd
+            Rtot2 = Rtot2 - Tab1Rslt!montantc
+          Else
+            Rtot3 = Rtot3 + Tab1Rslt!montantd
+            Rtot4 = Rtot4 + Tab1Rslt!montantc
+          Endif
+        Until Tab1Rslt.MoveNext()
+      Endif
+    Next
+    Rtot6 = (Rtot4 - Rtot3) - (Rtot1 - Abs(Rtot2))
+    
+    '****************************************************
+    '*   On calcule le solde pour la période demandée   *
+    '****************************************************
+    
+    totsldhp = 0.00
+    Tabc = "Fiches_RubCompt"
+    'Tab5 = "Fiches_Mvt" 
+    Tab2 = "Fiches_Comptes"
+    Tab3 = "Comptes" 
+    Tab4 = "Fiches_RubCompt"
+    
+    p1 = 1
+    rrResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " where type_cc <> &1 and type_cc <> &2 and type_cc <> &3 order by cast(compte_cc AS char)", "C", "F", "G")
+    If rrResult.Available Then
+      Repeat
+        compt = rrResult!compte_cc
+        Intit = rrResult!intitule_cc
+        Type = rrResult!type_cc
+        rResult = Utils.db.Exec("SELECT * FROM " & Tab5 & " WHERE compte = &1 and dte >= &2 and dte <= &3 and validee = &4 order by dte", Compt, Utils.Cdate_Dbase(dten0), Utils.Cdate_Dbase(dten1), 1)
+        If rResult.count <> 0 Then
+          i = 0
+          While i < rResult.count
+            debit = rResult!montantd
+            credit = rResult!montantc
+            totdeb = totdeb + debit
+            totcred = totcred + credit
+            totsld = totdeb - totcred
+            Inc i
+            rResult.MoveNext()
+          Wend
+          Utils.db.Exec("INSERT INTO " & Tab3 & "(compte, intitule, type, solde, annee) VALUES ( &1, &2, &3, &4, &5)", Compt, intit, type, .PointBase(Totsld), "N")
+        Else
+          totsld = 0
+          Utils.db.Exec("INSERT INTO " & Tab3 & "(compte, intitule, type, solde, annee) VALUES ( &1, &2, &3, &4, &5)", Compt, intit, type, .PointBase(Totsld), "N")
+        Endif
+        totdeb = 0
+        totcred = 0
+        totsld = 0
+      Until rrResult.MoveNext()
+    Else
+    Endif
+    
+    ' On fait les totaux pour la période précédente
+    ' 
+    totsldhp = 0.00
+    p1 = 1
+    If exo <> "N5" Then
+      rrResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " where type_cc <> &1 and type_cc <> &2 and type_cc <> &3 order by cast(compte_cc AS char)", "C", "F", "G")
+      If rrResult.Available Then
+        Repeat
+          compt = rrResult!compte_cc
+          Intit = rrResult!intitule_cc
+          Type = rrResult!type_cc
+          rResult = Utils.db.Exec("SELECT * FROM " & Tab6 & " WHERE compte = &1 and dte >= &2 and dte <= &3 and validee = &4 order by dte", Compt, Utils.Cdate_Dbase(dtes1), Utils.Cdate_Dbase(dtes2), 1)
+          If rResult.count <> 0 Then
+            i = 0
+            While i < rResult.count
+              debit = rResult!montantd
+              credit = rResult!montantc
+              totdeb = totdeb + debit
+              totcred = totcred + credit
+              totsld = totdeb - totcred
+              Inc i
+              rResult.MoveNext()
+            Wend
+            Try Utils.db.Exec("INSERT INTO " & Tab3 & "(compte, intitule, type, solde2, annee) VALUES ( &1, &2, &3, &4, &5)", Compt, intit, type, .PointBase(Totsld), "N1")
+            If Error Then Utils.db.Exec("UPdate  " & Tab3 & "  SET  solde2 = &1 WHERE compte = &2", Totsld, compt)
+          Else
+            totsld = 0
+            Try Utils.db.Exec("INSERT INTO " & Tab3 & "(compte, intitule, type, solde2, annee) VALUES ( &1, &2, &3, &4, &5)", Compt, intit, type, .PointBase(Totsld), "N1")
+            If Error Then Utils.db.Exec("UPdate  " & Tab3 & "  SET  solde2 = &1 WHERE compte = &2", Totsld, compt)
+          Endif
+          totdeb = 0
+          totcred = 0
+          totsld = 0
+        Until rrResult.MoveNext()
+      Else
+      Endif
+    Endif
+    
+    'On mouvemente les rubriques
+    
+    Rubcompt = Utils.db.Exec("SELECT * FROM " & Tabc & " as e inner join " & Tab1 & " as i on i.numrub = e.numrub WHERE left(e.numrub,1) = &1 order by e.numrub", "B")
+    If Rubcompt.Count Then
+      Repeat
+        cpt1 = Rubcompt!compte1
+        cpt2 = Rubcompt!compte2
+        If Not IsNull(cpt1) And Not IsNull(cpt2) Then
+          Tab5Rslt = Utils.db.Exec("SELECT * FROM " & Tab3 & " WHERE compte >= &1 and compte <= &2  order by compte", cpt1, cpt2)
+          If Tab5Rslt.Count Then
+            Repeat
+              Utils.db.Exec("UPdate  " & Tab3 & "  SET  numrub = &1, intitrub = &2, type = &3, amortissement = &4 WHERE compte = &5", Rubcompt!numrub, Rubcompt!intitule, Rubcompt!type, Rubcompt!amortissement, Tab5Rslt!compte)
+            Until Tab5Rslt.MoveNext()
+          Endif
+        Endif
+      Until Rubcompt.MoveNext()
+    Endif
+    
+    '******************************************************************
+    '* On centralise les lignes et les entetes de la période demandée *
+    '******************************************************************
+    ' On sélectionne nos rubriques
+    RubE = "0"
+    Tab1Rslt = Utils.db.Exec("SELECT * FROM " & Tab1 & " WHERE left(numrub,1) = &1 order by numrub", Prefix)
+    If Tab1Rslt.Count Then
+      Repeat
+        Rub = Tab1Rslt!numrub
+        imp = True
+        intitrub = Tab1Rslt!intitule
+        type = Tab1Rslt!type
+        Det = Tab1Rslt!detail
+        If type = "L" Then Det = "N"
+        rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " WHERE numrub = &1", Rub)
+        If Not rResult.Available And intitrub Then
+          Utils.db.Exec("INSERT INTO " & Tab0 & "(numrub, intitrub, type, detail, Col1, Col2, col3, col4,amortissement, amortissement2) VALUES ( &1, &2, &3, &4, &5, &6, &7, &8, &9, &{10})", Rub, intitrub, type, det, 0, 0, 0, 0, 0, 0)
+        Endif
+        If type = "L" Then
+          Tab3Rslt = Utils.db.Exec("SELECT * FROM " & Tab4 & " WHERE numrub = &1 order by numrub", Rub)
+          If Tab3Rslt.Count Then
+            Repeat
+              cpt1 = Tab3Rslt!compte1
+              cpt2 = Tab3Rslt!compte2
+              Tab5Rslt = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE compte >= &1 and compte <= &2 order by compte", cpt1, cpt2, "N")
+              If Tab5Rslt.Count Then
+                Repeat
+                  cpt = Tab5Rslt!compte
+                  intitcpt = Tab5Rslt!intitule
+                  Amort = Tab5Rslt!amortissement
+                  imp = True
+                  If rub = "B0360" Or If rub = "B0370" Then 
+                    If Val(Utils.cpoint(Tab5Rslt!solde)) <= 0 Then imp = False
+                  Endif
+                  If rub = "B0420" Then
+                    If Left$(cpt, 3) = "428" And Val(.cpoint(Tab5Rslt!solde)) <= 0 Or If Left$(cpt, 3) = "437" And Val(.cpoint(Tab5Rslt!solde)) <= 0 Or If Left$(cpt, 3) = "438" And Val(.cpoint(Tab5Rslt!solde)) <= 0 Or If Left$(cpt, 3) = "443" And Val(.cpoint(Tab5Rslt!solde)) <= 0 Or If Left$(cpt, 3) = "444" And Val(.cpoint(Tab5Rslt!solde)) <= 0 Then imp = False
+                    If Left$(cpt, 3) = "448" And Val(.cpoint(Tab5Rslt!solde)) <= 0 Or If Left$(cpt, 3) = "451" And Val(.cpoint(Tab5Rslt!solde)) <= 0 Or If Left$(cpt, 3) = "456" And Val(.cpoint(Tab5Rslt!solde)) <= 0 Or If Left$(cpt, 3) = "467" And Val(.cpoint(Tab5Rslt!solde)) <= 0 Or If Left$(cpt, 3) = "468" And Val(.cpoint(Tab5Rslt!solde)) <= 0 Or If Left$(cpt, 3) = "478" And Val(.cpoint(Tab5Rslt!solde)) <= 0 Then imp = False
+                  Endif
+                  If rub = "B0430" Then
+                    If Left$(cpt, 3) = "512" And Val(.cpoint(Tab5Rslt!solde)) <= 0 Then imp = False
+                  Endif
+                  If rub = "B0450" Then
+                    If Left$(cpt, 2) = "52" And Val(.cpoint(Tab5Rslt!solde)) <= 0 Or If Left$(cpt, 3) = "512" And Val(.cpoint(Tab5Rslt!solde)) <= 0 Or If Left$(cpt, 3) = "514" And Val(.cpoint(Tab5Rslt!solde)) <= 0 Or If Left$(cpt, 3) = "517" And Val(.cpoint(Tab5Rslt!solde)) <= 0 Or If Left$(cpt, 3) = "518" And Val(.cpoint(Tab5Rslt!solde)) <= 0 Then imp = False
+                  Endif
+                  If rub = "B1380" Then
+                    If Left$(cpt, 2) = "51" And Val(.cpoint(Tab5Rslt!solde)) > 0 Then imp = False
+                    If Left$(cpt, 2) = "58" And Val(.cpoint(Tab5Rslt!solde2)) > 0 Then 
+                      imp = False
+                    Endif
+                  Endif
+                  If rub = "B1400" Then
+                    If Left$(cpt, 2) = "45" And Val(.cpoint(Tab5Rslt!solde)) > 0 Then imp = False
+                  Endif
+                  If rub = "B1460" Then
+                    If Left$(cpt, 3) = "428" And Val(.cpoint(Tab5Rslt!solde)) > 0 Or If Left$(cpt, 3) = "437" And Val(.cpoint(Tab5Rslt!solde)) > 0 Or If Left$(cpt, 3) = "438" And Val(.cpoint(Tab5Rslt!solde)) > 0 Or If Left$(cpt, 3) = "443" And Val(.cpoint(Tab5Rslt!solde)) > 0 Or If Left$(cpt, 3) = "444" And Val(.cpoint(Tab5Rslt!solde)) > 0 Then imp = False
+                    If Left$(cpt, 3) = "445" And Val(.cpoint(Tab5Rslt!solde)) > 0 Or If Left$(cpt, 3) = "448" And Val(.cpoint(Tab5Rslt!solde)) > 0 Or If Left$(cpt, 3) = "451" And Val(.cpoint(Tab5Rslt!solde)) > 0 Or If Left$(cpt, 3) = "456" And Val(.cpoint(Tab5Rslt!solde)) > 0 Or If Left$(cpt, 3) = "467" And Val(.cpoint(Tab5Rslt!solde)) > 0 Or If Left$(cpt, 3) = "468" And Val(.cpoint(Tab5Rslt!solde)) > 0 Or If Left$(cpt, 3) = "478" And Val(.cpoint(Tab5Rslt!solde)) > 0 Then imp = False
+                    'If Left$(cpt, 3) = "443" And Val(.cpoint(Tab5Rslt!solde)) > 0 Or If Left$(cpt, 3) = "444" And Val(.cpoint(Tab5Rslt!solde)) > 0 Or If Left$(cpt, 3) = "445" And Val(.cpoint(Tab5Rslt!solde)) > 0 Or If Left$(cpt, 3) = "448" And Val(.cpoint(Tab5Rslt!solde)) > 0 Then imp = False
+                    'If Left$(cpt, 3) = "475" And Val(.cpoint(Tab5Rslt!solde)) > 0 Then imp = False
+                  Endif
+                  If rub = "B1500" Then
+                    If Left$(cpt, 3) = "451" And Val(.cpoint(Tab5Rslt!solde)) > 0 Or If Left$(cpt, 3) = "458" And Val(.cpoint(Tab5Rslt!solde)) > 0 Or If Left$(cpt, 3) = "467" And Val(.cpoint(Tab5Rslt!solde)) > 0 Or If Left$(cpt, 3) = "478" And Val(.cpoint(Tab5Rslt!solde)) > 0 Then imp = False
+                    If Left$(cpt, 3) = "411" And Val(.cpoint(Tab5Rslt!solde)) > 0 Or If Left$(cpt, 3) = "409" And Val(.cpoint(Tab5Rslt!solde)) > 0 Then imp = False
+                  Endif
+                  If rub = "B1510" Then
+                    If Left$(cpt, 2) = "52" And Val(.cpoint(Tab5Rslt!solde)) > 0 Then imp = False
+                  Endif
+                  If amort Then imp = True
+                  If imp Then
+                    Ltot2 = Tab5Rslt!solde
+                    If amort Then Ltot2 = Abs(ltot2)
+                    If Val(Right$(Rub, 4)) > 1000 Then 
+                      If ltot2 < 0 Then
+                        Ltot2 = Abs(ltot2)
+                      Else
+                        Ltot2 = "-" & Ltot2
+                      Endif
+                    Endif
+                    Ltot3 = Ltot3 + Ltot2
+                    Ltot4 = Ltot4 + Ltot2
+                    Ltot5 = Ltot3
+                    cpt3 = cpt
+                    det = "O"
+                    rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " WHERE numrub = &1", Rub, amort)
+                    If Ltot5 <> "" And Val(utils.cpoint(Ltot5)) <> 0 Or If Ltot3 = 0 Then
+                      If Not rResult.Available Then
+                        If Not amort Then
+                          Utils.db.Exec("INSERT INTO " & Tab0 & "(numrub, intitrub, compte, intitcpt, type, detail, col3, col4, amortissement, actif, amortissement2) VALUES ( &1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &9)", Rub, intitrub, cpt, intitcpt, type, det, Ltot2, 0, amort, actif)
+                        Else
+                          Utils.db.Exec("INSERT INTO " & Tab0 & "(numrub, intitrub, compte, intitcpt, type, detail, col3, col4, amortissement, actif, amortissement2) VALUES ( &1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &9)", Rub, intitrub, cpt, intitcpt, type, det, 0, Ltot2, amort, actif)
+                        Endif
+                      Else
+                        If Not amort Then
+                          Ltot2 = Ltot2 + Val(utils.cpoint(rResult!col3))
+                          Utils.db.Exec("UPdate  " & Tab0 & "  SET  numrub = &1, intitrub = &2, compte = &3, intitcpt = &4, type = &5, detail = &6, col3 = &7, actif = &8 WHERE numrub = &1", Rub, intitrub, cpt, intitcpt, type, det, Ltot2, actif, amort)
+                        Else
+                          Ltot2 = Ltot2 + Val(utils.cpoint(rResult!col4))
+                          Utils.db.Exec("UPdate  " & Tab0 & "  SET  numrub = &1, intitrub = &2, compte = &3, intitcpt = &4, type = &5, detail = &6, col4 = &7, actif = &8 WHERE numrub = &1", Rub, intitrub, cpt, intitcpt, type, det, Ltot2, actif, amort)
+                        Endif
+                      Endif
+                    Endif
+                  Endif
+                  Ltot2 = 0
+                  Ltot4 = 0
+                Until Tab5Rslt.MoveNext()
+                Etot3 = Etot3 + Ltot3
+                Ltot3 = 0
+                Ltot4 = 0
+              Endif
+            Until Tab3Rslt.MoveNext()
+          Endif
+        Endif
+        Etot1 = Etot1 + Etot3
+        Etot3 = 0
+        Ltot4 = 0
+        If type = "T" Then
+          Etot1 = 0
+          Stot1 = 0
+          Ltot1 = 0
+          Ltot3 = 0
+        Endif
+        If type = "O" Then
+          If RubE <> "0" Then
+            rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " WHERE numrub = &1 and amortissement = &2", RubE, amort)
+            If Not rResult.Available Then
+              Utils.db.Exec("INSERT INTO " & Tab0 & "(numrub, intitrub, type, detail, col3, col4, amortissement) VALUES ( &1, &2, &3, &4, &5, &6, &7)", RubE, intitrubE, type, detE, Etot1, 0, amort)
+            Else
+              Utils.db.Exec("UPdate  " & Tab0 & "  SET  numrub = &1, intitrub = &2, type = &3, detail = &4, col3 = &5, col4 = &6 WHERE numrub = &1 and amortissement = &7", RubE, intitrubE, type, detE, Etot1, 0, amort)
+            Endif
+          Endif
+          Etot1 = 0
+          RubE = Rub
+          intitrubE = intitrub
+          typeE = Tab1Rslt!type
+          DetE = Tab1Rslt!detail
+        Endif
+        
+      Until Tab1Rslt.MoveNext()
+    Endif
+    
+    '*******************************************************************
+    '* On centralise les lignes et les entetes de la période précédente *
+    '********************************************************************
+    Etot1 = 0
+    Etot2 = 0
+    Etot3 = 0
+    Etot4 = 0
+    Ltot3 = 0
+    Ltot4 = 0
+    Etot2 = 0
+    Otot1 = 0
+    Ttot1 = 0
+    ' On sélectionne nos rubriques
+    RubE = "0"
+    Tab1Rslt = Utils.db.Exec("SELECT * FROM " & Tab1 & " WHERE left(numrub,1) = &1 order by numrub", Prefix)
+    If Tab1Rslt.Count Then
+      Repeat
+        Rub = Tab1Rslt!numrub
+        imp = True
+        intitrub = Tab1Rslt!intitule
+        type = Tab1Rslt!type
+        Det = Tab1Rslt!detail
+        If type = "L" Then Det = "N"
+        rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " WHERE numrub = &1", Rub)
+        If Not rResult.Available And intitrub Then
+          Utils.db.Exec("INSERT INTO " & Tab0 & "(numrub, intitrub, type, detail, Col1, Col2, col3, col4,amortissement, amortissement2) VALUES ( &1, &2, &3, &4, &5, &6, &7, &8, &9, &{10})", Rub, intitrub, type, det, 0, 0, 0, 0, 0, 0)
+        Endif
+        
+        If type = "L" Then
+          Tab3Rslt = Utils.db.Exec("SELECT * FROM " & Tab4 & " WHERE numrub = &1 order by numrub", Rub)
+          If Tab3Rslt.Count Then
+            Repeat
+              cpt1 = Tab3Rslt!compte1
+              cpt2 = Tab3Rslt!compte2
+              Tab5Rslt = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE compte >= &1 and compte <= &2 order by compte", cpt1, cpt2, "N")
+              If Tab5Rslt.Count Then
+                Repeat
+                  cpt = Tab5Rslt!compte
+                  intitcpt = Tab5Rslt!intitule
+                  If rub = "B0370" Then 
+                    If Val(Utils.cpoint(Tab5Rslt!solde2)) < 0 Then imp = False
+                  Endif
+                  If rub = "B0420" Then
+                    If Left$(cpt, 3) = "428" And Val(.cpoint(Tab5Rslt!solde2)) < 0 Or If Left$(cpt, 3) = "438" And Val(.cpoint(Tab5Rslt!solde2)) < 0 Or If Left$(cpt, 3) = "443" And Val(.cpoint(Tab5Rslt!solde2)) < 0 Or If Left$(cpt, 3) = "444" And Val(.cpoint(Tab5Rslt!solde2)) < 0 Then imp = False
+                    If Left$(cpt, 3) = "445" And Val(.cpoint(Tab5Rslt!solde2)) < 0 Or If Left$(cpt, 3) = "448" And Val(.cpoint(Tab5Rslt!solde2)) < 0 Or If Left$(cpt, 3) = "451" And Val(.cpoint(Tab5Rslt!solde2)) < 0 Or If Left$(cpt, 3) = "456" And Val(.cpoint(Tab5Rslt!solde2)) < 0 Or If Left$(cpt, 3) = "467" And Val(.cpoint(Tab5Rslt!solde2)) < 0 Or If Left$(cpt, 3) = "468" And Val(.cpoint(Tab5Rslt!solde2)) < 0 Or If Left$(cpt, 3) = "478" And Val(.cpoint(Tab5Rslt!solde2)) < 0 Then imp = False
+                  Endif
+                  If rub = "B0450" Then
+                    If Left$(cpt, 2) = "52" And Val(.cpoint(Tab5Rslt!solde2)) < 0 Or If Left$(cpt, 3) = "512" And Val(.cpoint(Tab5Rslt!solde2)) < 0 Or If Left$(cpt, 3) = "514" And Val(.cpoint(Tab5Rslt!solde2)) < 0 Or If Left$(cpt, 3) = "517" And Val(.cpoint(Tab5Rslt!solde2)) < 0 Or If Left$(cpt, 3) = "518" And Val(.cpoint(Tab5Rslt!solde2)) < 0 Then imp = False
+                  Endif
+                  If rub = "B1380" Then
+                    If Left$(cpt, 2) = "51" And Val(.cpoint(Tab5Rslt!solde2)) > 0 Then imp = False
+                    If Left$(cpt, 2) = "58" And Val(.cpoint(Tab5Rslt!solde2)) > 0 Then 
+                      imp = False
+                    Endif
+                  Endif
+                  If rub = "B1400" Then
+                    If Left$(cpt, 2) = "45" And Val(.cpoint(Tab5Rslt!solde2)) > 0 Then imp = False
+                  Endif
+                  If rub = "B1460" Then
+                    If Left$(cpt, 3) = "443" And Val(.cpoint(Tab5Rslt!solde2)) > 0 Or If Left$(cpt, 3) = "444" And Val(.cpoint(Tab5Rslt!solde2)) > 0 Or If Left$(cpt, 3) = "445" And Val(.cpoint(Tab5Rslt!solde2)) > 0 Or If Left$(cpt, 3) = "448" And Val(.cpoint(Tab5Rslt!solde2)) > 0 Then imp = False
+                    If Left$(cpt, 3) = "475" And Val(.cpoint(Tab5Rslt!solde2)) > 0 Then imp = False
+                  Endif
+                  If rub = "B1500" Then
+                    If Left$(cpt, 3) = "451" And Val(.cpoint(Tab5Rslt!solde2)) > 0 Or If Left$(cpt, 3) = "458" And Val(.cpoint(Tab5Rslt!solde2)) > 0 Or If Left$(cpt, 3) = "467" And Val(.cpoint(Tab5Rslt!solde2)) > 0 Or If Left$(cpt, 3) = "478" And Val(.cpoint(Tab5Rslt!solde2)) > 0 Then imp = False
+                  Endif
+                  If rub = "B1510" Then
+                    If Left$(cpt, 2) = "52" And Val(.cpoint(Tab5Rslt!solde2)) > 0 Then imp = False
+                  Endif
+                  If imp Then
+                    Ltot2 = Tab5Rslt!solde2
+                    If Val(Right$(Rub, 4)) > 1000 Then 
+                      If ltot2 < 0 Then
+                        Ltot2 = Abs(ltot2)
+                      Endif
+                    Endif
+                    Ltot3 = Ltot3 + Ltot2
+                    Ltot4 = Ltot4 + Ltot2
+                    Ltot5 = Ltot3
+                    cpt3 = cpt
+                    det = "O"
+                    rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " WHERE numrub = &1", Rub, amort)
+                    If Ltot5 <> "" And Val(utils.cpoint(Ltot5)) <> 0 Then
+                      If Not rResult.Available Then
+                        Utils.db.Exec("INSERT INTO " & Tab0 & "(numrub, intitrub, compte, intitcpt, type, detail, col1, col2, amortissement2) VALUES ( &1, &2, &3, &4, &5, &6, &7, &8, &9)", Rub, intitrub, cpt, intitcpt, type, det, Ltot2, 0, amort)
+                      Else
+                        If Not amort Then
+                          Ltot2 = Ltot2 + Val(utils.cpoint(rResult!col3))
+                          Utils.db.Exec("UPdate  " & Tab0 & "  SET  numrub = &1, intitrub = &2, compte = &3, intitcpt = &4, type = &5, detail = &6, col1 = &7 WHERE numrub = &1", Rub, intitrub, cpt, intitcpt, type, det, Ltot2, actif, amort)
+                        Else
+                          'Ltot2 = Val(utils.cpoint(rResult!col3))
+                          Utils.db.Exec("UPdate  " & Tab0 & "  SET  numrub = &1, intitrub = &2, compte = &3, intitcpt = &4, type = &5, detail = &6, col2 = &7 WHERE numrub = &1", Rub, intitrub, cpt, intitcpt, type, det, Ltot2, actif, amort)
+                        Endif
+                      Endif
+                    Endif
+                  Endif
+                  Ltot2 = 0
+                  Ltot4 = 0
+                Until Tab5Rslt.MoveNext()
+                Etot3 = Etot3 + Ltot3
+                Ltot3 = 0
+              Endif
+            Until Tab3Rslt.MoveNext()
+          Endif
+        Endif
+        Etot1 = Etot1 + Etot3
+        Etot3 = 0
+        Ltot4 = 0
+        If type = "T" Then
+          Etot1 = 0
+          Stot1 = 0
+          Ltot1 = 0
+          Ltot3 = 0
+        Endif
+        If type = "O" Then
+          If RubE <> "0" Then
+            rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " WHERE numrub = &1 and amortissement2 = &2", RubE, amort)
+            If Not rResult.Available Then
+              Utils.db.Exec("INSERT INTO " & Tab0 & "(numrub, intitrub, type, detail, col1, col2, amortissement2) VALUES ( &1, &2, &3, &4, &5, &6, &7)", RubE, intitrubE, type, detE, Etot1, 0, amort)
+            Else
+              Utils.db.Exec("UPdate  " & Tab0 & "  SET  numrub = &1, intitrub = &2, type = &3, detail = &4, col1 = &5, col2 = &6 WHERE numrub = &1 and amortissement2 = &7", RubE, intitrubE, type, detE, Etot1, 0, amort)
+            Endif
+          Endif
+          Etot1 = 0
+          RubE = Rub
+          intitrubE = intitrub
+          typeE = Tab1Rslt!type
+          DetE = Tab1Rslt!detail
+        Endif
+        
+      Until Tab1Rslt.MoveNext()
+    Endif
+    '
+    '**************************************
+    '*               On imprime           *
+    '**************************************
+    Tab1Rslt = Utils.db.Exec("SELECT * FROM " & Tab0 & " where left(numrub,1) = &1 Order by numrub", "B")
+    P5 = ""
+    p1 = 0
+    sens = "A"
+    cpt = ""
+    If Tab1Rslt.Count Then
+      dateedition = "du " & dteN0 & " au " & dteN1
+      Nbpage = 1
+      Shell "cd " & User.Home & ""
+      Filename = User.home & "/Bilan.pdf"
+      pdf = New Cbilan("Portrait", "mm", "A4")
+      pdf.Open()
+      pdf.AliasNbPages()
+      posy = 32
+      Repeat
+        Rub = Tab1Rslt!numrub
+        If titre = "B0010" Then Sens = "A"
+        If titre = "B1010" Then Sens = "P"
+        intitrub = Tab1Rslt!intitrub
+        type = Tab1Rslt!type
+        Det = Tab1Rslt!detail
+        compte = Tab1Rslt!compte
+        If IsNull(Det) Then Det = "N"
+        If type = "T" Then
+          titre = rub
+          Etot1 = 0
+          Etot2 = 0
+          Etot4 = 0
+          Stot1 = 0
+          Stot2 = 0
+          Stot3 = 0
+          Stot4 = 0
+        Endif
+        If Not IsNull(compte) Then
+          IntResult = Utils.db.Exec("SELECT intitule_cc FROM " & Cbase.Table("TabComptes") & " where compte_cc = &1 ", compte)
+          Try Intitcpt = IntResult!intitule_cc
+        Endif
+        imp1 = .cpoint(imp1)
+        If Val(imp1) <> 0 Then
+          If cpt2 <> rub Then
+            p = p + 1
+            If IsNull(intitrub2) Then intitrub2 = intitrub
+            'If Val(Imp1) > 0 Then imp1 = "-" & imp1
+            pdf.level1L(intitrub2, p5, imp1, imp2, imp3, imp4, Posy, Sens)
+            posy += 5
+          Endif
+        Endif
+        'Endif
+        'Endif
+        If Tab1Rslt!type = "E" And rub <> "B1205" Then
+          pdf.level1(intitrub, "", "", "", "", "", Posy, Sens)
+          posy += 5
+          pdf.Lines(Posy)
+          posy += 1
+        Else
+          If Tab1Rslt!type = "E" And rub = "B1205" Then
+            pdf.level1(intitrub, "", RTot5, RTot5, "", RTot6, Posy, Sens)
+            posy += 5
+            pdf.Lines(Posy)
+            posy += 1
+            Stot1 = Stot1 + Rtot5
+            Stot1 = Stot1
+            Stot4 = Abs(Stot4) + Rtot6
+            Stot4 = Stot4
+          Endif
+        Endif
+        If titre = "B0010" Or If titre = "B1010" Then
+          If cpt2 <> rub Then
+            Imp1 = 0
+            Imp2 = 0
+            Imp3 = 0
+            Imp4 = 0
+            Imp5 = 0
+            otot1 = 0
+            otot2 = 0
+          Endif
+        Endif
+        
+        If Tab1Rslt!type = "L" And det = "O" Then
+          If Tab1Rslt!col3 <> "" Then
+            If Val(.cpoint(Tab1Rslt!col3)) <> 0 Then
+              Otot3 = Val(.cpoint(Tab1Rslt!col3))
+              imp1 = Val(.cpoint(imp1)) + Otot3
+              Etot1 = Val(.cpoint(Imp1))
+              If Left$(Tab1Rslt!compte, 3) = "129" Then
+                imp1 = "-" & imp1
+                Stot1 = Stot1 - Otot3
+              Else
+                Stot1 = Stot1 + Otot3
+              Endif
+              Stot1 = Stot1
+            Endif
+          Endif
+          If Tab1Rslt!col4 <> "" Then
+            If Val(.cpoint(Tab1Rslt!col4)) <> 0 Then
+              Atot3 = Abs(Val(.cpoint(Tab1Rslt!col4)))
+              imp2 = Abs(Val(.cpoint(imp2)) + Atot3)
+              Etot1 = ETot1 - Val(.cpoint(Imp2))
+              Stot2 = Stot2 + Val(.cpoint(Atot3))
+              Stot2 = Stot2
+            Endif
+          Endif
+        Endif
+        
+        If type = "T" Then
+          If titre = "B0010" Then Sens = "A"
+          If titre = "B1010" Then Sens = "P"
+          pdf.Baspage()
+          pdf.Level0(Intitrub, periode, detail, ste)
+          posy = 32
+          pdf.level3("Exercice N", "Exercice N -1", Posy, Sens)
+          Posy += 12
+          p = 8
+          p1 = 0
+        Endif
+        If type = "S" Then
+          pdf.level1S(intitrub, p5, Stot1, Stot2, Stot3, Stot4, Posy, Sens)
+          posy += 5
+          pdf.Lines(Posy)
+          posy += 1
+          Etot1 = 0
+          Etot2 = 0
+          Etot4 = 0
+          Ttot1 = Ttot1 + Stot1
+          Ttot2 = Ttot2 + Stot2
+          Ttot3 = Ttot3 + Stot3
+          Ttot4 = Ttot4 + Abs(Stot4)
+          Stot1 = 0
+          Stot2 = 0
+          Stot3 = 0
+          Stot4 = 0
+        Endif
+        If type = "O" Then
+          pdf.level1S(intitrub, p5, Ttot1, Ttot2, Ttot3, Abs(Val(Utils.cpoint(Ttot4))), Posy, Sens)
+          posy += 5
+          pdf.Lines(Posy)
+          p = p + 2
+          Ttot1 = 0
+          Ttot2 = 0
+          Ttot3 = 0
+          Ttot4 = 0
+          Stot1 = 0
+          Stot2 = 0
+          Stot3 = 0
+          Stot4 = 0
+        Endif
+        If type = "C" Then
+          pdf.level1(intitrub, p5, imp1, imp2, imp3, imp4, Posy, Sens)
+          posy += 5
+          p = p + 1
+        Endif
+        If type = "D" Then
+          pdf.level1(intitrub, p5, imp1, imp2, imp3, imp4, Posy, Sens)
+          posy += 5
+          p = p + 1
+        Endif
+        If type = "R" Or type = "G" Then
+          pdf.level1(intitrub, p5, imp1, imp2, imp3, imp4, Posy, Sens)
+          posy += 5
+          p = p + 2
+          If type = "R" Then
+            sens = 1
+          Endif
+        Endif
+        If p = 40 Then
+          p = 8
+          If p1 = 1 Then pdf.Baspage()
+          pdf.Level0(Intitrub, periode, detail, ste)
+          posy = 32
+          pdf.level3("Exercice N", "Exercice N -1", Posy, Sens)
+          Posy += 12
+          p = 8
+          p1 = 1
+        Endif
+        cpt2 = rub
+        intitrub2 = intitrub
+        If type = "E" Then
+          RubE = Tab1Rslt!numrub
+          intitrubE = Tab1Rslt!intitrub
+          Try cptE = Rubcompt!compte
+          
+        Endif
+      Until Tab1Rslt.MoveNext()
+      posy += 5
+      pdf.Baspage()
+      pdf.Output(Filename, False)
+      Visualiseur.Prog_Editeur(Filename)
+    Else
+      Message.Info("Rien a imprimer pour cette période !")
+    Endif
+  End With 
+  
+End
+
+'********************
+'* On lance la doc  *
+'********************
+Public Sub Button1_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Bcrimp.html"]
+  
+End

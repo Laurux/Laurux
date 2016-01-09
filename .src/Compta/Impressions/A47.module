@@ -1,0 +1,119 @@
+' Gambas module file
+
+Private dte1 As String
+Private dte2 As String
+Private hfile As File
+
+Public Sub GenA47()
+  
+  Dim i As Integer
+  Dim rResult As Result
+  Dim ColResult As Result
+  Dim Intitcol, $numdoc As String
+  Dim dte As String
+  Dim copt, jour As String
+  Dim pl As Integer
+  Dim Tab, Tab2, Tab3, Tab4 As String
+  Dim Ccoll As String
+  Dim debit, credit, solde, totdeb, totcred, totsld As Float
+  Dim debitcol As String
+  Dim creditcol As String
+  Dim TotSldHP As Float
+  Dim Bcol As Boolean = False
+  Dim Filetxt As String
+  Dim Entete As String = "JournalCode|JournalLib|EcritureNum|EcritureDate|CompteNum|CompteLib|CompAuxNum|ComptAuxLib|PieceRef|PieceDate|EcritureLib|Debit|Credit|EcritureLet|DateLet|MontantDevise|Idevise"
+  
+  With utils
+    totsldhp = 0.00
+    Tab = "centralisation"
+    Tab2 = "Fiches_Journaux" 
+    Tab3 = "Fiches_Parametres" 
+    Tab4 = "Fiches_Comptes" 
+    pl = 0
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab3 & "")
+    dte1 = .Cdate_Dbase(rResult!dteclec1)
+    dte2 = .Cdate_Dbase(rResult!dteclec)
+    'dte1 = Mid$(rResult!dteclec1, 7, 4) & Mid$(rResult!dteclec1, 3, 2) & Left$(rResult!dteclec1, 2)
+    'dte2 = Mid$(rResult!dteclec, 7, 4) & Mid$(rResult!dteclec, 3, 2) & Left$(rResult!dteclec, 2)
+    'Me.Mouse = Mouse.Wait
+    Utils.db.Exec("DROP TABLE IF EXISTS centralisation")
+    Utils.db.Exec("CREATE TABLE " & Tab & 
+      "(cd_cent Char(8) NOT NULL," &
+      "intitule Char(40)," &
+      "db_cent FLOAT," &
+      "crd_cent FLOAT," &
+      "njournal Char(2)," &
+      "PRIMARY KEY (cd_cent))" & "ENGINE = MYISAM")
+    filetxt = User.home & "/journaux.txt"
+    If Exist(filetxt) Then Kill filetxt
+    hFile = Open filetxt For Write Create
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " a inner join " & Cbase.Table("TabJour") & " i on i.code_jo = a.jour WHERE a.validee = &1 And a.dte >= &2 And a.dte <= &3 order by a.dte, a.numero, a.compte ", 1, dte1, dte2)
+    If rResult.count <> 0 Then
+      i = 0
+      Print #hFile, Entete
+      While i < rResult.count
+        Try Bcol = rResult!collectif
+        If Error Then Bcol = False
+        If Bcol Then
+          Ccoll = rResult!compte
+          ColResult = Utils.db.Exec("SELECT * FROM " & Tab4 & " WHERE compte_cc = &1", Ccoll)
+          Intitcol = ColResult!intitule_cc
+        Endif
+        If Not Bcol Then
+          jour = rResult!jour
+          debit = rResult!montantd
+          credit = rResult!montantc
+          solde = solde + debit - credit
+          If InStr(Str(solde), "E") Then solde = 0
+          totdeb = totdeb + debit
+          totcred = totcred + credit
+          totsld = totdeb - totcred
+          dte = rResult!dte
+          dte = Left(dte, 6) & Right(dte, 2)
+        Else
+          debitcol = rResult!montantd
+          creditcol = rResult!montantc
+        Endif
+        If rResult!numero <> copt Then
+          If pl <> 0 Then
+            solde = 0
+          Endif
+        Endif
+        copt = rResult!numero
+        $numdoc = rResult!numdoc
+        If IsNull($numdoc) Then $numdoc = i & rResult!dteval
+        If Not Bcol Then
+          Donnees3(CStr(jour), CStr(rResult!libelle_jo), CStr(rResult!numerodef), CStr(rResult!dteval), CStr(rResult!compte), CStr(rResult!intitule), CStr(dte), CStr(rResult!numero), CStr(rResult!libelle) & " " & CStr($numdoc), CStr(.cpoint(rResult!montantd)), CStr(.cpoint(rResult!montantc)), CStr(.cpoint(solde)))
+        Endif
+        i = i + 1
+        rResult.MoveNext
+      Wend
+      Close #hFile
+      'Me.Mouse = Mouse.Default
+      If message.question("Le fichier  journaux.txt  a été correctement copié sous votre répertoire \n Voulez-vous l'ouvrir ?", "Oui", "Non") = 1 Then
+        Editeur.Prog_Editeur(Filetxt)
+      Endif
+    Else
+      message(" Aucune ecriture pour cette demande", "OK")
+    Endif
+  End With
+  
+End
+
+Public Sub donnees1(p1 As String, p2 As String, p3 As String, p4 As String, p5 As String)
+  
+  Print #hFile, p1 & ";" & p2 & ";" & p3 & ";" & p4 & ";" & p5
+  
+End
+
+Public Sub donnees2(p1 As String, p2 As String, p3 As String, p4 As String, p5 As String, p6 As String, p7 As String, p8 As String, p9 As String)
+  
+  Print #hFile, p1 & ";" & p2 & ";" & p3 & ";" & p4 & ";" & p5 & ";" & p6 & ";" & p7 & ";" & p8 & ";" & p9
+  
+End
+
+Public Sub donnees3(p1 As String, p2 As String, p3 As String, p4 As String, p5 As String, p6 As String, p7 As String, p8 As String, p9 As String, p10 As String, p11 As String, p12 As String)
+  
+  Print #hFile, p1 & "|" & p2 & "|" & p3 & "|" & p4 & "|" & p5 & "|" & p6 & "|" & p7 & "|" & p8 & "|" & p9 & "|" & p10 & "|" & p11 & "|" & p12 & gb.Cr
+  
+End

@@ -1,0 +1,803 @@
+' Gambas class file
+
+Private CoTable[9] As String
+Private dbl As Boolean = False
+Private NbEnreg As Integer = 0 ' Enregistrement de départ de la sélection
+Private Tri As String
+Private Type As String
+Private sel As String
+Private lg As Integer
+Private tsr As String
+Private numero As String
+Private modif As Boolean = False
+
+'************************************** Gestion des écritures *****************************************************
+Public Sub _new($Type As String, $sel As String, $tr As String)
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  lg = Int(Ecrit.height / Ecrit.Rows.Height) - 1
+  Comptabilite.sCmpt = ""
+  Entete()
+  Tris2()
+  Sel = ""
+  Tri = "dte"
+  Type = $Type
+  Sel = $sel
+  Tsr = $tr
+  Select Case Type
+    Case "0"
+      Debn1()
+      
+    Case "1"
+      Debn3()
+  End Select
+  Ecrit.MoveTo(0, 0)
+  Ecrit.SetFocus
+  
+End
+
+Public Sub Entete()
+  
+  JO.Text = "Jrnl"
+  COM.Text = "Compte"
+  Nom.text = "intitulé"
+  Da2.Text = "Date"
+  NUM2.Text = "Numéro"
+  DOC2.Text = "Document"
+  DEB.Text = "Débit"
+  CRED.Text = "Crédit"
+  INTITULE.Text = "Libellé écriture"
+  
+End
+
+Public Sub Dbclk2()
+  
+  If Type = 0 Then
+    If Not Dbl Then
+      Debn2()
+      Dbl = "1"
+    Else
+      Debn1()
+      Dbl = ""
+    Endif
+  Else
+    If Not Dbl Then
+      Debn4()
+      Dbl = "1"
+    Else
+      Debn3()
+      Dbl = ""
+    Endif
+  Endif
+  
+End
+
+Public Sub JO_LostFocus()
+  
+  Try Utils.ObsLstf(JO)
+  
+End
+
+Public Sub COM_GotFocus()
+  
+  Try Utils.ObsGotf(Com)
+  COM_Click()
+  
+End
+
+Public Sub COM_LostFocus()
+  
+  Try Utils.ObsLstf(COM)
+  
+End
+
+Public Sub DA2_GotFocus()
+  
+  Try Utils.ObsGotf(da2)
+  DA2_Click()
+  
+End
+
+Public Sub DA2_LostFocus()
+  
+  Try Utils.ObsLstf(DA2)
+  
+End
+
+Public Sub NUM2_GotFocus()
+  
+  Try Utils.ObsGotf(num2)
+  NUM2_Click()
+  
+End
+
+Public Sub NUM2_LostFocus()
+  
+  Try Utils.ObsLstf(NUM2)
+  
+End
+
+Public Sub DOC2_GotFocus()
+  
+  Try Utils.ObsGotf(doc2)
+  DOC2_Click()
+  
+End
+
+Public Sub DOC2_LostFocus()
+  
+  Try Utils.ObsLstf(DOC2)
+  
+End
+
+Public Sub DEB_GotFocus()
+  
+  Try Utils.ObsGotf(deb)
+  DEB_Click()
+  
+End
+
+Public Sub DEB_LostFocus()
+  
+  Try Utils.ObsLstf(DEB)
+  
+End
+
+Public Sub CRED_GotFocus()
+  
+  Try Utils.ObsGotf(Cred)
+  CRED_Click()
+  
+End
+
+Public Sub CRED_LostFocus()
+  
+  Try Utils.ObsLstf(CRED)
+  
+End
+
+Public Sub INTITULE_GotFocus()
+  
+  Try Utils.ObsGotf(intitule)
+  Intitule_Click()
+  
+End
+
+Public Sub INTITULE_LostFocus()
+  
+  Try Utils.ObsLstf(Intitule)
+  
+End
+
+Public Sub JO_GotFocus()
+  
+  Try Utils.ObsGotf(jo)
+  JO_Click()
+  
+End
+
+Public Sub JO_Dblclick()
+  
+  Tri = "jour"
+  Dbclk2()
+  
+End
+
+Public Sub JO_Click()
+  
+  sel = ""
+  Dbl = ""
+  Entete()
+  JO.Text = ""
+  Tri = "jour"
+  If Type = 0 Then
+    Debn1()
+  Else
+    Debn3()
+  Endif
+  
+End
+
+Public Sub JO_KeyPress()
+  
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    If Type = 0 Then
+      Debn1()
+    Else
+      Debn3()
+    Endif
+  Endif
+  If key.code = key.Esc Or Key.code = key.f2 Then
+    Me.Close
+  Endif
+  
+End
+
+Public Sub Nom_GotFocus()
+  
+  Try Utils.ObsGotf(Nom)
+  Nom_Click()
+  
+End
+
+Public Sub Nom_Dblclick()
+  
+  Tri = "intitule"
+  Dbclk2()
+  
+End
+
+Public Sub Nom_Click()
+  
+  sel = ""
+  Dbl = ""
+  Entete()
+  Nom.Text = ""
+  Tri = "intitule"
+  If Type = 0 Then
+    Debn1()
+  Else
+    Debn3()
+  Endif
+  
+End
+
+Public Sub Nom_KeyPress()
+  
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    If Type = 0 Then
+      Debn1()
+    Else
+      Debn3()
+    Endif
+  Endif
+  If key.code = key.Esc Or Key.code = key.f2 Then
+    Me.Close
+  Endif
+  
+End
+
+Public Sub COM_Click()
+  
+  sel = ""
+  Dbl = ""
+  Entete()
+  COM.Text = ""
+  Tri = "compte"
+  If Type = 0 Then
+    Debn1()
+  Else
+    Debn3()
+  Endif
+  
+End
+
+Public Sub COM_Dblclick()
+  
+  Tri = "compte"
+  Dbclk2()
+  
+End
+
+Public Sub COM_KeyPress()
+  
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    If Type = 0 Then
+      Debn1()
+    Else
+      Debn3()
+    Endif
+  Endif
+  If key.code = key.Esc Or Key.code = key.f2 Then
+    Me.Close
+  Endif
+  
+End
+
+Public Sub DA2_Click()
+  
+  sel = ""
+  Dbl = ""
+  Da2.text = ""
+  Tri = "dte"
+  If Type = 0 Then
+    Debn1()
+  Else
+    Debn3()
+  Endif
+  
+End
+
+Public Sub DA2_Dblclick()
+  
+  Tri = "dte"
+  Dbclk2()
+  
+End
+
+Public Sub DA2_KeyPress()
+  
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+      If Len(sel) = 10 Then
+        sel = Right$(sel, 4) & "-" & Mid$(sel, 4, 2) & "-" & Left$(sel, 2)
+        Debn1()
+      Endif
+    Endif
+    If Type = 0 Then
+      Debn1()
+    Else
+      Debn3()
+    Endif
+  Endif
+  If key.code = key.Esc Or Key.code = key.f2 Then
+    Me.Close
+  Endif
+  
+End
+
+Public Sub NUM2_Click()
+  
+  sel = ""
+  Dbl = ""
+  Entete()
+  NUM2.Text = ""
+  Tri = "numero"
+  If Type = 0 Then
+    Debn1()
+  Else
+    Debn3()
+  Endif
+  
+End
+
+Public Sub NUM2_Dblclick()
+  
+  Tri = "numero"
+  Dbclk2()
+  
+End
+
+Public Sub NUM2_KeyPress()
+  
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    If Type = 0 Then
+      Debn1()
+    Else
+      Debn3()
+    Endif
+  Endif
+  If key.code = key.Esc Or Key.code = key.f2 Then
+    Me.Close
+  Endif
+  
+End
+
+Public Sub DOC2_Click()
+  
+  sel = ""
+  Dbl = ""
+  Entete()
+  DOC2.Text = ""
+  Tri = "numdoc"
+  If Type = 0 Then
+    Debn1()
+  Else
+    Debn3()
+  Endif
+  
+End
+
+Public Sub DOC2_Dblclick()
+  
+  Tri = "numdoc"
+  Dbclk2()
+  
+End
+
+Public Sub DOC2_KeyPress()
+  
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    If Type = 0 Then
+      Debn1()
+    Else
+      Debn3()
+    Endif
+  Endif
+  If key.code = key.Esc Or Key.code = key.f2 Then
+    Me.Close
+  Endif
+  
+End
+
+Public Sub DEB_Click()
+  
+  sel = ""
+  Dbl = ""
+  Entete()
+  DEB.Text = ""
+  Tri = "montantd"
+  If Type = 0 Then
+    Debn1()
+  Else
+    Debn3()
+  Endif
+  
+End
+
+Public Sub DEB_Dblclick()
+  
+  Tri = "montantd"
+  Dbclk2()
+  
+End
+
+Public Sub DEB_KeyPress()
+  
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    If Type = 0 Then
+      Debn1()
+    Else
+      Debn3()
+    Endif
+  Endif
+  If key.code = key.Esc Or Key.code = key.f2 Then
+    Me.Close
+  Endif
+  
+End
+
+Public Sub CRED_Click()
+  
+  sel = ""
+  Dbl = ""
+  Entete()
+  CRED.Text = ""
+  Tri = "montantc"
+  If Type = 0 Then
+    Debn1()
+  Else
+    Debn3()
+  Endif
+  
+End
+
+Public Sub CRED_Dblclick()
+  
+  Tri = "montantc"
+  Dbclk2()
+  
+End
+
+Public Sub CRED_KeyPress()
+  
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    If Type = 0 Then
+      Debn1()
+    Else
+      Debn3()
+    Endif
+  Endif
+  If key.code = key.Esc Or Key.code = key.f2 Then
+    Me.Close
+  Endif
+  
+End
+
+Public Sub INTITULE_Click()
+  
+  sel = ""
+  Dbl = ""
+  Entete()
+  Intitule.Text = ""
+  Tri = "libelle"
+  If Type = 0 Then
+    Debn1()
+  Else
+    Debn3()
+  Endif
+  
+End
+
+Public Sub INTITULE_Dblclick()
+  
+  Tri = "libelle"
+  Dbclk2()
+  
+End
+
+Public Sub INTITULE_KeyPress()
+  
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    If Type = 0 Then
+      Debn1()
+    Else
+      Debn3()
+    Endif
+  Endif
+  If key.code = key.Esc Or Key.code = key.f2 Then
+    Me.Close
+  Endif
+  
+Catch
+  
+End
+
+Public Sub Ecrit_Data(Row As Integer, Column As Integer)
+  
+  With Utils
+    CoTable[0] = "jour"
+    CoTable[1] = "compte"
+    CoTable[2] = "intitule"
+    CoTable[3] = "dte"
+    CoTable[4] = "numero"
+    CoTable[5] = "numdoc"
+    CoTable[6] = "montantd"
+    CoTable[7] = "montantc"
+    CoTable[8] = "libelle"
+    Try .rs1.MoveTo(Row)
+    If Error Then Print Error.text
+    Ecrit.data.Text = Str(.rs1[CoTable[Column]])
+    If column = 3 Then
+      Ecrit.data.Text = Replace$(Ecrit.data.Text, "/", ".")
+      Ecrit.data.Text = Left$(Ecrit.data.Text, 6) & Mid$(Ecrit.data.Text, 7, 4)
+    Endif
+    If column = 4 Then
+      Ecrit.Data.Alignment = 2
+      If numero <> Ecrit.data.Text Then   
+        numero = Ecrit.data.Text
+        modif = False
+      Else
+        modif = True
+      Endif
+    Endif
+    If column = 6 Or If column = 7 Then
+      Try Ecrit.data.Text = Format$(Val(Ecrit.data.Text), "0.00")
+      Ecrit.Data.Alignment = 2
+    Endif
+  End With
+  
+End
+
+Public Sub Tris2()
+  
+  With Ecrit
+    .Columns.count = 9
+    .Columns[0].Width = JO.Width
+    .Columns[1].Width = COM.Width
+    .Columns[2].Width = Nom.Width
+    .Columns[3].Width = DA2.Width
+    .Columns[4].Width = NUM2.Width
+    .Columns[5].Width = DOC2.Width
+    .Columns[6].Width = DEB.Width
+    .Columns[7].Width = CRED.Width
+    .Columns[8].Width = INTITULE.Width
+  End With
+  
+End
+
+Public Sub Ecrit_Click()
+  
+  Try Comptabilite.snum = Ecrit[Ecrit.row, 4].Text
+  Try Comptabilite.libelle = Ecrit[Ecrit.row, 8].Text
+  Try Comptabilite.journal = Ecrit[Ecrit.row, 0].Text
+  Comptabilite.Bsel = True
+  Me.close
+  
+End
+
+Public Sub Ecrit_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Ecrit_Click()
+  Endif
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Me.Close
+  Endif
+  If Key.code = Key.Up Then
+    If Ecrit.Row = 0 Then
+      Remonter_Click()
+    Endif
+  Endif
+  If Key.code = Key.down Then
+    If Ecrit.Row = lg - 1 Then
+      Descendre_Click()
+    Endif
+  Endif
+  If Key.code = Key.PageDown Then
+    Descendre_Click()
+  Endif
+  
+  If Key.code = Key.PageUp Then
+    Remonter_Click()
+  Endif
+  
+End
+
+Public Sub Ecrit_MouseWheel()
+  
+  If mouse.Delta = -1 Then
+    If Ecrit.Rows.Count = lg Then NbEnreg = NbEnreg + lg
+  Else
+    If Ecrit.Rows.Count <= lg Then NbEnreg = NbEnreg - lg
+  Endif
+  Deplacement()
+  
+End
+
+Public Sub Descendre_Click()
+  
+  If Ecrit.Rows.Count = lg Then
+    NbEnreg = NbEnreg + lg
+    Deplacement()
+  Endif
+  Try Ecrit.MoveTo(0, 0)
+  Try Ecrit.Current.EnsureVisible
+  Try Ecrit.SetFocus
+  
+End
+
+Public Sub Remonter_Click()
+  
+  NbEnreg = NbEnreg - lg
+  Deplacement()
+  Try Ecrit.MoveTo(0, 0)
+  Try Ecrit.Current.EnsureVisible
+  Try Ecrit.SetFocus
+  
+End
+
+Public Sub Descendre_KeyPress()
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Me.Close
+  Endif
+  If key.code = key.PageDown Then Descendre_Click()
+  If key.code = key.PageUp Then Remonter_Click()
+  
+End
+
+Public Sub Remonter_KeyPress()
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Me.Close
+  Endif
+  If key.code = key.PageDown Then Descendre_Click()
+  If key.code = key.PageUp Then Remonter_Click()
+  
+End
+
+Public Sub Deplacement()
+  
+  If NbEnreg < 0 Then NbEnreg = 0
+  If Dbl = True Then
+    Debn2()
+  Else
+    Debn1()
+  Endif
+  
+End
+
+Public Sub Debe1()
+  
+  Utils.Base(ecrit, "select * from " & Cbase.Table("TabMvt") & " WHERE provisoire = " & "1" & " and tresorerie =  " & 1 & "   and cloturee = " & 0 & " and collectif is null and " & Tri & " like  \"%" & sel & "%\" order by " & Tri & "")
+  ecrit.Refresh
+  
+End
+
+Public Sub Debe2()
+  
+  Utils.Base(ecrit, "select * from " & Cbase.Table("TabMvt") & " WHERE provisoire = " & "1" & " and tresorerie =  " & 1 & "  and cloturee = " & 0 & "  and collectif is null order by " & Tri & " DESC")
+  ecrit.Refresh
+  
+End
+
+Public Sub Debe3()
+  
+  Utils.Base(ecrit, "select * from " & Cbase.Table("TabMvt") & " WHERE validee = " & "1" & " and tresorerie =  " & 1 & " and cloturee = " & 0 & " and collectif is null and " & Tri & " like  \"%" & sel & "%\" order by " & Tri & "")
+  ecrit.Refresh
+  
+End
+
+Public Sub Debe4()
+  
+  Utils.Base(ecrit, "select * from " & Cbase.Table("TabMvt") & " WHERE validee = " & "1" & " and tresorerie =  " & 1 & "  and cloturee = " & 0 & " and collectif is null order by " & Tri & " DESC")
+  ecrit.Refresh
+  
+End
+
+Public Sub Debn1()
+  
+  If Tsr = "1" Then
+    Utils.Base(ecrit, "select * from " & Cbase.Table("TabMvt") & "  where validee = " & type & " and tresorerie =  " & Tsr & "  and cloturee = " & 0 & " and pointee = " & 0 & " and collectif is null and " & Tri & " like  \"%" & sel & "%\" or validee = " & type & " and tresorerie =  " & Tsr & "  and cloturee = " & 0 & " and pointee is null and collectif is null and " & Tri & " like  \"%" & sel & "%\" order by " & Tri & " limit " & NbEnreg & ", " & lg & "")
+  Else
+    Utils.Base(ecrit, "select * from " & Cbase.Table("TabMvt") & "  where validee = " & type & " and tresorerie =  " & Tsr & "  and cloturee = " & 0 & " and collectif is null and " & Tri & " like  \"%" & sel & "%\" order by " & Tri & " limit " & NbEnreg & ", " & lg & "")
+  Endif
+  ecrit.Refresh
+  
+End
+
+Public Sub Debn2()
+  
+  If Tsr = "1" Then
+    Utils.Base(ecrit, "select * from " & Cbase.Table("TabMvt") & "  where validee = " & type & " and tresorerie =  " & Tsr & "  and cloturee = " & 0 & " and pointee = " & 0 & " and collectif is null and " & Tri & " like  \"%" & sel & "%\" or validee = " & type & " and tresorerie =  " & Tsr & "  and cloturee = " & 0 & " and pointee is null and collectif is null and " & Tri & " like  \"%" & sel & "%\"order by " & Tri & " DESC limit " & NbEnreg & ", " & lg & "")
+  Else
+    Utils.Base(ecrit, "select * from " & Cbase.Table("TabMvt") & "  where validee = " & type & " and tresorerie =  " & Tsr & "  and cloturee = " & 0 & " and collectif is null and " & Tri & " like  \"%" & sel & "%\" order by " & Tri & " DESC limit " & NbEnreg & ", " & lg & "") 
+  Endif
+  ecrit.Refresh
+  
+End
+
+Public Sub Debn3()
+  
+  If Tsr = "1" Then
+    Utils.Base(ecrit, "select * from " & Cbase.Table("TabMvt") & " where validee = " & type & " and tresorerie =  " & Tsr & "  and cloturee = " & 0 & " and pointee = " & 0 & " and collectif is null and " & Tri & " like  \"%" & sel & "%\" or validee = " & type & " and tresorerie =  " & Tsr & "  and cloturee = " & 0 & " and pointee is null and collectif is null and " & Tri & " like  \"%" & sel & "%\"order by " & Tri & " limit " & NbEnreg & ", " & lg & "")
+  Else
+    Utils.Base(ecrit, "select * from " & Cbase.Table("TabMvt") & " where validee = " & type & " and tresorerie =  " & Tsr & "  and cloturee = " & 0 & " and collectif is null and " & Tri & " like  \"%" & sel & "%\" order by " & Tri & " limit " & NbEnreg & ", " & lg & "") 
+  Endif  
+  ecrit.Refresh
+  
+End
+
+Public Sub Debn4()
+  
+  If Tsr = "1" Then
+    Utils.Base(ecrit, "select * from " & Cbase.Table("TabMvt") & "  where validee = " & type & " and tresorerie =  " & Tsr & "  and cloturee = " & 0 & "  and pointee = " & 0 & " and collectif is null and " & Tri & " like  \"%" & sel & "%\" or validee = " & type & " and tresorerie =  " & Tsr & "  and cloturee = " & 0 & " and pointee is null and collectif is null and " & Tri & " like  \"%" & sel & "%\"order by " & Tri & " DESC limit " & NbEnreg & ", " & lg & "")
+  Else
+    Utils.Base(ecrit, "select * from " & Cbase.Table("TabMvt") & "  where validee = " & type & " and tresorerie =  " & Tsr & "  and cloturee = " & 0 & " and collectif is null and " & Tri & " like  \"%" & sel & "%\" order by " & Tri & " DESC limit " & NbEnreg & ", " & lg & "") 
+  Endif
+  ecrit.Refresh
+  
+End

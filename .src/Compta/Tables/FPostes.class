@@ -1,0 +1,176 @@
+' Gambas class file
+
+' ----------------------------------------------------------------------------
+' ################################################
+' # nom du fichier           : Fcollectif.class
+' # Auteur                   : Jacky Tripoteau
+' # date de création         : Janvier 2012
+' #
+' ################################################
+'
+
+Private n As Integer
+Private son As Integer = Start.Son
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Music.Load(Start.Musique)
+  Me.Center
+  Colcol.Columns.count = 2
+  Colcol.Columns[0].Width = 100
+  Colcol.Columns[1].Width = 265
+  Colcol.Columns[0].Text = "Code"
+  Colcol.Columns[1].Text = "Intitulé"
+  
+End
+
+Public Sub Form_Open()
+  
+  Dim rResult As Result
+  
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabPostes") & " order by cast(code AS char)")
+  If rResult.Available Then
+    Repeat
+      Try Colcol.add(rResult!code, rResult!code)
+      Try Colcol.Item[0] = rResult!code
+      Try Colcol.Item[1] = rResult!intitulep
+      Inc n
+    Until rResult.MoveNext()
+  Endif
+  Cdcol.SetFocus
+  
+End
+
+Public Sub Maj_Zones()
+  
+  Cdcol.text = Colcol.Current[0]
+  Libelcol.text = Colcol.Current[1]
+  Cdcol.SetFocus
+  
+End
+
+Public Sub CleanChamps()
+  
+  Cdcol.Clear
+  Libelcol.Clear
+  
+End
+
+Public Sub Refresh()
+  
+  Colcol.Clear
+  form_Open()
+  
+End
+
+Public Sub Col_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+      Case 1
+        Libelcol.SetFocus
+        cptMan()
+        Stop Event
+        
+      Case 2
+        Button2_Click()
+        Stop Event
+    End Select
+  Endif
+  
+  If key.code = key.F1 Then
+    Button4_Click()
+    Stop Event
+  Endif
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Col_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+    Case 1
+      Button4_Click()
+    Case 2
+      Button1_Click()
+    Case 3
+      Button2_Click()
+    Case 4
+      Me.Close
+  End Select
+  
+End
+
+Public Sub Colcol_Click()
+  
+  If n = 0 Then
+  Else
+    Maj_Zones()
+  Endif
+  
+End
+
+Public Sub cptman()
+  
+  Dim rResult As Result
+  
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabPostes") & " where code = &1", Cdcol.Text)
+  If rResult.Available Then
+    Cdcol.Text = rResult!code
+    Libelcol.Text = rResult!intitulep
+  Endif
+  
+End
+
+Public Sub Button1_Click()
+  
+  If son Then
+    Music.Play
+  Endif
+  If Message.Question("Etes vous sur de vouloir effacer cet enregistrement", "Oui", "Non") = 1 Then
+    
+    Utils.db.Exec("DELETE FROM " & Cbase.Table("TabPostes") & " WHERE code = &1", Cdcol.Text)
+    Refresh()
+    CleanChamps()
+  Endif
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim rResult As Result
+  
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabPostes") & " WHERE code = &1", Cdcol.Text)
+  If Not rResult.Available Then
+    Utils.db.Exec("INSERT INTO " & Cbase.Table("TabPostes") & "(code,intitulep) VALUES (&1, &2)", Cdcol.Text, Libelcol.Text)
+  Else
+    Utils.db.Exec("UPdate  " & Cbase.Table("TabPostes") & "  SET  intitulep = &2  WHERE code = &1", Cdcol.Text, Libelcol.Text)
+  Endif
+  Cleanchamps()
+  Refresh()
+  Cdcol.SetFocus
+  CdCol.Select
+Catch
+  If son Then
+    Music.Play
+  Endif
+  message.Error(Error.Text & " " & Error.where)
+  
+End
+
+Public Sub Button4_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Analytique.html"]
+  
+End

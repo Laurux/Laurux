@@ -1,0 +1,341 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : LauruxConf.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 01/11/2004
+'# Gestion du fichier de configuration
+'################################################
+'#######################################################
+'# Modification Marc GUILLAUME <alarch@alarch.ath.cx>
+'# pour utilisation d'un tunnel ssh de connexion MySQL
+'# 07 janvier 2010
+'########################################################
+'
+Private Soc As String
+Private intitule As String
+Private son As Integer = Start.Son
+Private Lig As String
+Private rResult As Result
+Private Nouveau As Boolean = False
+
+Public Sub _new()
+  
+  Dim ssh As String
+  Dim elements As Variant
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Me.Center
+  Nbase.Clear
+  If Settings["/Soc" & Start.Societe & "/Blocsoc"] = False Or If IsNull(Settings["/Soc" & Start.Societe & "/Blocsoc"]) Then
+    Try Utils.db.Databases
+    If Not Error Then 
+      For Each elements In Utils.db.Databases
+        Lig = elements.name
+        If Left$(Lig, 6) = "Laurux" Then 
+          If Len(lig) > 6 Then Nbase.Add(Lig)
+        Endif
+      Next
+    Endif
+  Endif
+  Nbase.text = "Laurux" & Settings["/Soc"]
+  If IsNull(Settings["/Soc"]) Then
+    Nbase.Text = "Laurux01"
+    Nbase.Enabled = False
+    Nouveau = True
+  Endif
+  If Settings["/Soc" & Start.Societe & "/Blocsoc"] = True Then Nbase.Enabled = False
+  'Try Nbase.Text = "Laurux" & Settings["/Soc"]
+  Try login.Text = Settings["/dbase/Login"]
+  Try Port.Text = Settings["/dbase/Port"]
+  If IsNull(Port.text) Then Port.text = "3306"
+  Try Host.Text = Settings["/dbase/Host"]
+  If Settings["/Soc" & Start.Societe & "/Blocsoc"] = False Or If IsNull(Settings["/Soc" & Start.Societe & "/Blocsoc"]) Then
+    Try Maj.Value = Settings["/dbase/Maj"]
+    Maj.Enabled = True
+  Else
+    Try Maj.Value = False
+    Maj.Enabled = False
+  Endif
+  If IsNull(Host.Text) Then Host.Text = "localhost"
+  Try Password.Text = hexdblKey.crypt("de", Settings["/dbase/Password"], "Laurux")
+  Try ssh = Settings["/dbase/Con-ssh"]
+  If ssh = "" Then ssh = 0
+  If ssh <> 0 Then
+    Bssh.value = True
+    Bssh_Click()
+    Loginssh.Text = Settings["/dbase/ssh/Login"]
+    Hostssh.Text = Settings["/dbase/ssh/Hostssh"]
+    Passwordssh.Text = hexdblKey.crypt("de", Settings["/dbase/ssh/Passwssh"], "LauruX2012")
+    Portssh.Text = Settings["/dbase/ssh/Portssh"]
+    Portlocal.Text = Settings["/dbase/ssh/Portlocal"]
+  Endif
+  
+End
+
+'***********************************************************
+'* La connexion se fait sans mot de passe, la clé publique
+'* de l'utilisateur doit se trouver sur le serveur SQL
+'* contacté en SSH
+'* MG - 07 janvier 2010
+'***********************************************************
+Public Sub Button1_Click()
+  
+  Dim $ready_connect As Boolean
+  
+  $ready_connect = True
+  Soc = Settings["/Soc"]
+  If IsNull(Soc) Then Soc = "01"
+  intitule = "  "
+  Settings["/Societes/Soc" & Soc] = "Laurux V3.39"
+  '# -- Partie commune aux connexions avec ou sans tunnel
+  Settings["/dbase/type"] = "mysql"
+  Settings["/dbase/Name"] = Nbase.Text
+  Settings["/dbase/Login"] = login.Text
+  Settings["/dbase/Password"] = hexdblKey.crypt("en", Password.Text, "Laurux")
+  Settings["/dbase/Port"] = Port.Text
+  Settings["/dbase/Host"] = Host.Text
+  Settings["/dbase/Maj"] = Maj.Value
+  
+  '# -- Partie variant suivant que l'on utilise un tunnel ssh ou pas
+  Settings["/dbase/ssh/Con-ssh"] = Bssh.Value
+  If Bssh.value Then
+    Settings["/dbase/ssh/Login"] = Loginssh.Text
+    Settings["/dbase/ssh/Hostssh"] = Hostssh.Text
+    Settings["/dbase/ssh/Passwssh"] = hexdblKey.crypt("en", Passwordssh.Text, "LauruX2012")
+    Settings["/dbase/ssh/Portssh"] = Portssh.Text
+    Settings["/dbase/ssh/Portlocal"] = Portlocal.Text
+  Endif
+  Settings.Save
+  Settings.reload
+  '# -- valeurs de connexion communes avec ou sans tunnel
+  ' Le type reste bien entendu mysql
+  Utils.db.type = Settings["/dbase/type"]
+  ' le nom est celui de la base
+  Utils.db.Name = Nbase.Text
+  ' le login est celui de la base
+  Utils.db.Login = Settings["/dbase/Login"]
+  ' le mot de passe est celui de la base
+  Utils.db.Password = hexdblKey.crypt("de", Settings["/dbase/Password"], "Laurux")
+  
+  '*************************************
+  '* On initialise les variables
+  '* ainsi les routines de connexion
+  '* restent inchangées
+  '* Il suffira juste de lancer le tunnel
+  '* ssh ou pas
+  '*************************************
+  If Bssh.Value Then
+    '# -- Valeurs de connexion via tunnel
+    ' par contre on utilise le port local de loopback pour la connexion (et pas localhost qui impliquerait une connexion socket unix)
+    Utils.db.Host = "127.0.0.1"
+    ' on remplace le port mysql par le port local du tunnel ssh
+    Utils.db.Port = Settings["/dbase/ssh/Portlocal"]
+    ' on définit des variables pour l'établissement du tunnel ssh
+    Utils.MysqlServeur = Settings["/dbase/Host"]
+    Utils.RemotePort = Settings["/dbase/Port"]
+    Utils.SshPort = Settings["/dbase/ssh/Portssh"]
+    Utils.SshPassw = hexdblKey.crypt("de", Settings["/dbase/ssh/Passwssh"], "LauruX2012")
+    Utils.SshHost = Settings["/dbase/ssh/Hostssh"]
+    Utils.SshUser = Settings["/dbase/ssh/Login"]
+  Else
+    '# -- Valeurs de connexion sans tunnel
+    ' l'hôte à utiliser est le serveur MySQL
+    Utils.db.Host = Settings["/dbase/Host"]
+    ' le port le port MySQL du serveur
+    Utils.db.Port = Settings["/dbase/Port"]
+  Endif
+  Soc = Right$(Nbase.Text, Len(Nbase.Text) - 6)
+  
+  '# -- lancement si nécessaire du tunnel ssh
+  If Bssh.Value Then
+    If Utils.monteTunnel() Then
+      $ready_connect = True
+    Else
+      $ready_connect = False
+    Endif
+  Endif
+  
+  If $ready_connect Then
+    Try Utils.db.Close
+    Utils.db.name = Nbase.Text
+    Utils.db.Open
+    Try Utils.db.exec("SET NAMES 'latin1'")
+    If Not Error Then
+      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabSoc") & " where cd_sc = &1", Right$(Nbase.text, Len(Nbase.Text) - 6))
+      Message.Info("Le fichier de configuration a été crée ou modifié !\nLa société " & Right$(Nbase.Text, Len(Nbase.Text) - 6) & " " & rResult!type_sc & " - " & rResult!int_sc & " est la société de travail en cours.")
+      Settings["/Soc"] = Right$(Nbase.text, Len(Nbase.Text) - 6)
+      Settings.Save
+      Settings.Reload
+      Start.societe = Right$(Nbase.text, Len(Nbase.Text) - 6)
+      Fmenu.text = "Société en cours : " & rResult!type_sc & " - " & rResult!int_sc
+      Fmenuc.text = "Société en cours : " & rResult!type_sc & " - " & rResult!int_sc
+      Fmenuf.text = "Société en cours : " & rResult!type_sc & " - " & rResult!int_sc
+    Else
+      nouveau = True
+      Createbase()
+    Endif
+  Else
+    Message.Warning("Le tunnel SSH demandé ne peut être monté")
+  Endif
+Catch
+  If Left$(error.Text, 35) = "Cannot open database: Access denied" Then
+    Message.Warning("Attention, l' utilisateur ou le mot de passe est erroné ! \n Veuillez controler votre saisie SVP et vérifier que l'utisateur soit bien créé dans MySQL!")
+  Else
+    If Left$(error.Text, 38) = "Cannot open database: Unknown database" Then
+      Nouveau = True
+      Createbase()
+    Else
+      If Left$(error.Text, 35) = "Cannot open database: Can't connect" Then
+        Message.Warning("Attention, accès MySQL impossible ! \n Veuillez vérifier que MySQL soit bien installé et que le service soit lancé SVP !")
+      Else
+        message.Error(Error.Text & " " & Error.Where)
+      Endif
+    Endif
+  Endif
+  
+End
+
+Public Sub createbase()
+  
+  Dim hcon As New Connection
+  
+  If son Then
+    Music.Play
+  Endif
+  If message.Question("Le programme va créer la base " & Nbase.Text & ".", "Oui", "Non") = 1 Then
+    Me.mouse = Mouse.wait
+    Try Utils.db.Close
+    
+    hcon.type = "mysql"
+    hcon.Name = ""
+    hcon.Login = Login.Text
+    hcon.Password = Password.Text
+    hcon.Host = Host.Text
+    hcon.Port = Port.Text
+    Try hcon.open
+    If Error Then Print Error.Text
+    hcon.Databases.Add(Nbase.Text)
+    hcon.Close
+    Settings["/dbase/Con-ssh"] = Bssh.Value
+    Settings["/Soc"] = Right$(Nbase.Text, Len(Nbase.Text) - 6)
+    Settings["/intitule"] = intitule
+    Settings["/son"] = 0
+    Settings["/Tips"] = 1
+    Settings["/Soc" & Soc & "/Entete"] = 1
+    Settings["/Soc" & Soc & "/Conditions"] = 1
+    Settings["/Soc" & Soc & "/Tva550"] = 0
+    Settings["/Soc" & Soc & "/Codetva"] = " "
+    Settings["/Soc" & Soc & "/Compta"] = 0
+    Settings["/Soc" & Soc & "/Gestion"] = 0
+    Settings["/Soc" & Soc & "/CptFac"] = 1
+    Settings["/Soc" & Soc & "/Qt1"] = 0
+    Settings["/Soc" & Soc & "/Coul_fen"] = 0
+    Settings["/Soc" & Soc & "/Qt1"] = 0
+    Settings["/Soc" & Soc & "/Ctrlstk"] = 0
+    Settings["/Soc" & Soc & "/AutoEnt"] = 0
+    Settings["/Coul" & "/Fnets"] = "Background: &HDDDDDD&; "
+    Settings["/Coul" & "/Btns"] = "Background: &HBDBDBD&; "
+    Settings["/Coul" & "/Znss"] = "Background: &HFAFAFA&; "
+    Settings["/Coul" & "/Znaff"] = "Background: &HEEEEEE&; "
+    Settings["/Coul" & "/Focus"] = "Background: &HF9FFC7&; "
+    Settings["/Coul" & "/Coulfonds"] = "Background: &FFEE81&; "
+    Settings["/Coul" & "/Others"] = "Background: &FFE0B8&; "
+    Settings["/Coul" & "/Fcs"] = "Background: &HF9FFC7&"
+    Settings["/Coul" & "/Stk"] = "Background: &HCFF58E&; Font: serif,9; "
+    Settings["/Coul" & "/Coulfonds"] = "255,252,216,"
+    Settings["/Coul" & "/Others"] = "255,232,199,"
+    Settings["/Coul" & "/Facts"] = "Background: &HFFFFFF&; Font: Serif,9; "
+    Settings["/Coul" & "/Avs"] = "Background: &HFFFFFF&; Font: Serif,9; "
+    Settings["/Coul" & "/Bl"] = "Background: &HFFFFFF&; Font: Serif,9; "
+    Settings["/Coul" & "/Devis"] = "Background: &HFFFFFF&; Font: Serif,9; "
+    Settings["/Coul" & "/Cmde"] = "Background: &HFFFFFF&; Font: Serif,9; "
+    Settings["/Coul" & "/Prf"] = "Background: &HFFFFFF&; Font: Serif,9; "
+    Settings["/Coul" & "/Nstk"] = "Background: &HFFFFFF&; Font: Serif,9; "
+    Settings["/Coul" & "/Eps"] = "Background: &HFFFFFF&; Font: Serif,9; "
+    Settings["/Coul" & "/Spd"] = "Background: &HFFFFFF&; Font: Serif,9; "
+    Settings["/Soc" & Soc & "/Font"] = "Serif,+1"
+    Settings["/Soc" & Soc & "/Copie"] = 0
+    Settings["/Soc" & Soc & "/Siret"] = "Siret"
+    Settings["/Soc" & Soc & "/Prxdec"] = 0
+    Settings["/Soc" & Soc & "/Taxe"] = "TVA"
+    Settings["/Soc" & Soc & "/Pays"] = "France"
+    Settings["/Soc" & Soc & "/Impbl"] = 0
+    Settings["/Soc" & Start.Societe & "/Exp"] = 1
+    Settings.Save
+    If nouveau = True Then
+      If IsNull(Settings["/dbase/Host"]) Then
+        Shell "mysql -u " & Utils.db.login & " -p" & Utils.db.Password & " " & "Laurux01  < ~/Laurux3/Laurux01.sql" Wait
+      Else
+        Shell "mysql -h " & Settings["/dbase/Host"] & " -u " & Utils.db.login & " -p" & Utils.db.Password & " " & "Laurux01  < ~/Laurux3/Laurux01.sql" Wait
+      Endif
+    Endif
+    Settings.Reload
+    Start.societe = soc
+    Me.mouse = Mouse.Default
+    If nouveau = True Then
+      Message.Info("Laurux est installé et la base de démarrage a été restaurée !\nVous pouvez maintenant travailler avec Laurux.")
+    Else
+      Message.Warning("La base a été créée !")
+    Endif
+    Me.close
+  Endif
+  
+End
+
+Public Sub Button2_Click()
+  
+  Me.close
+  
+End
+
+'********************************************************************
+'* Fermeture du formulaire avec suppression de l'éventuel tunnel ssh
+'* MG - 07 janvier 2010
+'********************************************************************
+Public Sub Form_Close()
+  
+  Utils.fermeTunnel()
+  Print Now & " - " & "Fermeture de la fenêtre\n"
+  
+End
+
+'******************************************
+'* Masquage affichage du cadre tunnel ssh
+'* MG - 07 janvier 2010
+'******************************************
+Public Sub Bssh_Click()
+  
+  If Bssh.value Then
+    Frame1.Enabled = True
+  Else
+    Frame1.Enabled = False
+  Endif
+  
+End
+
+'**********************************
+'*    Appel de la doc html        *
+'**********************************
+Public Sub Button3_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Conf.html"]
+  
+End

@@ -1,0 +1,239 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Dup.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 27/02/2008
+'# Duplication de sociétés
+'################################################
+'
+
+Public Sub _New()
+  
+  Dim hfil As File
+  Dim Lig As String
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Shell "cd " & User.Home & ""
+  Shell "mysql -h " & Settings["/dbase/Host"] & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " -e \"show databases;\" -B -s > ~/bases.txt" Wait
+  HFil = Open User.Home & "/bases.txt" For Read
+  Nbase.Clear
+  While Not Eof(hFil)
+    Line Input #hFil, Lig
+    If Left$(lig, 6) = "Laurux" Then 
+      If Len(lig) > 6 Then Nbase.Add(Lig)
+    Endif
+  Wend
+  S1.text = "Laurux" & Settings["/Soc"]
+  S1.ReadOnly = True
+  
+End
+
+Public Sub Button3_Click()
+  
+  Me.Close
+  
+End
+
+Public Sub Button2_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Dup.html"]
+  
+End
+
+Public Sub Button1_Click()
+  
+  Dim TabS1, TabS2, TabS3 As String
+  Dim $S1, $S2 As String
+  
+  $S1 = Right$(S1.Text, Len(S1.Text) - 6)
+  $S2 = Right$(Nbase.Text, Len(Nbase.Text) - 6)
+  If S1.Text = Nbase.Text Then
+    Message.Error("Vous ne pouvez pas dupliquer une société sur elle-même !")
+    Return
+  Endif
+  If Message.Question("Ok pour dupliquer la société " & $S1 & " vers la société " & $S2 & " ?", "Oui", "Non") = 1 Then
+    Me.mouse = Mouse.Wait
+    Utils.db.Exec("set sql_mode = &1", "no_auto_value_on_zero")
+    TabS1 = "Fiches_Parametres"
+    TabS2 = "Fiches_Parametres"
+    Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+    Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
+    Utils.db.Exec("UPdate  " & Nbase.Text & "." & Tabs2 & " SET  dnbon = &1, dnfac = &2", "000000", "000000")
+    If Chk1.value = False Then Utils.db.Exec("UPdate  " & Nbase.Text & "." & Tabs2 & " SET  dnc = &1", "411000")
+    If Chk2.value = False Then Utils.db.Exec("UPdate  " & Nbase.Text & "." & TabS2 & "  SET  dnf = &1", "401000")
+    If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
+    
+    TabS1 = "Fiches_Tvaav"
+    TabS2 = "Fiches_Tvaav"
+    Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+    Utils.db.Exec("create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
+    If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
+    
+    TabS1 = "Fiches_Tvaac"
+    TabS2 = "Fiches_Tvaac"
+    Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+    Utils.db.Exec("create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
+    If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
+    
+    TabS1 = "Fiches_Journaux"
+    TabS2 = "Fiches_Journaux"
+    Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+    Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
+    If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
+    
+    TabS1 = "Fiches_Echeances"
+    TabS2 = "Fiches_Echeances"
+    Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+    Utils.db.Exec("create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
+    If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
+    
+    TabS1 = "Fiches_Comptes"
+    TabS2 = "Fiches_Comptes"
+    TabS3 = "Fiches_Parametres"
+    Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+    Utils.db.Exec("create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
+    If Error Then 
+      Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
+    Else
+      Utils.db.Exec("UPdate  " & Nbase.Text & "." & TabS2 & "  SET  solde = &1, soldep = &2", 0, 0, 0)
+      If Chk1.value = False Then
+        Utils.db.Exec("delete from " & Nbase.Text & "." & TabS2 & " where Left(compte_cc, 3) = &1 And coll <> &2", "411", "1")
+      Endif
+      If Chk2.value = False Then
+        Utils.db.Exec("delete from " & Nbase.Text & "." & TabS2 & " where Left(compte_cc, 3) = &1 And coll <> &2", "401", "1")
+      Endif
+    Endif
+    
+    TabS1 = "Fiches_Txt_Relances"
+    TabS2 = "Fiches_Txt_Relances"
+    Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+    Utils.db.Exec("create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
+    If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
+    
+    TabS1 = "Fiches_Etiquettes"
+    TabS2 = "Fiches_Etiquettes"
+    Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+    Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
+    If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
+    
+    TabS1 = "Fiches_Cpostaux" 
+    TabS2 = "Fiches_Cpostaux" 
+    Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+    Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
+    If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
+    
+    If Chk1.value = True Then
+      TabS1 = "Fiches_Cli"
+      TabS2 = "Fiches_Cli"
+      Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+      Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
+      If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
+    Endif
+    
+    If Chk1.value = True Then
+      TabS1 = "Fiches_AdrlivC"
+      TabS2 = "Fiches_AdrlivC"
+      Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+      Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
+      If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
+    Endif
+    
+    If Chk1.value = True Then
+      TabS1 = "Fiches_ContactC"
+      TabS2 = "Fiches_ContactC"
+      Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+      Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
+      If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
+    Endif
+    
+    If Chk2.value = True Then
+      TabS1 = "Fiches_Four"
+      TabS2 = "Fiches_Four"
+      Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+      Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
+      If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
+    Endif
+    
+    If Chk2.value = True Then
+      TabS1 = "Fiches_ContactF"
+      TabS2 = "Fiches_ContactF"
+      Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+      Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
+      If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
+    Endif
+    
+    If Chk3.value = True Then
+      TabS1 = "Fiches_Fam"
+      TabS2 = "Fiches_Fam"
+      Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+      Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
+      If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
+    Endif
+    
+    If Chk4.value = True Then
+      TabS1 = "Fiches_Art"
+      TabS2 = "Fiches_Art"
+      Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+      Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
+      If Error Then 
+        Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
+      Else
+        Utils.db.Exec("UPdate  " & Nbase.Text & "." & TabS2 & "  SET  art_qte = &1, art_com = &2, art_stkdep = &3, art_ddate = &4, art_datefbt = &5", 0, 0, 0, "", "")
+        TabS1 = "Fiches_CdBarre"
+        TabS2 = "Fiches_CdBarre"
+        Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+        Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
+        If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
+      Endif
+    Endif
+    
+    If Chk5.value = True Then
+      TabS1 = "Fiches_Commentaires"
+      TabS2 = "Fiches_Commentaires"
+      Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+      Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
+      If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
+    Endif
+    
+    If Chk6.value = True Then
+      TabS1 = "Fiches_Mo"
+      TabS2 = "Fiches_Mo"
+      Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+      Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
+      If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
+    Endif
+    
+    If Chk6.value = True Then
+      TabS1 = "Fiches_Txtmo"
+      TabS2 = "Fiches_Txtmo"
+      Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+      Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
+      If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
+    Endif
+    
+    Message.Warning("Transfert terminé !")
+    Me.mouse = Mouse.Default
+  Endif
+  
+End

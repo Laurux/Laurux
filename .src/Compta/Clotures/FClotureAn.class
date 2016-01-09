@@ -1,0 +1,690 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : FclotureAn.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 01/11/2004
+'# Cloture Annuelle
+'################################################
+'
+
+Private Tab As String
+Private Dtpc As String
+Private Dpc As String
+Private datec As String
+Private datec2 As String ' date debut exo à cloturer
+Private datec3 As String ' date fin exo à cloturer
+Private dtepc As String
+Private jour As String
+Private Rp As String
+Private Rplus As String
+Private rmoins As String
+Private dterpt As String
+Private Rslt As String
+Private cpt As String
+Private Jrl As String
+Private son As Integer = Start.Son
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Music.Load(Start.Musique)
+  Me.Center
+  
+End
+
+Public Sub Form_Open()
+  
+  Dim rResult As Result
+  
+  Tab = "Fiches_Parametres"
+  With Utils
+    If Settings["/Soc" & Start.Societe & "/Gestion"] Then TextLabel1.Text = "Attention!ce programme va fermer l 'exercice proposé.\n Après cela vous ne pourrez plus exporter d'écritures sur cet exercice. "
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
+    Dtpc = rResult!dteclec1
+    dtepc = Left(Dtpc, 2)
+    Dpc = Right$(Dtpc, 4)
+    Dpc = Val(Dpc)
+    Aff_date()
+    datecl.Text = .Cdate_Aff(rResult!dteclec)
+    datecl.Text = Format$(Date(Right(datecl.Text, 4), Mid(datecl.Text, 4, 2), Left(datecl.Text, 2)), "dd mmmm yyyy")
+    Calc_Daterpt(rResult!dteclec)
+    datec = .Cdate_Comp(rResult!dtepc)
+    datec2 = .Cdate_Comp(rResult!dteclec1)
+    datec3 = .Cdate_Comp(rResult!dteclec)
+    Rplus = rResult!cptrsplus
+    rmoins = rResult!cptrsmoins
+    Jrl = rResult!jdr
+  End With
+  jour = Format$(Now, "dd.mm.yyyy")
+  Rp = "Report a nouveau"
+  Rslt = "Resultat"
+  
+End
+
+Public Sub Aff_date()
+  
+  dtepc = Format(Val(dtepc) + 1, "00")
+  If Val(dtepc) > 12 Then
+    dtepc = "01"
+    dpc = Left$(Dtpc, 6) & Str(Val(Right$(dpc, 4)) + 1)
+  Endif
+  Dtpc = Format$(Date(Right(dpc, 4), dtepc, 01), "mmmm  yyyy")
+  datecl.Text = Format$(Date(datec3), "dd mmmm  yyyy")
+  dtepc = Format$(Val(dtepc), "00")
+  dateprc.Text = Format$(Date(Right(dpc, 4), dtepc, 01), "dd mmmm  yyyy")
+  
+End
+
+Public Sub Calc_Daterpt(Dtpc2 As String)
+  
+  dtepc = Left(Dtpc2, 2)
+  dtepc = Format(Val(dtepc) + 1, "00")
+  If Val(dtepc) > 12 Then
+    dtepc = "01"
+    dpc = Str(Val(Right$(datecl.Text, 4)) + 1)
+  Else
+    dpc = Right$(datecl.Text, 4)
+  Endif
+  Dtpc = Format$(Date(Right(dpc, 4), dtepc, 01), "mmmm  yyyy")
+  dtepc = Format$(Val(dtepc), "00")
+  dterpt = Format$(Date(dpc, dtepc, 01), "yyyymmdd")
+  
+End
+
+Public Sub Button3_Click()
+  
+  Me.Close
+  
+End
+
+Public Sub Button1_Click()
+  
+  Dim rResult As Result
+  Dim rrResult As Result
+  Dim cResult As Result
+  Dim TResult As Result
+  Dim EResult As Result
+  Dim num As String
+  Dim Tab0 As String
+  Dim Tab1 As String
+  Dim Tab2 As String
+  Dim Tab3 As String
+  Dim Tab4 As String
+  Dim Tab5 As String
+  Dim Tab6 As String
+  Dim Tab7 As String
+  Dim TabA, TabA1, TabA2, TabA3, TabA4, TabA5 As String
+  Dim numecr1 As Integer ' Numero écriture provisoire
+  Dim numecr3 As Integer ' Numero écriture définitive
+  Dim Deb As Float
+  Dim Cred As Float
+  Dim Debplus As Float
+  Dim Credplus As Float
+  Dim TotDeb As Float
+  Dim TotCred As Float
+  Dim TotSld As Float
+  Dim debit As Float
+  Dim credit As Float
+  Dim Compt As String
+  Dim Intit As String
+  Dim Type As String
+  Dim i As Integer
+  Dim b As Integer
+  Dim Dclient As String
+  Dim Cclient As String
+  Dim Sclient As String
+  Dim Cfournisseur As String
+  Dim Dfournisseur As String
+  Dim Sfournisseur As String
+  Dim Dgestion As String
+  Dim Cgestion As String
+  Dim Sgestion As String
+  Dim Dbilan As String
+  Dim Cbilan As String
+  Dim Sbilan As String
+  Dim Dgenerale As String
+  Dim Cgenerale As String
+  Dim Sgenerale As String
+  Dim Dbclient As String
+  Dim Cbclient As String
+  Dim Sbclient As String
+  Dim Dbfournisseur As String
+  Dim Cbfournisseur As String
+  Dim Sbfournisseur As String
+  Dim Col As String
+  Dim cloturee As Boolean
+  
+  Tab0 = "Fiches_Parametres"
+  'On récupère les numéros d'écritures
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & "")
+  Numecr1 = rResult!numecriture 'écriture provisoire
+  Numecr3 = rResult!numecriture2 'écriture définitive
+  Inc Numecr1
+  Inc Numecr3
+  Tab = "Fiches_Mvt"
+  Tab7 = "Fiches_Comptes"
+  b = 0
+  With Utils
+    If son Then
+      Music.Play
+    Endif
+    
+    Dclient = "0,00"
+    Cclient = "0,00"
+    Sclient = "0,00"
+    Cfournisseur = "0,00"
+    Dfournisseur = "0,00"
+    Sfournisseur = "0,00"
+    Dgestion = "0,00"
+    Cgestion = "0,00"
+    Sgestion = "0,00"
+    Dbilan = "0,00"
+    Cbilan = "0,00"
+    Sbilan = "0,00"
+    Dgenerale = "0,00"
+    Cgenerale = "0,00"
+    Sgenerale = "0,00"
+    Dbclient = "0,00"
+    Cbclient = "0,00"
+    Sbclient = "0,00"
+    Dbfournisseur = "0,00"
+    Cbfournisseur = "0,00"
+    Sbfournisseur = "0,00"
+    Tab = "Fiches_Mvt"
+    Tab2 = "Fiches_Comptes"
+    
+    Me.Mouse = Mouse.Wait
+    rrResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " order by cast(compte_cc AS char)")
+    If Message.Question("La legislation prévoit d'archiver les sauvegardes avant cloture annuelle pendant cinq ans.\n Avez-vous correctement fait votre sauvegarde ?", "Oui", "Non") = "1" Then
+      Message.Info("Le programme va maintenant vérifier votre balance générale")
+      If rrResult.Available Then
+        Repeat
+          compt = rrResult!compte_cc
+          type = rrResult!type_cc
+          Col = rrResult!coll
+          rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE compte = &1  and validee = &2 and dte >= &3 and dte <= &4", compt, 1, datec2, datec3)
+          If rResult.count <> 0 Then
+            i = 0
+            While i < rResult.count
+              debit = rResult!montantd
+              credit = rResult!montantc
+              If debit = Null Then debit = 0
+              If credit = Null Then credit = 0
+              
+              If type = "C" Then
+                Dbclient = Format$(Val(.cpoint(Dbclient)) + debit, "0.00")
+                Cbclient = Format$(Val(.cpoint(Cbclient)) + credit, "0.00")
+                Sbclient = Format$(Val(.cpoint(Dbclient)) - Val(.cpoint(Cbclient)), "0.00")
+              Endif
+              
+              If type = "F" Then
+                Dbfournisseur = Format$(Val(.cpoint(Dbfournisseur)) + debit, "0.00")
+                Cbfournisseur = Format$(Val(.cpoint(Cbfournisseur)) + credit, "0.00")
+                Sbfournisseur = Format$(Val(.cpoint(Dbfournisseur)) - Val(.cpoint(Cbfournisseur)), "0.00")
+              Endif
+              
+              If type = "G" Then
+                Dgestion = Format$(Val(.cpoint(Dgestion)) + debit, "0.00")
+                Cgestion = Format$(Val(.cpoint(Cgestion)) + credit, "0.00")
+                Sgestion = Format$(Val(.cpoint(Dgestion)) - Val(.cpoint(Cgestion)), "0.00")
+              Endif
+              
+              If type = "B" Then
+                Dbilan = Format$(Val(.cpoint(Dbilan)) + debit, "0.00")
+                Cbilan = Format$(Val(.cpoint(Cbilan)) + credit, "0.00")
+                Sbilan = Format$(Val(.cpoint(Dbilan)) - Val(.cpoint(Cbilan)), "0.00")
+              Endif
+              
+              If type = "B" And Col = "1" And Left$(Compt, 2) = "41" Then
+                Dclient = Format$(Val(.cpoint(Dclient)) + debit, "0.00")
+                Cclient = Format$(Val(.cpoint(Cclient)) + credit, "0.00")
+                Sclient = Format$(Val(.cpoint(Dclient)) - Val(.cpoint(Cclient)), "0.00")
+              Endif
+              
+              If type = "B" And Col = "1" And Left$(Compt, 2) = "40" Then
+                Dfournisseur = Format$(Val(.cpoint(Dfournisseur)) + debit, "0.00")
+                Cfournisseur = Format$(Val(.cpoint(Cfournisseur)) + credit, "0.00")
+                Sfournisseur = Format$(Val(.cpoint(Dfournisseur)) - Val(.cpoint(Cfournisseur)), "0.00")
+              Endif
+              
+              Inc i
+              rResult.MoveNext
+            Wend
+          Endif
+        Until rrResult.MoveNext()
+        Dgenerale = Format$(Val(.cpoint(Dgestion)) + Val(.cpoint(Dbilan)), "0.00")
+        Cgenerale = Format$(Val(.cpoint(Cgestion)) + Val(.cpoint(Cbilan)), "0.00")
+        Sgenerale = Format$(Val(.cpoint(Dgenerale)) - Val(.cpoint(Cgenerale)), "0.00")
+      Endif
+      Me.Mouse = Mouse.Default
+      If Val(Sgenerale) <> 0 Then
+        Message.Warning("Votre balance générale est déséquilibrée ! Cloture de l'exercice impossible !")
+        Me.close
+      Endif
+      If Val(Sgenerale) = 0 Then
+        Message.Info(" Votre balance générale est équilibrée ! \n Le programme va maintenant lancer la cloture de l'exercice !")
+        If Message.Question("Etes vous sur de vouloir lancer la cloture de l'exercice au " & datecl.Text, "Non", "Oui") = 2 Then
+          If datec >= datec3 Then
+            Me.Mouse = Mouse.Wait
+            dateprc.Text = Left$(dateprc.Text, 6) & Right$(datecl.Text, 4)
+            Sauve()
+            
+            ' On remet tous les soldes à zéro
+            rrResult = Utils.db.Exec("SELECT * FROM " & Tab7 & "")
+            Repeat
+              Utils.db.Exec("UPdate  " & Tab7 & "  SET  solde = &2 where compte_cc = &1", rrResult!compte_cc, 0)
+            Until rrResult.MoveNext()
+            
+            ' On recalcule les soldes pour l'exercice en cours de bilan
+            rrResult = Utils.db.Exec("SELECT * FROM " & Tab7 & " order by cast(compte_cc AS char)")
+            If rrResult.Available Then
+              Repeat
+                compt = rrResult!compte_cc
+                Intit = rrResult!intitule_cc
+                rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE compte = &1 and validee = &2 order by dte ", compt, 1)
+                If rResult.count <> 0 Then
+                  Repeat
+                    If .Cdate_Comp(rResult!dte) <= datec3
+                      debit = rResult!montantd
+                      credit = rResult!montantc
+                      totdeb = totdeb + debit
+                      totcred = totcred + credit
+                      totsld = totdeb - totcred
+                    Endif
+                  Until rResult.MoveNext()
+                  Utils.db.Exec("UPdate " & Tab7 & "  SET solde = &2 where compte_cc = &1", Compt, .PointBase(Totsld))
+                Else
+                  totsld = 0
+                  Utils.db.Exec("UPdate " & Tab7 & "  SET solde = &2 where compte_cc = &1", Compt, .PointBase(Totsld))
+                Endif
+                totdeb = 0
+                totcred = 0
+                totsld = 0
+              Until rrResult.MoveNext()
+            Endif
+            Tab6 = "Report"
+            Tab5 = "Fiches_Mvt5"
+            Tab4 = "Fiches_Mvt4"
+            Tab3 = "Fiches_Mvt3"
+            Tab2 = "Fiches_Mvt2"
+            Tab1 = "Fiches_Mvt1"
+            TabA5 = "Fiches_MvtA5"
+            TabA4 = "Fiches_MvtA4"
+            TabA3 = "Fiches_MvtA3"
+            TabA2 = "Fiches_MvtA2"
+            TabA1 = "Fiches_MvtA1"
+            TabA = "Fiches_MvtA"
+            Utils.db.Exec("drop Table IF exists " & Tab5 & "")
+            Utils.db.Exec("alter Table " & Tab4 & " Rename " & Tab5 & "")
+            Utils.db.Exec("alter Table " & Tab3 & " Rename " & Tab4 & "")
+            Utils.db.Exec("alter Table " & Tab2 & " Rename " & Tab3 & "")
+            Utils.db.Exec("alter Table " & Tab1 & " Rename " & Tab2 & "")
+            Utils.db.Exec("alter Table " & Tab & " Rename " & Tab1 & "")
+            Utils.db.Exec("drop Table IF exists " & TabA5 & "")
+            Utils.db.Exec("alter Table " & TabA4 & " Rename " & TabA5 & "")
+            Utils.db.Exec("alter Table " & TabA3 & " Rename " & TabA4 & "")
+            Utils.db.Exec("alter Table " & TabA2 & " Rename " & TabA3 & "")
+            Utils.db.Exec("alter Table " & TabA1 & " Rename " & TabA2 & "")
+            Utils.db.Exec("alter Table " & TabA & " Rename " & TabA1 & "")
+            
+            TabA = "Fiches_MvtA"
+            Utils.db.Exec("CREATE TABLE " & TabA & 
+              " (numero Integer(6) NOT NULL," &
+              "compte CHAR(8) NOT NULL," &
+              "intitule Char(30)," &
+              "dte date," &
+              "numdoc CHAR(10) NOT NULL," &
+              "libelle CHAR(30)," &
+              "pourcent CHAR(5)," &
+              "montantd Decimal(12,2)," &
+              "montantc Decimal(12,2)," &
+              "jour Char(2)," &
+              "poste Char(3)," &
+              "validee TINYINT(1)," &
+              "lind INT NOT NULL AUTO_INCREMENT," &
+              "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+            
+            Utils.db.Exec("CREATE TABLE " & Tab &
+              " (jour Char(2)," &
+              "numero Integer(11) NOT NULL," &
+              "numerodef Integer(11)," &
+              "compte CHAR(8) NOT NULL," &
+              "collectif TINYINT," &
+              "intitule Char(30)," &
+              "dte date," &
+              "datee date, " &
+              "dateech date, " &
+              "numcol Char(3)," &
+              "numdoc CHAR(10)," &
+              "numlot CHAR(10)," &
+              "libelle CHAR(30)," &
+              "montantd Decimal(12,2)," &
+              "montantc Decimal(12,2)," &
+              "validee TINYINT(1)," &
+              "provisoire TINYINT(1)," &
+              "tresorerie  TINYINT(1)," &
+              "pointee TINYINT(1)," &
+              "nrlv INTEGER(8)," &
+              "lettree TINYINT(1)," &
+              "cloturee TINYINT(1)," &
+              "dteval date, " &
+              "relance INTEGER(1)," &
+              "numerop Integer(11) NOT NULL," &
+              "numeropdef Integer(11) NOT NULL," &
+              "export Char(1)," &
+              "lind INT NOT NULL AUTO_INCREMENT," &
+              "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+            
+            Utils.db.Exec("drop Table IF exists " & Tab6 & "")
+            Utils.db.Exec("CREATE TABLE " & Tab6 &
+              " (jour Char(2)," &
+              "numero Integer(6) NOT NULL," &
+              "numerodef Integer(6)," &
+              "compte CHAR(8) NOT NULL," &
+              "collectif TINYINT," &
+              "intitule Char(30)," &
+              "dte date," &
+              "datee date, " &
+              "dateech date, " &
+              "numcol Char(3)," &
+              "numdoc CHAR(10)," &
+              "numlot CHAR(10)," &
+              "libelle CHAR(30)," &
+              "reptd Decimal(12,2)," &
+              "reptc Decimal(12,2)," &
+              "validee TINYINT(1)," &
+              "provisoire TINYINT(1)," &
+              "tresorerie  TINYINT(1)," &
+              "pointee TINYINT(1)," &
+              "nrlv INTEGER(8)," &
+              "lettree TINYINT(1)," &
+              "cloturee TINYINT(1)," &
+              "dteval date, " &
+              "relance INTEGER(1)," &
+              "export Char(1)," &
+              "lind INT NOT NULL AUTO_INCREMENT," &
+              "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+            
+            ' On recupere les écritures analytiques
+            
+            rResult = Utils.db.Exec("SELECT * FROM " & TabA1 & "")
+            If rResult.Available Then
+              Repeat
+                If .Cdate_Comp(rResult!dte) > Datec3 Then
+                  Utils.db.Exec("INSERT INTO " & TabA & "(jour,numero,compte,intitule,dte,numdoc, libelle, pourcent, montantd, montantc,poste) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rResult!jour, rResult!numero, rResult!compte, rResult!intitule, rResult!dte, rResult!numdoc, rResult!libelle, rResult!pourcent, rResult!montantd, rResult!montantc, rResult!poste)
+                  Utils.db.Exec("DELETE FROM " & tabA1 & " WHERE numero = &1 and compte = &2 and poste = &3", rResult!numero, rResult!compte, rResult!poste)
+                Endif
+              Until rResult.MoveNext()
+            Endif
+            
+            ' On recupere les comptes clients et fournisseurs
+            
+            rResult = Utils.db.Exec("SELECT * FROM " & Tab1 & "")
+            If rResult.Available Then
+              Repeat
+                cResult = Utils.db.Exec("SELECT * FROM " & Tab7 & " WHERE compte_cc = &1", rResult!compte)
+                If cResult.Available Then
+                  If cResult!type_cc = "C" Or If cResult!type_cc = "F" Then
+                    If .Cdate_Comp(rResult!dte) > datec3 Then
+                      If rResult!cloturee = True Then
+                        Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee,Pointee, nrlv, numcol, collectif, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20} )", rResult!jour, rResult!numero, rResult!compte, rResult!intitule, rResult!dte, rResult!numdoc, rResult!numlot, rResult!libelle, rResult!montantd, rResult!montantc, 0, rResult!provisoire, rResult!tresorerie, rResult!lettree, rResult!cloturee, rResult!pointee, rResult!nrlv, rResult!numcol, rResult!collectif, rResult!numerodef)
+                      Else
+                        Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee,Pointee, nrlv, numcol, collectif, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20} )", rResult!jour, rResult!numero, rResult!compte, rResult!intitule, rResult!dte, rResult!numdoc, rResult!numlot, rResult!libelle, rResult!montantd, rResult!montantc, 0, rResult!provisoire, rResult!tresorerie, rResult!lettree, rResult!cloturee, rResult!pointee, rResult!nrlv, rResult!numcol, rResult!collectif, 0)
+                      Endif
+                      Utils.db.Exec("UPdate " & Tab7 & "  SET solde = &2 where compte_cc = &1", Compt, cResult!solde)
+                      Utils.db.Exec("DELETE FROM " & tab1 & " WHERE numero = &1 and compte = &2 and numcol = &3", rResult!numero, rResult!compte, rResult!numcol)
+                      Deb = 0
+                      Cred = 0
+                    Else
+                      If .Cdate_Comp(rResult!dte) > Datec2 And .Cdate_Comp(rResult!dte) <= datec3 Then
+                        num = rResult!numero
+                        rrResult = Utils.db.Exec("SELECT * FROM " & Tab6 & " WHERE  compte = &1", rResult!compte)
+                        If rrResult.Available Then
+                          Deb = Val(.cpoint(rrResult!reptd)) + Val(.cpoint(rResult!montantd))
+                          Cred = Val(.cpoint(rrResult!reptc)) + Val(.cpoint(rResult!montantc))
+                          Utils.db.Exec("UPdate  " & Tab6 & "  SET  compte =  &1, reptd = &3, reptc = &4, collectif = &5, intitule = &2, numdoc = &7, numlot = &8 where compte = &1", rResult!compte, rResult!intitule, .PointBase(Deb), .PointBase(Cred), rResult!collectif, cResult!compte_cc, rResult!numdoc, rResult!numlot)
+                        Else
+                          Utils.db.Exec("INSERT INTO " & Tab6 & "(compte,reptd,reptc, collectif, intitule, numdoc, numlot, dte, numero, lettree) VALUES (&1, &3, &4, &5, &2, &7, &8, &9, &{10}, &{11})", rResult!compte, rResult!intitule, rResult!montantd, rResult!montantc, rResult!collectif, cResult!compte_cc, rResult!numdoc, rResult!numlot, rResult!dte, rResult!numero, rResult!lettree)
+                        Endif
+                      Endif
+                    Endif
+                  Endif
+                Endif
+                ' On recupere les comptes de bilan
+                
+                If cResult!type_cc = "B" Then ' Si compte de bilan
+                  If .Cdate_Comp(rResult!dte) > Datec2 And .Cdate_Comp(rResult!dte) <= datec3 Then
+                    rrResult = Utils.db.Exec("SELECT * FROM " & Tab6 & " WHERE  compte = &1", rResult!compte)
+                    If rrResult.Available Then
+                      Deb = Val(.cpoint(rrResult!reptd)) + Val(.cpoint(rResult!montantd))
+                      Cred = Val(.cpoint(rrResult!reptc)) + Val(.cpoint(rResult!montantc))
+                      Utils.db.Exec("UPdate  " & Tab6 & "  SET  compte =  &1, reptd = &3, reptc = &4, collectif = &5, intitule = &2, numdoc = &7, numlot = &8 where compte = &1", rResult!compte, rResult!intitule, .PointBase(Deb), .PointBase(Cred), rResult!collectif, cResult!compte_cc, rResult!numdoc, rResult!numlot)
+                    Else
+                      Utils.db.Exec("INSERT INTO " & Tab6 & "(compte,reptd,reptc, collectif, intitule, numdoc, numlot, dte, numero) VALUES (&1, &3, &4, &5, &2, &7, &8, &9, &{10})", rResult!compte, rResult!intitule, rResult!montantd, rResult!montantc, rResult!collectif, cResult!compte_cc, rResult!numdoc, rResult!numlot, rResult!dte, rResult!numero)
+                    Endif
+                    If Not cResult!coll Then ' si compte de bilan on additionne
+                      Utils.db.Exec("UPdate " & Tab7 & "  SET solde = &2 where compte_cc = &1", Compt, cResult!solde)
+                    Endif
+                  Else
+                    If .Cdate_Comp(rResult!dte) > Datec3 Then
+                      If rResult!cloturee = True Then
+                        Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,cloturee,pointee,nrlv, numcol, collectif, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20} )", rResult!jour, rResult!numero, rResult!compte, rResult!intitule, rResult!dte, rResult!numdoc, rResult!numlot, rResult!libelle, rResult!montantd, rResult!montantc, 0, rResult!provisoire, rResult!tresorerie, rResult!lettree, rResult!cloturee, rResult!pointee, rResult!nrlv, rResult!numcol, rResult!collectif, rResult!numerodef)
+                      Else
+                        Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,cloturee,pointee,nrlv, numcol, collectif, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20} )", rResult!jour, rResult!numero, rResult!compte, rResult!intitule, rResult!dte, rResult!numdoc, rResult!numlot, rResult!libelle, rResult!montantd, rResult!montantc, 0, rResult!provisoire, rResult!tresorerie, rResult!lettree, rResult!cloturee, rResult!pointee, rResult!nrlv, rResult!numcol, rResult!collectif, 0)
+                      Endif
+                      Utils.db.Exec("DELETE FROM " & tab1 & " WHERE numero = &1 and compte = &2 and numcol = &3", rResult!numero, rResult!compte, rResult!numcol)
+                    Endif
+                  Endif
+                Endif
+                
+                ' On totalise les comptes de gestion
+                
+                If cResult!type_cc = "G" Then
+                  If .Cdate_Comp(rResult!dte) > Datec2 And .Cdate_Comp(rResult!dte) <= datec3 Then
+                    num = rResult!numero
+                    rrResult = Utils.db.Exec("SELECT * FROM " & Tab6 & " WHERE  compte = &1", 980000)
+                    If rrResult.Available Then
+                      Deb = Val(.cpoint(rrResult!reptd)) + Val(.cpoint(rResult!montantd))
+                      Cred = Val(.cpoint(rrResult!reptc)) + Val(.cpoint(rResult!montantc))
+                      Utils.db.Exec("UPdate  " & Tab6 & "  SET  compte =  &1, reptd = &3, reptc = &4, collectif = &5, intitule = &6 where compte = &1", 980000, rResult!intitule, .PointBase(Deb), .PointBase(Cred), rResult!collectif, cResult!compte_cc)
+                    Else
+                      Utils.db.Exec("INSERT INTO " & Tab6 & "(compte,reptd,reptc, collectif, intitule) VALUES (&1, &3, &4, &5, &6)", 980000, rResult!intitule, rResult!montantd, rResult!montantc, rResult!collectif, cResult!compte_cc)
+                    Endif
+                  Else
+                    If .Cdate_Comp(rResult!dte) > Datec3 Then
+                      If rResult!cloturee = True Then
+                        Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee,Pointee, numcol, collectif, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19} )", rResult!jour, rResult!numero, rResult!compte, rResult!intitule, rResult!dte, rResult!numdoc, rResult!numlot, rResult!libelle, rResult!montantd, rResult!montantc, rResult!validee, rResult!provisoire, rResult!tresorerie, 0, rResult!cloturee, rResult!pointee, rResult!numcol, rResult!collectif, rResult!numerodef)
+                      Else
+                        Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee,Pointee, numcol, collectif, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19} )", rResult!jour, rResult!numero, rResult!compte, rResult!intitule, rResult!dte, rResult!numdoc, rResult!numlot, rResult!libelle, rResult!montantd, rResult!montantc, rResult!validee, rResult!provisoire, rResult!tresorerie, 0, rResult!cloturee, rResult!pointee, rResult!numcol, rResult!collectif, 0)
+                      Endif
+                      Utils.db.Exec("DELETE FROM " & tab1 & " WHERE numero = &1 and compte = &2 and numcol = &3", rResult!numero, rResult!compte, rResult!numcol)
+                    Endif
+                  Endif
+                Endif
+              Until rResult.MoveNext()
+            Endif
+            
+            'On mouvemente la table des mouvements pour les reports
+            rrResult = Utils.db.Exec("SELECT * FROM " & Tab6 & "")
+            If rrResult.Available Then
+              Repeat
+                TResult = Utils.db.Exec("SELECT * FROM " & Tab7 & " where compte_cc = &1", rrResult!compte)
+                If rrResult!compte <> "980000" Then Type = TResult!type_cc
+                Deb = Val(.cpoint(rrResult!reptd))
+                Cred = Val(.cpoint(rrResult!reptc))
+                Deb = Deb - Cred
+                If Deb < 0 Then
+                  cpt = rplus
+                  Debplus = 0
+                  Credplus = Abs(Deb)
+                Else
+                  cpt = rmoins
+                  Debplus = Abs(Deb)
+                  Credplus = 0
+                Endif
+                If rrResult!compte = "980000" Then
+                  Utils.db.Exec("INSERT INTO " & Tab & "(jour,compte,intitule,dte, libelle, montantd, montantc,validee, provisoire,lettree,cloturee, collectif, numdoc, numlot, numero,numerodef, tresorerie) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jrl, cpt, Rslt, dterpt, rp, Debplus, Credplus, 1, 0, 0, 1, rrResult!collectif, " ", " ", numecr1, numecr3, 0)
+                Else
+                  If Debplus <> 0 Or If Credplus <> 0 Then
+                    Utils.db.Exec("INSERT INTO " & Tab & "(jour,compte,intitule,dte, libelle, montantd, montantc,validee, provisoire,lettree,cloturee, collectif, numdoc, numlot, numero,numerodef, tresorerie) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jrl, rrResult!compte, rrResult!intitule, dterpt, rp, Debplus, Credplus, 1, 0, 0, 1, rrResult!collectif, " ", " ", numecr1, numecr3, 0)
+                  Endif
+                Endif
+              Until rrResult.MoveNext()
+            Endif
+            
+            ' On remet tous les soldes à zéro
+            rrResult = Utils.db.Exec("SELECT * FROM " & Tab7 & "")
+            Utils.db.Exec("UPdate  " & Tab7 & "  SET  solde = &1", 0)
+            
+            ' On recalcule les soldes
+            Utils.db.Exec("UPdate  " & tab & "  SET  validee = &1", 1) 'Toutes les écritures sont validées.
+            rrResult = Utils.db.Exec("SELECT * FROM " & Tab7 & " order by cast(compte_cc AS char)")
+            If rrResult.Available Then
+              Repeat
+                compt = rrResult!compte_cc
+                Intit = rrResult!intitule_cc
+                rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE compte = &1 and validee = &2 order by dte ", compt, 1)
+                If rResult.count <> 0 Then
+                  Repeat
+                    debit = rResult!montantd
+                    credit = rResult!montantc
+                    totdeb = totdeb + debit
+                    totcred = totcred + credit
+                    totsld = totdeb - totcred
+                  Until rResult.MoveNext()
+                  Utils.db.Exec("UPdate " & Tab7 & "  SET solde = &2 where compte_cc = &1", Compt, .PointBase(Totsld))
+                Else
+                  totsld = 0
+                  Utils.db.Exec("UPdate " & Tab7 & "  SET solde = &2 where compte_cc = &1", Compt, .PointBase(Totsld))
+                Endif
+                totdeb = 0
+                totcred = 0
+                totsld = 0
+              Until rrResult.MoveNext()
+            Endif
+            
+            ' On change les dates et on déplace les numéros d'écritures
+            rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & "")
+            datec2 = rResult!dteclec
+            Dtpc = Val(Right$(datec2, 4)) + 1
+            datec2 = Mid$(datec2, 4, 2) & "." & Left$(datec2, 2) & "." & Dtpc
+            Inc Numecr1
+            Inc Numecr3
+            Utils.db.Exec("UPdate  " & Tab0 & "  SET  dteclec = &1, dteclec1 = &2, dteclec2 = &3, dteclec3= &4, dteclec4 = &5, dteclec5 = &6, dtetdec= &7, dtefedec = &8, numecriture = &9, numecriture1 = &{10}, numecriture2 = &{11} ", .Cdate_Dbase(datec2), rResult!dteclec, rResult!dteclec1, rResult!dteclec2, rResult!dteclec3, rResult!dteclec4, .Cdate_Dbase(jour), rResult!dteclec, numecr1, 0, numecr3)
+            
+            'On mouvemente les écritures
+            Tab = "Fiches_Mvt"
+            rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by numero")
+            If rResult.Available Then
+              Repeat
+                num = rResult!numero
+                Utils.db.Exec("UPdate  " & Tab & "  SET numerop = &1 where numero = &1", rResult!numero)
+              Until rResult.MoveNext()
+            Endif
+            
+            ' On renumérote les écritures
+            numecr3 = 0
+            numecr1 = 0
+            num = ""
+            rResult = Utils.db.Exec("SELECT distinct numerop, cloturee FROM " & Tab & " order by numerop")
+            If rResult.Available Then
+              num = rResult!numerop
+              Repeat
+                cloturee = rResult!cloturee
+                If cloturee = True Then
+                  Inc numecr3
+                  Inc numecr1
+                Else
+                  Inc numecr1
+                Endif
+                Eresult = Utils.db.Exec("SELECT * FROM " & Tab & " where numerop = &1", rResult!numerop)
+                Repeat
+                  If CheckBox1.value Then
+                    If EResult!cloturee = True Then Utils.db.Exec("UPdate  " & Tab & "  SET numerodef =  &1, numero = &2 where lind = &3", numecr3, numecr1, Eresult!lind)
+                    If EResult!cloturee = False Then 
+                      Utils.db.Exec("UPdate  " & Tab & "  SET numero =  &1, numerodef = &3 where lind = &2", numecr1, Eresult!lind, 0)
+                    Endif
+                  Else
+                    If EResult!cloturee = False Then Utils.db.Exec("UPdate  " & Tab & "  SET numerodef = &1 where lind = &2", 0, Eresult!lind)
+                    If EResult!cloturee = True Then Utils.db.Exec("UPdate  " & Tab & "  SET numerodef = &1 where lind = &2", numecr3, Eresult!lind)
+                  Endif
+                Until EResult.MoveNext()
+              Until rResult.MoveNext()
+              'If cloturee = True Then Utils.db.Exec("UPdate  " & Tab & "  SET numerodef =  &1, numero = &2, numerop = &2 where numerop = &3", numecr3, numecr1, num)
+              'If cloturee = False Then Utils.db.Exec("UPdate  " & Tab & "  SET numero =  &1 where numerop = &2", numecr1, num)
+            Endif
+            If CheckBox1.value Then
+              Utils.db.Exec("UPdate  " & Tab0 & "  SET  numecriture = &1, numecriture1 = &2, numecriture2 = &3 ", numecr1, 0, numecr3)
+            Else
+              Utils.db.Exec("UPdate  " & Tab0 & "  SET  numecriture1 = &1, numecriture2 = &2 ", 0, numecr3)
+            Endif
+            
+            ' On lettre les écritures
+            
+            Try Me.Mouse = Mouse.Default
+            If son Then
+              Music.Play
+            Endif
+            Message.Warning(" Traitement terminé ! ", "OK")
+          Else
+            If son Then
+              Music.Play
+            Endif
+            Message.Warning("Attention ! La date de la dernière cloture est inférieure \n à la date de fin d'exercice\n Veuillez finir vos clotures de périodes avant la cloture annuelle .", "OK")
+            Me.close
+          Endif
+        Endif
+      Endif
+    Endif
+  End With
+  
+End
+
+Public Sub Sauve()
+  
+  Dim cp As New Compress
+  Dim dte As String
+  Dim SauveRep As String
+  Dim cs As String = Settings["/Soc"]
+  
+  Try SauveRep = user.Home & "/Sauve"
+  If Not Exist(SauveRep) Then Mkdir SauveRep
+  cp.type = "zlib"
+  dte = Format$(Now, "ddmmyyyy")
+  Shell "mysqldump -h " & Settings["/dbase/Host"] & " -u" & " " & Utils.db.Login & " -p" & Utils.db.Password & " " & "Laurux" & " " & "--add-drop-table" & " " & ">" & " " & User.home & "/Laurux" & cs & "_" & dte & ".sql" Wait
+  If Exist(User.home & "/Laurux" & cs & "_" & dte & ".sql") Then
+    Try cp.File(user.home & "/Laurux" & cs & "_" & dte & ".sql", SauveRep & "/Laurux" & cs & " AvCL." & dte & ".gz ", cp.Max)
+    If Error Then
+      Move user.home & "/Laurux" & cs & "_" & dte & ".sql " To SauveRep & "/Laurux" & cs & " AvCL." & dte
+    Endif
+    Kill User.home & "/Laurux" & cs & "_" & dte & ".sql"
+  Else
+    Message.Error("Sauvegarde avant clôture impossible !\nLa cloture annuelle ne peut pas être faite")
+    Me.Close
+  Endif
+  
+End
+
+Public Sub Button2_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/ClotureAn.html"]
+  
+End

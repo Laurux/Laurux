@@ -1,0 +1,1292 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à  " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# Nom du fichier           : Tresor.class
+'# Auteur                   : Jacky Tripoteau
+'# Date de création         : 01/11/2004
+'# Gestion des écritures de trésorerie
+'################################################
+'
+hForm As FCalc
+Tab As String
+n As Integer
+Cnt As String
+soldec As Float
+montantdb As Float
+montantcd As Float
+Montantsel As Float
+Totalcd As Float
+Totaldb As Float
+Modif As String
+Vld As Boolean
+Prov As Boolean
+numCpt As String
+numlotT As String
+Gntva As Boolean
+num As Integer
+ecriture As String
+numecrit As String
+numlot As String
+TT As Float
+TD As String
+TC As String
+iLet As Integer
+ye2 As Integer
+dte2 As String
+dte3 As String
+numlet As String
+nvlle As Integer
+Lettrable As Integer
+b As Integer
+son As Integer = Start.Son
+Prg As String
+Cpt_tr As String ' numero du compte tresorerie
+
+Public Sub _new()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Music.Load(Start.Musique)
+  Me.Center
+  nvlle = 1
+  cnt = 1
+  Prg = "3"
+  
+End
+
+Public Sub form_open()
+  
+  Ecrit1.Columns.count = 6
+  Ecrit1.Columns[0].Width = 100
+  Ecrit1.Columns[1].Width = 220
+  Ecrit1.Columns[2].Width = 110
+  Ecrit1.Columns[3].Width = 140
+  Ecrit1.Columns[3].Alignment = 2
+  Ecrit1.Columns[4].Width = 280
+  Ecrit1.Columns[0].Text = "compte"
+  Ecrit1.Columns[1].Text = "intitule"
+  Ecrit1.Columns[2].Text = "N° document"
+  Ecrit1.Columns[3].Text = "Mt Facture"
+  Ecrit1.Columns[4].Text = "Libellé"
+  Ecrit1.Columns[5].Text = "Date"
+  soldeecrit.Text = "0,00"
+  soldec = 0
+  CV.SetFocus
+  CV.Select
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Cmpt_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  If Last.tag = "4" Then
+    If Not IsNull(Cv.Text) Then
+      Libelecrit.text = "Règlement par " & CV.Text
+    Else
+      Message.Warning("Veuillez saisir un mode de règlement SVP")
+      Cv.SetFocus
+    Endif
+  Endif
+  
+End
+
+Public Sub Cleanchamps()
+  
+  numcompte.Clear
+  Intitulcompte.Clear
+  soldecompte.Clear
+  Montant.Clear
+  numdoc.Clear
+  montantdb = 0
+  montantcd = 0
+  
+End
+
+Public Sub Movt()
+  
+  Dim rResult As Result
+  Dim tab As String
+  Dim tab2 As String
+  Dim tab4 As String
+  Dim tab5 As String
+  Dim collectif As String
+  Dim Param As Result
+  Dim jnal As String
+  Dim Lettree As Integer
+  
+  Tab = "Fiches_Mvt" 
+  Tab2 = "Fiches_Comptes" 
+  Tab4 = "Fiches_Parametres" 
+  Tab5 = "Fiches_Journaux" 
+  With utils
+    If montant.Text = Totselection.Text Then
+      Lettree = 1
+    Else
+      Lettree = 0
+    Endif
+    Param = Utils.db.Exec("SELECT * FROM " & Tab4 & "")
+    If CV.text = "Especes" Then
+      jnal = Param!jrnal2
+    Else
+      jnal = Param!jrnal3
+    Endif
+    Param = Utils.db.Exec("SELECT * FROM " & Tab5 & " where code_jo = &1", jnal)
+    Cpt_tr = Param!cde_banque
+    If IsNull(numlot) Then numlot = Numdoc.text
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE numero = &1 and compte = &2 and numlot = &4 ", numecrit, numcpt, numdoc.Text, numdoc.Text)
+    If rResult.Available Then
+      Utils.db.Exec("UPDATE  " & Tab & "  SET  jour = &1, numero = &2, compte = &3, intitule = &4, dte = &5, numlot = &6, libelle = &8, montantd = &9, montantc = &{10}, validee = &{11}, provisoire = &{12}, tresorerie = &{13}, lettree = &{14}, Cloturee = &{15} where numero = &2 and compte = &3 and numlot = &6", jnal, numecrit, numcpt, Intitulcompte.Text, .Cdate_Dbase(Datej.Text), numlot, Libelecrit.Text, montantdb, montantcd, 0, 1, 1, lettree, 0)
+    Else
+      Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte, numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15})", jnal, numecrit, numcpt, Intitulcompte.Text, .Cdate_Dbase(Datej.Text), numlot, numlot, Libelecrit.Text, montantdb, montantcd, 0, 1, 1, lettree, 0)
+      Montantdb = Val(montant.Text)
+      montantcd = 0
+      Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numecrit, Cpt_tr, CV.text & " " & Intitulcompte.Text, .Cdate_Dbase(Datej.Text), numlot, numlot, Libelecrit.Text, montantdb, montantcd, 0, 1, 1, lettree, 0, .Cdate_Dbase(Datej.Text))
+    Endif
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE compte_cc = &1", numcpt)
+    If rResult.Available Then
+      collectif = rResult!coll_cc
+    Endif
+    If collectif <> "" Then
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE compte_cc = &1", collectif)
+      If rResult.Available Then
+        rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE numero = &1 and compte = &2 ", numecrit, collectif)
+        If rResult.Available Then
+          montantdb = montantdb + rResult!montantd
+          montantcd = montantcd + rResult!montantc
+          Utils.db.Exec("UPDATE " & Tab & "  SET jour = &1,numero = &2,compte = &3,intitule = &4,dte = &5,numdoc = &6,numlot = &7,libelle = &8,montantd = &9,montantc = &{10},validee = &{11},provisoire = &{12},collectif = &{13}  where numero = &2 and compte = &3 ", 50, numecrit, collectif, Intitulcompte.Text, .Cdate_Dbase(Datej.Text), numdoc.Text, numlot, Libelecrit.Text, montantdb, montantcd, 1, 0, 1)
+        Else
+          Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee,collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16} )", 50, numecrit, collectif, Intitulcompte.Text, .Cdate_Dbase(Datej.Text), numdoc.Text, numlot, Libelecrit.Text, montantdb, montantcd, 0, 1, 0, 0, 0, 1)
+        Endif
+      Endif
+    Endif
+  End With
+  
+End
+
+Public Sub compte()
+  
+  Dim MyForm As TriComptes
+  Dim Tri As String
+  
+  Tri = "cast(compte_cc AS char)"
+  MyForm = New TriComptes(Tri, "C", "", "D4", "")
+  MyForm.Showmodal()
+  If Comptabilite.Bsel = True Then
+    Numcompte.text = Comptabilite.sCmpt
+    If Not IsNull(Numcompte.Text) Then
+      compteTiersman()
+    Else
+      Numcompte.SetFocus
+    Endif
+  Endif  
+  
+End
+
+Public Sub compteTiersman()
+  
+  Dim rResult As Result
+  
+  Tab = "Fiches_Comptes" 
+  b = 0
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & "  WHERE compte_cc = &1 and coll <> &2", numcompte.Text, 1)
+  If rResult.Available Then
+    Intitulcompte.Text = rResult!intitule_cc
+    soldecompte.Text = Format$(rResult!solde, "0.00")
+    If Left$(numcompte.Text, 3) = "411" Then Lettre_Click()
+  Else
+    b = 1
+    If son Then
+      Music.Play
+    Endif
+    message.Warning("Ce compte n'existe pas ou est un collectif!\n Verifiez votre saisie SVP !")
+    numcompte.SetFocus
+  Endif
+  
+End
+
+Public Sub Ecritures(numecr As String)
+  
+  Dim Params As Result
+  
+  Tab = "Fiches_Parametres" 
+  Params = Utils.db.Exec("SELECT " & numecr & " FROM " & Tab & " ")
+  If Params.Available Then
+    num = Params["" & numecr & ""]
+  Endif
+  
+End
+
+'************************************************
+'*  Mise a jour du dernier numéro d'écriture    *
+'************************************************
+Public Sub Majnum(numecr As String)
+  
+  Tab = "Fiches_Parametres" 
+  Utils.db.Exec("UPDATE " & Tab & " set " & numecr & " = &1", numecrit)
+  
+End
+
+Public Sub Lettrage()
+  
+  Dim rResult As Result
+  
+  Tab = "Fiches_Mvt" 
+  With utils
+    TT = 0
+    TC = 0
+    TD = 0
+    EcritL.Clear
+    EcritL.Visible = True
+    SELCT.Visible = True
+    Frame6.Visible = True
+    Totselection.Visible = True
+    QUIT.visible = True
+    EcritL.Columns.count = 8
+    EcritL.Columns[0].Width = 80
+    EcritL.Columns[1].Width = 100
+    EcritL.Columns[2].Width = 120
+    EcritL.Columns[3].Width = 240
+    EcritL.Columns[4].Width = 140
+    EcritL.Columns[5].Width = 140
+    EcritL.Columns[6].Width = 1
+    EcritL.Columns[0].Text = "Code"
+    EcritL.Columns[1].Text = "Date"
+    EcritL.Columns[2].Text = "Document N°"
+    EcritL.Columns[3].Text = "Libelle"
+    EcritL.Columns[4].Alignment = 2
+    EcritL.Columns[4].Text = "Mt Facture"
+    EcritL.Columns[5].Alignment = 2
+    EcritL.Columns[5].Text = "Mt règlement"
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & "  WHERE compte = &1 and lettree = &2 order by dte", numcompte.Text, 0)
+    If rResult.Available Then
+      Repeat
+        EcritL.Add(rResult!lind, rResult!lind)
+        EcritL.Item[0] = rResult!compte
+        EcritL.Item[1] = Format$(CDate(rResult!dte), "dd.mm.yyyy")
+        EcritL.Item[2] = rResult!numdoc
+        EcritL.Item[3] = rResult!libelle
+        EcritL.Item[4] = Format$(rResult!montantd, "0.00")
+        EcritL.Item[5] = Format$(rResult!montantc, "0.00")
+        EcritL.Item[6] = rResult!numlot
+        EcritL.Item[7] = rResult!numero
+      Until rResult.MoveNext()
+      'CATCH
+    Else
+      EcritL.visible = False
+      SELCT.Visible = False
+      QUIT.visible = False
+      Frame6.Visible = False
+      Totselection.Visible = False
+    Endif
+  End With
+  
+End
+
+Public Sub EcritL_Click()
+  
+  With Utils
+    TD = .Cpoint(EcritL.current[4])
+    If Val(TD) = Null Then TD = "0"
+    TC = .Cpoint(EcritL.Current[5])
+    If Val(TC) = Null Then TC = "0"
+    If ecritl.Current.selected Then
+      TT = TT + Val(TD) - Val(TC)
+    Else
+      TT = TT - Val(TD) + Val(TC)
+    Endif
+    Totselection.Text = Format$(Abs(TT), "0.00")
+    iLet = 0
+    Montant.SetFocus
+    If EcritL.Item.selected Then numlotT = EcritL.Item[6]
+  End With
+  
+End
+
+Public Sub ecritv()
+  
+  Dim rResult As Result
+  Dim cle As String
+  
+  Tab = "Fiches_Mvt" 
+  With utils
+    Ecrit3.Clear
+    Ecrit3.Visible = True
+    Ecrit3.Columns.count = 7
+    Ecrit3.Columns[0].Width = 60
+    Ecrit3.Columns[1].Width = 80
+    Ecrit3.Columns[2].Width = 100
+    Ecrit3.Columns[3].Width = 100
+    Ecrit3.Columns[4].Width = 120
+    Ecrit3.Columns[5].Width = 120
+    Ecrit3.Columns[6].Width = 200
+    Ecrit3.Columns[0].Text = "Journal"
+    Ecrit3.Columns[1].Text = "Code"
+    Ecrit3.Columns[2].Text = "Date"
+    Ecrit3.Columns[3].Text = "numéro"
+    Ecrit3.Columns[4].Text = "Mt Facture"
+    Ecrit3.Columns[5].Text = "Mt règlement"
+    Ecrit3.Columns[6].Text = "libelle"
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & "  WHERE validee = &1 and left(compte,2) = &2  and tresorerie = &3 and cloturee = &4 or validee = &1 and left(compte,2) = &5  and tresorerie = &3 and cloturee = &4 order by dte", 1, 51, 1, 0, 53)
+    If rResult.Available Then
+      Repeat
+        cle = rResult!lind
+        Try Ecrit3.Add(cle, cle)
+        If Not Error Then
+          Ecrit3.Item[0] = rResult!jour
+          Ecrit3.Item[1] = rResult!compte
+          Ecrit3.Item[2] = Format$(CDate(rResult!dte), "dd.mm.yyyy")
+          Ecrit3.Item[3] = rResult!numero
+          Ecrit3.Item[4] = Format$(rResult!montantd, "0.00")
+          Ecrit3.Item[5] = Format$(rResult!montantc, "0.00")
+          Ecrit3.Item[6] = rResult!libelle
+          iLet = rResult!lettree
+        Endif
+      Until rResult.MoveNext()
+    Endif
+  End With
+  
+End
+
+Public Sub Cmpt_KeyPress()
+  
+  Select Case Last.tag
+      
+    Case 2
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.tab Then
+        Datej_LF()
+        If b = 1 Then
+          Datej_Gotfocus()
+          Datej.SetFocus
+          datej.Select
+          Stop Event
+          b = 0
+        Else
+          Numcompte.SetFocus
+        Endif
+        Stop Event
+      Endif
+      
+    Case 3
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.tab Then
+        numcompte.SetFocus
+        numcompte.Select
+        Stop Event
+      Endif
+      
+    Case 4
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.tab Then
+        numcompte_LF()
+        If B = 1 Or numcompte.Text = "" Then
+          numcompte.SetFocus
+          numcompte.Select
+          B = 0
+        Else
+          Montant.SetFocus
+          Montant.Select
+        Endif
+        Stop Event
+      Endif
+      
+    Case 5
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.tab Then
+        Montant_LF()
+        If montant.Text = "" Or montant.Text = "0.00" Or montant.Text = "0,00" Then
+          If son Then
+            Music.Play
+          Endif
+          Message.Warning(" Attention ! Veuillez saisir un montant SVP !")
+          Montant.SetFocus
+          Montant.Select
+        Else
+          numdoc.SetFocus
+          numdoc.Select
+        Endif
+        If B = 1 Then
+          Montant.SetFocus
+          Montant.Select
+          B = 0
+        Endif
+        Stop Event
+      Endif
+      
+    Case 6
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.tab Then
+        numdoc_LF()
+        ToggleButton4.SetFocus
+        Stop Event
+      Endif
+      
+    Case 7
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.tab Then
+        Libelecrit.SetFocus
+        Libelecrit.Select
+        Stop Event
+      Endif
+      
+    Case 8
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.tab Then
+        ToggleButton4.SetFocus
+        Stop Event
+      Endif
+  End Select
+  
+  If key.code = key.F1 Then
+    Button3_Click()
+    Stop Event
+  Endif
+  
+  If Key.Code = Key.F2 Then
+    Select Case Last.Tag
+      Case 1
+        Journaux()
+        Stop Event
+        
+      Case 4
+        ToggleButton8_Click()
+    End Select
+  Endif
+  
+  If Key.code = Key.F5 Then
+    hForm = New FCalc
+    Select Case Last.tag
+        
+      Case 5
+        hForm.Showmodal()
+        If Not IsNull(FCalc.Resultat) Then
+          Montant.Text = Format$(Val(FCalc.Resultat), "0.00")
+        Endif
+        Stop Event
+        
+    End Select
+  Endif
+  
+End
+
+Public Sub Btn_KeyPress()
+  
+  Select Case Last.tag
+      
+    Case 4
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.tab Then
+        Stop Event
+      Endif
+      ToggleButton4_Click()
+  End Select
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Necrit_Click()
+      
+    Case 2
+      Suppr_Click()
+      
+    Case 3
+      Lettre_Click()
+      
+    Case 4
+      ToggleButton4_Click()
+      
+    Case 5
+      Button3_Click()
+      
+    Case 6
+      Selct_Click()
+      
+    Case 7
+      Quit_Click()
+      
+    Case 8
+      Button2_Click()
+      
+    Case 9
+      Button1_click()
+      
+  End Select
+  
+End
+
+Public Sub CV_keypress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Then
+    Datej_GotFocus()
+    Datej_Lf()
+    Stop Event
+  Endif
+  
+End
+
+Public Sub CV_click()
+  
+  If ecrit1.count <> 0 Then
+    If Message.Warning("Attention, vous avez déjà saisi des écritures !\n Etes-vous sur de vouloir modifier le mode de réglement ?", "Oui", "Non") = 1 Then
+      Datej_GotFocus()
+      Datej_Lf()
+    Endif
+  Else
+    Datej_GotFocus()
+    Datej_Lf()
+  Endif
+  
+End
+
+Public Sub Journal_GotFocus()
+  
+  cnt = "1"
+  
+End
+
+Public Sub Datej_GotFocus()
+  
+  Datej.Background = &HAAFF7F&
+  If nvlle = 1 Then
+    Datej.Text = Format$(Now, "dd.mm.yyyy")
+  Endif
+  If cnt = "1" Then
+    Datej.Background = &HF9F9BD&
+    NumCompte.SetFocus
+  Endif
+Catch
+  
+End
+
+Public Sub Datej_LF()
+  
+  QuitteDate()
+  If b = 1 Then
+    datej.SetFocus
+    datej.Select
+  Else
+    Numcompte.SetFocus
+  Endif
+  
+End
+
+Public Sub Numcompte_GotFocus()
+  
+  Libelecrit.text = "Règlement par " & CV.Text
+  
+End
+
+Public Sub numcompte_LF()
+  
+  If Not IsNull(numcompte.Text) Then
+    numcpt = numcompte.Text
+    comptetiersman()
+  Else
+    If son Then
+      Music.Play
+    Endif
+    Message.Warning(" Attention ! Veuillez saisir votre compte SVP !")
+    b = 1
+  Endif
+  
+End
+
+Public Sub Montant_LF()
+  
+  Dim montante As Float
+  
+  With utils
+    montant.Text = .Cpoint(montant.Text)
+    If Val(Montant.text) = Null Then
+      If son Then
+        Music.Play
+      Endif
+      message.Warning("Veuillez verifier votre saisie SVP !")
+      b = 1
+    Else
+      montante = Val(.Cpoint(Montant.Text))
+      Montant.Text = Format$(Montante, "0.00")
+    Endif
+  End With
+  
+End
+
+Public Sub numdoc_LF()
+  
+  Dim Eresult As Result
+  
+  Tab = "Fiches_Mvt" 
+  If Modif = "0" Then
+    EResult = Utils.db.Exec("SELECT * FROM " & Tab & "  WHERE numdoc = &1 and compte = &2 and numero <> &3 and collectif is null", numdoc.Text, numcompte.Text, numecrit)
+    If EResult.Available Then
+      If son Then
+        Music.Play
+      Endif
+      If Message.Question("Une écriture portant ce numero à  déjà  été saisie dans ce journal ! \n Voulez-vous continuer ?", "Oui", "Non") = 1 Then
+      Endif
+    Endif
+  Endif
+  numlot = numdoc.Text
+  
+End
+
+Public Sub QuitteDate()
+  
+  Dim rResult As Result
+  Dim dte As String
+  Dim dte4 As String
+  Dim numecr As String
+  
+  Tab = "Fiches_Parametres" 
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
+  dte = rResult!dtepc
+  dte3 = Right$(dte, 4) & Left$(dte, 2)
+  dte2 = rResult!dteclec1
+  ye2 = Right$(dte2, 4)
+  Inc Ye2
+  With utils
+    Datej.text = .CDate_calc(datej.Text)
+    Datej.Text = .Cdate_aff(Datej.Text)
+    dte4 = rResult!dteclec
+    If Datej.Text = "00.00.0:00" Then
+      Datej.Text = Format$(Now, "dd.mm.yyyy")
+      Datej_gotfocus()
+      Datej.SetFocus
+    Else
+      If Right$(Datej.text, 4) & Mid$(Datej.text, 4, 2) <= dte3 Then
+        If son Then
+          Music.Play
+        Endif
+        If Message.Warning("Attention ! La date saisie est inférieure au début de la période en cours.", "Ok") = 1 Then
+          B = 1
+        Endif
+      Else
+        If Right$(datej.text, 4) & Mid$(datej.text, 4, 2) & Left$(datej.text, 2) > (Ye2 + 1) & Left$(dte2, 2) & Mid$(dte2, 4, 2) Then
+          If son Then
+            Music.Play
+          Endif
+          If Message.Warning("Attention ! La date saisie est supérieure à  la date de fin d'exercice.", "Ok") = 1 Then
+            b = 1
+          Endif
+        Else
+          b = 0
+          If nvlle = 1 Or ecrit1.count = 0 Then
+            numecr = "numecriture"
+            Ecritures(numecr)
+            num = num + 1
+            numecrit = num
+            Majnum(numecr)
+            nvlle = 0
+          Endif
+          numcompte.SetFocus
+          n = 0
+        Endif
+      Endif
+    Endif
+  End With
+  
+End
+
+Public Sub Button1_Click()
+  
+  If numcompte.Text <> "" Or If Ecrit1.count <> 0 Then
+    If son Then
+      Music.Play
+    Endif
+    If message.Question("Il y a une saisie en cours !\n Souhaitez-vous quitter ?", "Oui", "Non") = "1" Then
+      Me.Close
+    Endif
+  Else
+    Me.Close
+  Endif
+  
+End
+
+Public Sub ToggleButton4_Click()
+  
+  Dim cle As String
+  
+  Prov = 1
+  If numcompte.Text = "" Then
+    If son Then
+      Music.Play
+    Endif
+    Message.Warning(" Attention ! Veuillez saisir un compte avant de valider votre ligne SVP !")
+    numcompte.SetFocus
+    numcompte.Select
+  Else
+    If montant.Text = "" Then
+      If son Then
+        Music.Play
+      Endif
+      Message.Warning(" Attention ! Veuillez saisir un montant avant de valider votre ligne SVP !")
+      Montant.SetFocus
+      Montant.Select
+    Else
+      If numdoc.Text = "" Then
+        If son Then
+          Music.Play
+        Endif
+        message.Info(" Veuillez renseigner le numero de document avant d'enregistrer SVP !")
+        numdoc.SetFocus
+        numdoc.Select
+      Else
+        Montant_LF()
+        montantcd = Val(Montant.text)
+        montantdb = 0
+        Totaldb = Totaldb + montantdb
+        Totalcd = Totalcd + montantcd
+        Movt()
+        Cle = numcompte.Text & numdoc.Text & numecrit
+        Ecrit1.Add(Cle, Cle)
+        Ecrit1.Item[0] = numcompte.text
+        Ecrit1.Item[1] = Intitulcompte.Text
+        Ecrit1.Item[2] = numdoc.text
+        numcpt = numcompte.Text
+        Ecrit1.Item[3] = Format$(Val(Montant.text), "0.00")
+        Ecrit1.Item[4] = Libelecrit.Text
+        Ecrit1.Item[5] = Datej.Text
+        Ecrit1.Item[6] = NumlotT
+        soldec = Abs(Totalcd) - Abs(Totaldb)
+        soldeecrit.Text = Format$(soldec, "0.00")
+        If Val(Utils.CPoint(soldeecrit.Text)) = 0 Then soldeecrit.Text = "0,00"
+        Cleanchamps()
+        Modif = "0"
+        numcompte.SetFocus
+        numcompte.Select
+      Endif
+    Endif
+  Endif
+  Ecrit1.Columns[0].Text = "compte"
+  Ecrit1.Columns[1].Text = "intitule"
+  Ecrit1.Columns[2].Text = "N° document"
+  Ecrit1.Columns[3].Text = "Mt règlement"
+  Ecrit1.Columns[4].Text = "Libellé"
+Catch
+  If son Then
+    Music.Play
+  Endif
+  Message.Info(" Il semblerait que cette ecriture a déjà  été saisie !", "Ok")
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim rResult As Result
+  Dim tab2 As String
+  Dim Mnt As Float
+  Dim num_coll As String
+  Dim numdocT As String
+  Dim Montand As Float
+  Dim Montanc As Float
+  
+  Prov = 0
+  Vld = 1
+  iLet = 0
+  Tab = "Fiches_Mvt" 
+  Tab2 = "Fiches_Comptes" 
+  With utils
+    If Ecrit1.Count <> 0 Then
+      Ecrit1.MoveFirst
+      Repeat
+        ecrit1.Item.Selected = True
+        numcpt = Ecrit1.Item[0]
+        Intitulcompte.Text = Ecrit1.Item[1]
+        numdocT = ecrit1.Item[2]
+        numlotT = numdocT
+        numlot = numlotT
+        montantcd = Val(ecrit1.Item[3])
+        Totalcd = Totalcd + montantcd
+        montantdb = 0
+        Totaldb = Totaldb + montantdb
+        Utils.db.Exec("update " & Tab & " set  validee = &1, provisoire = &2 , numlot = &4 , numdoc = &5, Cloturee = &9, tresorerie = &{10} Where compte = &6 and numero = &7 and numlot = &4", 1, 0, Libelecrit.Text, numlotT, numdocT, numcpt, numecrit, numlot, 0, 1)
+        Utils.db.Exec("update " & Tab & " set  validee = &1, provisoire = &2 , libelle = &3, numlot = &4 , numdoc = &5, Cloturee = &9, tresorerie = &{10} Where compte = &6 and numero = &7 and numlot = &4", 1, 0, Libelecrit.Text, numlotT, numdocT, Cpt_tr, numecrit, numlot, 0, 1)
+        rResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE compte_cc = &1", numcpt)
+        If rResult.Available Then
+          Mnt = rResult!solde
+          Mnt = Mnt + montantdb - montantcd
+          num_coll = rResult!coll_cc
+          Utils.db.Exec("Update " & Tab2 & " set solde = &1 Where compte_cc = &2", Mnt, numcpt)
+          If num_coll <> "" Then
+            rResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE compte_cc = &1", num_coll)
+            If rResult.Available Then
+              Mnt = rResult!solde
+              Mnt = Mnt + montantdb - montantcd
+              Utils.db.Exec("Update " & Tab2 & " set solde = &1 Where compte_cc = &2", Mnt, num_coll)
+              Utils.db.Exec("update " & Tab & " set  validee = &1, provisoire = &2 , libelle = &3, numlot = &4 , numdoc = &5, Cloturee = &9, tresorerie = &{10} Where compte = &6 and numero = &7 and numlot = &4", 1, 0, Libelecrit.Text, numlotT, numdocT, num_coll, numecrit, numlot, 0, 1)
+            Endif
+          Endif
+        Endif
+        Controle()
+        If Lettrable = 1 Then
+          rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE numlot = &1 and compte = &2", numlotT, numcpt)
+          If rResult.Available Then
+            Utils.db.Exec("update " & Tab & " set  lettree = &1 Where numlot = &4", 1, numcpt, numlet, NumlotT)
+          Endif
+        Endif
+        Calc_solde(numcpt)
+      Until Ecrit1.Movenext()
+      If soldec > 0 Then
+        Montand = Abs(soldec)
+        Montanc = 0
+      Else
+        Montanc = Abs(soldec)
+        Montand = 0
+      Endif
+      Montand = 0
+      Montanc = 0
+      ecrit1.clear
+      numlot = ""
+      numdoc.text = ""
+      Intitulcompte.Text = ""
+      numecrit = ""
+      soldeecrit.text = "0,00"
+      Totalcd = 0
+      Totaldb = 0
+      Mnt = 0
+      soldec = 0
+      Modif = "0"
+      Gntva = False
+      n = 1
+      nvlle = 1
+      iLet = 0
+      Libelecrit.text = "Règlement par " & CV.Text
+      Datej_GotFocus()
+      Datej_Lf()
+      Numcompte.SetFocus
+    Endif
+  End With
+  
+End
+
+Public Sub Controle()
+  
+  Dim LetResult As Result
+  Dim TotLd As String
+  Dim TotLc As String
+  Dim TotL As Float
+  
+  Tab = "Fiches_Mvt" 
+  TotLd = "0"
+  TotLc = "0"
+  With Utils
+    LetResult = Utils.db.Exec("SELECT * FROM " & Tab & " Where numlot = &1 and compte = &2 and collectif is null  and validee = &3", numlot, numcpt, 1)
+    If LetResult.Available Then
+      Repeat
+        TotLd = Val(.cpoint(TotLd)) + LetResult!montantd
+        TotLc = Val(.cpoint(TotLc)) + LetResult!montantc
+      Until LetResult.MoveNext()
+      TotL = Val(.cpoint(TotLd)) - Val(.cpoint(TotLc))
+    Endif
+    
+    If TotL = 0 Then
+      Lettrable = 1
+    Else
+      Lettrable = 0
+    Endif
+    TotLd = 0
+    TotLc = 0
+    Totl = 0
+  End With
+  
+End
+
+Public Sub ToggleButton6_Click()
+  
+  If ecrit3.Visible = True Then
+    Ecrit3.Visible = False
+  Endif
+  
+End
+
+Public Sub ToggleButton8_Click()
+  
+  If Not IsNull(cv.text)
+    Datej_Gotfocus()
+    nvlle = 1
+    compte()
+  Else
+    Message.Warning("veuillez saisir le mode de règlement SVP !")
+    CV.SetFocus
+  Endif
+  
+End
+
+Public Sub Ecrit1_Activate()
+  
+  Ecrit1.MoveCurrent
+  If Not ecrit1.Available Then ' Evite le crash
+  Else
+    numcompte.Text = Ecrit1.Current[0]
+    numcpt = numcompte.text
+    Intitulcompte.Text = Ecrit1.Current[1]
+    numdoc.Text = Ecrit1.Current[2]
+    Libelecrit.Text = Ecrit1.Current[4]
+    Datej.Text = Ecrit1.Current[5]
+    If Val(ecrit1.Current[4]) <> 0 Then
+      Montant.Text = ecrit1.Current[3]
+      montantdb = Val(ecrit1.Item[3])
+    Endif
+    Totaldb = Totaldb - montantdb
+    Totalcd = Totalcd - montantcd
+    soldec = Abs(Totalcd) - Abs(Totaldb)
+    soldeecrit.Text = Format$(soldec, "0.00")
+    If Val(Utils.CPoint(soldeecrit.Text)) = 0 Then soldeecrit.Text = "0,00"
+    Modif = "1"
+    DelEcr()
+    ecrit1.Current.Delete
+    montantcd = 0
+    montantdb = 0
+  Endif
+  numcompte.SetFocus
+  numcompte.Select
+  
+End
+
+Public Sub Ecrit1_Keypress()
+  
+  If Key.code = Key.delete Then
+    If Val(ecrit1.Current[3]) <> 0 Then
+      montantdb = 0
+      montantcd = Val(ecrit1.Item[3])
+    Endif
+    Totaldb = Totaldb - montantdb
+    Totalcd = Totalcd - montantcd
+    soldec = Totalcd - Totaldb
+    soldeecrit.Text = Format$(soldec, "0.00")
+    If Val(Utils.CPoint(soldeecrit.Text)) = 0 Then soldeecrit.Text = "0,00"
+    Modif = "1"
+    DelEcr()
+    ecrit1.Current.Delete
+    montantcd = 0
+    montantdb = 0
+    Stop Event
+  Endif
+  
+  If key.code = key.F1 Then
+    Button3_Click()
+    Stop Event
+  Endif
+  
+End
+
+Public Sub DelEcr()
+  
+  Dim rResult As Result
+  Dim tab2 As String
+  Dim collectif As String
+  
+  Tab = "Fiches_Mvt" 
+  Tab2 = "Fiches_Comptes" 
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE numero = &1 and compte = &2 and numlot = &4", numecrit, numcpt, Ecrit1.Item[2], Ecrit1.Item[6])
+  If rResult.Available Then
+    Repeat
+      Utils.db.Exec("DELETE FROM " & Tab & " WHERE numero = &1 and compte = &2 and numlot = &4", numecrit, numcpt, Ecrit1.Item[2], Ecrit1.Item[6])
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE compte_cc = &1", numcpt)
+      Calc_solde(numcpt)
+      If rResult.Available Then
+        collectif = rResult!coll_cc
+      Endif
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE numero = &1 and compte = &2 and numlot = &4", numecrit, collectif, Ecrit1.Item[2], Ecrit1.Item[6])
+      If rResult.Available Then
+        Utils.db.Exec("DELETE FROM " & Tab & " WHERE numero = &1 and compte = &2 and numlot = &4", numecrit, collectif, Ecrit1.Item[2], Ecrit1.Item[6])
+        Calc_solde(Collectif)
+      Endif
+    Until rResult.Movenext()
+  Endif
+  
+End
+
+'***************************************************************
+'*  On affiche la ligne validée qui vient d'etre sélectionnée  *
+'***************************************************************
+Public Sub Ecrit3_Click()
+  
+  Dim rResult As Result
+  Dim rrResult As Result
+  Dim rrrResult As Result
+  Dim tab As String
+  Dim Tab2 As String
+  Dim num_coll As String
+  Dim Nlot As String
+  Dim Nlot2 As String
+  Dim Mnt As Float
+  Dim Bcol As Boolean
+  Dim cle As String
+  Dim numecriture As String
+  Dim Ndc As String
+  Dim Nlt As String
+  Dim Cpt As String
+  
+  Totaldb = 0
+  Totalcd = 0
+  If Ecrit1.Count Then
+    If son Then
+      Music.Play
+    Endif
+    Message.Warning("Attention ! Veuillez valider l' écriture en cours. ")
+    Ecrit3.Visible = False
+  Else
+    If son Then
+      Music.Play
+    Endif
+    Message.Warning("Attention ! une écriture n'est plus lettrée lorsqu'on la rappelle .")
+    CleanChamps()
+    num = Ecrit3.Current[3]
+    numecrit = num
+    n = 1
+    nvlle = 0
+    Ecrit3.Visible = False
+    Tab = "Fiches_Mvt" 
+    Tab2 = "Fiches_Comptes" 
+    With utils
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & "  WHERE numero = &1 and left (compte,2) <> &2 or numero = &1 and left (compte,2) <> &3  ", num, 51, 1, 53)
+      If rResult.Available Then
+        Repeat
+          Try Bcol = rResult!collectif
+          If Error Then Bcol = False
+          If Not Bcol Then
+            Ndc = rResult!numdoc
+            Nlt = rResult!numlot
+            Cpt = rResult!compte
+            numecriture = rResult!numero
+            If Left(Cpt, 3) <> "512" And If Left(Cpt, 2) <> "53" Then
+              Cle = rResult!compte & rResult!numdoc & numecriture
+              Ecrit1.Add(cle, cle)
+              Ecrit1.Item[0] = rResult!compte
+              Ecrit1.Item[1] = rResult!intitule
+              Ecrit1.Item[2] = rResult!numdoc
+              Ecrit1.Item[3] = rResult!numlot
+              Ecrit1.Item[4] = Format$(rResult!montantd, "0.00")
+              Ecrit1.Item[5] = Format$(rResult!montantc, "0.00")
+              Ecrit1.Item[6] = Format$(CDate(rResult!dte), "dd.mm.yyyy")
+              Ecrit1.Item[7] = rResult!libelle
+              Ecrit1.Item[8] = rResult!jour
+              Ecrit1.Item[9] = Format$(CDate(rResult!dte), "dd.mm.yyyy")
+              numcpt = rResult!compte
+              Libelecrit.Text = rResult!libelle
+              montantdb = rResult!montantd
+              montantcd = rResult!montantc
+              iLet = rResult!lettree
+              numlot = rResult!numlot
+              numdoc.Text = rResult!numdoc
+              montantdb = Val(Ecrit1.Item[4])
+              montantcd = Val(Ecrit1.Item[5])
+              Totaldb = Totaldb + montantdb
+              Totalcd = Totalcd + montantcd
+              soldec = Totalcd - Totaldb
+              soldeecrit.Text = Format$(soldec, "0.00")
+              If Val(.CPoint(soldeecrit.Text)) = 0 Then soldeecrit.Text = "0,00"
+            Endif
+            If Left(rResult!compte, 3) = "401" Or Left(rResult!compte, 3) = "411" Then Nlot = rResult!numlot
+            Utils.db.Exec("UPDATE " & Tab & "  SET  validee = &1, provisoire =&2, lettree = &5 where compte = &3 AND numero = &4 ", 0, 1, Cpt, numecriture, 0)
+            Utils.db.Exec("UPDATE " & Tab & "  SET  lettree = &1 where numlot = &2 ", 0, Nlt)
+            Calc_solde(numcpt)
+            rrResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE compte_cc = &1", numcpt)
+            If rrResult.Available Then
+              num_coll = rrResult!coll_cc
+              If num_coll <> "" Then
+                rrrResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE compte_cc = &1", num_coll)
+                If rrrResult.Available Then
+                  Utils.db.Exec("UPDATE " & Tab & "  SET  validee =&1, provisoire =&2, lettree = &5 where compte = &3 AND numero = &4 ", 0, 1, num_coll, numecriture, 0)
+                  Calc_solde(num_coll)
+                Endif
+              Endif
+            Endif
+          Else
+            Utils.db.Exec("UPDATE " & Tab & "  SET  validee =&1, provisoire =&2, lettree = &5 where compte = &3 AND numero = &4 ", 0, 1, Cpt, numecriture, 0)
+            Calc_solde(cpt)
+          Endif
+        Until rResult.MoveNext()
+      Endif
+      ecriture = "0"
+      montantdb = 0
+      montantcd = 0
+      Mnt = 0
+      
+      ' On delettre les ecritures portant un numero de lot identique
+      If Left(Nlot, 1) = "M" Or Left(Nlot, 1) = "S" Then
+        Nlot2 = Mid$(Nlot, 2, (Len(Nlot) - 1))
+      Else
+        Nlot2 = Nlot
+      Endif
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & "  WHERE numlot = &1 and collectif is null", Nlot)
+      If rResult.Available Then
+        Repeat
+          Utils.db.Exec("UPDATE " & Tab & " SET lettree = &1, numlot = &3 WHERE numlot =  &2", 0, Nlot, Nlot2)
+        Until rResult.MoveNext()
+      Endif
+    End With
+  Endif
+  Datej.Text = Ecrit1.Item[6]
+  Datej.SetFocus
+  Datej.Select
+Catch
+  If son Then
+    Music.Play
+  Endif
+  message.Error("Cette écriture est incoherente, elle ne peut pas être rappelée ! ")
+  
+End
+
+Public Sub Ecrit3_Activate()
+  
+  ecrit3.Visible = False
+  
+End
+
+Public Sub Lettre_Click()
+  
+  If ecritL.Visible Then
+    Quit_Click()
+  Else
+    If numcompte.Text = "" Then
+      numcompte.SetFocus()
+    Else
+      Lettrage()
+    Endif
+  Endif
+  
+End
+
+Public Sub Quit_Click()
+  
+  EcritL.Visible = False
+  SELCT.Visible = False
+  Frame6.Visible = False
+  Totselection.Visible = False
+  QUIT.Visible = False
+  TT = 0
+  TD = 0
+  TC = 0
+  EcritL.clear
+  Montant.Select
+  Montant.setfocus
+  
+End
+
+Public Sub Selct_Click()
+  
+  Tab = "Fiches_Mvt" 
+  EcritL.MoveFirst()
+  If ecritL.Available Then
+    Repeat
+      If EcritL.Item.selected = True Then
+        numcpt = EcritL.Item[0]
+        Utils.db.Exec("UPDATE " & Tab & " SET numlot = &1 where compte = &2 and numero = &3", numlotT, numcompte.Text, EcritL.Item[7])
+        b = 1
+      Endif
+    Until EcritL.Movenext()
+    numdoc.Text = numlotT
+    If Val(totselection.text) = Null Then
+      Totselection.Text = "0,00"
+      numdoc.Text = ""
+    Endif
+    Montant.Text = Format$(Val(Totselection.Text), "0.00")
+    Montantsel = Val(Totselection.Text)
+    Quit_Click()
+  Endif
+  
+End
+
+Public Sub Necrit_Click()
+  
+  clear()
+  nvlle = 1
+  
+End
+
+Public Sub Clear()
+  
+  ecrit1.clear
+  numcompte.text = ""
+  numecrit = ""
+  numlot = ""
+  numdoc.text = ""
+  Intitulcompte.Text = ""
+  Montant.text = ""
+  soldeecrit.text = "0,00"
+  Totalcd = 0
+  Totaldb = 0
+  soldec = 0
+  Modif = "0"
+  Gntva = False
+  n = 1
+  Numcompte.SetFocus
+  iLet = 0
+  
+End
+
+Public Sub Suppr_Click()
+  
+  Delmvt()
+  nvlle = 1
+  Clear()
+  
+End
+
+Public Sub DelMvt()
+  
+  Dim rResult As Result
+  Dim tab As String
+  
+  Tab = "Fiches_Mvt" 
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE numero = &1 ", numecrit)
+  If rResult.Available Then
+    Repeat
+      Calc_solde(rResult!compte)
+    Until rResult.Movenext()
+    Utils.db.Exec("DELETE FROM " & Tab & " WHERE numero = &1", numecrit)
+  Endif
+  
+End
+
+Public Sub Calc_solde(Nmcompte As String)
+  
+  Dim rResult As Result
+  Dim TotDeb As Float
+  Dim TotCred As Float
+  Dim TotSld As Float
+  
+  With Utils
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " WHERE compte = &1  and validee = &2  order by dte ", nmcompte, 1)
+    If rResult.Available Then
+      Repeat
+        totdeb = totdeb + rResult!montantd
+        totcred = totcred + rResult!montantc
+        totsld = totdeb - totcred
+      Until rResult.MoveNext()
+      Utils.db.Exec("UPdate " & Cbase.Table("TabComptes") & "  SET solde = &2 where compte_cc = &1", nmcompte, .PointBase(Totsld))
+    Else
+      totsld = 0
+      Utils.db.Exec("UPdate " & Cbase.Table("TabComptes") & "  SET solde = &2 where compte_cc = &1", nmcompte, .PointBase(Totsld))
+    Endif
+    totdeb = 0
+    totcred = 0
+    totsld = 0
+  End With
+  
+End
+
+Public Sub Button3_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Saisiesreglements.html"]
+  
+End

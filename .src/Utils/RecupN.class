@@ -1,0 +1,30 @@
+' Gambas class file
+
+'Recuperation des écritures N-1 si cloture intempestive.
+
+Static Public Sub run()
+  
+  Dim Tab As String
+  Dim Tab1 As String
+  Dim rResult As Result
+  Dim numcol As String
+  Dim Numecr As Integer
+  Dim Numdef As Integer = 0
+  
+  Tab = "Fiches_Mvt" 
+  Tab1 = "Fiches_Mvt1" 
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by numero")
+  rResult.MoveLast()
+  Numecr = rResult!numero + 1
+  For Numdef = 1 To 424
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab1 & " where numero = &1", Numdef)
+    If rResult.Available Then
+      Repeat
+        Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee,Pointee, numcol, collectif, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19} )", rResult!jour, Numecr, rResult!compte, rResult!intitule, rResult!dte, rResult!numdoc, rResult!numlot, rResult!libelle, rResult!montantd, rResult!montantc, rResult!validee, rResult!provisoire, rResult!tresorerie, 0, rResult!cloturee, rResult!pointee, numcol, rResult!collectif, 0)
+      Until rResult.MoveNext()
+    Endif
+    Inc numecr
+  Next
+  Message.Info("TRAITEMENT TERMINÉ")
+  
+End

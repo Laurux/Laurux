@@ -1,0 +1,109 @@
+' Gambas class file
+
+Private CoulZns As Integer ' Variable pour la couleur du background des zones de saisie et des columnviews
+Private CoulZnaf As Integer ' Variable pour la couleur du background des columnviews
+Private CoulFc As Integer ' Variable pour la couleur du focus
+Private hfil As File
+Private Lig As String
+Private iPos As Integer
+Private filename As String
+
+Public Sub form_Open()
+  
+  Dim Frmt As New String[]
+  
+  Me.Center
+  
+  Music.Load(Start.Musique)
+  Frmt = Utils.FColr(Settings["/Coul/Znaff"])
+  CoulZnaf = Val(Frmt[0])
+  Frmt = Utils.FColr(Settings["/Coul/Focus"])
+  Coulfc = Val(Frmt[0])
+  Frmt = Utils.FColr(Settings["/Coul/Znss"])
+  CoulZns = Val(Frmt[0])
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Me.Center
+  Casier.SetFocus
+  
+End
+
+Public Sub Button1_Click()
+  
+  If Not IsNull(casier.text) Then
+    If message.Question("Attention ! Le fichier 'inventaire.txt' du portable doit être vidé dans le repertoire " & "~/Portable !") = 1 Then
+      Import_Portable()
+    Endif
+  Else
+    Balloon.Warning(("Veuillez saisir un code casier avant de faire l'import SVP "), Casier)
+    Casier.setfocus
+  Endif
+  
+End
+
+'******************************************
+'          Import des données             *
+'******************************************
+Public Sub Import_Portable()
+  
+  Dim x As Integer
+  Dim Code As String
+  Dim Codeb As String
+  Dim cle As String
+  Dim cpt2 As Integer = 0
+  Dim Hnew As File
+  Dim Rarts As Result
+  
+  filename = User.Home & "/Casier.txt"
+  If Exist(filename) Then Try Kill filename
+  Hnew = Open filename For Write Create
+  Portable.Import("Casier")
+  Try HFil = Open User.Home & "/Portable/inventaire.txt" For Read Write
+  If Not Error Then
+    Print #Hnew, "Les références suivantes n'ont pas pu être mises à jour car elles n'existent pas dans la table des produits."
+    Me.Mouse = Mouse.Wait
+    While Not Eof(hFil)
+      Line Input #hFil, Lig
+      For x = 1 To 3
+        iPos = InStr(Lig, ";")
+        If iPos = 0 Then
+          cle = Lig
+        Else
+          cle = Left$(Lig, iPos - 1)
+          Lig = Mid$(Lig, iPos + 1)
+        Endif
+        Select Case x
+          Case 3
+            If Not IsNull(cle) Then
+              Code = Utils.Find_cbarre(cle)
+            Else
+              Print #Hnew, "Une saisie a été rejetée car elle ne possède pas de code barre."
+              Inc cpt2
+            Endif
+        End Select
+      Next
+      Rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", Code)
+      If Rarts.Available Then
+        Try Utils.db.Exec("UPDATE  " & Cbase.Table("TabArt") & "  SET  art_casier = &1 where art_code = &2", Casier.Text, code)
+      Else
+        Inc cpt2
+        Print #Hnew, code & " " & Codeb
+      Endif
+    Wend
+    Me.Mouse = Mouse.Default
+    
+    Me.Raise
+    Try Close #HFil
+    Try Close #Hnew
+    If cpt2 <> 0 Then Editeur.Prog_Editeur(Filename)
+  Else
+    Message.Error("Le fichier inventaire.txt n'existe pas sous le répertoire " & "~/Portable !")
+  Endif
+  
+End
+
+Public Sub Button2_Click()
+  
+  Try Kill filename
+  Me.close
+  
+End

@@ -1,0 +1,136 @@
+' Gambas class file
+
+statut As String
+
+Public Sub _new()
+  
+  Me.Center
+  
+End
+
+Public Sub Button2_Click()
+  
+  Me.close
+  
+End
+
+Public Sub Button1_Click()
+  
+  Dim rClient As Result
+  Dim Tab As String
+  Dim hfil As File
+  Dim cv As String
+  Dim nm As String
+  Dim pnm As String
+  Dim adr1 As String
+  Dim adr2 As String
+  Dim cp As String
+  Dim bd As String
+  Dim pays As String
+  Dim telbur As String
+  Dim teldom As String
+  Dim portable As String
+  Dim fx As String
+  Dim mail As String
+  Dim cpt As String
+  Dim divers As String
+  Dim poste As String
+  Dim site As String
+  
+  If RadioButton1.Value = True Then
+    Tab = "Fiches_Cli" 
+  Else
+    Tab = "Fiches_Four" 
+  Endif
+  ' On recupere les données
+  rClient = Utils.db.Exec("SELECT * FROM " & Tab & " ")
+  If rClient.Available Then
+    HFil = Open User.Home & "/Contacts.vcf" For Write Create
+    'PRINT #HFil, "Name" & "," & "Given Name" & "," & "Family Name" & "," & "Notes" & "," & "Group Membership" & "," & "Adresse 1" & "," & "Adresse 2" & ", " & "Code postal & bureau distributeur" & ", " & " Pays " & ", " & " Tel domicile " & ", " & " Portable " & ", " & " Tel bureau" & ", " & "Poste " & "," & " E-mail 1 - Value" & ", " & " Code comptable Laurux " & ", " & "Website 1 - Value "
+    Repeat
+      If RadioButton1.Value = True Then
+        Cv = rClient!cli_rs_soc
+        Nm = rClient!cli_nom
+        Pnm = rClient!cli_pnm
+        Adr1 = rClient!cli_adr1
+        Adr2 = rClient!cli_adr2
+        Cp = rClient!cli_cd_ptl
+        Bd = rClient!cli_ville
+        Pays = rClient!cli_pays
+        Fx = rClient!cli_fx1
+        Telbur = rClient!cli_tel_bur
+        Poste = rClient!cli_tel_poste
+        Teldom = rClient!cli_tel_dom
+        Portable = rClient!cli_pble
+        cpt = rClient!cli_code
+        Mail = rClient!cli_email
+        Statut = rClient!cli_statut
+        Aff_Statut(statut)
+        Divers = rClient!cli_obs
+        Site = ""
+      Else
+        Cv = rClient!fo_rs_soc
+        Nm = rClient!fo_nom
+        Pnm = rClient!fo_pnm
+        Adr1 = rClient!fo_adr1
+        Adr2 = rClient!fo_adr2
+        Cp = rClient!fo_cd_ptl
+        Bd = rClient!fo_ville
+        Pays = rClient!fo_pays
+        Fx = rClient!fo_fx1
+        Telbur = rClient!fo_tel_bur
+        Poste = rClient!fo_tel_post
+        Portable = rClient!fo_pble
+        cpt = rClient!fo_code
+        Mail = rClient!fo_email
+        Divers = rClient!fo_obs
+        Site = rClient!fo_site
+      Endif
+      Print #hfil, "BEGIN:VCARD" & "\n" & "VERSION:3.0" & "\n" "FN:" & Pnm & " " & Nm & "\n" & "N:" & Pnm & "," & Nm & "\n" & "EMAIL;TYPE=HOME:" & mail & "\n" & "TEL;TYPE=HOME:" & Teldom & "\n" & "TEL;TYPE=CELL:" & Portable & "\n" & "TEL;TYPE=WORK:" & Telbur & "\n" & "TEL:" & Poste & " Poste" & "\n" & "ADR;TYPE=HOME:;" & Adr1 & "\\n" & Adr2 & "\\n" & Cp & " " & Bd & ";;;;" & "\n" & "TITLE:" & Cv & "\n" & "NOTE:" & Divers & "\n" & "item1.URL:" & site & "\n" & "item1.X-ABLabel:_$!<HomePage>!$_" & "\n" & "END:VCARD"
+      '    PRINT #HFil, Pnm & " " & Nm & "," & Pnm & "," & Nm & "," & Divers & "," & Statut & "," & Adr1 & "," & Adr2 & "," & Cp & " " & Bd & "," & Pays & "," & Teldom & "," & Portable & "," & Telbur & "," & Poste & "," & mail & "," & Cpt & "," & site
+    Until rClient.MoveNext()
+  Else
+    Message.error("Il n'existe aucune donnée a exporter.")
+  Endif
+  If RadioButton1.value = True Then
+    rClient = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabContact") & "")
+    If rClient.Available Then
+      Repeat
+        Nm = rClient!nom
+        Pnm = rClient!pnm
+        Telbur = rClient!tel
+        Poste = rClient!tel
+        Portable = rClient!tel
+        cpt = rClient!code
+        Mail = rClient!mail
+        Cv = ""
+        Adr1 = ""
+        Adr2 = ""
+        Cp = ""
+        Bd = ""
+        Pays = ""
+        Fx = ""
+        Divers = ""
+        Site = ""
+        Print #hfil, "BEGIN:VCARD" & "\n" & "VERSION:3.0" & "\n" "FN:" & Pnm & " " & Nm & "\n" & "N:" & Pnm & "," & Nm & "\n" & "EMAIL;TYPE=HOME:" & mail & "\n" & "TEL;TYPE=HOME:" & Teldom & "\n" & "TEL;TYPE=CELL:" & Portable & "\n" & "TEL;TYPE=WORK:" & Telbur & "\n" & "TEL:" & Poste & " Poste" & "\n" & "ADR;TYPE=HOME:;" & Adr1 & "\\n" & Adr2 & "\\n" & Cp & " " & Bd & ";;;;" & "\n" & "TITLE:" & Cv & "\n" & "NOTE:" & Divers & "\n" & "item1.URL:" & site & "\n" & "item1.X-ABLabel:_$!<HomePage>!$_" & "\n" & "END:VCARD"
+      Until rClient.MoveNext()
+    Endif
+  Endif
+  Me.Mouse = Mouse.Default
+  Music.Play
+  Message.Info("Export terminé.")
+  Close #HFil
+  Me.Close
+  
+End
+
+Public Sub Aff_Statut(sStatut As String)
+  
+  Dim rResult As Result
+  
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabStatut") & " where code = &1", sStatut)
+  If Not Error Then
+    If rResult.Available Then Statut = rResult!libelle
+  Endif
+  
+End

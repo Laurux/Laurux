@@ -1,0 +1,348 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : ChangeFam.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 21/08/2007
+'# Changement du code famille dans les articles et les historiques.
+'################################################
+'
+
+Private Tab As String
+
+'*************************
+'* On initialise l'écran *
+'*************************
+Public Sub _New()
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+End
+
+Public Sub Cmpt_KeyPress()
+  
+  Dim b As Integer
+  
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+        
+      Case 1
+        If Left$(code.Text) = "*" Then
+          code.Text = Mid$(code.Text, 2, Len(code.Text))
+          code.Text = Utils.Find_cbarre(code.Text)
+          art_Man()
+          If b = 1 Then
+            code.SetFocus
+            code.Select
+            b = 0
+            Stop Event
+          Else
+            b = 0
+            Afour.SetFocus
+            Afour.Select
+          Endif
+        Else
+          If code.Text <> "" Then
+            art_Man()
+            If B = 1 Then
+              code.SetFocus
+              code.Select
+              b = 0
+            Else
+              b = 0
+              Afour.SetFocus
+              Afour.Select
+            Endif
+            Stop Event
+          Endif
+        Endif
+        'four_Man()
+        Stop Event
+        
+      Case 2
+        'four_man2()
+        Stop Event
+        
+      Case 4
+        'four_man3()
+        Stop Event
+        
+      Case 5
+        'four_man4()
+        Stop Event
+        
+    End Select
+  Endif
+  
+End
+
+'************************************************************************************
+'                                On travaille avec les articles
+'************************************************************************************
+'********************************************
+'* Saisie d'un article manuellement         *
+'********************************************
+Public Sub art_man()
+  
+  Dim rarts As Result
+  
+  Tab = "Fiches_Art" 
+  rarts = Utils.db.Exec("SELECT * FROM " & Tab & " Left join " & Cbase.Table("TabFour") & " on fo_code = art_four where art_code = &1", code.Text)
+  If rarts.Available Then
+    With utils
+      code.Text = rarts!art_code
+      Desg.text = rarts!art_design
+      Afour.Text = rarts!art_four
+      Libelfour.Text = rarts!fo_nom
+      'ENDIF
+      'FamMan()
+    End With
+  Endif
+  
+End
+
+Public Sub SelectionArt()
+  
+  Dim sel As String = ""
+  Dim MyForm As TriArticles
+  Dim Tri As String = ""
+  
+  Tab = "Fiches_Art"
+  sel = ""
+  Tri = "art_code"
+  Variables.Bsel = False
+  MyForm = New TriArticles("1", "", Tri, "Changefour", "", "")
+  MyForm.Showmodal()
+  If Variables.Bsel = True Then
+    Code.text = Variables.ArtCode
+    Art_Man()
+  Endif
+  
+End
+
+'************************************************
+'* On appelle la liste des fournisseurs         *
+'************************************************
+Public Sub SelectionFour()
+  
+  Dim MyForm As Trifours
+  
+  Variables.bsel = False
+  MyForm = New Trifours("Changefour")
+  MyForm.Showmodal()
+  If Variables.Bsel = True Then
+    NFour.Text = Variables.Cfour
+  Else
+    NFour.SetFocus
+  Endif
+  Fourman("1")  
+  Nfour.SetFocus
+  Nfour.Select
+  
+End
+
+Public Sub SelectionFour2()
+  
+  Dim MyForm As Trifours
+  
+  Variables.bsel = False
+  MyForm = New Trifours("Changefour")
+  MyForm.Showmodal()
+  If Variables.Bsel = True Then
+    AFour2.Text = Variables.Cfour
+  Else
+    AFour2.SetFocus
+  Endif
+  Fourman("2")  
+  Nfour2.SetFocus
+  Nfour2.Select
+  
+End
+
+Public Sub SelectionFour3()
+  
+  Dim MyForm As Trifours
+  
+  Variables.bsel = False
+  MyForm = New Trifours("Changefour")
+  MyForm.Showmodal()
+  If Variables.Bsel = True Then
+    NFour2.Text = Variables.Cfour
+  Else
+    NFour2.SetFocus
+  Endif
+  Fourman("3")  
+  Nfour2.SetFocus
+  Nfour2.Select
+  
+End
+
+'********************************************
+'* Saisie d'un fournisseur manuellement     *
+'********************************************
+Public Sub fourman(Org As String)
+  
+  Dim Rfours As Result
+  Dim four As String
+  
+  Select Case Org
+    Case "1"
+      four = NFour.Text
+    Case "2"
+      four = AFour2.Text
+    Case "3"
+      four = NFour2.Text
+  End Select
+  Tab = "Fiches_Four" 
+  Rfours = Utils.db.Exec("SELECT * FROM " & tab & " WHERE fo_code = &1", four)
+  Select Case Org
+    Case "1"
+      LibelFour2.Text = Rfours!fo_nom
+    Case "2"
+      LibelFour3.Text = Rfours!fo_nom
+    Case "3"
+      LibelFour4.Text = Rfours!fo_nom
+  End Select
+  
+Catch
+  If Start.son Then
+    Music.Play
+  Endif
+  Message.Warning("Ce fournisseur n'existe pas !")
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+    Case 1
+      SelectionArt()
+      Stop Event
+      
+    Case 2
+      SelectionFour()
+      Stop Event
+      
+    Case 3
+      Change()
+      Stop Event
+      
+    Case 4
+      SelectionFour2()
+      Stop Event
+      
+    Case 5
+      SelectionFour3()
+      Stop Event
+      
+    Case 6
+      Change2()
+      Stop Event
+      
+    Case 8
+      Me.Close
+      Stop Event
+  End Select
+  
+End
+
+'******************************************************************************************
+'*            On lance les modifications pour les modifications pour un article           *
+'******************************************************************************************
+Public Sub Change()
+  
+  Dim Tab1 As String
+  Dim r2Result As Result
+  
+  Tab1 = "Fiches_Art" 
+  If code.Text Then
+    If Nfour.Text Then
+      r2Result = Utils.db.Exec("SELECT * from  " & Tab1 & " where art_code = &1 ", Code.Text)
+      If r2Result.Available Then
+        Repeat
+          Utils.db.Exec("UPdate  " & Tab1 & "  SET  art_four = &2 where art_code = &1", Code.Text, Nfour.Text)
+        Until r2Result.MoveNext()
+      Endif
+      If Start.son Then
+        Music.Play
+      Endif
+      Message.Warning("Traitement terminé !", "OK")
+      code.SetFocus
+      code.Select
+    Else
+      If Start.son Then
+        Music.Play
+      Endif
+      Message.Warning("Veuillez saisir le nouveau fournisseur SVP !", "OK")
+      Nfour.SetFocus
+      Nfour.Select
+    Endif
+  Else
+    If Start.son Then
+      Music.Play
+    Endif
+    Message.Warning("Veuillez saisir un code article SVP !", "OK")
+    code.SetFocus
+    code.Select
+  Endif
+  
+End
+
+'******************************************************************************************
+'*            On lance les modifications pour les modifications pour un article           *
+'******************************************************************************************
+Public Sub Change2()
+  
+  Dim Tab1 As String
+  Dim r2Result As Result
+  
+  Tab1 = "Fiches_Art"  
+  If Afour2.Text Then
+    If Nfour2.Text Then
+      Me.Mouse = Mouse.Wait
+      r2Result = Utils.db.Exec("SELECT * from  " & Tab1 & " where art_four = &1 ", Afour2.Text)
+      If r2Result.Available Then Utils.db.Exec("UPdate  " & Tab1 & "  SET  art_four = &2 where art_four = &1", Afour2.Text, Nfour2.Text)
+      Me.Mouse = Mouse.Default
+      If Start.son Then
+        Music.Play
+      Endif
+      Message.Warning("Traitement terminé !", "OK")
+      code.SetFocus
+      code.Select
+    Else
+      If Start.son Then
+        Music.Play
+      Endif
+      Message.Warning("Veuillez saisir l'ancien fournisseur SVP !", "OK")
+      Nfour.SetFocus
+      Nfour.Select
+    Endif
+  Else
+    If Start.son Then
+      Music.Play
+    Endif
+    Message.Warning("Veuillez saisir le nouveau fournisseur SVP !", "OK")
+    code.SetFocus
+    code.Select
+  Endif
+  
+End

@@ -1,0 +1,720 @@
+' Gambas class file
+
+Private rResultat As Result
+Private tot As Float
+Private DebP As Float
+Private CredP As Float
+Private Coulfond As New String[]
+Private PosY As Integer
+Private dten0 As Date
+Private dten1 As Date
+Private debit As Float
+Private credit As Float
+Private solde As Float
+Private totdeb As Float
+Private totcred As Float
+Private totsld As Float
+Private Tothtdeb As Float = 0
+Private Tothtcred As Float = 0
+Private Totht As Float = 0
+Private debutOpen As Boolean = False
+Private dateedition As String
+Private moisencours As Integer
+Private mois1 As Integer
+Private mois2 As Integer
+Private datec2 As String ' date debut exo si Tva sur exercice
+Private datec3 As String ' date fin exo si Tva sur exercice
+Private annee As Integer
+Private annee1 As String ' date debut exo si Tva sur exercice
+Private annee2 As String ' date fin exo si Tva sur exercice
+Private exon As Boolean = True
+
+Public Sub Form_Open()
+  
+  Dim Tabp As String
+  Dim tmpMois, tmpMois2, i As Integer
+  Dim rResult As Result
+  
+  Tabp = "Fiches_Parametres" 
+  rResult = Utils.db.Exec("SELECT * FROM " & Tabp & " ")
+  datec2 = Utils.Cdate_Comp(rResult!dteclec1)
+  datec3 = Utils.Cdate_Comp(rResult!dteclec)
+  annee1 = datec2
+  annee2 = datec3
+  annee = Left$(annee2, 4)
+  For i = 0 To 1
+    ComboBoxYear.Add(annee - i)
+  Next
+  'ComboBoxYear.Add(Left$(annee2, 4))
+  'If Format$(Now, "yyyy") > Left$(annee2, 4) Then ComboBoxYear.Add(Format$(Now, "yyyy"))
+  Coulfond = Utils.Coulfd()
+  Me.Center
+  moiscalc()
+  anneecalc()
+  debutOpen = True
+  trimestre()
+  debutOpen = False
+  If RadioBtnTrimestre.Value Then
+    tmpMois = Val(Right$(ComboBoxTrimestre.Text, 1))
+    If tmpMois > 1 Then
+      tmpMois2 = 0
+      For i = 0 To tmpMois - 2
+        tmpMois2 = tmpMois2 + 2
+      Next
+      tmpMois2 = tmpMois + tmpMois2
+    Else
+      tmpMois2 = 1
+    Endif
+    dten0 = "01/" & Format$(tmpMois2, "00") & "/" & Format$(Now, "yy")
+    dten1 = "01/" & Format$((tmpMois * 3) + 1, "00") & "/" & Format$(Now, "yy")
+  End If
+  
+End
+
+Public Sub Affiche(ColView As ColumnView)
+  
+  Dim CptResult As Result
+  Dim JtResult As Result
+  Dim TotD As Float = 0
+  Dim TotC As Float = 0
+  Dim Tab As String
+  
+  Exon = True
+  Tab = "Fiches_Mvt" 
+  annee1 = Left$(datec2, 4)
+  annee2 = Left$(datec3, 4)
+  With ColView
+    CredP = 0
+    DebP = 0
+    Tot = 0
+    Totht = 0
+    Tothtcred = 0
+    Tothtdeb = 0
+    solde = 0
+    .Columns.count = 11
+    .Columns[0].Width = 80
+    If Detail.value Then
+      .Columns[1].Width = 100
+      .Columns[2].Width = 244
+      .Columns[3].Width = 110
+    Else
+      .Columns[1].Width = 0
+      .Columns[2].Width = 444
+      .Columns[3].Width = 0
+    Endif
+    
+    .Columns[4].Width = 100
+    .Columns[5].Width = 100
+    .Columns[6].Width = 100
+    .Columns[7].Width = 100
+    .Columns[8].Width = 70
+    .Columns[9].Width = 20
+    .Columns[0].Alignment = 4
+    .Columns[0].Text = "Code"
+    If Detail.value Then
+      .Columns[1].Text = "Date"
+      .Columns[2].Text = "Libellé"
+      .Columns[3].Text = "Document"
+    Else
+      .Columns[1].Text = ""
+      .Columns[2].Text = "Intitulé"
+      .Columns[3].Text = ""
+    Endif
+    .Columns[4].Alignment = 2
+    .Columns[4].Text = "Débit"
+    .Columns[5].Alignment = 2
+    .Columns[5].Text = "Crédit"
+    .Columns[6].Alignment = 2
+    .Columns[6].Text = "Solde"
+    .Columns[7].Alignment = 2
+    .Columns[7].Text = "Numéro"
+    .Columns[8].Alignment = 3
+    .Columns[8].Text = "Journal"
+    .Columns[9].Alignment = 3
+    Repeat
+      If Not RadioBtnAnnuel.value Then
+        CptResult = Utils.db.Exec("SELECT * FROM " & Tab & " where compte = &4 and month(dte) >= &1 and month(dte) <= &2 and year(dte) = &3 order by dte ", mois1, mois2, Annee, rResultat!compte_cc)
+      Else
+        CptResult = Utils.db.Exec("SELECT * FROM " & Tab & " where compte = &4 and year(dte) = &3 order by dte ", datec2, datec3, Annee, rResultat!compte_cc, annee1, annee2)
+      Endif
+      If CptResult.Available Then
+        Repeat
+          JtResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabJour") & " where code_jo = &1", cptresult!jour)
+          If CptResult!montantd <> "0.00" Or If CptResult!montantc <> "0.00" Then
+            If Colview.Name = "ColumnViewTVAvente" Then
+              If Detail.value Then
+                If CptResult!montantd = "0.00" And If CptResult!montantc = "0.00" Then
+                Else
+                  .Add(CptResult.index & rResultat!compte_cc, CptResult.index & rResultat!compte_cc)
+                  .Item[0] = rResultat!compte_cc
+                  .Item[1] = Utils.Cdate_Aff(CptResult!dte)
+                  .Item[2] = CptResult!libelle
+                  .Item[3] = CptResult!numdoc
+                  .Item[4] = Format$(CptResult!montantd, ",0.00")
+                  .Item[5] = Format$(CptResult!montantc, ",0.00")
+                  solde = solde + CptResult!montantd - CptResult!montantc
+                  .Item[6] = Format$(Val(Utils.cpoint(solde)), ",0.00")
+                Endif
+              Else
+                Totd = TotD + CptResult!montantd
+                Totc = Totc + CptResult!montantc
+                solde = Totd - totc
+              Endif
+            Endif
+            If Colview.Name = "ColumnViewTVAachat" Then
+              If Detail.value Then
+                .Add(CptResult.index & rResultat!compte_cc, CptResult.index & rResultat!compte_cc)
+                .Item[0] = rResultat!compte_cc
+                .Item[1] = Utils.Cdate_Aff(CptResult!dte)
+                .Item[2] = CptResult!libelle
+                .Item[3] = CptResult!numdoc
+                .Item[4] = Format$(CptResult!montantd, ",0.00")
+                .Item[5] = Format$(CptResult!montantc, ",0.00")
+                solde = solde + CptResult!montantd - CptResult!montantc
+                .Item[6] = Format$(Val(Utils.cpoint(solde)), ",0.00")
+              Else
+                Totd = TotD + CptResult!montantd
+                Totc = Totc + CptResult!montantc
+                solde = Totd - totc
+              Endif
+            Endif
+            If Detail.value Then
+              Tot = Val(Utils.cpoint(.Item[6]))
+              .Item[7] = CptResult!numero
+              .Item[8] = CptResult!jour
+              .Item[9] = CptResult!tresorerie
+              DebP = DebP + CptResult!montantd
+              CredP = CredP + CptResult!montantc
+              Tothtdeb = 0
+              Tothtcred = 0
+            Else
+              DebP = Totd
+              CredP = Totc
+            Endif
+          Endif
+        Until CptResult.MoveNext()
+        If Totd <> 0 Or If Totc <> 0 Then
+          If Not Detail.value Then
+            .Add(CptResult.index & rResultat!compte_cc, CptResult.index & rResultat!compte_cc)
+            .Item[0] = rResultat!compte_cc
+            .Item[2] = rResultat!intitule_cc
+            .Item[4] = Format$(Totd, ",0.00")
+            .Item[5] = Format$(Totc, ",0.00")
+            .Item[6] = Format$(Val(Utils.cpoint(solde)), ",0.00")
+          Endif
+          Totd = 0
+          Totc = 0
+          If Detail.value Then
+            Tot = solde
+          Else
+            Tot = Tot + solde
+          Endif
+        Endif
+      Endif
+    Until rResultat.MoveNext()
+  End With
+  
+End
+
+Public Sub Button1_Click()
+  
+  Me.Close
+  
+End
+
+Public Sub RadioBtnTrimestre_Click()
+  
+  If RadioBtnTrimestre.Value = True Then
+    moisencours = ComboBoxTrimestre.Index
+    Annee = ComboBoxYear.text
+    ColumnViewTVAvente.Clear
+    ColumnViewTVAachat.Clear
+    TextLabelTTVA.text = ""
+    CredP = 0
+    DebP = 0
+    If moisencours = 0 Then
+      mois1 = 1
+      mois2 = 3
+    Else If moisencours = 1 Then
+      mois1 = 4
+      mois2 = 6
+    Else If moisencours = 2 Then
+      mois1 = 7
+      mois2 = 9
+    Else
+      mois1 = 10
+      mois2 = 12
+    Endif
+    rResultat = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " WHERE compte_cc like '4457%' and type_cc = 'B' order by cast(compte_cc AS char)")
+    If rResultat.Available Then Affiche(ColumnViewTVAvente)
+    TextLabelTVente.Text = Format$(Val(Utils.cpoint(Tot)), ",0.00")
+    Totventesht.Text = Format$(Val(Utils.cpoint(Totht)), ",0.00")
+    CredP = 0
+    DebP = 0
+    Totht = 0
+    rResultat = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " WHERE compte_cc like '4456%' and type_cc = 'B' order by cast(compte_cc AS char)")
+    If rResultat.Available Then Affiche(ColumnViewTVAachat)
+    TextLabelTAchat.Text = Format$(Val(Utils.cpoint(Tot)), ",0.00")
+    Totachatsht.text = Format$(Val(Utils.cpoint(Totht)), ",0.00")
+    CredP = 0
+    DebP = 0
+    Totht = 0
+    If Val(Utils.cpoint(TextLabelTVente.Text)) < Val(Utils.cpoint(TextLabelTAchat.Text)) Then
+      TextLabelTTVA.Text = Format$(Abs(Val(Utils.cpoint(TextLabelTVente.Text))) - Val(TextLabelTAchat.text), "0.00 €")
+    Else
+      TextLabelTTVA.Text = Format$(Abs(Val(Utils.cpoint(TextLabelTAchat.Text))) - Val(TextLabelTVente.Text), "0.00 €")
+    Endif
+  Endif
+  
+End
+
+Public Sub RadioBtnmensuel_Click()
+  
+  If RadioBtnmensuel.value = True Then
+    Try mois1 = ComboBoxMois.Text
+    If Not Error Then
+      mois2 = ComboBoxMois.Text
+      Annee = ComboBoxYear.text
+      ColumnViewTVAvente.Clear
+      ColumnViewTVAachat.Clear
+      TextLabelTTVA.text = ""
+      CredP = 0
+      DebP = 0
+      rResultat = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " WHERE compte_cc like '4457%' and type_cc = 'B' order by cast(compte_cc AS char)")
+      If rResultat.Available Then Affiche(ColumnViewTVAvente)
+      TextLabelTVente.Text = Format$(Val(Utils.cpoint(Tot)), ",0.00")
+      Totventesht.Text = Format$(Val(Utils.cpoint(Totht)), ",0.00")
+      CredP = 0
+      DebP = 0
+      Totht = 0
+      rResultat = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " WHERE compte_cc like '4456%' and type_cc = 'B' order by cast(compte_cc AS char)")
+      If rResultat.Available Then Affiche(ColumnViewTVAachat)
+      TextLabelTAchat.Text = Format$(Val(Utils.cpoint(Tot)), ",0.00")
+      Totachatsht.text = Format$(Val(Utils.cpoint(Totht)), ",0.00")
+      CredP = 0
+      DebP = 0
+      Totht = 0
+      If Val(Utils.cpoint(TextLabelTVente.Text)) < Val(Utils.cpoint(TextLabelTAchat.Text)) Then
+        TextLabelTTVA.Text = Format$(Abs(Val(Utils.cpoint(TextLabelTVente.Text))) - Val(TextLabelTAchat.Text), "0.00 €")
+      Else
+        TextLabelTTVA.Text = Format$(Abs(Val(Utils.cpoint(TextLabelTAchat.Text))) - Val(TextLabelTVente.Text), "0.00 €")
+      Endif
+    Endif
+  Endif
+  
+End
+
+Public Sub RadioBtnAnnuel_Click()
+  
+  If RadioBtnAnnuel.value = True Then
+    If Not Texercice.value Then
+      mois1 = 1
+      mois2 = 12
+    Endif
+    Annee = ComboBoxYear.Text
+    ColumnViewTVAvente.Clear
+    ColumnViewTVAachat.Clear
+    TextLabelTTVA.text = ""
+    CredP = 0
+    DebP = 0
+    rResultat = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " WHERE compte_cc like '4457%' and type_cc = 'B' order by cast(compte_cc AS char)")
+    If rResultat.Available Then Affiche(ColumnViewTVAvente)
+    TextLabelTVente.Text = Format$(Val(Utils.cpoint(Tot)), ",0.00")
+    Totventesht.Text = Format$(Val(Utils.cpoint(Totht)), ",0.00")
+    CredP = 0
+    DebP = 0
+    Totht = 0
+    rResultat = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " WHERE compte_cc like '4456%' and type_cc = 'B' order by cast(compte_cc AS char)")
+    If rResultat.Available Then Affiche(ColumnViewTVAachat)
+    TextLabelTAchat.text = Format$(Val(Utils.cpoint(Tot)), ",0.00")
+    Totachatsht.text = Format$(Val(Utils.cpoint(Totht)), ",0.00")
+    CredP = 0
+    DebP = 0
+    Totht = 0
+    If Val(Utils.cpoint(TextLabelTVente.Text)) < Val(Utils.cpoint(TextLabelTAchat.Text)) Then
+      TextLabelTTVA.Text = Format$(Abs(Val(Utils.cpoint(TextLabelTVente.Text))) - Val(TextLabelTAchat.Text), ",0.00 €")
+    Else
+      TextLabelTTVA.Text = Format$(Abs(Val(Utils.cpoint(TextLabelTAchat.Text))) - Val(TextLabelTVente.Text), ",0.00 €")
+    Endif
+    
+  Endif
+  
+End
+
+Public Sub trimestre()
+  
+  moisencours = Format$(Now, "mm")
+  If moisencours < 3 Then
+    ComboBoxTrimestre.Text = ("Trimestre 1")
+    If debutOpen Then ComboBoxTrimestre.Text = ("Trimestre 1")
+  Else If moisencours > 3 And moisencours < 7 Then
+    ComboBoxTrimestre.Text = ("Trimestre 2")
+    If debutOpen Then ComboBoxTrimestre.Text = ("Trimestre 2")
+  Else If moisencours > 6 And moisencours < 9 Then
+    ComboBoxTrimestre.Text = ("Trimestre 3")
+    If debutOpen Then ComboBoxTrimestre.Text = ("Trimestre 3")
+  Else
+    ComboBoxTrimestre.Text = ("Trimestre 4")
+    If debutOpen Then ComboBoxTrimestre.Text = ("Trimestre 4")
+  Endif
+  
+End
+
+Public Sub moiscalc()
+  
+  ComboBoxMois.text = Format$(Now, "mm")
+  
+End
+
+Public Sub anneecalc()
+  
+  ComboBoxYear.text = Format$(Now, "yyyy")
+  
+End
+
+Public Sub ComboBoxYear_Click()
+  
+  If Val(ComboBoxYear.text) <= Format$(Now, "yyyy") - 5 Then
+    Message.Warning("Votre saisie n'est pas valable !")
+    anneecalc()
+  Else
+    If RadioBtnTrimestre.Value = True Then
+      RadioBtnTrimestre_Click()
+    Else
+      If RadioBtnmensuel.value = True Then
+        RadioBtnmensuel_Click()
+      Else
+        If RadioBtnAnnuel.value = True Then
+          RadioBtnAnnuel_Click()
+        Endif
+      Endif
+    Endif
+  Endif
+  
+End
+
+Public Sub ComboBoxMois_Click()
+  
+  RadioBtnmensuel_Click()
+  
+End
+
+Public Sub ComboBoxTrimestre_Click()
+  
+  RadioBtnTrimestre_Click()
+  
+End
+
+Public Sub button2_Click()
+  
+  Dim sql As String
+  Dim i As Integer
+  Dim p As Integer
+  Dim Intit As String
+  Dim dte As String
+  Dim Filename As String
+  Dim Tab3, Tab2, Tab1 As String
+  Dim Ste As String
+  Dim SteResult, rrResult, rResult, JtResult As Result
+  Dim Nbpage As Integer
+  Dim compt As String
+  Dim Centr As Boolean = Detail.Value
+  Dim debit2 As String
+  Dim credit2 As String
+  Dim solde2 As String
+  Dim totdebA As Float
+  Dim totcredA As Float
+  Dim totdebV As Float
+  Dim totcredV As Float
+  Dim libelle As String
+  Dim jour As String
+  Dim Datj As String
+  Dim Slddeb As Float
+  Dim Sldcred As Float
+  Dim SlddebA As Float
+  Dim SldcredA As Float
+  Dim SlddebV As Float
+  Dim SldcredV As Float
+  Dim Sldtot As Float
+  Dim SldtotA As Float
+  Dim SldtotV As Float
+  Dim tmpMois, tmpMois2 As Integer
+  Dim nombreDeTVA As Integer
+  Dim pdf As Cbalances
+  
+  Tab1 = "Ctrln" 
+  Tab2 = "Fiches_Comptes" 
+  Tab3 = "Fiches_Societes"
+  p = 0
+  Nbpage = 1
+  Shell "cd " & User.Home & ""
+  Filename = User.home & "/TVA.pdf"
+  pdf = New Cbalances("Portrait", "mm", "A4")
+  pdf.Open()
+  pdf.AliasNbPages()
+  If RadioBtnTrimestre.Value Then
+    Select Case Right$(ComboBoxTrimestre.Text, 1)
+      Case 1
+        dateedition = "premier trimestre "
+      Case 2
+        dateedition = "deuxieme trimestre "
+      Case 3
+        dateedition = "troisieme trimestre "
+      Case 4
+        dateedition = "quatrieme trimestre "
+    End Select
+    tmpMois = Val(Right$(ComboBoxTrimestre.Text, 1))
+    If tmpMois > 1 Then
+      tmpMois2 = 0
+      For i = 0 To tmpMois - 2
+        tmpMois2 = tmpMois2 + 2
+      Next
+      tmpMois2 = tmpMois + tmpMois2
+    Else
+      tmpMois2 = 1
+    Endif
+  End If
+  If RadioBtnmensuel.Value Then
+    Select Case ComboBoxMois.Text
+      Case "01"
+        dateedition = "mois de janvier"
+      Case "02"
+        dateedition = "mois de fèvrier"
+      Case "03"
+        dateedition = "mois de mars"
+      Case "04"
+        dateedition = "mois d'avril"
+      Case "05"
+        dateedition = "mois de mai"
+      Case "06"
+        dateedition = "mois de juin"
+      Case "07"
+        dateedition = "mois de juillet"
+      Case "08"
+        dateedition = "mois de août"
+      Case "09"
+        dateedition = "mois de septembre"
+      Case "10"
+        dateedition = "mois de octobre"
+      Case "11"
+        dateedition = "mois de novembre"
+      Case "12"
+        dateedition = "mois de décembre"
+    End Select
+  Endif
+  dateedition = dateedition & " " & Right$(ComboBoxYear.text, 4)
+  SteResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " Where cd_sc = &1", Start.Societe)
+  Ste = "Société " & " " & SteResult!int_sc
+  pdf.Entete("Impression de la TVA.")
+  If Not RadioBtnAnnuel.value Then
+    pdf.Level0T("Sélection du " & dateedition, Ste)
+  Else
+    pdf.Level0T("Sélection pour l'année " & Right$(ComboBoxYear.text, 4), Ste)
+  Endif
+  posy = 30
+  pdf.Level1T()
+  posy += 5
+  Me.Mouse = Mouse.Wait
+  With Utils
+    For nombreDeTVA = 1 To 2
+      credit = 0
+      solde = 0
+      totdeb = 0
+      totcred = 0
+      If nombreDeTVA = 1 Then sql = "SELECT  compte_cc, intitule_cc, cent_cc  FROM " & Tab2 & " WHERE compte_cc like '4456%'  and type_cc = 'B' order by cast(compte_cc AS char)"
+      If nombreDeTVA = 2 Then sql = "SELECT  compte_cc, intitule_cc, cent_cc  FROM " & Tab2 & " WHERE compte_cc like '4457%'  and type_cc = 'B' order by cast(compte_cc AS char)"
+      rrResult = Utils.db.Exec(sql)
+      If rrResult.Available Then
+        Repeat
+          compt = rrResult!compte_cc
+          Intit = rrResult!intitule_cc
+          credit = 0
+          solde = 0
+          totdebA = 0
+          totcredA = 0
+          totdebV = 0
+          totcredV = 0
+          rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " where compte = &4  and month(dte) >= &1 and month(dte) <= &2 and year(dte) = &3 order by dte", mois1, mois2, Annee, Compt)
+          If rResult.count <> 0 Then
+            Utils.db.Exec("drop Table IF exists " & Tab1 & "")
+            Utils.db.Exec("CREATE TABLE IF NOT EXISTS " & Tab1 & 
+              "(compte Char(8) NOT NULL," &
+              "intitule Char(30)," &
+              "jour Char(2)," &
+              "Mois Char(6) NOT NULL," &
+              "libelle Char(30) ," &
+              "dte Integer ," &
+              "montantd Decimal(12,2)," &
+              "montantc Decimal(12,2)," &
+              "PRIMARY KEY (compte, Mois))" & "ENGINE = MYISAM")
+            i = 0
+            If PosY >= 273 Then
+              pdf.Entete("Impression de la TVA.")
+              If Not RadioBtnAnnuel.value Then
+                pdf.Level0T("Sélection du " & dateedition, Ste)
+              Else
+                pdf.Level0T("Sélection pour l'année " & Right$(ComboBoxYear.text, 4), Ste)
+              Endif
+              posy = 30
+              pdf.Level1T()
+              posy += 5
+            Endif
+            pdf.level3T(Compt, Intit, PosY)
+            If Detail.value Then posy += 5
+            Inc p
+            While i < rResult.count
+              JtResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabJour") & " where code_jo = &1", rResult!jour)
+              If Centr Then
+                debit = rResult!montantd
+                credit = rResult!montantc
+                solde = solde + debit - credit
+                If nombreDeTVA = 2
+                  totdebV = totdebV + debit
+                  totcredV = totcredV + credit
+                Else
+                  totdebA = totdebA + debit
+                  totcredA = totcredA + credit
+                Endif
+                If nombreDeTVA = 2 Then
+                  totsld = totdebV - totcredV
+                Else
+                  totsld = totcredA - totdebA
+                Endif
+                dte = .Cdate_Aff(rResult!dte)
+                dte = Left(dte, 6) & Right(dte, 2)
+                If PosY >= 273 Then
+                  pdf.Entete("Impression de la TVA.")
+                  If Not RadioBtnAnnuel.value Then
+                    pdf.Level0T("Sélection du " & dateedition, Ste)
+                  Else
+                    pdf.Level0T("Sélection pour l'année " & Right$(ComboBoxYear.text, 4), Ste)
+                  Endif
+                  posy = 30
+                  pdf.Level1T()
+                  posy += 5
+                Endif
+                Try debit2 = Format$(debit, ",0.00")
+                Try credit2 = Format$(credit, ",0.00")
+                Try solde2 = Format$(solde, ",0.00")
+                pdf.level2T(rResult!libelle, rResult!jour, dte, rResult!numdoc, rResult!numlot, debit2, credit2, solde2, PosY)
+                posy += 5
+                Inc p
+                If p >= 42 Then
+                  p = 2
+                Endif
+              Else
+                libelle = rResult!libelle
+                jour = rResult!jour
+                Datj = .Cdate_Aff(rResult!dte)
+                Totdeb = Totdeb + rResult!montantd
+                Totcred = Totcred + rResult!montantc
+                If nombreDeTVA = 2
+                  totdebV = totdebV + rResult!montantd
+                  totcredV = totcredV + rResult!montantc
+                Else
+                  totdebA = totdebA + rResult!montantd
+                  totcredA = totcredA + rResult!montantc
+                Endif
+              Endif
+              i = i + 1
+              rResult.MoveNext
+            Wend
+            If nombreDeTVA = 2 Then
+              SlddebV = SlddebV + TotdebV
+              SldcredV = SldcredV + TotcredV
+              SldtotV = SlddebV - SldcredV
+            Else
+              SlddebA = SlddebA + TotdebA
+              SldcredA = SldcredA + TotcredA
+              SldtotA = SlddebA - SldcredA
+            Endif
+            If nombreDeTVA = 2 Then
+              Totsld = TotdebV - totcredV
+            Else
+              Totsld = TotdebA - totcredA
+            Endif
+            If PosY >= 273 Then
+              pdf.Entete("Impression de la TVA.")
+              pdf.Level0T(dateedition, Ste)
+              posy = 30
+              pdf.Level1T()
+              posy += 5
+            Endif
+            If nombreDeTVA = 2 Then
+              pdf.level4T(totdebV, totcredV, totsld, PosY)
+            Else
+              pdf.level4T(totdebA, totcredA, totsld, PosY)
+            Endif
+            posy += 10
+            p = p + 2
+          Endif
+          raz()
+          If p >= 42 Then
+            p = 2
+          Endif
+        Until rrResult.MoveNext()
+        If PosY >= 273 Then
+          pdf.Entete("Impression de la TVA.")
+          If Not RadioBtnAnnuel.value Then
+            pdf.Level0T("Sélection du " & dateedition, Ste)
+          Else
+            pdf.Level0T("Sélection pour l'année " & Right$(ComboBoxYear.text, 4), Ste)
+          Endif
+          posy = 30
+          pdf.Level1T()
+          posy += 5
+        Endif
+      Else
+        message(" Aucune ecriture pour cette demande", "OK")
+      Endif
+      If nombreDetva = 2 Then
+        pdf.level4TVA(SlddebV, SldcredV, SldtotV, PosY, nombreDetva)
+      Else
+        pdf.level4TVA(SlddebA, SldcredA, SldtotA, PosY, nombreDetva)
+      Endif
+      posy += 10
+      p = p + 2
+    Next
+    posy += 6
+    Sldtot = Abs(Sldtotv) - SldtotA
+    If Not RadioBtnAnnuel.value Then
+      pdf.level5T(Slddeb, Sldcred, Sldtot, "Total pour le " & dateedition, PosY)
+    Else
+      pdf.level5T(Slddeb, Sldcred, Sldtot, "Total pour l'année " & Right$(ComboBoxYear.text, 4), PosY)
+    Endif
+    pdf.Baspage()
+    pdf.Output(Filename, False)
+    Impression.Prog_Editeur(Filename)
+    Slddeb = 0
+    Sldcred = 0
+    Sldtot = 0
+  End With
+  Me.Mouse = Mouse.Pointing
+  
+End
+
+Public Sub Raz()
+  
+  totdeb = 0
+  totcred = 0
+  totsld = 0
+  solde = 0
+  debit = 0
+  credit = 0
+  solde = 0
+  
+End
+
+Public Sub Detail_Click()
+  
+  If RadioBtnAnnuel Then RadioBtnAnnuel_Click()
+  If RadioBtnmensuel Then RadioBtnmensuel_Click()
+  If RadioBtnTrimestre Then RadioBtnTrimestre_Click()
+  
+End
+
+Public Sub Texercice_Click()
+  
+  If RadioBtnAnnuel.value = True Then RadioBtnAnnuel_Click()
+  
+End

@@ -1,0 +1,215 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Validinv.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 14/02/2005
+'# Validation de l' inventaire de fin d'exercice
+'################################################
+
+son As String
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Music.Load(Start.Musique)
+  Me.Center
+  
+End
+
+Public Sub Button2_click()
+  
+  Dim rarts As Result
+  Dim Rqte As Result
+  Dim rartinv As Result
+  Dim Rdate As Result
+  Dim dte As Result
+  Dim Rbl As Result
+  Dim Ligbl As Result
+  Dim Finexo As Date
+  Dim qteC As Float ' Quantité comptée par l'inventaire
+  Dim qteSt As Float ' Quantité calculée le jour de la validation de l'inventaire
+  Dim qteAch As Float ' Quantité achetée depuis la date de l'inventaire jusqu'a la fin d'exercice
+  Dim qteVtes As Float ' Quantité vendue depuis la date de l'inventaire jusqu'a la fin d'exercice
+  Dim Tpe As String
+  Dim chemin As String = "/Sauve"
+  
+  qtevtes = 0
+  qteAch = 0
+  Tpe = "A"
+  If Not Exist(User.home & chemin) Then Mkdir User.home & chemin
+  Shell "mysqldump -h " & Settings["/dbase/Host"] & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " " & "Laurux" & " " & "--add-drop-table" & " " & ">" & " " & User.home & "/Sauve/LauruxInv.sql" & Format$(Now, "yyyymmdd") Wait
+  Try rartinv = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabInv") & "")
+  If Not Error Then
+    If rartinv.Available Then
+      If son Then
+        Music.Play
+      Endif
+      If Message.Question("Ok pour valider l'inventaire ? \n Après la validation vous ne pourrez plus le modifier", "Oui", "Non") = 1 Then
+        With Utils
+          Me.Mouse = Mouse.Wait
+          ' On récupère la date de fin d'exercice
+          Rdate = Utils.db.Exec("SELECT dteclec FROM " & Cbase.Table("TabParam") & "")
+          finexo = Rdate!dteclec
+          finexo = DateAdd(finexo, gb.Year, 1)
+          ' On récupère les articles de l'inventaire
+          rartinv = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabInv") & "")
+          If rartinv.Available Then
+            Repeat
+              qteC = rartinv!inv_qtecomptee
+              qteSt = rartinv!inv_qtestock
+              ' On regarde si l'article inventorié est dans les historiques de ventes
+              Rqte = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisLigFac") & " where code_ligfac = &1 ", rartinv!inv_code)
+              If Rqte.Available Then
+                Repeat
+                  ' On récupère la date de la facture
+                  If Settings["/Soc" & Start.Societe & "/Materiel"] = True Then
+                    Try dte = Utils.db.Exec("SELECT * FROM  " & Cbase.Table("TabHisFac") & " where numfac = &1 union select * from " & Cbase.Table("TabHisFacm") & " where numfac = &1", Rqte!num_ligfac)
+                  Else
+                    Try dte = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisFac") & " where numfac = &1 ", Rqte!num_ligfac)
+                  Endif
+                  ' Si la date est inférieure à la date de fin d'année et postérieure à la date de l'inventaire et si le code est bien un article
+                  ' Cas ou l'inventaire a été généré avant la date de fin d'exercice
+                  If Not Error And dte.Available And .Cdate_Comp(dte!datefac) > .Cdate_Comp(rartinv!inv_date) And .Cdate_Comp(dte!datefac) < .Cdate_Comp(finexo) And Rqte!typel_ligfac = "A" And Rqte!code_ligfac = rartinv!inv_code Then
+                    qteVtes = qteVtes + Val(Rqte!qte_ligfac)
+                  Endif
+                  ' Si la date est postérieure à la date de fin d'année et antérieure à la date de l'inventaire et si le code est bien un article
+                  ' Cas ou l'inventaire a été généré après la date de fin d'exercice
+                  If Not Error And dte.Available And .Cdate_Comp(dte!datefac) < .Cdate_Comp(rartinv!inv_date) And .Cdate_Comp(dte!datefac) > .Cdate_Comp(finexo) And Rqte!typel_ligfac = "A" And Rqte!code_ligfac = rartinv!inv_code Then
+                    qteVtes = qteVtes + Val(Rqte!qte_ligfac)
+                  Endif
+                Until Rqte.MoveNext()
+              Endif
+              ' On recupere les ventes dans les bl.
+              Rbl = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBl") & " WHERE type = &1 or type = &2", "B", "F")
+              If Rbl.Available Then
+                Repeat
+                  If .Cdate_Comp(rartinv!inv_date) < .Cdate_Comp(finexo) And .Cdate_Comp(Rbl!datebl) > .Cdate_Comp(rartinv!inv_date) Or .Cdate_Comp(rartinv!inv_date) > .Cdate_Comp(finexo) And .Cdate_Comp(Rbl!datebl) > .Cdate_Comp(finexo) Then
+                    ' Ensuite on récupère les lignes de produits utilisés
+                    Ligbl = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigbl") & " WHERE num_ligbl = &1 and code_ligbl = &2  and typel_ligbl = &3", Rbl!numbl, rartinv!inv_code, "A")
+                    If Ligbl.Available Then
+                      Repeat
+                        qteVtes = qteVtes + Val(Ligbl!qte_ligbl)
+                      Until Ligbl.MoveNext()
+                    Endif
+                  Endif
+                Until Rbl.MoveNext()
+              Endif
+              ' Puis dans les bl matériaux.
+              If Settings["/Soc" & Start.Societe & "/Materiel"] = True Then
+                Rbl = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBlM") & " WHERE type = &1 or type = &2", "B", "F")
+                If Rbl.Available Then
+                  Repeat
+                    If .Cdate_Comp(rartinv!inv_date) < .Cdate_Comp(finexo) And .Cdate_Comp(Rbl!datebl) > .Cdate_Comp(rartinv!inv_date) Or .Cdate_Comp(rartinv!inv_date) > .Cdate_Comp(finexo) And .Cdate_Comp(Rbl!datebl) > .Cdate_Comp(finexo) Then
+                      ' Ensuite on récupère les lignes de produits utilisés
+                      Ligbl = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigblM") & " WHERE num_ligbl = &1 and code_ligbl = &2  and typel_ligbl = &3", Rbl!numbl, rartinv!inv_code, "A")
+                      If Ligbl.Available Then
+                        Repeat
+                          qteVtes = qteVtes + Val(Ligbl!qte_ligbl)
+                        Until Ligbl.MoveNext()
+                      Endif
+                    Endif
+                  Until Rbl.MoveNext()
+                Endif
+              Endif
+              'On recupere la reference fournisseur.
+              rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1 ", rartinv!inv_code)
+              ' On regarde si l'article inventorié est dans les historiques d'achats
+              Rqte = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigrecpt") & " where code = &1 or code = &2 ", rartinv!inv_code, rarts!art_cfour)
+              If Rqte.Available Then
+                Repeat
+                  ' Si la date est inférieure à la date de fin d'année et postérieure à la date de l'inventaire et si le code est bien un article
+                  ' Cas de l'inventaire généré avant la date de fin d'exercice
+                  If .Cdate_Comp(Rqte!daterecpt) > .Cdate_Comp(rartinv!inv_date) And .Cdate_Comp(Rqte!daterecpt) < .Cdate_Comp(finexo) Then
+                    qteAch = qteAch + Val(Rqte!qte) * Rarts!art_txconv
+                  Else
+                    ' Si la date est postérieure à la date de fin d'année et antérieure à la date de l'inventaire et si le code est bien un article
+                    ' Cas de l'inventaire généré après la date de fin d'exercice
+                    If .Cdate_Comp(Rqte!daterecpt) < .Cdate_Comp(rartinv!inv_date) And .Cdate_Comp(Rqte!daterecpt) > .Cdate_Comp(finexo) Then
+                      qteAch = qteAch + Val(Rqte!qte) * Rarts!art_txconv
+                    Endif
+                  Endif
+                Until Rqte.MoveNext()
+              Endif
+              If qtest < 0 Then qtest = 0
+              If qtevtes < 0 Then
+                qtec = qtec + qtevtes
+              Else
+                If qtevtes >= 0 Then
+                  qtec = qtec - qtevtes
+                Endif
+              Endif
+              qtec = qtec + qteach
+              qtest = qtec
+              rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1 ", rartinv!inv_code)
+              If rartinv!inv_comptee Then ' change
+                Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET  art_qte = &2, art_stkdep = &2 where art_code = &3", qtest, qtec, rartinv!inv_code)
+              Else
+                If Radiobutton1.Value Then ' change
+                  qtest = 0
+                  Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET  art_qte = &1, art_stkdep = &1 where art_code = &2", qtest, rartinv!inv_code)
+                Else
+                  Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET  art_qte = &1, art_stkdep = &1 where art_code = &2", rarts!art_qte, rartinv!inv_code)
+                Endif ' change
+              Endif
+              qtevtes = 0
+              qteach = 0
+              qtest = 0
+              'tant qu'on a des articles dans l'inventaire on la boucle Ok ?
+            Until rartinv.MoveNext()
+          Endif
+        End With
+        'Utils.db.Exec("drop Table IF exists " & Cbase.Table("TabInv") & "")
+        Utils.db.Exec("Update " & Cbase.Table("TabParam") & " set dteinv = &1", Utils.Cdate_Dbase(Format$(Now, "dd.mm.yyyy")))
+        'On calcul le stock réel
+        Cstock.Calc_stock("", "")
+        'On vide la table des historiques des inventaires tournants
+        Utils.db.Exec("Truncate table " & "Fiches_HisInvT" & "")
+        'Ouf ! C'est fini
+        If son Then
+          Music.Play
+        Endif
+        Me.Mouse = Mouse.Pointing
+        Message.Warning("Traitement terminé", "Ok")
+        Me.Close
+      Endif
+    Endif
+  Else
+    If son Then
+      Music.Play
+    Endif
+    Message.Warning("Attention! Il n'existe aucun inventaire\n Veuillez passer par la procédure d'initialisation d'inventaire SVP")
+    Me.Close
+  Endif
+  
+End
+
+Public Sub Button3_Click()
+  
+  Me.Close
+  'yeahh ! On sort
+  
+End
+
+Public Sub Button1_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Vinv.html"]
+  
+End

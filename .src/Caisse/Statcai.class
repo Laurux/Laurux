@@ -1,0 +1,182 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : StatCai.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 03/12/2009
+'# Visu du CA horaire de la caisse
+'################################################
+
+Private Tot As Integer
+Private son As Integer = Start.Son
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Tot = 20
+  
+  With Liste
+    .Columns.count = 13
+    .Columns[0].Alignment = 3
+    .Columns[0].Width = TextBox1.Width
+    .Columns[1].Alignment = 3
+    .Columns[1].Width = TextBox2.Width
+    .Columns[2].Alignment = 3
+    .Columns[2].Width = TextBox3.Width
+    .Columns[3].Alignment = 3
+    .Columns[3].Width = TextBox4.Width
+    .Columns[4].Alignment = 3
+    .Columns[4].Width = TextBox5.Width
+    .Columns[5].Alignment = 3
+    .Columns[5].Width = TextBox6.Width
+    .Columns[6].Alignment = 3
+    .Columns[6].Width = TextBox7.Width
+    .Columns[7].Alignment = 3
+    .Columns[7].Width = TextBox8.Width
+    .Columns[8].Alignment = 3
+    .Columns[8].Width = TextBox9.Width
+    .Columns[9].Alignment = 3
+    .Columns[9].Width = TextBox10.Width
+    .Columns[10].Alignment = 3
+    .Columns[10].Width = TextBox11.Width
+    .Columns[11].Alignment = 3
+    .Columns[11].Width = TextBox12.Width
+    .Columns[12].Alignment = 3
+    .Columns[12].Width = TextBox13.Width
+  End With
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Recup_ca()
+      Traitement()
+      
+    Case 2
+      Me.Close
+  End Select
+  
+End
+
+Public Sub Recup_ca()
+  
+  Dim rResult As Result
+  Dim rCai As Result
+  Dim rTot As Result
+  Dim Tab As String
+  Dim Tab2 As String
+  Dim Totl As Float = 0
+  Dim Ncaisse As String
+  
+  Tab = "Total"
+  ' on efface le fichier des totalisations
+  Utils.db.Exec("drop Table IF exists " & Tab & "")
+  ' puis on recréé
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    "(heure Char(5) NOT NULL," &
+    "ca decimal(12,2)," &
+    "ncai Char(2)," &
+    "PRIMARY KEY (heure, ncai))" & "ENGINE = MYISAM")
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCaisses") & " order by code ")
+  If rResult.Available Then
+    Repeat
+      Ncaisse = rResult!code
+      Tab2 = "Fiches_EntTickets" & rResult!code 
+      rCai = Utils.db.Exec("SELECT * FROM " & Tab2 & " where caisse = &1 ", Ncaisse)
+      If rCai.Available Then
+        Repeat
+          rTot = Utils.db.Exec("SELECT * FROM " & Tab & " where ncai = &1 and heure = &2", Ncaisse, Mid$(rCai!date, 13, 2))
+          If rTot.Available Then
+            Totl = rTot!ca + Val(Utils.cpoint(rCai!mht))
+            Utils.db.Exec("UPDATE  " & Tab & "  SET ca = &2 WHERE ncai = &1 and heure = &3", Ncaisse, Totl, Mid$(rCai!date, 13, 2))
+          Else
+            Utils.db.Exec("INSERT INTO " & Tab & "(heure, ca, ncai) VALUES (&1, &2, &3)", Mid$(rCai!date, 13, 2), Val(Utils.cpoint(rCai!mht)), Ncaisse)
+          Endif
+          Totl = 0
+        Until rCai.MoveNext()
+      Endif
+    Until rResult.MoveNext()
+  Else
+    Message.Warning("Aucune donnée à traiter !")
+  Endif
+Catch
+  If son Then
+    Music.Play
+  Endif
+  Message.Info(" Il y a un problème sur une ligne de CA ! Traitement interrompu.")
+  
+End
+
+Public Sub Traitement()
+  
+  Dim Tab As String
+  Dim rResult As Result
+  Dim Totl As Float = 0
+  Dim Vah As String
+  Dim Ncaisse As String
+  
+  Tab = "Total"
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by ncai, heure ")
+  With Liste
+    .Clear
+    If rResult.Available Then
+      .Add(rResult!ncai & rResult!heure, rResult!ncai)
+      Ncaisse = rResult!ncai
+      Repeat
+        If rResult!ncai <> Ncaisse Then .Add(rResult!ncai & rResult!heure, rResult!ncai)
+        Vah = Format$(rResult!ca, "0.00")
+        Select Case rResult!heure
+          Case "08"
+            .Item[1] = Vah
+            If IsNull(vah) Then .Item[0] = " "
+          Case "09"
+            .Item[2] = Vah
+          Case "10"
+            .Item[3] = Vah
+          Case "11"
+            .Item[4] = Vah
+          Case "12"
+            .Item[5] = Vah
+          Case "13"
+            .Item[6] = Vah
+          Case "14"
+            .Item[7] = Vah
+          Case "15"
+            .Item[8] = Vah
+          Case "16"
+            .Item[9] = Vah
+          Case "17"
+            .Item[10] = Vah
+          Case "18"
+            .Item[11] = Vah
+          Case "19"
+            .Item[12] = Vah
+        End Select
+        Totl = Totl + Val(Utils.cpoint(vah))
+        Ncaisse = rResult!ncai
+      Until rResult.MoveNext()
+      Totc.Text = Format$(Totl, "0.00")
+    Endif
+  End With
+  
+End

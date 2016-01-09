@@ -1,0 +1,250 @@
+' Gambas class file
+
+'
+' Gambas class file
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston5
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# Nom du fichier           : StatFour.class
+'# Auteur                   : Jacky Tripoteau
+'# Date de création         : 10/07/2008
+'# Chiffre d'affaire par fournisseur
+'################################################
+
+hForm As VisStatFour
+Filename As String
+Filetxt As String
+hfile As File
+Dte4 As String
+ye As String
+mo As String
+da As String
+Dte1 As String
+Dte2 As String
+Txt As String
+Tot As Integer
+son As Integer = Start.Son
+
+Public Sub _New()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  Dim Jour As String
+  Dim Frmt As New String[]
+  
+  Frmt = Utils.FColr(Settings["/Coul/Fnets"])
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Tab = "Fiches_Parametres" 
+  Tot = 40
+  
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
+  DteN0.Text = rResult!dteclec1
+  Me.Center
+  DteN0.Text = Utils.Calc_mois(DteN0.Text)
+  DteN1.Text = Format$(Now, "dd/mm/yyyy")
+  DateN1()
+  
+End
+
+Public Sub Dte_KeyPress()
+  
+  Select Case Last.tag
+      
+    Case 1
+      If Key.code = key.enter Or Key.code = key.Return Or key.Code = key.Tab Then
+        DteN0_LF()
+        DteN1.SetFocus
+        DteN1.Select
+        Stop Event
+      Endif
+      
+    Case 2
+      If Key.code = Key.enter Or Key.code = Key.return Or key.Code = key.Tab Then
+        DteN1_LF()
+        DteN0.SetFocus
+        DteN0.Select
+        Stop Event
+      Endif
+  End Select
+  
+End
+
+Public Sub DateN1()
+  
+  Dte1 = Val(Right$(DteN0.Text, 4)) - 1
+  Dte1 = Left$(DteN0.Text, 6) & Dte1
+  Dte2 = Val(Right$(DteN1.Text, 4)) - 1
+  Dte2 = Left$(DteN1.Text, 6) & Dte2
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      DateN1()
+      Traitement()
+      
+    Case 2
+      Me.Close
+  End Select
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Dte_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  
+End
+
+'****************************************************
+'*          Gestion de la premiere date             *
+'****************************************************
+Public Sub DteN0_LF()
+  
+  Dim Dtn As String
+  
+  With utils
+    DteN0.text = .CDate_calc(dteN0.text)
+    DteN0.Text = .Cdate_aff(DteN0.Text)
+    DateN1()
+    If DteN0.Text = "00.00.0:00" Then DteN0.Text = Format$(Now, "dd/mm/yyyy")
+  End With
+  DteN1.setfocus
+  DteN1.Select
+Catch
+  DteN0.setfocus
+  DteN0.Select
+  
+End
+
+'****************************************************
+'*           Gestion de la seconde date             *
+'****************************************************
+Public Sub DteN1_LF()
+  
+  Dim Dtn As String
+  
+  With utils
+    DteN1.text = .CDate_calc(dteN1.text)
+    DteN1.Text = .Cdate_aff(DteN1.Text)
+    DateN1()
+    If DteN1.Text = "00.00.0:00" Then DteN1.Text = Format$(Now, "dd/mm/yyyy")
+  End With
+  If Val(Right$(DteN1.text, 4) & Mid$(DteN1.text, 4, 2) & Left$(DteN1.text, 2)) < Val(Right$(DteN0.text, 4) & Mid$(DteN0.text, 4, 2) & Left$(DteN0.text, 2)) Then
+    If son Then
+      'Music.Play
+    Endif
+    Balloon.Warning(("Attention ! Votre selection n'est pas possible."), DteN1)
+    DteN1.setfocus
+    DteN1.Select
+  Endif
+Catch
+  DteN1.setfocus
+  DteN1.Select
+  
+End
+
+Public Sub Traitement()
+  
+  Dim Tab As String
+  Dim Tab2 As String
+  Dim Tab3 As String
+  Dim rResult As Result
+  Dim N1Result As Result
+  Dim LigResult As Result
+  Dim TotResult As Result
+  Dim Rfourn As Result
+  Dim Montant As Float
+  Dim Montant1 As Float
+  Dim Nmfour As String
+  
+  Tab = "Fiches_Entrecpt" 
+  Tab3 = "Fiches_Four" 
+  Tab2 = "Total"
+  With Utils
+    Me.Mouse = mouse.Wait
+    Utils.db.Exec("DROP TABLE IF EXISTS  Total")
+    Utils.db.Exec("CREATE TABLE " & Tab2 & 
+      "(cdfour Char(8) NOT NULL," &
+      "nmfour Char(50)," &
+      "montant Decimal(12,2)," &
+      "montant1 Decimal(12,2)," &
+      "PRIMARY KEY (cdfour))" & "ENGINE = MYISAM")
+    If dteN0.Text <> "" Or Left$(dteN0.Text, 2) = "00" Or dteN1.Text <> "" Or Left$(dteN1.Text, 2) = "00" Then
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where ddate >= &1 and ddate <= &2  ", .CDate_Dbase(dteN0.Text), .CDate_Dbase(dteN1.Text))
+      If rResult.Available Then
+        Repeat
+          Montant = rResult!montant
+          TotResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " Where cdfour = &1", rResult!four)
+          If Totresult.Available Then
+            Montant = Montant + TotResult!montant
+            Utils.db.Exec("UPDATE " & Tab2 & " set cdfour = &1, montant = &2 Where cdfour = &1", rResult!four, montant)
+          Else
+            rfourn = Utils.db.Exec("SELECT * FROM " & Tab3 & " where fo_code = &1", rResult!four)
+            If rfourn.Available Then Nmfour = rfourn!fo_nom
+            Utils.db.Exec("INSERT INTO " & Tab2 & "(cdfour, montant, nmfour) VALUES (&1, &2, &3)", rResult!four, Montant, Nmfour)
+          Endif
+          montant = 0
+          N1Result = Utils.db.Exec("SELECT * FROM " & Tab & " where four = &3 and ddate >= &1 and ddate <= &2  ", .CDate_Dbase(Dte1), .CDate_Dbase(Dte2), rResult!four)
+          If N1Result.Available Then
+            Repeat
+              Try Montant1 = Val(N1Result!montant)
+              If Error Then Montant1 = N1Result!montant
+              TotResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " Where cdfour = &1", rResult!four)
+              If Totresult.Available Then
+                If TotResult!montant1 = "" Then
+                  montant1 = Montant1 + 0
+                Else
+                  Montant1 = Montant1 + TotResult!montant1
+                Endif
+                Utils.db.Exec("UPDATE " & Tab2 & " set montant1 = &2 Where cdfour = &1", rResult!four, Montant1)
+              Else
+                Utils.db.Exec("INSERT INTO " & Tab2 & "(cdfour, montant1, nmfour) VALUES (&1, &2)", rResult!four, Montant1, Nmfour)
+              Endif
+              montant1 = 0
+            Until N1Result.MoveNext()
+          Else
+            montant1 = 0
+            Utils.db.Exec("UPDATE " & Tab2 & " set montant1 = &2 Where cdfour = &1", rResult!four, Montant1)
+          Endif
+        Until rResult.MoveNext()
+      Endif
+    Else
+      If son Then
+        'Music.Play
+      Endif
+      Balloon.Warning(("Veuillez saisir une date SVP !"), DteN0)
+    Endif
+  End With
+  Me.Mouse = mouse.Default
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " ")
+  If rResult.Available Then
+    hForm = New VisStatfour(Me, Start.Societe, Son, DteN0.Text, DteN1.Text)
+    hForm.Show()
+  Else
+    Message.Warning("Aucune donnée pour cette période !", "OK")
+  Endif
+  
+End

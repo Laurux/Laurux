@@ -1,0 +1,110 @@
+' Gambas module file
+
+PosY As Integer
+Filename As String
+son As String
+Private Org As String
+Public Cdocuments As String
+
+Public Function Ed(Nbl As String, codef As String, dater As String, Coulfond As String[], sOrg As String)
+  
+  Dim rResult As Result
+  Dim fourResult As Result
+  Dim famResult As Result
+  Dim Tab As String
+  Dim Tab2 As String
+  Dim code As String
+  Dim intitule As String
+  Dim qte As String
+  Dim pbht As String
+  Dim rm As String
+  Dim paht As String
+  Dim patotal As String
+  Dim Totalbl As String
+  Dim casier As String
+  Dim intitulef As String
+  Dim adr1 As String
+  Dim adr2 As String
+  Dim cp As String
+  Dim tel As String
+  Dim dte As String
+  Dim Nbpage As Integer
+  Dim Fichier As String
+  Dim Cfac As Boolean = False
+  Dim pdf As Cdocuments
+  
+  Nbpage = 1
+  Shell "cd " & User.Home & ""
+  Filename = User.home & "/BonReception.pdf"
+  Org = sOrg
+  pdf = New Cdocuments("Portrait", "mm", "A4")
+  pdf.Open()
+  pdf.AliasNbPages()
+  pdf.EnteteN("Impression des bl fournisseurs")
+  dte = Format$(Now, "dd.mm.yyyy")
+  Tab = "Fiches_Ligrecpt"
+  Tab2 = "Fiches_Four"
+  If Not Exist(User.home & "/BR") Then Try Mkdir User.home & "/BR"
+  With Utils
+    Totalbl = "0"
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " Left join " & Cbase.Table("TabArt") & " on art_code = code  WHERE numrecpt = &1 and four = &2", Nbl, codef)
+    If rResult.Available Then
+      fourResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE fo_code = &1 ", codef)
+      If fourResult.Available Then
+        intitulef = fourResult!fo_rs_soc & " " & fourResult!fo_nom & " " & fourResult!fo_pnm
+        adr1 = fourResult!fo_adr1
+        adr2 = fourResult!fo_adr2
+        cp = fourResult!fo_cd_ptl & " " & fourResult!fo_ville
+        tel = fourResult!fo_tel_std
+        Cfac = fourResult!fo_copie
+      Endif
+      pdf.Level1br(codef, intitulef, Nbl, dater, adr1, adr2, cp, tel)
+      Posy = 60
+      Repeat
+        code = rResult!code
+        If org = "Valcom" Then
+          famResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " WHERE code_fam = &1 ", rResult!art_fam)
+          intitule = famResult!compt3_fam & " " & rResult!design
+        Else
+          intitule = rResult!design
+        Endif
+        qte = rResult!qte
+        casier = rResult!art_casier
+        pbht = Format$(Val(Utils.cpoint(rResult!pbht)), "0.00")
+        If Len(pbht) - InStr(pbht, ",") = 2 Then pbht = pbht & " "
+        rm = rResult!rm
+        paht = Format$(Val(Utils.cpoint(rResult!paht)), "0.00")
+        If Len(paht) - InStr(paht, ",") = 2 Then paht = paht & " "
+        patotal = Format$(Val(paht) * Val(qte), "0.00")
+        Totalbl = Format$(Val(Totalbl) + Val(Patotal), "0.00")
+        If Len(patotal) - InStr(patotal, ",") = 2 Then patotal = patotal & " "
+        pdf.level2br(code, intitule, qte, pbht, rm, paht, patotal, casier, PosY)
+        Posy = Posy + 4
+        If PosY >= 290 Then
+          pdf.Baspage()
+          Inc Nbpage
+          PosY = 60
+          pdf.EnteteN("Impression des bl fournisseurs")
+          pdf.Level1br(codef, intitulef, Nbl, dater, adr1, adr2, cp, tel)
+        Endif
+      Until rResult.MoveNext()
+      Posy = Posy + 4
+      pdf.Level3br(Totalbl, PosY)
+      Posy = Posy + 10
+      Pdf.Lines(PosY)
+      pdf.Baspage()
+      pdf.Output(Filename, False)
+      If Org <> "ValidBR" Then Visualiseur.Prog_Editeur(Filename)
+      'Copie.Dupli("BonReception.pdf", "/Impressions", "BonReception", dater)
+      Copie.Dupli4("BonReception.pdf", "", "BR" & codef & "_" & nbl, dater, codef)
+      Fichier = User.home & "/Impressions/" & "BonReception" & ".pdf"
+      'If Cfac Then Copie.Dupli4(Filename, User.home & "/Impressions", "BonReception" & Nbl, dater, Codef)
+    Else
+      If son Then
+        Music.Play
+      Endif
+      message(" Aucun mouvement pour cette demande", "OK")
+    Endif
+  End With
+  
+End

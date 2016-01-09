@@ -1,0 +1,124 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Frelance.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 01/11/2004
+'# Gestion des textes de relances
+'################################################
+'
+
+Private son As Integer = Start.Son
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  
+End
+
+Public Sub Form_Open()
+  
+  Dim rResult As Result
+  Dim TAB As String
+  
+  Tab = "Fiches_Txt_Relances" 
+  rResult = Utils.db.Exec("SELECT * FROM " & tab & " order by niveau")
+  If rResult.Available Then rResult = Utils.db.Exec("SELECT * FROM " & tab & " Where niveau = &1", 1)
+  Rel1.Text = rResult!libell1
+  Rel2.Text = rResult!libell2
+Catch
+  
+End
+
+Public Sub Button6_Click()
+  
+  Me.Close
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  
+  Tab = "Fiches_Txt_Relances" 
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE niveau = '" & niveau.Text & "'")
+  If rResult.Available Then
+    Utils.db.Exec("UPdate  " & Tab & "  SET   libell1 = &2, libell2 = &3 WHERE niveau =  &1", niveau.Text, Rel1.Text, Rel2.Text)
+  Else
+    Utils.db.Exec("INSERT INTO " & Tab & "(niveau,libell1, libell2) VALUES (&1, &2, &3)", niveau.Text, Rel1.Text, Rel2.Text)
+  Endif
+  
+End
+
+Public Sub niveau_Click()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  
+  Tab = "Fiches_Txt_Relances" 
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE niveau = '" & niveau.Text & "'")
+  If rResult.Available Then
+    Rel1.Text = rResult!libell1
+    Rel2.Text = rResult!libell2
+  Else
+    Rel1.Text = ""
+    Rel2.Text = ""
+  Endif
+  
+End
+
+Public Sub niveau_GotFocus()
+  
+  niveau.Background = &HAAFF7F&
+  
+End
+
+Public Sub niveau_LostFocus()
+  
+  niveau.Background = Color.TextBackground
+  
+End
+
+Public Sub Button1_Click()
+  
+  Dim Tab As String
+  
+  Tab = "Fiches_Txt_Relances" 
+  If son Then
+    Music.Play
+  Endif
+  If Message.Question("Etes vous sur de vouloir effacer cet enregistrement", "Oui", "Non") = 1 Then
+    Utils.db.Exec("DELETE FROM " & Tab & " WHERE niveau = &1", niveau.Text)
+  Endif
+  niveau.Text = ""
+  Rel1.Text = ""
+  Rel2.Text = ""
+  
+End
+
+Public Sub Button4_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Txtrelances.html"]
+  
+End

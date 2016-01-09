@@ -1,0 +1,375 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Edregul.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 16/11/2005
+'# Impression des Bl fournisseurs
+'################################################
+'
+
+Filename As String
+Tab As String
+Tab2 As String
+hfile As File
+jour As String
+dater As String
+son As Integer = Start.Son
+Pays As String
+PosY As Integer
+Coulfond As New String[]
+Piece As String
+Codefour As String
+pdf As Cdocuments
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Me.Center
+  filename = User.home & "/Edcom.kdf"
+  Music.Load(Start.Musique)
+  
+End
+
+'***********************
+'* On gere nos touches *
+'***********************
+Public Sub Cmpt_KeyPress()
+  
+  Select Case Last.tag
+      
+    Case 1
+      
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        Ncom.SetFocus
+        Ncom.Select
+        Stop Event
+      Endif
+      
+  End Select
+  
+End
+
+'************************************
+'* Affichage du columnview Colcom    *
+'************************************
+Public Sub ToggleButton1_Click()
+  
+  Dim rResult As Result
+  Dim FoResult As Result
+  
+  Tab = "Fiches_Entcom" 
+  Tab2 = "Fiches_Four" 
+  With Utils
+    If Colcom.visible Then
+      Colcom.clear
+      Colcom.visible = False
+    Else
+      Colcom.visible = True
+      Colcom.Columns.count = 3
+      Colcom.Columns[0].Width = 65
+      Colcom.Columns[1].Width = 240
+      Colcom.Columns[2].Width = 60
+      Colcom.Columns[0].Text = "code"
+      Colcom.Columns[1].Text = "nom"
+      Colcom.Columns[2].Text = "numero"
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by four")
+      If rResult.Available Then
+        Repeat
+          Colcom.Add(rResult!four & rResult!numcom, rResult!four & rResult!numcom)
+          Colcom.Item[0] = rResult!four
+          FoResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " where  fo_code = &1", rResult!four)
+          Colcom.Item[1] = FoResult!fo_nom
+          Colcom.Item[2] = rResult!numcom
+          dater = .Cdate_Aff(rResult!ddate)
+        Until rResult.MoveNext()
+      Endif
+      If Colcom.Count Then
+        Colcom.MoveFirst
+        Colcom.SetFocus
+        Colcom.Item.Selected = True
+      Endif
+    Endif
+  End With
+  
+End
+
+'***********************************************************
+'* Gestion du columnview Colcom lors d'une saisie manuelle *
+'***********************************************************
+Public Sub Colcom_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Colcom.MoveCurrent
+    Ncom.Text = Colcom.Item[2]
+    Colcom.visible = False
+    Colcom.clear
+  Endif
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Colcom.visible = False
+    Colcom.clear
+    Ncom.SetFocus
+    Ncom.Select
+    Stop Event
+  Endif
+  
+End
+
+'***********************************************************
+'* Gestion du columnview Colcom lors d'une saisie manuelle *
+'***********************************************************
+Public Sub Colcom_click()
+  
+  Ncom.Text = Colcom.Item[2]
+  Codefour = Colcom.Item[0]
+  Colcom.visible = False
+  Colcom.clear
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Cmpt_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  
+End
+
+'******************************
+'*        On imprime          *
+'******************************
+Public Sub Button2_Click()
+  
+  Dim LigResult As Result
+  Dim fourResult As Result
+  Dim Rsoc As Result
+  Dim Tab3 As String
+  Dim adr11 As String
+  Dim adr22 As String
+  Dim adr1, Libre As String
+  Dim adr2 As String
+  Dim ville As String
+  Dim cp As String
+  Dim Rs As String
+  Dim Mail As String
+  Dim Rcs As String
+  Dim Siret As String
+  Dim Tvaintra As String
+  Dim Cap As String
+  Dim Ape As String
+  Dim Tel As String
+  Dim portable As String
+  Dim Fax As String
+  Dim site As String
+  Dim p As Integer
+  Dim code As String
+  Dim intitule As String
+  Dim qte As String
+  Dim pbht As String
+  Dim rm As String
+  Dim paht As String
+  Dim totht As String
+  Dim totcom As String
+  Dim codef As String
+  Dim intitulef As String
+  Dim telf As String
+  Dim dte As String
+  Dim Ncomf As String
+  Dim Logo As Image
+  Dim Iban As String
+  Dim Cfac As Boolean = False
+  
+  dte = Format$(Now, "dd.mm.yyyy")
+  Tab = "Fiches_Ligcom" 
+  Tab2 = "Fiches_Four" 
+  Tab3 = "Fiches_Societes"
+  Totcom = "0"
+  With Utils
+    PosY = 105
+    p = 1
+    Rsoc = Utils.db.Exec("SELECT * FROM " & tab3 & " where cd_sc = &1", Start.Societe)
+    Rs = Rsoc!type_sc & " " & Rsoc!int_sc
+    adr11 = Rsoc!adr1_sc
+    adr22 = Rsoc!adr2_sc
+    Libre = Rsoc!libre
+    ville = Rsoc!cp_sc & "  " & Rsoc!burdis_sc
+    If Rsoc!villerc_sc Then Rcs = "Rcs : " & Rsoc!rcs_sc & " " & Rsoc!villerc_sc
+    If Rsoc!siret_sc Then Siret = "Siret : " & Rsoc!siret_sc
+    If Rsoc!tvaintra_sc Then Tvaintra = "Tva intra : " & Rsoc!tvaintra_sc
+    If Rsoc!cap_sc Then Cap = "Capital : " & Rsoc!cap_sc
+    If Rsoc!ape_sc Then Ape = "APE : " & Rsoc!ape_sc
+    If Rsoc!tel_sc Then Tel = "Tel : " & Rsoc!tel_sc
+    If Rsoc!port_sc Then portable = "Portable : " & Rsoc!port_sc
+    If Rsoc!fax_sc Then Fax = "Fax : " & Rsoc!fax_sc
+    If Rsoc!email_sc Then Mail = "Courriel : " & Rsoc!email_sc
+    If Rsoc!site Then site = "site : " & Rsoc!site
+    If Rsoc!banq Then Iban = "Iban : " & Rsoc!banq & " Bic : " & Rsoc!bic
+    If Exist(User.home & "/Edcom.kdf") Then Try Kill User.home & "/Edcom.kdf"
+    hFile = Open filename For Write Create
+    LigResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE numcom = &1 and four = &2", Ncom.Text, Codefour)
+    If LigResult.Available Then
+      Shell "cd " & User.Home & ""
+      Filename = User.home & "/Commande.pdf"
+      pdf = New Cdocuments("Portrait", "mm", "A4")
+      pdf.Open()
+      pdf.AliasNbPages()
+      If Settings["/Soc" & Start.Societe & "/glogo"] Then Try Logo = Settings["/Soc" & Start.Societe & "/Logo"]
+      p = p + 2
+      Me.Mouse = Mouse.Wait
+      Ncomf = Ncom.Text
+      codef = Codefour
+      'Codefour = Codef
+      fourResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE fo_code = &1 ", codef)
+      If fourResult.Available Then
+        intitulef = fourResult!fo_rs_soc & " " & fourResult!fo_nom & " " & fourResult!fo_pnm
+        adr1 = fourResult!fo_adr1
+        adr2 = fourResult!fo_adr2
+        cp = fourResult!fo_cd_ptl & " " & fourResult!fo_ville
+        tel = fourResult!fo_tel_std
+        Pays = fourResult!fo_pays
+        telf = fourResult!fo_tel_std
+        Cfac = fourResult!fo_copie
+      Endif
+      Jour = "Commande n° " & Ncomf & " du " & dater
+      Codef = "Code : " & Codef & "  Tel : " & telf
+      pdf.Entete(Rs, adr11, adr22, ville, Cap, Rcs, Siret, Ape, Tvaintra, tel, portable, fax, mail, site, "", Pays, Iban, False, Libre)
+      pdf.Entete2(intitulef, adr1, adr2, cp, pays, telf, False)
+      pdf.Level1(Jour, codef)
+      pdf.Level2(True)
+      Posy = 105
+      Me.Mouse = Mouse.Wait
+      Repeat
+        code = LigResult!code
+        intitule = LigResult!design
+        qte = LigResult!qte
+        If IsNull(qte) Then qte = "1"
+        pbht = LigResult!pbht
+        rm = LigResult!rm
+        paht = LigResult!paht
+        totht = Format$(Val(paht) * Val(qte), "0.00")
+        Totcom = Format$(Val(Totcom) + Val(Totht), " 0.00")
+        Inc p
+        pdf.level3(code, intitule, qte, pbht, rm, paht, totht, False, "", PosY)
+        posy = posy + 5
+        If PosY >= 280 Then
+          pdf.Entete(Rs, adr11, adr22, ville, Cap, Rcs, Siret, Ape, Tvaintra, tel, portable, fax, mail, site, "", Pays, Iban, False, Libre)
+          pdf.Entete2(intitulef, adr1, adr2, cp, pays, telf, False)
+          pdf.Level1(Jour, codef)
+          pdf.Level2(True)
+          posy = 105
+        Endif
+      Until LigResult.MoveNext()
+      pdf.level4(totcom, PosY + 5)
+      pdf.Output(Filename, False)
+      Impression.Prog_Editeur(Filename)
+      Piece = User.home & "/Impressions/" & "Commande" & ".pdf"
+      'If Cfac Then Copie.Dupli3("Commande.pdf", dater, Codefour, Ncomf & Codefour)
+    Else
+      If son Then
+        Music.Play
+      Endif
+      message(" Aucun mouvement pour cette demande", "OK")
+    Endif
+    Me.Mouse = Mouse.Pointing
+  End With
+  
+End
+
+' Numero de facture, date d'impression et page
+Public Sub Level1(Jour2 As String, codef As String)
+  
+  Draw.Font.Bold = True
+  Draw.Font.Size = 10
+  Draw.Text(Jour2, 300, 2150)
+  Draw.Text(Codef, 2700, 2150)
+  
+End
+
+'Entete des lignes de commande
+Public Sub Level2()
+  
+  PosY = 2360
+  Draw.FillColor = Val(Coulfond[0])
+  Draw.Rect(200, PosY, 680, 140)
+  Draw.Rect(880, PosY, 1700, 140)
+  Draw.Rect(2580, PosY, 420, 140)
+  Draw.Rect(3000, PosY, 460, 140)
+  Draw.Rect(3460, PosY, 400, 140)
+  Draw.Rect(3860, PosY, 460, 140)
+  Draw.Rect(4320, PosY, 460, 140)
+  Draw.Font.Size = 10
+  Draw.Text("Code", 200, PosY + 10, 680, 100, 3)
+  Draw.Text("Intitulé", 880, PosY + 10, 1700, 100, 3)
+  Draw.Text("Quantité", 2580, PosY + 10, 420, 100, 3)
+  Draw.Text("Pb Ht", 3000, PosY + 10, 460, 100, 3)
+  Draw.Text("Remise", 3460, PosY + 10, 400, 100, 3)
+  Draw.Text("Pa Ht", 3860, PosY + 10, 460, 100, 3)
+  Draw.Text("Pa total", 4320, PosY + 10, 460, 100, 3)
+  
+End
+
+'Lignes de detail
+Public Sub Level3(code As String, intitule As String, qte As String, pbht As String, rem As String, paht As String, patot As String)
+  
+  Draw.font = font["Bitstream Charter"]
+  Draw.Font.Bold = False
+  Draw.Font.Size = 8
+  Draw.Text(code, 206, PosY)
+  Draw.Text(Intitule, 880, PosY)
+  Draw.Text(qte, 2580, PosY, 420, 140, 2)
+  Draw.Text(pbht, 3000, PosY, 460, 140, 2)
+  Draw.Text(rem, 3460, PosY, 400, 140, 2)
+  Draw.Text(Paht, 3860, PosY, 460, 140, 2)
+  Draw.Text(Patot, 4320, PosY, 460, 140, 2)
+  
+End
+
+Public Sub Level3bis(intitule2 As String)
+  
+  Draw.font = font["Bitstream Charter"]
+  Draw.Font.Bold = False
+  Draw.Font.Size = 8
+  Draw.Text(Intitule2, 880, PosY)
+  
+End
+
+'Total commande
+Public Sub Level4(patot As String)
+  
+  Draw.FillStyle = Fill.Vertical
+  Draw.Rect(3320, PosY + 200, 1460, 140)
+  Draw.font = font["Bitstream Charter"]
+  Draw.Font.Bold = True
+  Draw.Font.Size = 12
+  Draw.Text("Total commande : ", 3330, PosY + 200)
+  Draw.Text(patot, 4000, PosY + 200, 760, 140, 2)
+  
+End
+
+Public Sub Button3_Click()
+  
+  If Exist(User.home & "/Edcom.kdf") Then Try Kill User.home & "/Edcom.kdf"
+  Me.Close
+  
+End

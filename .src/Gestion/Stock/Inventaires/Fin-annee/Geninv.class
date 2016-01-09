@@ -1,0 +1,255 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Geninv.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 12/01/2005
+'# Génération du fichier inventaire de fin d'exercice
+'################################################
+
+Filename As String
+son As Integer = Start.Son
+PosY As Integer
+Coulfond As New String[]
+pdf As Cstocks
+tri As String
+
+Public Sub _New()
+  
+  Dim jour As String
+  
+  Coulfond = Utils.Coulfd()
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Music.Load(Start.Musique)
+  filename = User.home & "/Edinv.ps"
+  Me.Center
+  jour = Format$(Now, "dd.mm.yyyy")
+  dte.Text = jour
+  
+End
+
+Public Sub button1_Click()
+  
+  Dim Rinv As Result
+  Dim Tab As String
+  Dim Valid As String
+  
+  Tab = "Fiches_Inv" 
+  Rinv = Utils.db.Exec("SELECT inv_valid FROM " & tab & "")
+  If Rinv.Available Then
+    If Rinv!inv_valid <> "1" Then
+      Valid = "non validé"
+    Else
+      Valid = "validé"
+    Endif
+    If son Then
+      Music.Play
+    Endif
+    If Message.Question("Attention ! Un inventaire " & Valid & " est en cours. \nContinuer le traitement va détruire l'inventaire en cours. \nVoulez-vous continuer ?", "Oui", "Non") = 1 Then
+      Utils.db.Exec("drop Table IF exists " & Tab & "")
+      gen_Inv()
+    Endif
+  Else
+    gen_Inv()
+  Endif
+  Me.Raise
+Catch
+  gen_Inv()
+  
+End
+
+Public Sub gen_Inv()
+  
+  Dim rarts As Result
+  Dim Tab As String
+  Dim Tab2 As String
+  Dim Nlig As Integer
+  Dim Invcode As String
+  Dim InvStock As Float
+  Dim Invqte As Integer
+  
+  Tab2 = "Fiches_Inv" 
+  Tab = "Fiches_Art" 
+  Nlig = 1
+  Invqte = 0
+  Me.Mouse = Mouse.Wait
+  With Utils
+    Utils.db.Exec("drop Table IF exists " & Tab2 & "")
+    Try Utils.db.EXEC("CREATE TABLE " & Tab2 & 
+      " (inv_nlig char(9) NOT NULL," &
+      "inv_code Char(15) , " &
+      "inv_qtestock Decimal(12,2) , " &
+      "inv_qtecomptee Decimal(12,2) , " &
+      "inv_date date , " &
+      "inv_comptee TINYINT," &
+      "inv_valid Integer , " &
+      "inv_design Char(8) , " &
+      "inv_casier Char(8) , " &
+      "PRIMARY KEY (inv_nlig))" & "ENGINE = MYISAM")
+    If Ca.Value = True Then
+      If Fm.value = True Then
+        rarts = Utils.db.Exec("SELECT * FROM " & tab & " WHERE art_stocke = &1 order by art_fam,art_code", 1)
+      Else
+        If Fr.value = True Then
+          rarts = Utils.db.Exec("SELECT * FROM " & tab & " WHERE art_stocke = &1 order by art_four,art_code", 1)
+        Else
+          rarts = Utils.db.Exec("SELECT * FROM " & tab & " WHERE art_stocke = &1 order by art_casier,art_code", 1)
+        Endif
+      Endif
+    Else
+      If Fm.value = True Then
+        rarts = Utils.db.Exec("SELECT * FROM " & tab & " WHERE art_stocke = &1 order by art_fam,art_design", 1)
+      Else
+        If Fr.value = True Then
+          rarts = Utils.db.Exec("SELECT * FROM " & tab & " WHERE art_stocke = &1 order by art_four,art_design", 1)
+        Else
+          rarts = Utils.db.Exec("SELECT * FROM " & tab & " WHERE art_stocke = &1 order by art_casier,art_design", 1)
+        Endif
+      Endif
+    Endif
+    If rarts.Available Then
+      Me.Mouse = Mouse.Wait
+      Repeat
+        Invcode = rarts!art_code
+        If rarts!art_qte = "" Then
+          InvStock = 0
+        Else
+          InvStock = rarts!art_qte
+        Endif
+        'Utils.db.Exec("INSERT INTO " & Tab2 & "(inv_nlig,inv_code, inv_qtestock, inv_qtecomptee, inv_date, inv_comptee) VALUES (&1,&2,&3,&4,&5, &6)", Nlig, Invcode, InvStock, Invqte, .Cdate_Dbase(dte.Text), Invqte)
+        Utils.db.Exec("INSERT INTO " & Tab2 & "(inv_nlig,inv_code, inv_qtestock, inv_qtecomptee, inv_date, inv_comptee, inv_design, inv_casier) VALUES (&1,&2,&3,&4,&5, &6, &7, &8)", Nlig, Invcode, InvStock, Invqte, .Cdate_Dbase(dte.Text), Invqte, rarts!art_design, rarts!art_casier)
+        Inc Nlig
+      Until rarts.MoveNext()
+      If son Then
+        Music.Play
+      Endif
+      Me.Mouse = Mouse.Default
+      Message.Warning("Traitement terminé ! \n Veuillez imprimer votre inventaire SVP", "Ok")
+    Else
+      If son Then
+        Music.Play
+      Endif
+      Me.Mouse = Mouse.Default
+      Message.Warning("Aucun article pour cette demande", "Ok")
+    Endif
+  End With
+  
+End
+
+Public Sub Button3_Click()
+  
+  Dim Rinv As Result
+  Dim rarts As Result
+  Dim Tab As String
+  Dim Tab2 As String
+  Dim code As String
+  Dim designation As String
+  Dim qtestock As String
+  Dim qtecomptee As String
+  Dim Nlig As String
+  Dim Stktheorique As String
+  Dim Nbpage As Integer
+  
+  Nbpage = 1
+  Tab = "Fiches_Inv" 
+  Tab2 = "Fiches_Art" 
+  If Stkt.Value Then
+    Stktheorique = "Qté théorique"
+  Else
+    Stktheorique = ""
+  Endif
+  If Ca.value = True Then
+    tri = "inv_code"
+  Else
+    If Ds.value = True Then
+      tri = "inv_design"
+    Else
+      If Cs.value = True Then
+        tri = "inv_casier"
+      Endif
+    Endif
+  Endif
+  Me.Mouse = Mouse.Wait
+  Rinv = Utils.db.Exec("SELECT * FROM " & Tab & "")
+  If Rinv.Available Then
+    Shell "cd " & User.Home & ""
+    filename = User.home & "/Inventaire.pdf"
+    pdf = New Cstocks("Portrait", "mm", "A4")
+    pdf.Open()
+    pdf.AliasNbPages()
+    pdf.Entete("Impression des produits à saisir : Inventaire du " & dte.Text)
+    posy = 24
+    pdf.Level1G()
+    posy += 5
+    Repeat
+      Nlig = Rinv!inv_nlig
+      code = Rinv!inv_code
+      rarts = Utils.db.Exec("SELECT * FROM " & Tab2 & " where art_code = &1", code)
+      designation = rarts!art_design
+      If Stkt.value Then
+        qtestock = Rinv!inv_qtestock
+      Else
+        qtestock = ""
+      Endif
+      pdf.Level2G(Nlig, code, designation, rarts!art_casier, qteStock, qtecomptee, PosY)
+      posy += 5
+      pdf.lines(posY)
+      posy += 2
+      If PosY >= 288 Then
+        pdf.Baspage()
+        pdf.Entete("Impression des produits à saisir : Inventaire du " & dte.Text)
+        posy = 24
+        pdf.Level1G()
+        posy += 5
+      Endif
+    Until Rinv.MoveNext()
+    pdf.BasPage()
+    pdf.Output(Filename, False)
+    Me.Mouse = Mouse.Default
+    Visualiseur.Prog_Editeur(Filename)
+  Else
+    If son Then
+      Music.Play
+    Endif
+    Me.Mouse = Mouse.Default
+    message(" Aucun article pour cette demande", "OK")
+  Endif
+Catch
+  Me.Mouse = Mouse.Default
+  Message.Warning("Impression impossible ! \n Veuillez génerer votre inventaire avant l'impression SVP", "Ok")
+  
+End
+
+Public Sub button2_Click()
+  
+  If Exist(filename) Then Try Kill filename
+  Me.Close
+  
+End
+
+Public Sub Button4_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Geninv.html"]
+  
+End
+
+Public Sub Label1_MouseDown()
+  
+End

@@ -1,0 +1,446 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : FPrepRel.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 01/11/2004
+'# Préparation des relances
+'################################################
+'
+
+Private Niv As Integer
+Private Devises As String
+Private son As Integer = Start.Son
+
+Public Sub _New()
+  
+  Dim rParam As Result
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  dteN1.Text = Format$(Now, "dd.mm.yyyy")
+  dteN1_Gotfocus()
+  rParam = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabParam") & "")
+  If rParam.Available Then
+    devises = rParam!devise
+    If IsNull(devises) Then devises = "Euros"
+  Endif
+  
+End
+
+Public Sub Form_Open()
+  
+  compteRel.Columns.count = 7
+  compteRel.Columns[0].Alignment = 4
+  compteRel.Columns[0].Width = 80
+  compteRel.Columns[1].Width = 60
+  compteRel.Columns[2].Width = 200
+  compteRel.Columns[3].Width = 100
+  compteRel.Columns[4].Width = 200
+  compteRel.Columns[5].Width = 100
+  compteRel.Columns[6].Width = 70
+  compteRel.Columns[0].Text = "Code"
+  compteRel.Columns[1].Text = "RS"
+  compteRel.Columns[2].Text = "Nom"
+  compteRel.Columns[3].Text = "CP"
+  compteRel.Columns[4].Text = "Ville"
+  compteRel.Columns[5].Alignment = 2
+  compteRel.Columns[5].Text = "Débit"
+  compteRel.Columns[6].Alignment = 2
+  compteRel.Columns[6].Text = "Crédit"
+  relances.Columns.count = 8
+  relances.Columns[0].Alignment = 4
+  relances.Columns[0].Width = 98
+  relances.Columns[1].Width = 220
+  relances.Columns[2].Width = 100
+  relances.Columns[3].Width = 100
+  relances.Columns[4].Width = 104
+  relances.Columns[5].Width = 110
+  relances.Columns[6].Width = 70
+  relances.Columns[7].Width = 70
+  relances.Columns[0].Text = "Date éch."
+  relances.Columns[1].Text = "Libellé"
+  relances.Columns[2].Text = "Document"
+  relances.Columns[3].Text = "Lot"
+  relances.Columns[4].Alignment = 2
+  relances.Columns[4].Text = "Débit"
+  relances.Columns[5].Alignment = 2
+  relances.Columns[5].Text = "Crédit"
+  relances.Columns[6].Alignment = 2
+  relances.Columns[6].Text = "Numéro"
+  relances.Columns[7].Alignment = 2
+  relances.Columns[7].Text = "Journal"
+  
+End
+
+Public Sub dte_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+        
+      Case 1
+        dteN1_LostFocus()
+        Stop Event
+    End Select
+    
+  Endif
+  If key.code = key.F1 Then
+    Button7_Click()
+    Stop Event
+  Endif
+  
+End
+
+Public Sub dteN1_GotFocus()
+  
+  dteN1.Background = &HAAFF7F&
+  dteN1.SetFocus
+  dteN1.Select
+  
+End
+
+Public Sub dteN1_LostFocus()
+  
+  With utils
+    dteN1.Text = .Cdate_calc(dteN1.text)
+    dteN1.Text = .Cdate_aff(dteN1.Text)
+    If dteN1.text = "00.00.0:00" Then
+      dteN1.text = Format$(Now, "dd.mm.yyyy")
+    Else
+      dteN1.Background = Color.TextBackground
+      Button1.SetFocus
+    Endif
+  End With
+  
+End
+
+Public Sub compteRel_KeyPress()
+  
+  If key.code = key.Delete Then
+    compteRel_Activate()
+    Stop Event
+  Endif
+  
+End
+
+Public Sub compteRel_Activate()
+  
+  Dim Tab As String
+  Dim rResult As Result
+  
+  Tab = "Fiches_relances" 
+  If compteRel.Available Then
+    If son Then
+      Music.Play
+    Endif
+    If Message.Warning("Ce compte n'apparaitra pas dans vos relances. \n Confirmez-vous sa suppression ?", "Oui", "Non") = 1 Then
+      rResult = Utils.db.Exec("SELECT * FROM " & tab & " where compte = &1", compterel.Current[0])
+      If rResult.Available Then
+        Repeat
+          Utils.db.Exec("DELETE   FROM " & Tab & " WHERE compte= '" & compterel.Current[0] & "'")
+        Until rResult.MoveNext()
+      Endif
+    Endif
+    compteRel.Current.Delete
+    compteRel.Clear
+    relances.clear
+    MajTab()
+  Endif
+  
+End
+
+Public Sub Relances_KeyPress()
+  
+  If key.code = key.Delete Then
+    Relances_Activate()
+    Stop Event
+  Endif
+  
+End
+
+Public Sub relances_Activate()
+  
+  Dim Tab As String
+  Dim rResult As Result
+  
+  Tab = "Fiches_relances" 
+  If relances.count > 0 Then
+    If son Then
+      Music.Play
+    Endif
+    If Message.Warning("Cette écriture n'apparaitra pas dans vos relances. \n Confirmez-vous sa suppression ?", "Oui", "Non") = 1 Then
+      rResult = Utils.db.Exec("SELECT * FROM " & tab & " where numdoc = &1", relances.Current[2])
+      If rResult.Available Then
+        Repeat
+          Utils.db.Exec("DELETE   FROM " & Tab & " WHERE numdoc = '" & relances.Current[2] & "'")
+        Until rResult.MoveNext()
+      Endif
+    Endif
+    relances.Current.Delete
+  Endif
+  
+End
+
+Public Sub button1_KeyPress()
+  
+  Button1_Click()
+  
+End
+
+Public Sub Button1_Click()
+  
+  Dim rResult As Result
+  Dim rrResult As Result
+  Dim Tab As String
+  Dim Tab2 As String
+  Dim Tab3 As String
+  Dim dteN As String
+  
+  Tab = "Fiches_Mvt" 
+  Tab2 = "Fiches_relances" 
+  Tab3 = "Fiches_Cli" 
+  relances.clear
+  compteRel.Clear
+  TextLabel1.Text = ""
+  TextLabel2.Text = ""
+  Utils.db.Exec("DROP TABLE if exists " & Tab2 & "")
+  Utils.db.EXEC("CREATE TABLE " & Tab2 & 
+    " (compte Char(8) NOT NULL," &
+    "rs char(10) ," &
+    "intitule char(50) ," &
+    "adr1 char(35) ," &
+    "adr2 char(35) ," &
+    "cp char(10) ," &
+    "ville char(35) ," &
+    "pays char(35) ," &
+    "dte date ," &
+    "numdoc char(10) NOT NULL," &
+    "numlot char(10) ," &
+    "libelle char(50) ," &
+    "montantd Decimal(12,2) ," &
+    "montantc Decimal(12,2) ," &
+    "numero char(8) ," &
+    "journal char(2) ," &
+    "niveau integer(1)," &
+    "lind char(10) ," &
+    "PRIMARY KEY (compte,numdoc, lind))" & "ENGINE = MYISAM")
+  If dteN1.Text <> "" Then
+    dteN = Right$(dteN1.Text, 4) & Mid$(dteN1.Text, 4, 2) & Left$(dteN1.Text, 2)
+    rResult = Utils.db.Exec("SELECT * FROM " & tab & " where left(compte,3) = &1 and dateech <= &2 and tresorerie = &3 and collectif is null and lettree = &4 or left(compte,3) = &1 and dateech is null and tresorerie = &3 and collectif is null and lettree = &4  or left(compte,3) = &1 and dte <= &2 and tresorerie = &5 and collectif is null and lettree = &4", "411", dteN, 0, 0, 1)
+    If rResult.Available Then
+      Me.mouse = Mouse.Wait
+      Repeat
+        If rResult!relance = "" Then
+          Niv = 1
+        Else
+          If rResult!relance < 3 Then
+            Niv = rResult!relance + 1
+          Else
+            Niv = 3
+          Endif
+        Endif
+        rrResult = Utils.db.Exec("SELECT * from " & Tab3 & " where cli_code = &1", rResult!compte)
+        If rrResult.Available Then
+          Try Utils.db.Exec("INSERT INTO " & Tab2 & " (compte, rs, intitule, adr1, adr2, cp, ville, pays, dte, numdoc, numlot, libelle, montantd, montantc, numero, journal, niveau, lind) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18})", rResult!compte, rrResult!cli_rs_soc, rrResult!cli_nom, rrResult!cli_adr1, rrResult!cli_adr2, rrResult!cli_cd_ptl, rrResult!cli_ville, rrResult!cli_pays, rResult!dateech, rResult!numdoc, rResult!numlot, rResult!libelle, rResult!montantd, rResult!montantc, rResult!numero, rResult!jour, Niv, rResult!lind)
+          'If Error Then Message.Error("Il y a un problème sur l'écriture n° " & rResult!numero & " Veuillez vérifier que le numéro de document existe bien !")
+          If Error Then Utils.db.Exec("INSERT INTO " & Tab2 & " (compte, rs, intitule, adr1, adr2, cp, ville, pays, dte, numdoc, numlot, libelle, montantd, montantc, numero, journal, niveau, lind) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18})", rResult!compte, rrResult!cli_rs_soc, rrResult!cli_nom, rrResult!cli_adr1, rrResult!cli_adr2, rrResult!cli_cd_ptl, rrResult!cli_ville, rrResult!cli_pays, rResult!dateech, rResult!compte & rResult!lind, rResult!numlot, rResult!libelle, rResult!montantd, rResult!montantc, rResult!numero, rResult!jour, Niv, rResult!lind)
+        Endif
+      Until rResult.MoveNext()
+      MajTab()
+      Me.mouse = Mouse.Default
+    Endif
+  Else
+    If son Then
+      Music.Play
+    Endif
+    Message.Info("Veuillez saisir votre date SVP")
+    dteN1_GotFocus()
+    dteN1.SetFocus
+  Endif
+  
+End
+
+Public Sub compteRel_Click()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  Dim TotdebC As Float
+  Dim TotcredC As Float
+  Dim Tot As Float
+  Dim Totc As String
+  
+  Tab = "Fiches_relances" 
+  relances.clear
+  Niv0.Value = True
+  With utils
+    rResult = Utils.db.Exec("SELECT * FROM " & tab & " where compte = &1 order by dte", compteRel.Item[0])
+    If rResult.Available Then
+      Repeat
+        relances.Add(rResult!numdoc & rResult!lind, rResult!numdoc & rResult!lind)
+        relances.Item[0] = .Cdate_AffData(rResult!dte)
+        relances.Item[1] = rResult!libelle
+        relances.Item[2] = rResult!numdoc
+        relances.Item[3] = rResult!numlot
+        relances.Item[4] = Format$(rResult!montantd, "0.00")
+        relances.Item[5] = Format$(rResult!montantc, "0.00")
+        relances.Item[6] = rResult!numero
+        relances.Item[7] = rResult!journal
+        relances.Item[8] = rResult!niveau
+        TotdebC = TotdebC + rResult!montantd
+        TotcredC = TotcredC + rResult!montantc
+      Until rResult.MoveNext()
+      Tot = TotdebC - TotcredC
+      Totc = Format$(Tot, "0.00")
+      If Tot > 0 And LCase$(Right$(Devises, 1)) <> "s" Then Devises = Devises & "s"
+      If Relances.count > 1 Then
+        TextLabel2.Text = "Ce client vous doit " & Totc & " " & Devises
+      Else
+        TextLabel2.Text = "Ce client vous doit " & Totc & " " & Devises
+      Endif
+    Endif
+  End With
+  
+End
+
+Public Sub MajTab()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  Dim cpt As String
+  Dim Totdeb As Float
+  Dim Totcred As Float
+  Dim TotdebC As Float
+  Dim TotcredC As Float
+  Dim Tot As Float
+  Dim Totc As String
+  
+  Tab = "Fiches_relances" 
+  relances.clear
+  With utils
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by compte ")
+    Repeat
+      If rResult.Available Then
+        If cpt <> rResult!compte Then
+          Totdeb = rResult!montantd
+          Totcred = rResult!montantc
+          compteRel.Add(rResult!compte, rResult!compte)
+          compteRel.Item[0] = rResult!compte
+          compteRel.Item[1] = rResult!rs
+          compteRel.Item[2] = rResult!intitule
+          compteRel.Item[3] = rResult!cp
+          compteRel.Item[4] = rResult!ville
+          cpt = rResult!compte
+          compteRel.Item[5] = Format$(Totdeb, "0.00")
+          compteRel.Item[6] = Format$(Totcred, "0.00")
+          TotdebC = TotdebC + Totdeb
+          TotcredC = TotcredC + Totcred
+        Else
+          compteRel.Item[5] = Format$(Totdeb + rResult!montantd, "0.00")
+          compteRel.Item[6] = Format$(Totcred + rResult!montantc, "0.00")
+          Totdeb = totdeb + rResult!montantd
+          Totcred = Totcred + rResult!montantc
+          TotdebC = TotdebC + rResult!montantd
+          TotcredC = TotcredC + rResult!montantc
+        Endif
+      Endif
+    Until rResult.MoveNext()
+  End With
+  Tot = TotdebC - TotcredC
+  Totc = Format$(Tot, "0.00")
+  If Tot > 0 And LCase$(Right$(Devises, 1)) <> "s" Then Devises = Devises & "s"
+  TextLabel1.Text = compteRel.count & " clients vous doivent un total de " & Totc & " " & Devises
+  
+End
+
+Public Sub relances_Click()
+  
+  If relances.Item[8] = 0 Then
+    Niv0.Value = True
+    Niv = 0
+  Else
+    If relances.Item[8] = 1 Then
+      Niv1.Value = True
+      Niv = 1
+    Else
+      If relances.Item[8] = 2 Then
+        Niv2.Value = True
+        Niv = 2
+      Else
+        If relances.Item[8] = 3 Then
+          Niv3.Value = True
+          Niv = 3
+        Endif
+      Endif
+    Endif
+  Endif
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim Tab As String
+  
+  Tab = "Fiches_relances" 
+  If relances.Count <> 0 Then
+    If dteN1.Text <> "" Then
+      Try Utils.db.Exec("UPdate  " & Tab & "  SET  niveau = '" & Niv & "' WHERE compte = &1 and numdoc = &2", compteRel.Current[0], relances.Current[2])
+    Endif
+  Else
+  Endif
+  
+End
+
+Public Sub Niv0_Click()
+  
+  Niv = 0
+  
+End
+
+Public Sub Niv1_Click()
+  
+  Niv = 1
+  
+End
+
+Public Sub Niv2_Click()
+  
+  Niv = 2
+  
+End
+
+Public Sub Niv3_Click()
+  
+  Niv = 3
+  
+End
+
+Public Sub Button3_Click()
+  
+  Me.Close
+  
+End
+
+Public Sub Button7_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Preprelances.html"]
+  
+End

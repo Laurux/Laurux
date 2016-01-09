@@ -1,0 +1,336 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Edsdepots.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 14/12/2011
+'# Impression des sorties des dépots
+'################################################
+'
+
+Filename As String
+jour As String
+son As Integer = Start.Son
+PosY As Integer
+Org As String
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Me.Center
+  Music.Load(Start.Musique)
+  jour = Format$(Now, "dd.mm.yyyy")
+  date2.Text = jour
+  date1.Text = Left$(date2.Text, 6) & Str(Val(Right$(date2.Text, 4)) - 4)
+  date1.SetFocus
+  date1.Select
+  
+End
+
+'***********************
+'* On gere nos touches *
+'***********************
+Public Sub Cmpt_KeyPress()
+  
+  Select Case Last.tag
+      
+    Case 1
+      ' date de début
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        date1_LostFocus()
+        date2.SetFocus
+        date2.Select
+        Stop Event
+      Endif
+      
+    Case 2
+      ' date de fin
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        date2_LostFocus()
+        date1.SetFocus
+        date1.Select
+        Stop Event
+      Endif
+  End Select
+  
+  If key.code = key.F1 Then
+    'Button3_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.F2 Then
+    Select Case Last.tag
+        
+      Case 1
+        If DateChooser1.visible = False Then
+          DateChooser1.X = 232
+          DateChooser1.Visible = True
+          Org = "1"
+        Else
+          DateChooser1.Visible = False
+        Endif
+        Stop Event
+        
+      Case 2
+        If DateChooser1.visible = False Then
+          DateChooser1.X = 96
+          DateChooser1.Visible = True
+          Org = "2"
+        Else
+          DateChooser1.Visible = False
+        Endif
+        Stop Event
+    End Select
+  Endif
+  
+End
+
+Public Sub Cmpt_dblclick()
+  
+  Select Case Last.tag
+      
+    Case 1
+      If DateChooser1.visible = False Then
+        DateChooser1.X = 232
+        DateChooser1.Visible = True
+        Org = "1"
+      Else
+        DateChooser1.Visible = False
+      Endif
+      Stop Event
+      
+    Case 2
+      If DateChooser1.visible = False Then
+        DateChooser1.X = 96
+        DateChooser1.Visible = True
+        Org = "2"
+      Else
+        DateChooser1.Visible = False
+      Endif
+      Stop Event
+  End Select
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Cmpt_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  
+End
+
+Public Sub date1_LostFocus()
+  
+  With utils
+    date1.text = .Cdate_calc(date1.Text)
+    date1.Text = .Cdate_aff(date1.Text)
+    If date1.Text = "00.00.0:00" Then date1.Text = Format$(Now, "dd.mm.yyyy")
+  End With
+  date1.Background = &HF9F9BD&
+Catch
+  date1.SetFocus
+  date1.Select
+  
+End
+
+Public Sub date2_GotFocus()
+  
+  date2.Background = &HAAFF7F&
+  
+End
+
+Public Sub date2_LostFocus()
+  
+  With utils
+    date2.text = .Cdate_calc(date2.Text)
+    date2.Text = .Cdate_aff(date2.Text)
+    If date2.Text = "00.00.0:00" Then date2.Text = Format$(Now, "dd.mm.yyyy")
+  End With
+  If Val(Right$(date2.text, 4) & Mid$(date2.text, 4, 2) & Left$(date2.text, 2)) < Val(Right$(date1.text, 4) & Mid$(date1.text, 4, 2) & Left$(date1.text, 2)) Then
+    If son Then
+      Music.Play
+    Endif
+    If Message.Warning("Attention ! Votre selection n'est pas possible.", "Ok") = 1 Then
+    Endif
+  Endif
+  date2.Background = &HF9F9BD&
+Catch
+  date2.SetFocus
+  date2.Select
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim rResult As Result
+  Dim p As Integer
+  Dim code As String
+  Dim intitule, com As String
+  Dim dater As String
+  Dim depot As String
+  Dim qte As String
+  Dim dte As String
+  Dim Nbpage As Integer
+  Dim Ecr As Boolean = False
+  Dim pdf As Cstocks
+  
+  dte = Format$(Now, "dd.mm.yyyy")
+  With Utils
+    Nbpage = 1
+    Shell "cd " & User.Home & ""
+    Filename = User.home & "/RegulDep.pdf"
+    Me.Mouse = Mouse.Wait
+    rResult = utils.db.Exec("SELECT * From " & Cbase.Table("TabArt") & " Left join " & Cbase.Table("TabSdepots") & " on art_code = cart WHERE date >= &1  and date <= &2 and type  = &3 order by code, date, cart", .Cdate_Dbase(date1.Text), .Cdate_Dbase(date2.Text), "E")
+    If rResult.Available Then
+      Ecr = True
+      dte = Format$(Now, "dd.mm.yyyy")
+      pdf = New Cstocks("Portrait", "mm", "A4")
+      pdf.Open()
+      pdf.AliasNbPages()
+      pdf.Entete("Impression des entrées en dépôts")
+      Posy = 20
+      pdf.Level1M()
+      posy += 6
+      Repeat
+        code = rResult!cart
+        Try intitule = rResult!art_design
+        If Error Then Intitule = "Article inexistant"
+        dater = .Cdate_Aff(rResult!date)
+        qte = rResult!qte
+        depot = rResult!code
+        Com = rResult!com
+        Inc p
+        pdf.level2M(code, Left$(intitule, 40), Dater, qte, depot, com, posy)
+        PosY += 5
+        If PosY >= 280 Then
+          pdf.Entete("Impression des entrées en dépôts")
+          Posy = 20
+          pdf.Level1M()
+          posy += 6
+        Endif
+      Until rResult.MoveNext()
+    Endif
+    rResult = utils.db.Exec("SELECT * From " & Cbase.Table("TabArt") & " Left join " & Cbase.Table("TabSdepots") & " on art_code = cart WHERE date >= &1  and date <= &2 and type  = &3 order by code, date, cart", .Cdate_Dbase(date1.Text), .Cdate_Dbase(date2.Text), "S")
+    If rResult.Available Then
+      Ecr = True
+      pdf.Entete("Impression des sorties de dépôts")
+      Posy = 20
+      pdf.Level1M()
+      posy += 6
+      Repeat
+        code = rResult!cart
+        Try intitule = rResult!art_design
+        If Error Then Intitule = "Article inexistant"
+        dater = .Cdate_Aff(rResult!date)
+        qte = rResult!qte
+        depot = rResult!code
+        Com = rResult!com
+        Inc p
+        pdf.level2M(code, Left$(intitule, 40), Dater, qte, depot, com, posy)
+        PosY += 5
+        If PosY >= 280 Then
+          pdf.BasPage()
+          pdf.Entete("Impression des sorties de dépôts")
+          Posy = 20
+          pdf.Level1M()
+          posy += 6
+        Endif
+      Until rResult.MoveNext()
+    Endif
+    If Ecr = False Then
+      If son Then
+        Music.Play
+      Endif
+      message(" Aucun mouvement pour cette demande", "OK")
+    Else
+      pdf.Lines(PosY)
+      pdf.BasPage()
+      pdf.Output(Filename, False)
+      Visualiseur.Prog_Editeur(Filename)
+    Endif
+    Me.Mouse = Mouse.Pointing
+    If Effmvts.Value = True Then
+      If message.Question("Attention, vous allez effacer les mouvements sur les dépôts pour la période demandée !", "Oui", "Non") = 1 Then
+        Utils.db.Exec("DELETE FROM " & Cbase.Table("TabSdepots") & " WHERE datesortie >= &1  and datesortie <= &2", .Cdate_Dbase(date1.Text), .Cdate_Dbase(date2.Text))
+        message(" Les mouvements ont été effacés.")
+      Endif
+    Endif
+  End With
+  
+End
+
+'Entete des lignes de detail
+Public Sub Level1()
+  
+  Draw.FillStyle = Fill.Dense12
+  Draw.font = font["Bitstream Charter"]
+  Draw.Font.Bold = False
+  Draw.Font.Size = 9
+  Draw.Rect(120, 340, 530, 140)
+  Draw.Rect(650, 340, 1600, 140)
+  Draw.Rect(2250, 340, 540, 140)
+  Draw.Rect(2790, 340, 300, 140)
+  Draw.Rect(3090, 340, 300, 140)
+  Draw.Rect(3390, 340, 1430, 140)
+  Draw.Text("Code", 300, 360)
+  Draw.Text("Intitulé", 1160, 360)
+  Draw.Text("Date", 2400, 360)
+  Draw.Text("Qté", 2900, 360)
+  Draw.Text("Dépot", 3140, 360)
+  Draw.Text("Nature", 3900, 360)
+  
+End
+
+'Lignes de detail
+Public Sub Level2(code As String, intitule As String, dater As String, qtem As String, depot As String, com As String)
+  
+  Draw.font = font["Bitstream Charter"]
+  Draw.Font.Bold = False
+  Draw.Font.Size = 8
+  Draw.Text(Code, 120, PosY)
+  Draw.Text(Intitule, 660, PosY, 1600, 92, 1)
+  Draw.Text(dater, 2290, PosY)
+  Draw.Text(qtem, 2790, PosY, 290, 92, 2)
+  Draw.Text(depot, 3090, PosY, 290, 92, 3)
+  Draw.Text(com, 3400, PosY, 290, 92, 1)
+  
+End
+
+Public Sub Button3_Click()
+  
+  Try Kill "~/Regul.ps"
+  Me.Close
+  
+End
+
+Public Sub DateChooser1_Activate()
+  
+  If org = "1" Then
+    Date1.text = Format$(DateChooser1.Value, "dd.mm.yyyy")
+  Else
+    Date2.text = Format$(DateChooser1.Value, "dd.mm.yyyy")
+  Endif
+  DateChooser1.Visible = False
+  
+End

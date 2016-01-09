@@ -1,0 +1,618 @@
+' Gambas class file
+
+Private Tri As String
+Private sel As String
+Private Dbl As String
+Private Totht As String
+Private Tottva As String
+Private TotTk As String
+Private DateTk As String
+Private sRegch As String 'mode de reglement cheque
+Private sRegca As String 'mode de reglement carte
+Private sReges As String 'mode reglement especes
+Private sRegce As String 'mode règlement cheque entreprise
+Private NbEnreg As Integer = 0 ' Enregistrement de départ de la sélection
+Private lg As Integer
+Private pdf As Htickets
+Private Tkresult As Result
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  lg = Int(Coltk.height / coltk.Rows.Height) - 1
+  Me.Center
+  Nm.Text = "Numéro"
+  Date.Text = "Date"
+  Mtht.Text = "Montant ht"
+  Mttva.Text = "Montant tva"
+  Mt.Text = "Montant ttc"
+  Ca.Text = "Caisse"
+  Ve.Text = "Vendeur"
+  Re.Text = "Règlement"
+  detk.Columns.count = 4
+  detk.Columns[0].Width = 120
+  detk.Columns[1].Width = 280
+  detk.Columns[2].Width = 100
+  detk.Columns[3].Width = 100
+  detk.Columns[0].Text = "Code"
+  detk.Columns[1].Text = "Libellé"
+  detk.Columns[2].Text = "Prix"
+  detk.Columns[3].Text = "Qté"
+  
+End
+
+Public Function cpoint(mtt As String) As String
+  
+  Return (Replace$(mtt, ".", ","))
+  
+End
+
+Public Sub Form_Open()
+  
+  NbEnreg = 0
+  Tri = "numero"
+  sel = ""
+  Tris()
+  Deb2()
+  Coltk.MoveTo(0, 0)
+  Try Coltk.Current.EnsureVisible
+  Coltk.SetFocus
+  
+End
+
+Public Sub Tris()
+  
+  With Coltk
+    .Columns.count = 8
+    .Columns[0].Width = Nm.Width
+    .Columns[1].Width = Date.Width
+    .Columns[1].Alignment = 3
+    .Columns[2].Width = Mtht.Width
+    .Columns[2].Alignment = 2
+    .Columns[3].Width = Mttva.Width
+    .Columns[3].Alignment = 2
+    .Columns[4].Width = Mt.Width
+    .Columns[4].Alignment = 2
+    .Columns[5].Width = Ca.Width
+    .Columns[5].Alignment = 3
+    .Columns[6].Width = Re.Width
+    .Columns[6].Alignment = 3
+    .Columns[7].Width = Ve.Width - 2
+    .Columns[1].Alignment = 2
+  End With
+  
+End
+
+Public Sub Deb2()
+  
+  TkResult = Utils.db.Exec("select * from " & Cbase.Table("TabHisEntTck") & " where " & Tri & " like  \"" & sel & "%\" order by " & Tri & " limit " & NbEnreg & ", " & lg & "")
+  'Utils.Base(Coltk, "select * from " & Cbase.Table("TabHisEntTck") & " where " & Tri & " like  \"" & sel & "%\" order by " & Tri & " limit " & NbEnreg & ", " & lg & "")
+  affiche()
+  
+End
+
+Public Sub Deb3()
+  
+  TkResult = Utils.db.Exec("select * from " & Cbase.Table("TabHisEntTck") & " where " & Tri & " like  \"" & sel & "%\" order by " & Tri & " Desc limit " & NbEnreg & ", " & lg & "")
+  affiche()
+  
+End
+
+Public Sub affiche()
+  
+  Dim i As Integer = 0
+  
+  If tkresult.Available Then
+    Coltk.Rows.Count = tkresult.count
+    Repeat
+      Coltk[i, 6].Text = ""
+      Coltk[i, 0].Text = tkresult!numero
+      Coltk[i, 1].Text = tkresult!date
+      Coltk[i, 1].Text = Mid$(Coltk[i, 1].Text, 4, 2) & "." & Left$(Coltk[i, 1].Text, 2) & "." & Right$(Coltk[i, 1].Text, 4)
+      Coltk[i, 1].Alignment = 3
+      Coltk[i, 2].Text = tkresult!mht
+      Coltk[i, 3].Text = tkresult!mtva
+      Coltk[i, 4].Text = tkresult!mttc
+      Coltk[i, 5].Text = tkresult!caisse
+      If tkresult!scheque = "V" Then Coltk[i, 6].Text = "Chèque"
+      If tkresult!scarte = "U" Then Coltk[i, 6].Text = "Carte"
+      If tkresult!sespeces = "N" Then Coltk[i, 6].Text = "Espèces"
+      If tkresult!scredit = "W" Then Coltk[i, 6].Text = "Crédit"
+      If tkresult!savoir = "1" Then Coltk[i, 6].Text = "Avoir"
+      If tkresult!sresto = "R" Then Coltk[i, 6].Text = "Chq entreprise"
+      Coltk[i, 7].Text = Replace$(tkresult!vendeur, "\n", "")
+      Inc i
+    Until tkresult.MoveNext()
+  Endif
+  
+End
+
+Public Sub Refresh()
+  
+  form_Open()
+  
+End
+
+Public Sub Dbclk()
+  
+  If Not Dbl Then
+    Deb3()
+    Dbl = "1"
+  Else
+    Deb2()
+    Dbl = ""
+  Endif
+  
+End
+
+Public Sub Nm_GotFocus()
+  
+  sel = ""
+  init_Tk()
+  Nm.Text = ""
+  NbEnreg = 0
+  Tri = "numero"
+  Deb2()
+  
+End
+
+Public Sub Nm_Dblclick()
+  
+  sel = ""
+  init_Tk()
+  Nm.Text = ""
+  NbEnreg = 0
+  Tri = "numero"
+  Dbclk()
+  
+End
+
+Public Sub Nm_KeyPress()
+  
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    KeyPress()
+  Endif
+  
+End
+
+Public Sub Date_GotFocus()
+  
+  sel = ""
+  init_Tk()
+  Date.Text = ""
+  NbEnreg = 0
+  Tri = "date"
+  Deb2()
+  
+End
+
+Public Sub Date_Dblclick()
+  
+  sel = ""
+  init_Tk()
+  Date.Text = ""
+  NbEnreg = 0
+  Tri = "date"
+  Dbclk()
+  
+End
+
+Public Sub Date_KeyPress()
+  
+  If Key.code = Key.Return Or Key.code = Key.Enter Then dKeyPress()
+  
+End
+
+Public Sub Mt_GotFocus()
+  
+  sel = ""
+  init_Tk()
+  Mt.Text = ""
+  NbEnreg = 0
+  Tri = "mttc"
+  Deb2()
+  
+End
+
+Public Sub Mt_Dblclick()
+  
+  sel = ""
+  init_Tk()
+  Mt.Text = ""
+  NbEnreg = 0
+  Tri = "mttc"
+  Dbclk()
+  
+End
+
+Public Sub Mt_KeyPress()
+  
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    KeyPress()
+  Endif
+  
+End
+
+Public Sub Ca_GotFocus()
+  
+  sel = ""
+  init_Tk()
+  Ca.Text = ""
+  NbEnreg = 0
+  Tri = "caisse"
+  Deb2()
+  
+End
+
+Public Sub Ca_Dblclick()
+  
+  sel = ""
+  init_Tk()
+  Ca.Text = ""
+  NbEnreg = 0
+  Tri = "caisse"
+  Dbclk()
+  
+End
+
+Public Sub Ca_KeyPress()
+  
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    KeyPress()
+  Endif
+  
+End
+
+Public Sub Ve_GotFocus()
+  
+  sel = ""
+  init_Tk()
+  Ve.Text = ""
+  NbEnreg = 0
+  Tri = "vendeur"
+  Deb2()
+  
+End
+
+Public Sub Ve_Dblclick()
+  
+  sel = ""
+  init_Tk()
+  Ve.Text = ""
+  NbEnreg = 0
+  Tri = "vendeur"
+  Dbclk()
+  
+End
+
+Public Sub Ve_KeyPress()
+  
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    KeyPress()
+  Endif
+  
+End
+
+Public Sub KeyPress()
+  
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    Deb2()
+  Endif
+Catch
+  
+End
+
+Public Sub dKeyPress()
+  
+  sel = Utils.Cdate2_Dbase(Date.text)
+  Deb2()
+Catch
+  
+End
+
+Public Sub init_Tk()
+  
+  Nm.text = "Numéro"
+  Date.Text = "Date"
+  Mt.Text = "Montant"
+  Ca.Text = "Caisse"
+  Ve.text = "Vendeur"
+  
+End
+
+Public Sub Button2_Click()
+  
+  Me.close
+  
+End
+
+Public Sub Button3_Click()
+  
+  Detk.Visible = False
+  Detk.Clear
+  Button3.Visible = False
+  Button4.Visible = False
+  Panel1.Visible = False
+  Coltk.SetFocus
+  
+End
+
+Public Sub Coltk_MouseWheel()
+  
+  If mouse.Delta = -1 Then
+    NbEnreg = NbEnreg + lg
+  Else
+    NbEnreg = NbEnreg - lg
+  Endif
+  Deplacement()
+  
+End
+
+Public Sub Coltk_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Coltk_Click()
+  Endif
+  
+  If Key.code = Key.Up Then
+    If Coltk.Row = 0 Then
+      Remonter_Click()
+    Endif
+  Endif
+  If Key.code = Key.down Then
+    If Coltk.Row = lg - 1 Then
+      Descendre_Click()
+    Endif
+  Endif
+  If Key.code = Key.PageDown Then
+    Descendre_Click()
+  Endif
+  
+  If Key.code = Key.PageUp Then
+    Remonter_Click()
+  Endif
+  
+End
+
+Public Sub Descendre_Click()
+  
+  If Coltk.Rows.Count = lg Then
+    NbEnreg = NbEnreg + lg
+    Deplacement()
+  Endif
+  Try Coltk.MoveTo(0, 0)
+  Try Coltk.Current.EnsureVisible
+  Try Coltk.SetFocus
+  
+End
+
+Public Sub Remonter_Click()
+  
+  NbEnreg = NbEnreg - lg
+  Deplacement()
+  Try Coltk.MoveTo(0, 0)
+  Try Coltk.Current.EnsureVisible
+  Try Coltk.SetFocus
+  
+End
+
+Public Sub Deplacement()
+  
+  If NbEnreg < 0 Then NbEnreg = 0
+  
+  If Not Dbl Then
+    Deb2()
+  Else
+    Deb3()
+  Endif
+  
+End
+
+Public Sub Descendre_KeyPress()
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Me.Close
+  Endif
+  If key.code = key.PageDown Then Descendre_Click()
+  If key.code = key.PageUp Then Remonter_Click()
+  
+End
+
+Public Sub Remonter_KeyPress()
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Me.Close
+  Endif
+  If key.code = key.PageDown Then Descendre_Click()
+  If key.code = key.PageUp Then Remonter_Click()
+  
+End
+
+Public Sub Coltk_Click()
+  
+  Dim LkResult As Result
+  Dim rowText As String
+  
+  Try rowText = ColTk[ColTk.row, 0].Text
+  If Not Error Then
+    Detk.visible = True
+    Button3.Visible = True
+    Button4.Visible = True
+    LkResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisLigTck") & " where numero = &1 order by numlig", ColTk[ColTk.row, 0].Text)
+    If LkResult.Available Then
+      Repeat
+        detk.Add(LkResult!lInd & LkResult!code, LkResult!lInd & LkResult!code)
+        detk.Item[0] = LkResult!code
+        detk.Item[1] = LkResult!intitule
+        Try detk.Item[2] = Format$(Val(Utils.cpoint(LkResult!montant)), "0.00")
+        detk.Item[3] = LkResult!qte
+      Until LkResult.MoveNext()
+    Endif
+    Totht = ColTk[ColTk.row, 2].Text
+    Tottva = ColTk[ColTk.row, 3].Text
+    TotTk = ColTk[ColTk.row, 4].Text
+    DateTk = ColTk[ColTk.row, 1].Text
+    Panel1.Visible = True
+    Label3.Text = Left$(ColTk[ColTk.row, 0].Text, 1)
+    Label5.Text = Right$(ColTk[ColTk.row, 0].Text, 6)
+    Label7.Text = ColTk[ColTk.row, 7].Text
+    sReges = ""
+    sRegca = ""
+    sRegch = ""
+    sRegCe = ""
+    LkResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisEntTck") & " where numero = &1", ColTk[ColTk.row, 0].Text)
+    If LkResult!sespeces = "N" Then sReges = "Réglement en espèces   " & Format$(Val(Utils.cpoint(LkResult!mespeces)), "0.00")
+    If LkResult!scheque = "V" Then sRegch = "Réglement par chèque   " & Format$(Val(Utils.cpoint(LkResult!mcheque)), "0.00")
+    If LkResult!scarte = "U" Then sRegca = "Réglement par carte   " & Format$(Val(Utils.cpoint(LkResult!mcarte)), "0.00")
+    If LkResult!sresto = "R" Then sRegce = "Réglement par chèque entreprise   " & Format$(Val(Utils.cpoint(LkResult!mresto)), "0.00")
+  Endif
+  
+End
+
+Public Sub TabTva()
+  
+  Dim Tatva As String = "Tottva"
+  
+  Utils.db.Exec("DROP TABLE IF EXISTS  Tottva")
+  Utils.db.Exec("CREATE TABLE " & Tatva &
+    "(code VarChar(10) NOT NULL," &
+    "mtva VarChar(15)," &
+    "PRIMARY KEY (code))" & "ENGINE = MYISAM")
+  
+End
+
+Public Sub Button4_Click()
+  
+  Dim rntck As Result
+  Dim rResult, rtva, rtva2 As Result
+  Dim Posx As Integer
+  Dim Posy As Integer
+  Dim Filename As String
+  Dim Adr As String
+  Dim Siret As String
+  Dim Tel As String
+  Dim Tvaintra As String
+  Dim Entete As String
+  Dim caissiere As String
+  Dim sline As String
+  Dim Total As String = "0"
+  Dim Pointille As String
+  Dim Tatva As String = "Tottva"
+  Dim ttvam, ttva2 As Float = 0
+  Dim totaltva As String = "0"
+  Dim qte As Float
+  
+  Shell "cd " & User.Home & ""
+  Filename = User.home & "/Ticket.ps"
+  Pointille = String$(100, "-")
+  Posx = 40
+  Posy = 6
+  Filename = User.home & "/Hticket.pdf"
+  pdf = New Htickets("Portrait", "mm", "A4")
+  TabTva()
+  pdf.Open()
+  pdf.AliasNbPages()
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabSoc") & " where cd_sc = &1", Start.Societe)
+  Adr = rResult!type_sc & " " & rResult!int_sc & "\n" & rResult!adr1_sc & "\n" & rResult!adr2_sc & "\n" & rResult!cp_sc & " " & rResult!burdis_sc
+  Siret = Settings["/Soc" & Start.Societe & "/Siret"] & " : " & rResult!siret_sc
+  Tel = "Tel : " & rResult!tel_sc
+  Tvaintra = "Tva intra : " & rResult!tvaintra_sc
+  Caissiere = "Caisse n° " & Label3.text & " Ticket n° " & Label5.Text & " du " & Datetk & " Caissier(e) " & Label7.text
+  Entete = Adr & "\n" & Siret & " \n" & Tvaintra & "\n" & Tel & "\n" & Pointille & "\n" & "\n" & Caissiere
+  pdf.Entete()
+  For Each sline In Split(Entete, "\n")
+    Try pdf.Entete2(sline, Posx, Posy)
+    Posy = Posy + 5
+  Next
+  rntck = Utils.db.Exec(" select * from " & Cbase.Table("TabHisLigTck") & " where numero = &1 order by numlig", Label3.text & Label5.Text)
+  If rntck.Available Then
+    rTva2 = Utils.db.Exec(" select * from " & Cbase.Table("TabHisLigTck") & " where numero = &1 and type <> &2 order by numlig", Label3.text & Label5.Text, "M")
+    If rTva2.Available Then
+      Repeat
+        If rtva2!type <> "L" And rtva2!type <> "T" Then
+          rtva = Utils.db.Exec(" select * from " & Tatva & " where code = &1", rTva2!tva)
+          Try qte = rTva2!qte
+          If Error Then qte = 1
+          If rtva2!type = "A" Then
+            Try ttvam = (Val(Utils.cpoint(rTva2!montant)) * qte) - Val(Utils.cpoint(rTva2!mht))
+            If Error Then 
+              ttvam = Val(Utils.cpoint(rTva2!montant)) - Val(Utils.cpoint(rTva2!mht))
+            Endif
+          Endif
+          If rtva2!type = "S" Then
+            Try ttvam = (Val(Utils.CPoint(rTva2!mht)) * Val(Utils.cpoint(rTva2!tva)) / 100)
+          Endif
+          If Not rtva.Available Then 
+            Try Utils.db.Exec("INSERT INTO " & Tatva & " (code, mtva) VALUES (&1, &2)", rTva2!tva, ttvam)
+            ttva2 = ttvam
+          Else
+            ttva2 = ttva2 + Val(Utils.cpoint(ttvam))
+            Try Utils.db.Exec("UPdate  " & Tatva & "  SET mtva = &2 WHERE code = &1", rTva2!tva, ttva2)
+          Endif
+        Endif
+      Until rtva2.MoveNext() 
+    Endif
+    Repeat
+      If rntck!type <> "K"
+        If Not IsNull(rntck!montant) Then
+          Pdf.Level4(rntck!code, rntck!intitule, Format$(Val(Utils.cpoint(rntck!montant)), "0.00"), rntck!qte, PosY)
+        Else
+          Pdf.Level4(rntck!code, rntck!intitule, rntck!montant, rntck!qte, PosY)
+        Endif
+        If rntck!type <> "L" Then Total = Val(Utils.cpoint(Total)) + Val(Utils.cpoint(rntck!montant))
+        Posy = Posy + 5
+      Endif
+    Until rntck.MoveNext()
+    Posy = Posy + 10
+    Pdf.Entete2(Pointille, Posx, Posy)
+    Posy = Posy + 10
+    rtva = Utils.db.Exec(" select * from " & Tatva & "")
+    Repeat
+      If rtva.Available Then
+        totaltva = Val(Utils.cpoint(totaltva)) + Val(Utils.cpoint(rtva!mtva))
+      Endif
+    Until rtva.MoveNext()
+    If Val(Utils.cpoint(totht)) + Val(Utils.cpoint(totaltva)) <> Val(Utils.cpoint(tottk)) Then Totht = Val(Utils.cpoint(tottk)) - Val(Utils.cpoint(totaltva))
+    Try Pdf.Level4("", "Total HT ", Format$(Val(Utils.cpoint(Totht)), "0.00"), "", PosY)
+    Posy = Posy + 5
+    rtva = Utils.db.Exec(" select * from " & Tatva & "")
+    Repeat
+      If rtva.Available Then
+        Try Pdf.Level4("", "TVA " & rtva!code, Format$(Val(Utils.cpoint(rtva!mtva)), "0.00"), "", PosY)
+        Posy = Posy + 5
+      Endif
+    Until rtva.MoveNext()
+    'Try Pdf.Level4("", "Total TVA ", Format$(Val(Utils.cpoint(Tottva)), "0.00"), "", PosY)
+    'Posy = Posy + 5
+    Try Pdf.Level4("", "Total TTC", Format$(Val(Utils.cpoint(TotTk)), "0.00"), "", PosY)
+    If Not IsNull(sReges) Then
+      Posy = Posy + 5
+      Try Pdf.Level4("", sReges, "", "", PosY)
+    Endif
+    If Not IsNull(sRegch) Then
+      Posy = Posy + 5
+      Try pdf.Level4("", sRegch, "", "", PosY)
+    Endif
+    If Not IsNull(sRegca) Then
+      Posy = Posy + 5
+      Try pdf.Level4("", sRegca, "", "", PosY)
+    Endif
+    If Not IsNull(sRegce) Then
+      Posy = Posy + 5
+      Try pdf.Level4("", sRegce, "", "", PosY)
+    Endif
+  Endif
+  pdf.Output(Filename, False)
+  Visualiseur.Prog_Editeur(Filename)
+  
+End

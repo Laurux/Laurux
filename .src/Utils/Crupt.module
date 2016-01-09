@@ -1,0 +1,285 @@
+' Gambas module file
+
+' programme de récupération des produits en rupture de stock. Utilisé dans les commandes automatiques, la liste des produits en rupture et 
+'l 'affichage des fournisseurs dans la fenêtre de recherche des fournisseurs en commande.
+
+Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As String, art1 As String, art2 As String, Org As String)
+  
+  Dim rarts, carts, rart, cart, fart As Result
+  Dim Tabl, Tab2, Tab3 As String
+  Dim codea, codec, rupt, rupt2, numcom As String
+  Dim intitulea, intitulec, nmclient As String
+  Dim Qtecom, Qtefour, Qtecli, stkth, stkrl As Float
+  Dim Nbpage As Integer
+  Dim Fourn As String
+  Dim stkmini, stkmaxi As Float = 0
+  Dim Stocke, bcarts As Boolean = False
+  Dim qtec As Integer = 0
+  
+  Nbpage = 1
+  Tabl = "Fiches_Ligcom" 
+  Tab2 = "Rupture"
+  Tab3 = "RuptureC"
+  rupt = " "
+  rupt2 = " "
+  Utils.db.Exec("drop Table IF exists " & Tab2 & "")
+  Utils.db.Exec("drop Table IF exists " & Tab3 & "")
+  If Org = "EdRup" Then
+    If Chk2 Then
+      Try Utils.db.Exec("CREATE TABLE " & Tab2 & 
+        "(codea Char(15) NOT NULL," &
+        "intitulea Char(50)," &
+        "four Char(8),"
+      "qtecli FLOAT," &
+        "qtefour FLOAT," &
+        "qtecom FLOAT," &
+        "codec Char(8) NOT NULL," &
+        "intitulec Char(50)," &
+        "numcom Char(50)," & 
+        "PRIMARY KEY (codea, codec, intitulea, four))" & "ENGINE = MYISAM")
+    Else
+      Try Utils.db.Exec("CREATE TABLE " & Tab2 & 
+        "(codea Char(15) NOT NULL," &
+        "intitulea Char(50)," &
+        "four Char(8)," &
+        "qtecli FLOAT," &
+        "qtefour FLOAT," &
+        "qtecom FLOAT," &
+        "codec Char(8)," &
+        "intitulec Char(50)," &
+        "numcom Char(50)," &
+        "PRIMARY KEY (codea, intitulea, four))" & "ENGINE = MYISAM")
+    Endif
+    Try Utils.db.Exec("CREATE TABLE " & Tab3 & 
+      "(codea Char(15) NOT NULL," &
+      "intitulea Char(50)," &
+      "four Char(8)," &
+      "qtecom FLOAT," &
+      "qte FLOAT," &
+      "codec Char(8)," &
+      "intitulec Char(50)," &
+      "numcom Char(50)," &
+      "PRIMARY KEY (codea, codec, numcom, intitulea, four))" & "ENGINE = MYISAM")
+  Else
+    Try Utils.db.Exec("CREATE TABLE " & Tab2 & 
+      "(codea Char(15) NOT NULL," &
+      "intitulea Char(50)," &
+      "four Char(8),"
+    "qtecli FLOAT," &
+      "qtefour FLOAT," &
+      "qtecom FLOAT," &
+      "codec Char(8) NOT NULL," &
+      "intitulec Char(50)," &
+      "numcom Char(50)," & 
+      "PRIMARY KEY (codea, codec, intitulea, four))" & "ENGINE = MYISAM")
+  Endif
+  If org = "EdRup" Then
+    If Chk1 Then
+      rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigcom") & " left join " & Cbase.Table("TabArt") & " on art_code = code WHERE four >= &1 and four <= &2", four1, four2, Art1, Art2, 0)
+    Else
+      rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigcom") & " left join " & Cbase.Table("TabArt") & " on art_code = code WHERE code >= &3 and code <= &4 and four >= &1 and four <= &2 and art_stocke = &5", four1, four2, Art1, Art2, 1)
+    Endif
+  Else
+    rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigcom") & " left join " & Cbase.Table("TabArt") & " on art_code = code WHERE four = &1", four1)
+  Endif
+  If rarts.Available Then
+    Repeat
+      codea = rarts!art_code 
+      Try Qtefour = rarts!qte
+      intitulea = rarts!design
+      If InStr(intitulea, "~ ") <> 0 Then Try intitulea = Mid$(intitulea, InStr(intitulea, "~ ") + 2, Len(intitulea))
+      fart = Utils.db.Exec("SELECT four FROM " & Cbase.Table("TabEntcom") & " WHERE numcom = &1", rarts!numcom)
+      fourn = fart!four
+      If IsNull(Qtefour) Then Qtefour = 0
+      'If rarts!art_stocke Then
+      If IsNull(rarts!art_stkmin) Then
+        stkmini = 0
+      Else
+        stkmini = rarts!art_stkmin
+      Endif
+      'If stkmini > 0 Or If Not rarts!art_stocke Then 
+      carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and  intitulea = &2 and four = &3", codea, intitulea, fourn)
+      If Not carts.Available Then 
+        'If Qtefour > 0 Then Qtefour = "-" & Qtefour
+        Utils.db.Exec("INSERT INTO " & Tab2 & "(codea, intitulea, four, qtefour, codec, qtecli) VALUES (&1,&2,&3, &4, &5, &6)", codea, intitulea, fourn, Qtefour, "0", 0)
+      Else
+        Qtefour = Abs(carts!qtefour) + Qtefour
+        'If Qtefour > 0 Then Qtefour = "-" & Qtefour
+        Utils.db.Exec("UPdate  " & Tab2 & "  SET qtefour = &2 where codea = &1 and  intitulea = &3", codea, Qtefour, intitulea)
+      Endif
+      'Endif
+      'Endif 
+    Until rarts.MoveNext()
+  Endif
+  rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigbl") & " left join " & Cbase.Table("TabBl") & "  on numbl = num_ligbl where type = &1 and typel_ligbl = &2 order by cdclibl", "C", "A")
+  If rarts.Available Then
+    Repeat
+      Qtecli = 0
+      Qtec = 0
+      codec = rarts!cdclibl
+      intitulec = rarts!cvclibl & " " & rarts!nmclibl & " " & rarts!pnmclibl
+      nmclient = intitulec
+      codea = rarts!code_ligbl
+      intitulea = rarts!libel_ligbl
+      fourn = rarts!four_ligbl
+      If InStr(intitulea, "~ ") <> 0 Then Try intitulea = Mid$(intitulea, InStr(intitulea, "~ ") + 2, Len(intitulea))
+      If Val(Utils.cpoint(rarts!qte_ligbl)) > 0 Then
+        Qtec = Val(Utils.cpoint(rarts!qte_ligbl))
+      Else
+        qtec = 0
+      Endif
+      numcom = rarts!numbl
+      rart = Utils.db.Exec("SELECT art_four, art_stocke FROM " & Cbase.Table("TabArt") & "  WHERE art_code = &1", codea)
+      If rart.Available Then
+        'If Len(Fourn) < 6 Then Fourn = rart!art_four
+        'If Not IsNull(rarts!four_ligbl) Then Fourn = rarts!four_ligbl
+        If IsNull(Fourn) Then Fourn = rart!art_four
+        Stocke = rart!art_stocke
+        If Org = "EdRup" Then
+          If Fourn >= Four1 And Fourn <= Four2 Then 
+            carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and codec = &2 and intitulea = &3 and four = &4", codea, "0", intitulea, Fourn)
+            Bcarts = True
+          Else
+            carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and intitulea = &2 and four = &3", codea, intitulea, Fourn) 
+            Bcarts = True
+          Endif
+        Else
+          carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and intitulea = &2 and four = &3", codea, intitulea, Four1) 
+          Bcarts = True
+        Endif
+        If Bcarts Then
+          If carts.Available Then
+            If Org = "EdRup" Then
+              qtecli = carts!qtecli
+              If Chk2 = True Then
+                qtecli = qtecli + qtec
+                If Not IsNull(carts!qtecli) Then qtec = qtec + carts!qtecli
+                If Stocke Or If Chk1 Then
+                  If Chk2 And carts!codec <> "0" Then 
+                    Utils.db.Exec("UPdate  " & Tab3 & "  SET  qte = &3, qtecli = &4 where codea = &1 and codec = &2 and numcom = &5 and intitulea = &6", codea, codec, Qtec, qtecli, numcom, intitulea)
+                  Else
+                    If Chk2 And carts!codec = "0" Then
+                      Utils.db.Exec("UPdate  " & Tab2 & "  SET qtecli = &2 where codea = &1 and codec = &3 and intitulea = &4 and four = &5", codea, Qtecli, "0", intitulea, fourn)
+                      Try Utils.db.Exec("INSERT INTO " & Tab3 & "(codea, intitulea, four, qtecom, qte, codec, intitulec, numcom) VALUES (&1,&2,&3, &4, &5, &6, &7, &8)", codea, intitulea, fourn, Qtecli, Qtec, codec, intitulec, numcom)
+                      If Error Then
+                        cart = Utils.db.Exec("SELECT * FROM " & Tab3 & " WHERE codea = &1 and codec = &2 and intitulea = &3", codea, codec, intitulea)
+                        If cart.Available Then qtec += cart!qte
+                        Utils.db.Exec("UPdate  " & Tab3 & "  SET  qte = &3, qtecom = &4 where codea = &1 and codec = &2 and numcom = &5 and intitulea = &6", codea, codec, Qtec, qtecli, numcom, intitulea)
+                      Endif
+                    Endif
+                  Endif
+                Endif
+              Else
+                If Stocke Or If Chk1 Then
+                  qtecli = qtecli + qtec
+                  Utils.db.Exec("UPdate  " & Tab2 & "  SET  qtecli = &2 where codea = &1", codea, Qtecli)
+                Endif
+              Endif
+            Else
+              'If Four1 = Fourn And Not Stocke Then
+              If Four1 = Fourn Then
+                Try qtecli = carts!qtecli
+                qtecli = qtecli + qtec
+                Utils.db.Exec("UPdate  " & Tab2 & "  SET  qtecli = &2 where codea = &1 and intitulea = &3", codea, Qtecli, intitulea)
+              Endif
+            Endif
+          Else
+            If Org = "EdRup" Then
+              Try Utils.db.Exec("INSERT INTO " & Tab2 & "(codea, intitulea, four, qtecli, codec, qtefour) VALUES (&1,&2,&3, &4, &5, &6)", codea, intitulea, fourn, Qtec, "0", 0)
+              Try Utils.db.Exec("INSERT INTO " & Tab3 & "(codea, intitulea, four, qtecom, qte, codec, intitulec, numcom) VALUES (&1,&2,&3, &4, &5, &6, &7, &8)", codea, intitulea, fourn, Qtec, Qtec, codec, intitulec, numcom)
+              If Error Then
+                cart = Utils.db.Exec("SELECT * FROM " & Tab3 & " WHERE codea = &1 and codec = &2 and intitulea = &3", codea, codec, intitulea)
+                If cart.Available Then qtec += cart!qte
+                Utils.db.Exec("UPdate  " & Tab3 & "  SET  qte = &3, qtecom = &4 where codea = &1 and codec = &2 and numcom = &5 and intitulea = &6", codea, codec, Qtec, qtec, numcom, intitulea)
+              Endif
+            Else
+              Try Utils.db.Exec("INSERT INTO " & Tab2 & "(codea, intitulea, four, qtecli, qtefour) VALUES (&1,&2,&3, &4, &5)", codea, intitulea, fourn, Qtec, 0)
+            Endif
+          Endif
+        Endif
+      Endif
+    Until rarts.MoveNext()
+  Endif
+  If Org = "EdRup" Then
+    rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_four >= &1 and art_four <= &2 and art_stocke = &3 order by art_code", four1, four2, 1)
+  Else
+    rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_four = &1 and art_stocke = &2 order by art_code", four1, 1)
+  Endif
+  If rarts.Available Then
+    Repeat
+      Qtecom = 0
+      codea = rarts!art_code
+      Try Stkrl = rarts!art_qte
+      intitulea = rarts!art_design
+      If InStr(intitulea, "~ ") <> 0 Then Try intitulea = Mid$(intitulea, InStr(intitulea, "~ ") + 2, Len(intitulea))
+      fourn = rarts!art_four
+      If rarts!art_stocke Then
+        If IsNull(rarts!art_stkmin) Then
+          stkmini = 0
+        Else
+          stkmini = rarts!art_stkmin
+        Endif
+        Try stkmaxi = rarts!art_stkmax
+        If Error Then stkmaxi = 0
+        carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1", codea)
+        If carts.Available Then 
+          If carts.count = 1 Then
+            Stkth = Stkrl + Abs(carts!qtefour) - Abs(carts!qtecli)
+          Else
+            Stkth = Stkrl
+            Repeat
+              Stkth = Stkth + Abs(carts!qtefour) - Abs(carts!qtecli)
+            Until carts.MoveNext()
+            Utils.db.Exec("delete from " & Tab2 & " WHERE codea = &1 and intitulea <> &2", codea, intitulea)
+          Endif
+        Else
+          Stkth = Stkrl
+        Endif
+        If rarts!art_stocke And stkmini > 0 And stkmini > Stkth Or If Not rarts!art_stocke Then
+          If stkmaxi > Stkth Then 
+            Qtecom = stkmaxi - Stkth
+          Else
+            Qtecom = Stkth - stkmaxi
+          Endif
+        Endif
+        If rarts!art_stocke And stkmini = 0 Then Qtecom = 0
+      Else
+        qtecom = 0
+      Endif
+      carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1", codea)
+      If Not carts.Available Then 
+        If Qtecom > 0 Then Utils.db.Exec("INSERT INTO " & Tab2 & "(codea, intitulea, four, qtecom, codec) VALUES (&1,&2,&3, &4, &5)", codea, intitulea, fourn, Qtecom, "0")
+      Else
+        If Qtecom = 0 And stkmini = 0 And carts!qtecli > 0 And carts!qtefour = 0 Then qtecom = carts!qtecli
+        If Qtecom > 0 Then Utils.db.Exec("UPdate  " & Tab2 & "  SET  qtecom = &2 where codea = &1", codea, Qtecom) 
+      Endif
+    Until rarts.MoveNext()
+  Endif
+  If Org <> "EdRup" Then 
+    carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " left join " & Cbase.Table("TabArt") & " on art_code = codea WHERE qtecli is not null and qtefour is not null and four = &1", Four1)
+  Else
+    carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " left join " & Cbase.Table("TabArt") & " on art_code = codea WHERE qtecli is not null and qtefour is not null")
+  Endif
+  If carts.Available Then 
+    Repeat
+      If Not carts!art_stocke Then
+        If carts!qtecli <> carts!qtefour Then Utils.db.Exec("UPdate  " & Tab2 & "  SET  qtecom = &4 where codea = &1 and intitulea = &2 and four = &3", carts!codea, carts!intitulea, carts!four, carts!qtecli - carts!qtefour)  
+      Else
+        If carts!four <> Four1 Then
+          If carts!qtecli <> carts!qtefour Then 
+            Try Qtecom = carts!qtecli - carts!qtefour
+            Try Qtecom = carts!qtecom + Qtecom
+            Utils.db.Exec("UPdate  " & Tab2 & "  SET  qtecom = &4 where codea = &1 and intitulea = &2 and four = &3", carts!codea, carts!intitulea, carts!four, Qtecom)
+          Endif
+        Else
+          If IsNull(carts!qtecom) Then 
+            Try Qtecom = carts!qtecli - carts!qtefour 
+            Utils.db.Exec("UPdate  " & Tab2 & "  SET  qtecom = &4 where codea = &1 and intitulea = &2 and four = &3", carts!codea, carts!intitulea, carts!four, Qtecom)
+          Endif
+        Endif
+      Endif
+    Until carts.MoveNext()
+  Endif
+  If Org <> "EdRup" Then Utils.db.Exec("delete from " & Tab2 & " WHERE four <> &1", Four1)
+  
+End

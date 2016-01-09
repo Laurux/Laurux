@@ -1,0 +1,214 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Ecarts.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 26/01/2005
+'# Impression des écarts
+'################################################
+
+Filename As String
+son As Integer = Start.Son
+Decm As String ' nombre de décimales
+PosY As Integer
+pdf As Cstocks
+
+Public Sub _New()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  
+  Me.Center
+  
+  Music.Load(Start.Musique)
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Tab = "Fiches_Inv" 
+  Try rResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
+  If Not Error Then
+    If rResult.Available Then
+      dte.Text = rResult!inv_date
+      dte.Text = Mid$(dte.Text, 4, 2) & "/" & Left$(dte.Text, 2) & "/" & Right$(dte.Text, 4)
+    Else
+      If son Then
+        Music.Play
+      Endif
+      Message.Warning("Attention! Il n'existe aucun inventaire\n Veuillez passer par la procédure d'initialisation d'inventaire SVP")
+      Me.Close
+    Endif
+  Else
+    Message.Warning("Attention! Il n'existe aucun inventaire\n Veuillez passer par la procédure d'initialisation d'inventaire SVP")
+    Me.Close
+  Endif
+  
+End
+
+Public Sub Button1_Click()
+  
+  Dim Rinv As Result
+  Dim rarts As Result
+  Dim Tab As String
+  Dim Tab2 As String
+  Dim code As String
+  Dim designation As String
+  Dim qtestock As String
+  Dim qtecomptee As String
+  Dim Totht As String
+  Dim Totpmp As String
+  Dim Ecart As String
+  Dim Pht As String
+  Dim Pmp As String
+  Dim Nlig As String
+  Dim Nbpage As Integer
+  
+  Nbpage = 1
+  Tab = "Fiches_Inv" 
+  Tab2 = "Fiches_Art" 
+  Totht = "0"
+  Totpmp = "0"
+  Shell "cd " & User.Home & ""
+  filename = User.home & "/Ecarts.pdf"
+  pdf = New Cstocks("Portrait", "mm", "A4")
+  pdf.Open()
+  pdf.AliasNbPages()
+  pdf.Entete("Impression des écarts : Inventaire du " & dte.Text)
+  posy = 20
+  pdf.Level1E()
+  posy += 5
+  With Utils
+    Me.Mouse = Mouse.Wait
+    Rinv = Utils.db.Exec("SELECT * FROM " & Tab & " where inv_comptee = &1", 1)
+    If Rinv.Available Then
+      Repeat
+        Nlig = Rinv!inv_nlig
+        code = Rinv!inv_code
+        rarts = Utils.db.Exec("SELECT * FROM " & Tab2 & " where art_code = &1", code)
+        designation = Left$(rarts!art_design, 42)
+        Decm = rarts!art_dec
+        Pht = rarts!art_paht
+        Pmp = .PointBase(rarts!art_pmp)
+        qteStock = Rinv!inv_qtestock
+        qtecomptee = Rinv!inv_qtecomptee
+        Ecart = Rinv!inv_qtecomptee - Rinv!inv_qtestock
+        Pht = Format$(Pht * Ecart, "0.00")
+        Pmp = Format$(Pmp * Ecart, "0.00")
+        Totht = Format$(Val(Totht) + Val(Pht), "0.00")
+        Totpmp = Format$(Val(Totpmp) + Val(Pmp), "0.00")
+        pdf.Level2E(Nlig, code, designation, qteStock, qtecomptee, Ecart, Pht, Pmp, PosY)
+        posy += 5
+        If PosY >= 283 Then
+          pdf.Baspage()
+          pdf.Entete("Impression des écarts : Inventaire du " & dte.Text)
+          posy = 20
+          pdf.Level1E()
+          posy += 5
+        Endif
+      Until Rinv.MoveNext()
+      posy += 5
+      pdf.Level3E(Totht, Totpmp, posy)
+      pdf.BasPage()
+      pdf.Output(Filename, False)
+      Visualiseur.Prog_Editeur(Filename)
+    Else
+      If son Then
+        Music.Play
+      Endif
+      message(" Aucun article pour cette demande", "OK")
+    Endif
+    Me.Mouse = Mouse.Pointing
+  End With
+  
+End
+
+'Entete des lignes de detail
+Public Sub Level1()
+  
+  Draw.FillStyle = Fill.Dense12
+  Draw.font = font["Bitstream Charter"]
+  Draw.Font.Bold = False
+  Draw.Font.Size = 9
+  Draw.Rect(90, 340, 360, 140)
+  Draw.Rect(400, 340, 600, 140)
+  Draw.Rect(1000, 340, 1700, 140)
+  Draw.Rect(2700, 340, 400, 140)
+  Draw.Rect(3100, 340, 400, 140)
+  Draw.Rect(3500, 340, 400, 140)
+  Draw.Rect(3900, 340, 470, 140)
+  Draw.Rect(4370, 340, 470, 140)
+  Draw.Text("N° lig", 140, 360)
+  Draw.Text("Code", 580, 360)
+  Draw.Text("Intitulé", 1660, 360)
+  Draw.Text("Stock inf", 2740, 360)
+  Draw.Text("Qté cpt", 3140, 360)
+  Draw.Text("Ecart", 3540, 360)
+  Draw.Text("Valeur PA", 3980, 360)
+  Draw.Text("Valeur PMP", 4400, 360)
+  
+End
+
+'Lignes de detail
+Public Sub Level2(Nlig As String, code As String, designation As String, qteStock As String, qtecomptee As String, Ecart As String, Pht As String, Pmp As String)
+  
+  Draw.font = font["Bitstream Charter"]
+  Draw.Font.Bold = False
+  Draw.Font.Size = 8
+  Draw.Text(Nlig, 90, PosY)
+  Draw.Text(code, 420, PosY)
+  Draw.Text(designation, 1020, PosY, 1700, 100, 1)
+  Draw.Text(qteStock, 2720, PosY, 380, 100, 2)
+  Draw.Text(qtecomptee, 3100, PosY, 380, 100, 2)
+  Draw.Text(Ecart, 3500, PosY, 380, 100, 2)
+  Draw.Text(Pht, 3900, PosY, 420, 100, 2)
+  Draw.Text(Pmp, 4370, PosY, 420, 100, 2)
+  
+End
+
+'Entete du total de l'édition
+Public Sub Level3(Totpa As String, Totpmp As String)
+  
+  Draw.FillStyle = Fill.Vertical
+  Draw.Rect(2400, PosY + 200, 600, 140)
+  Draw.Rect(3100, PosY, 600, 140)
+  Draw.Rect(3700, PosY, 600, 140)
+  Draw.font = font["Bitstream Charter"]
+  Draw.Font.Bold = True
+  Draw.Font.Size = 12
+  Draw.Text("Total Ecarts", 2420, PosY + 200)
+  Draw.Text("Valeur PA", 3160, PosY)
+  Draw.Text("Valeur PMP", 3740, PosY)
+  PosY = PosY + 200
+  Draw.Rect(3100, PosY, 600, 140)
+  Draw.Rect(3700, PosY, 600, 140)
+  Draw.Text(Totpa, 3120, PosY, 560, 140, 2)
+  Draw.Text(Totpmp, 3720, PosY, 560, 140, 2)
+  
+End
+
+Public Sub button2_Click()
+  
+  If Exist(filename) Then Try Kill filename
+  Me.Close
+  
+End
+
+Public Sub Button4_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Ecarts.html"]
+  
+End

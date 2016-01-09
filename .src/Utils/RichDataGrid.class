@@ -1,0 +1,389 @@
+' Gambas class file
+
+'################################################
+'# nom du fichier           : RichDataGrid.class
+'# Auteur                   : Fabien Bodard
+'################################################
+
+Private $hGrid As GridView
+
+Private $sTable As String
+Private $sFilter As String ' = " order by art_code"
+Private $aDisplay As New String[]
+Private $aFields As New String[]
+Private $hResult As Result
+'PRIVATE $htxtb AS TextBox
+Private $vValue As Variant
+Private $sDataField As String
+'Private $iDisposition As Integer = align.Right
+'Private $sFind As String
+Private $Desc As Boolean
+
+Private $aCondFormats As New Object[]
+Private $oFormatDefaut As New CFormat
+Private $oColFormat As New Object[]
+'PRIVATE $aColDataFormats AS NEW String[]
+Private $sOrder As String
+Private $htxtbSearch As TextBox
+Private $bHeadersModified As Boolean
+
+Property Filter As String
+Property Fields As String[]
+Property Display As String[]
+Property DataField As String
+
+Property Table As String
+Property Tag As Variant
+Property Header As Integer
+Property Read Value As Variant
+Property Read Result As Result
+
+Property CondFormats As Object[]
+Property ColFormats As Object[]
+'PROPERTY ColDataFormats AS String[]
+Property Read Grid As GridView
+
+Event Select
+Event Activate
+
+Public Sub _New(hGrid As GridView)
+  
+  $hGrid = hGrid   'enregistrement de la reference vers le gridview
+  Object.Attach($hGrid, Me, "Grid")  'recuperont les evenement de la grille
+  'generation du resultat
+  $hGrid.Mode = Select.Single
+  
+  $htxtbSearch = New TextBox($hGrid.Parent) As "txtSearch"
+  $htxtbSearch.Raise
+  $htxtbSearch.Hide
+  
+  $htxtbSearch.Ignore = True
+  $bHeadersModified = True
+  $oFormatDefaut.Alignment = Align.Left
+  $oFormatDefaut.Background = -1
+  $oFormatDefaut.Foreground = -1
+  $oFormatDefaut.Font = $hGrid.Font
+  $oFormatDefaut.Padding = 0
+  
+End
+
+Private Sub MakeGridHeaders()
+  
+  Dim i As Integer
+  
+  $hGrid.Columns.Count = $aFields.Count
+  
+  For i = 0 To $aFields.Max
+    
+    If i >= $aDisplay.Count Then
+      $hGrid.Columns[i].Text = $aFields[i]
+    Else
+      $hGrid.Columns[i].Text = $aDisplay[i]
+    Endif
+    '$hGrid.Columns.Width = 10
+    
+    If i < $oColFormat.Count Then
+      $hGrid.Columns[i].Width = $oColFormat[i].Width
+    Endif
+    
+  Next
+  
+  $bHeadersModified = False
+  
+End
+
+Public Sub Refresh()
+  
+  Dim sFilter As String
+  Dim sFind As String
+  
+  $hGrid.Clear
+  If Not $sOrder Then $sOrder = " ORDER BY " & $aFields[0]
+  If Not IsNull($sFilter) Then
+    sFilter = " WHERE " & $sFilter
+  Endif
+  If Not IsNull($htxtbSearch.Text) Then
+    
+    If Not IsNull($sFilter) Then
+      sFilter &= " AND "
+    Else
+      sFilter &= " WHERE "
+    Endif
+    sFilter &= $aFields[$htxtbSearch.Tag] & " LIKE '" & $htxtbSearch.text & "%'"
+    
+  Endif
+  
+  $hResult = db.Exec("SELECT * FROM " & $sTable & sFilter & sFind & $sOrder)
+  
+  $hGrid.Rows.Count = $hResult.Count
+  If $bHeadersModified Then MakeGridHeaders
+  $hGrid.Refresh
+  
+Catch
+  
+End
+
+Public Sub Grid_Data(Row As Integer, Column As Integer)
+  
+  Dim hCondition As Conditions
+  Dim hFormat As CFormat
+  Dim sFormat As String
+  
+  If IsNull($hResult) Then Refresh
+  If IsNull($hResult) Then Return
+  $hResult.MoveTo(Row)
+  'IF Column < $aColDataFormats.Count AND IF $aColDataFormats[Column] <> "" THEN
+  ' vTemp = $hResult[$aFields[Column]
+  '   TRY LAST.Data.Text = Format$($hResult[$aFields[Column]], $aColDataFormats[Column])
+  '   IF ERROR THEN LAST.Data.Text = $hResult[$aFields[Column]]
+  ' ELSE
+  '   LAST.Data.Text = $hResult[$aFields[Column]]
+  ' ENDIF
+  
+  If Column <= $oColFormat.Max And If Not ($oColFormat[Column] = Null) Then
+    
+    hFormat = $oColFormat[Column]
+    If hFormat.Alignment <> -1 Then $hGrid.Data.Alignment = hFormat.Alignment
+    ' [GB2:BCOL] If hFormat.BackColor <> -1 Then $hGrid.Data.BackColor = hFormat.BackColor
+    If hFormat.Background <> -1 Then $hGrid.Data.Background = hFormat.Background
+    ' [GB2:FCOL] If hFormat.ForeColor <> -1 Then $hGrid.Data.ForeColor = hFormat.ForeColor
+    If hFormat.Foreground <> -1 Then $hGrid.Data.Foreground = hFormat.Foreground
+    If hFormat.Font Then $hGrid.Data.Font = hFormat.Font
+    If hFormat.Padding <> -1 Then $hGrid.Data.Padding = hFormat.Padding
+    If Not IsNull(hFormat.Format) Then sFormat = hFormat.Format
+    
+    'object.Lock($hGrid)
+    'IF hFormat.Width <> -1 THEN $hGrid.Columns[Column].Width = hFormat.Padding
+    'object.Unlock($hGrid)
+  Endif
+  
+  For Each hCondition In $aCondFormats
+    
+    If hCondition.Compute($hResult) Then
+      
+      hFormat = hCondition.Value
+      If hFormat.Alignment <> -1 Then $hGrid.Data.Alignment = hFormat.Alignment
+      ' [GB2:BCOL] If hFormat.BackColor <> -1 Then $hGrid.Data.BackColor = color.Blend(hFormat.BackColor, $hGrid.Data.BackColor)
+      ' [GB2:BCOL] If hFormat.BackColor <> -1 Then $hGrid.Data.BackColor = color.Blend(hFormat.BackColor, $hGrid.Data.Background)
+      If hFormat.BackColor <> -1 Then $hGrid.Data.Background = color.Blend(hFormat.BackColor, $hGrid.Data.Background)
+      ' [GB2:FCOL] If hFormat.ForeColor <> -1 Then $hGrid.Data.ForeColor = hFormat.ForeColor
+      If hFormat.ForeColor <> -1 Then $hGrid.Data.Foreground = hFormat.ForeColor
+      If hFormat.Font Then $hGrid.Data.Font = hFormat.Font
+      If hFormat.Padding <> -1 Then $hGrid.Data.Padding = hFormat.Padding
+      If Not IsNull(hFormat.Format) Then sFormat = hFormat.Format
+      
+    Endif
+  Next
+  
+  ' [GB2:ISTY] If IsFloat($hResult[$aFields[Column]]) Or IsInteger($hResult[$aFields[Column]]) And Not IsNull(sFormat) Then
+  If TypeOf($hResult[$aFields[Column]]) = gb.Float Or TypeOf($hResult[$aFields[Column]]) = gb.Integer And Not IsNull(sFormat) Then
+    Last.Data.Text = Format$($hResult[$aFields[Column]], sFormat)
+  Else
+    Last.Data.Text = $hResult[$aFields[Column]]
+  Endif
+  If $aFields[Column] = "datebl" Then Last.Data.text = Utils.Cdate_Aff($hResult[$aFields[Column]])
+  
+End
+
+Public Sub Grid_ColumnClick(Column As Integer)
+  
+  $Desc = Not $Desc
+  $sOrder = " ORDER BY " & $aFields[Column] & IIf($Desc, " DESC", "")
+  Refresh
+  
+End
+
+Private Function Filter_Read() As String
+  
+  Return $sFilter
+  
+End
+
+Private Sub Filter_Write(Value As String)
+  
+  $sFilter = Value
+  
+End
+
+Private Function Table_Read() As String
+  
+  Return $sTable
+  
+End
+
+Private Sub Table_Write(Value As String)
+  
+  $sTable = Value
+  
+End
+
+Private Function Fields_Read() As String[]
+  
+  Return $aFields
+  
+End
+
+Private Sub Fields_Write(Value As String[])
+  
+  $aFields = Value
+  $bHeadersModified = True
+  'MakeGridHeaders
+  
+End
+
+Private Function Tag_Read() As Variant
+  
+  Return $hGrid.Tag
+  
+End
+
+Private Sub Tag_Write(Value As Variant)
+  
+  $hGrid.table = Value
+  
+End
+
+Private Function Display_Read() As String[]
+  
+  Return $aDisplay
+  
+End
+
+Private Sub Display_Write(Value As String[])
+  
+  $aDisplay = Value
+  $bHeadersModified = True
+  'MakeGridHeaders
+  
+End
+
+Private Function Header_Read() As Integer
+  
+  Return $hGrid.Header
+  
+End
+
+Private Sub Header_Write(Value As Integer)
+  
+  $hGrid.Header = Value
+  'MakeGridHeaders
+  
+End
+
+Private Function Value_Read() As Variant
+  
+  Return $vValue
+  
+End
+
+Private Function DataField_Read() As String
+  
+  Return $sDataField
+  
+End
+
+Private Sub DataField_Write(Value As String)
+  
+  $sDataField = Value
+  
+End
+
+Private Function Result_Read() As Result
+  
+  Return $hResult
+  
+End
+
+Private Function CondFormats_Read() As Object[]
+  
+  Return $aCondFormats
+  
+End
+
+Private Sub CondFormats_Write(Value As Object[])
+  
+  $aCondFormats = Value
+  
+End
+
+Public Sub Grid_Select()
+  
+  $hResult.MoveTo($hGrid.Row)
+  $vValue = $hResult[$sDataField]
+  Raise Select
+Catch
+  
+End
+
+Private Function ColFormats_Read() As Object[]
+  
+  Return $oColFormat
+  
+End
+
+Private Sub ColFormats_Write(Value As Object[])
+  
+  $oColFormat = Value
+  
+End
+
+Private Function Grid_Read() As GridView
+  
+  Return $hGrid
+  
+End
+
+Public Sub txtSearch_KeyPress()
+  
+  If key.Code = key.BackSpace Or key.Code = key.Delete Then
+    
+    Return
+    
+  Endif
+  
+  If Key.Code = key.Esc Then
+    $htxtbSearch.Hide
+    $htxtbSearch.Text = ""
+    
+  Endif
+  
+  ' [GB2:TEXT] If InStr("abcdefghijklmnopqrstuvwxyzàéçè0123456789 _-.()[]&~@*%", key.Text, 0, gb.text) = 0 Then
+  If InStr("abcdefghijklmnopqrstuvwxyzàéçè0123456789 _-.()[]&~@*%", key.Text, 0, gb.IgnoreCase) = 0 Then
+    Stop Event
+    Return
+  Endif
+  
+End
+
+Public Sub txtSearch_LostFocus()
+  
+  $htxtbSearch.Hide
+  
+End
+
+Public Sub txtSearch_Change()
+  
+  Refresh
+  
+End
+
+Public Sub Grid_Activate()
+  
+  $hResult.MoveTo($hGrid.Row)
+  $vValue = $hResult[$sDataField]
+  Raise Activate
+Catch
+  
+End
+
+Public Sub Grid_MouseUp()
+  
+  If Mouse.Right Then
+    $htxtbSearch.Move($hGrid.X + $hGrid.Columns[$hGrid.Column].X, $hGrid.Y, $hGrid.Columns[$hGrid.Column].Width, $hGrid.Rows.Height)
+    If $htxtbSearch.Tag <> $hGrid.Column Then $htxtbSearch.Text = ""
+    $htxtbSearch.Visible = True
+    $htxtbSearch.Tag = $hGrid.Column
+    $htxtbSearch.SetFocus
+  Endif
+  
+End

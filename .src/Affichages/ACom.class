@@ -1,0 +1,81 @@
+' Gambas class file
+
+Private numbl As String
+
+Public Sub _new($num As String, $code As String, $date As String, $montant As String)
+  
+  Me.Center
+  numbl = $num
+  Codecli.Text = $code
+  'Nomcli.Text = $nom
+  Numfac.text = numbl
+  Datef.Text = $date
+  Totalfac.Text = $montant
+  DocCom()
+  
+End
+
+Public Sub DocCom()
+  
+  Dim Rcli As Result
+  Dim rart As Result
+  
+  Colrcp3.clear
+  Colrcp3.Columns.count = 7
+  Colrcp3.Columns[0].Width = 50
+  Colrcp3.Columns[1].Width = 140
+  Colrcp3.Columns[2].Width = 310
+  Colrcp3.Columns[3].Width = 60
+  Colrcp3.Columns[4].Width = 80
+  Colrcp3.Columns[5].Width = 80
+  Colrcp3.Columns[6].Width = 80
+  Colrcp3.Columns[0].Text = "Ligne"
+  Colrcp3.Columns[1].Text = "Code"
+  Colrcp3.Columns[2].Text = "Designation"
+  Colrcp3.Columns[3].Text = "Qté "
+  Colrcp3.Columns[3].Alignment = 2
+  Colrcp3.Columns[4].Text = "Px brut ht"
+  Colrcp3.Columns[4].Alignment = 2
+  Colrcp3.Columns[5].Text = "Remise"
+  Colrcp3.Columns[5].Alignment = 2
+  Colrcp3.Columns[6].Text = "Px net ht"
+  Colrcp3.Columns[6].Alignment = 2
+  With Utils
+    Rcli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFour") & " WHERE fo_code = &1", Codecli.text)
+    nomcli.Text = Rcli!fo_nom
+    Rcli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigcom") & " WHERE numcom = &1 and four = &2", numbl, Codecli.Text)
+    If Not Error Then
+      Repeat
+        Colrcp3.Add(Rcli!lind, Rcli!lind)
+        rart = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_code = &1", Rcli!code)
+        If rart.Available Then
+          Colrcp3.Item[1] = Rcli!code
+          Colrcp3.Item[2] = .CDec(rart!art_dec, Rcli!qte)
+        Endif
+        If Not Colrcp3.Item[3] Then Colrcp3.Item[3] = Rcli!qte
+        Colrcp3.Item[2] = Rcli!design
+        Colrcp3.Item[4] = Rcli!pbht
+        If Not Colrcp3.Item[3] Then Colrcp3.Item[3] = 0
+        Colrcp3.Item[5] = Rcli!rm
+        Colrcp3.Item[6] = Rcli!paht
+        Nlgf.Text = Colrcp3.count
+      Until Rcli.MoveNext()
+      Nlgf.Text = Colrcp3.count
+    Endif
+    Panel4.visible = True
+  End With
+  
+End
+
+Public Sub Codecli_KeyPress()
+  
+  If Key.code = Key.Esc Or If Key.code = Key.Escape Or If Key.code = Key.F2 Then Button3_Click()
+  
+End
+
+Public Sub Button3_Click()
+  
+  Colrcp3.Clear
+  Me.Close()
+  
+End

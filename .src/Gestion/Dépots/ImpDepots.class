@@ -1,0 +1,171 @@
+' Gambas class file
+
+Private PosY As Integer
+Private Filename As String
+Private Coulfond As New String[]
+Private son As Integer = Start.Son
+Private pdf As Cstocks
+
+Public Sub _new()
+  
+  Me.center
+  Coulfond = Utils.Coulfd()
+  Coldep.Columns.count = 2
+  Coldep.Columns[0].Width = 28
+  Coldep.Columns[1].Width = 300
+  Coldep.Columns[0].Text = "Code"
+  Coldep.Columns[1].Text = "Libellé"
+  
+End
+
+'******************************************** Gestion du code dépot ***********************************************
+Public Sub ToggleButton1_Click()
+  
+  If Coldep.visible Then
+    Coldep.Clear
+    Coldep.Visible = False
+  Else
+    Coldep.visible = True
+    aff_Depot()
+  Endif
+  
+End
+
+Public Sub aff_Depot()
+  
+  Dim CpResult As Result
+  
+  CpResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabDepots") & " where code <> &1 order by code", "01")
+  If CpResult.Available Then
+    Repeat
+      Coldep.Add(CpResult!code, CpResult!code)
+      Coldep.Item[0] = CpResult!code
+      Coldep.Item[1] = CpResult!libelle
+    Until CpResult.MoveNext()
+  Endif
+  Coldep.SetFocus
+  
+End
+
+Public Sub Coldep_Click()
+  
+  Code.Text = Coldep.Item[0]
+  Libelle.Text = Coldep.Item[1]
+  Coldep.clear
+  Coldep.visible = False
+  
+End
+
+Public Sub Code_KeyPress()
+  
+  If Key.code = Key.F2 Then
+    ToggleButton1_Click()
+    Stop Event
+  Endif
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    Cman()
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Code_GotFocus()
+  
+  Try Utils.ObsGotf(Code)
+  
+End
+
+Public Sub Code_LostFocus()
+  
+  Try Utils.ObsLstf(Code)
+  
+End
+
+Public Sub Cman()
+  
+  Dim Rdep As Result
+  
+  Rdep = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabDepots") & " where code = &1", Code.Text)
+  If Rdep.count >= 1 Then Libelle.Text = Rdep!libelle
+  
+End
+
+Public Sub Button3_Click()
+  
+  Me.Close
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim rarts As Result
+  Dim rdep As Result
+  Dim codep As String
+  Dim intitule As String
+  Dim Pvht, tva, Pvttc, qte As String
+  Dim nbdec As String
+  Dim nbd As String
+  
+  Shell "cd " & User.Home & ""
+  Filename = User.home & "/Depots.pdf"
+  pdf = New Cstocks("Portrait", "mm", "A4")
+  pdf.Open()
+  pdf.AliasNbPages()
+  pdf.Entete("Impression des produits pour le dépôt " & Code.Text & " " & Libelle.text)
+  Me.Mouse = Mouse.Wait
+  posy = 20
+  If RadioButton1.value Then
+    pdf.Level3D()
+  Else
+    pdf.Level1D()
+  Endif
+  PosY += 6
+  rdep = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabStkDepots") & " where coded = &1 order by codea", Code.text)
+  If rdep.Available Then
+    Repeat
+      rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_code = &1", rdep!codea)
+      If rarts.Available Then
+        codep = rarts!art_code
+        intitule = rarts!art_design
+        Qte = rdep!qte
+        nbd = rarts!art_nbd
+        nbdec = Utils.Find_nbdec(nbd)
+        pvht = Format$(rarts!art_pvht, nbdec)
+        If Len(pvht) - InStr(pvht, ",") = 2 Then pvht = pvht & " "
+        tva = rarts!art_tva
+        pvttc = Format$(rarts!art_pvttc, nbdec)
+        If Len(pvttc) - InStr(pvttc, ",") = 2 Then pvttc = pvttc & " "
+        If RadioButton1.value Then
+          pdf.level4D(codep, Left$(intitule, 42), pvht, tva, pvttc, qte, posy)
+        Else
+          pdf.level2D(codep, Left$(intitule, 42), qte, posy)
+        Endif
+        PosY += 5
+        If PosY >= 280 Then
+          pdf.BasPage()
+          pdf.Entete("Impression des produits pour le dépôt " & Code.Text & " " & Libelle.text)
+          Me.Mouse = Mouse.Wait
+          posy = 20
+          If RadioButton1.value Then
+            pdf.Level3D()
+          Else
+            pdf.Level1D()
+          Endif
+          PosY += 6
+        Endif
+      Endif
+    Until rdep.MoveNext()
+    pdf.Lines(PosY)
+    pdf.BasPage()
+    pdf.Output(Filename, False)
+    Visualiseur.Prog_Editeur(Filename)
+  Else
+    If son Then
+      Music.Play
+    Endif
+    Message.Warning("Il n'y a aucun article dans ce dépôt !")
+    Draw.End
+  Endif
+  Me.Mouse = Mouse.Pointing
+  
+End

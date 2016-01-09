@@ -1,0 +1,155 @@
+' Gambas class file
+
+Coulfond As New String[]
+PosY As Integer
+
+Public Sub Form_Open()
+  
+  If Not Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Me.Center
+  Coulfond = Utils.Coulfd()
+  If Not Settings["/Soc" & Start.Societe & "/Lcr"] Then
+    TextLabel1.Text = "<p align=center> Ce programme va imprimer le listing des traites pour le mois en cours. </p> <BR><br><p align=center> il faudra effacer le fichier en fin d'impression.</p>"
+  Else
+    TextLabel1.Text = "<p align=center>Ce programme va imprimer le listing des traites qui n'ont pas été importées dans les LCR. </p>"
+  Endif
+  
+End
+
+Public Sub Button2_Click()
+  
+  Me.close
+  
+End
+
+Public Sub Button1_Click()
+  
+  Dim setb As String
+  Dim sguichet As String
+  Dim snum As String
+  Dim srib As String
+  Dim sdom As String
+  Dim snom As String
+  Dim sadr1 As String
+  Dim sadr2 As String
+  Dim scp As String
+  Dim Traite As String
+  Dim rTraite As Result
+  Dim rclient As Result
+  Dim Filename As String
+  Dim pdf As Ccompta
+  
+  Traite = "Fiches_Traites"
+  Shell "cd " & User.Home & ""
+  filename = User.home & "/Traites.pdf"
+  pdf = New Ccompta("Portrait", "mm", "A4")
+  pdf.Open()
+  pdf.AliasNbPages()
+  rTraite = Utils.db.Exec("SELECT * FROM " & Traite & " ")
+  With Utils
+    If rTraite.Available Then
+      'Utils.db.Exec("LOCK TABLES " & Traite & " WRITE,  " & Cbase.Table("TabCli") & " WRITE")
+      pdf.Entete("Listing des Traites au " & Format$(Now, "dd-mm-yyyy"))
+      posy = 30
+      pdf.Level1T(Posy)
+      posy += 5
+      Repeat
+        rclient = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " where cli_code = &1", rTraite!code)
+        If rclient.Available Then
+          setb = rclient!cli_cd_bq
+          sguichet = rclient!cli_cd_gch
+          snum = rclient!cli_num_cpt
+          srib = rclient!cli_cle_rib
+          sdom = rclient!cli_dmln
+          snom = rclient!cli_rs_soc & " " & rclient!cli_nom & " " & rclient!cli_pnm
+          sadr1 = rclient!cli_adr1
+          sadr2 = rclient!cli_adr2
+          scp = rclient!cli_cd_ptl & " " & rclient!cli_ville
+          pdf.Level2T(setb, sguichet, snum, srib, sdom, snom, sadr1, sadr2, scp, .Cdate_Aff(rTraite!date), .Cdate_Aff(rTraite!datech), rTraite!montant, rTraite!numfac, posy)
+        Endif
+        PosY += 25
+        If PosY >= 280 Then
+          pdf.Entete("Listing des Traites au " & Format$(Now, "dd-mm-yyyy"))
+          posy = 30
+          pdf.Level1T(Posy)
+          posy += 5
+        Endif
+      Until rTraite.MoveNext()
+      pdf.BasPage()
+      pdf.Output(Filename, False)
+      Visualiseur.Prog_Editeur(Filename)
+      If Not Settings["/Soc" & Start.Societe & "/Lcr"] Then
+        If Message.Warning("Attention! Le fichier des traites va être effacé.", "Non", "Oui") = 2 Then
+          Utils.db.Exec("DROP TABLE " & Traite & "")
+          Traite = "Fiches_Traites"
+          Try Utils.db.EXEC("CREATE TABLE " & Traite &
+            "(lind INT NOT NULL AUTO_INCREMENT ," &
+            "code Char(8) ," &
+            "nom VarChar(35), " &
+            "montant Char(12) ," &
+            "date date ," &
+            "datech date ," &
+            "numfac Char(12) ," &
+            "acceptee TINYINT," &
+            "ecartee TINYINT," &
+            "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+        Endif
+      Endif
+      'Utils.db.Exec("UNLOCK TABLES")
+    Else
+      Message.Warning("Aucune traite à imprimer !")
+    Endif
+  End With
+  
+End
+
+'Entete des lignes de traites
+Public Sub Level1()
+  
+  Draw.FillStyle = Fill.Dense12
+  Draw.font = font["Bitstream Charter"]
+  Draw.Font.Bold = False
+  Draw.Font.Size = 8
+  Draw.Rect(120, 340, 240, 140)
+  Draw.Rect(360, 340, 260, 140)
+  Draw.Rect(620, 340, 500, 140)
+  Draw.Rect(1120, 340, 200, 140)
+  Draw.Rect(1320, 340, 1200, 140)
+  Draw.Rect(2520, 340, 1000, 140)
+  Draw.Rect(3520, 340, 400, 140)
+  Draw.Rect(3920, 340, 400, 140)
+  Draw.Rect(4320, 340, 500, 140)
+  Draw.Text("Cd Ets", 126, 340, 240, 100, 3)
+  Draw.Text("Guichet", 364, 340, 260, 100, 3)
+  Draw.Text("Numero", 630, 340, 500, 100, 3)
+  Draw.Text("rib", 1130, 340, 200, 100, 3)
+  Draw.Text("Domiciliation", 1330, 340, 1200, 100, 3)
+  Draw.Text("Nom", 2530, 340, 1000, 100, 3)
+  Draw.Text("Date", 3530, 340, 400, 100, 3)
+  Draw.Text("Date ech.", 3930, 340, 400, 100, 3)
+  Draw.Text("Montant", 4330, 340, 500, 100, 3)
+  
+End
+
+'Lignes des traites
+Public Sub Level2(setb As String, sguichet As String, snum As String, srib As String, sdom As String, snom As String, sadr1 As String, sadr2 As String, scp As String, sdate As String, sdatech As String, smontant As String, NumFac As String)
+  
+  Draw.font = font["Bitstream Charter"]
+  Draw.Font.Bold = False
+  Draw.Font.Size = 6
+  Draw.Text(setb, 120, PosY)
+  Draw.Text(sguichet, 360, PosY)
+  Draw.Text(snum, 620, PosY)
+  Draw.Text(srib, 1120, PosY)
+  Draw.Text(sdom, 1320, PosY)
+  Draw.Text("N° facture " & NumFac, 2520, PosY)
+  Draw.Text(sdate, 3530, posy)
+  Draw.Text(sdatech, 3940, posy)
+  Draw.Text(smontant, 4340, posy, 460, 100, 2)
+  Draw.Text(snom, 2520, PosY + 100)
+  Draw.Text(sadr1, 2520, posy + 200)
+  Draw.Text(sadr2, 2520, posy + 300)
+  Draw.Text(scp, 2520, posy + 400)
+  Draw.Line(120, PosY + 500, 4800, PosY + 500)
+  
+End

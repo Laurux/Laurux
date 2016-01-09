@@ -1,0 +1,489 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : RelvMo.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 18/07/2009
+'# Relevés de la MO par client
+'################################################
+'
+dte As String
+dte1 As String
+dte2 As String
+dte4 As String
+jour As String
+ye As String
+mo As String
+da As String
+Niv As Integer
+son As Integer = Start.Son
+Coulfond As New String[]
+imageToPrint As Image
+PosY As Integer
+PosX As Integer
+b As Integer = 0
+Filename As String
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Music.Load(Start.Musique)
+  Me.Center
+  RlCli.Columns.count = 6
+  RlCli.Columns[0].Alignment = 4
+  RlCli.Columns[0].Width = 84
+  RlCli.Columns[1].Width = 244
+  RlCli.Columns[2].Width = 80
+  RlCli.Columns[3].Width = 244
+  RlCli.Columns[4].Width = 80
+  RlCli.Columns[4].Alignment = 2
+  RlCli.Columns[5].Width = 200
+  RlCli.Columns[5].Alignment = 2
+  RlCli.Columns[0].Text = "Code client"
+  RlCli.Columns[1].Text = "Intitulé"
+  RlCli.Columns[2].Text = "Code MO"
+  RlCli.Columns[3].Text = "Intitulé"
+  RlCli.Columns[4].Text = "Qté"
+  RlCli.Columns[5].Alignment = 2
+  RlCli.Columns[5].Text = "Montant TTC"
+  jour = Format$(Now, "dd.mm.yyyy")
+  ex1()
+  dteN0_GotFocus()
+  dteN0.SetFocus
+  
+End
+
+Public Sub Cmpt_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  
+End
+
+'*****************************************
+'*    On genere les dates de travail     *
+'*****************************************
+Public Sub Ex1()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  
+  Tab = "Fiches_Parametres" 
+  With utils
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
+    dte = rResult!dteclec1
+    dteN0.Text = .Calc_mois(dte)
+    jour = Format$(Now, "dd.mm.yyyy")
+    dteN1.Text = jour
+    dte1 = dteN0.Text
+    dte2 = dteN1.Text
+  End With
+  
+End
+
+Public Sub cmpt_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.Return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+        
+      Case 1
+        dteN0_LostFocus()
+        If b = 0 Then
+          dteN1_GotFocus()
+        Else
+          b = 0
+        Endif
+        Stop Event
+        
+      Case 2
+        dteN1_LostFocus()
+        If b = 1 Then b = 0
+        Stop Event
+        
+    End Select
+  Endif
+  If key.code = key.F1 Then
+    Button7_Click()
+    Stop Event
+  Endif
+  
+End
+
+Public Sub dteN0_GotFocus()
+  
+  dteN0.Background = &HAAFF7F&
+  dteN0.Select
+  
+End
+
+Public Sub dteN0_LostFocus()
+  
+  Dim Dtn As String
+  
+  With utils
+    dteN0.text = .Cdate_calc(dteN0.text)
+    dteN0.Text = .Cdate_aff(dteN0.Text)
+    If dteN0.Text = "00.00.0:00" Then dteN0.Text = Format$(Now, "dd.mm.yyyy")
+  End With
+  dteN0.Background = Color.TextBackground
+Catch
+  b = 1
+  dteN0_GotFocus()
+  dteN0.setfocus
+  
+End
+
+Public Sub dteN1_GotFocus()
+  
+  dteN1.Background = &HAAFF7F&
+  
+End
+
+Public Sub dteN1_LostFocus()
+  
+  Dim Dtn As String
+  
+  With utils
+    dteN1.text = .Cdate_calc(dteN1.text)
+    dteN1.Text = .Cdate_aff(dteN1.Text)
+    If dteN1.Text = "00.00.0:00" Then dteN1.Text = Format$(Now, "dd.mm.yyyy")
+  End With
+  dteN1.Background = Color.TextBackground
+Catch
+  b = 1
+  dteN1_GotFocus()
+  dteN1.setfocus
+  
+End
+
+Public Sub RlCli_KeyPress()
+  
+  If key.code = key.Delete Then
+    RlCli_Activate()
+    Stop Event
+  Endif
+  
+End
+
+Public Sub RlCli_Activate()
+  
+  Dim rResult As Result
+  
+  If RlCli.Available Then
+    If son Then
+      Music.Play
+    Endif
+    If Message.Warning("Cette ligne n'apparaitra pas dans votre relevé. \n Confirmez-vous sa suppression ?", "Oui", "Non") = 1 Then
+      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabStat") & " where codecli = &1 and code = &2", RlCli.Current[0], RlCli.Current[2])
+      If rResult.Available Then
+        Repeat
+          Utils.db.Exec("DELETE   FROM " & Cbase.Table("TabStat") & " WHERE codecli = &1 and code = &2", RlCli.Current[0], RlCli.Current[2])
+        Until rResult.MoveNext()
+      Endif
+    Endif
+    RlCli.Current.Delete
+    RlCli.Clear
+    MajTab()
+  Endif
+  
+End
+
+Public Sub Button1_Click()
+  
+  Dim rResult As Result
+  Dim rrResult As Result
+  Dim sResult As Result
+  Dim cResult As Result
+  Dim qte As String
+  Dim montant As String
+  
+  dteN0_LostFocus()
+  dteN1_LostFocus()
+  If b = 0 Then
+    RlCli.Clear
+    Utils.db.Exec("DROP TABLE if exists " & Cbase.Table("TabStat") & "")
+    Utils.db.EXEC("CREATE TABLE " & Cbase.Table("TabStat") & 
+      " (code Char(15) NOT NULL," &
+      "intitule char(50) ," &
+      "qte char(12) ," &
+      "montant char(12) ," &
+      "codecli char(12) ," &
+      "intitulecli char(35) ," &
+      "PRIMARY KEY (code, codecli))" & "ENGINE = MYISAM")
+    If Not IsNull(dteN0.Text) And If Not IsNull(dteN1.Text) Then
+      Me.Mouse = Mouse.wait
+      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMo"))
+      If rResult.Available Then
+        Repeat
+          rrResult = Utils.db.Exec("SELECT * from " & Cbase.Table("TabLigbl") & " where code_ligbl = &1 and typel_ligbl = &2", rResult!mo_code, "M")
+          If rrResult.Available Then
+            Repeat
+              cResult = Utils.db.Exec("SELECT * from " & Cbase.Table("TabBl") & " where numbl = &1 and type = &2 and imp = &3", rrResult!num_ligbl, "F", 1)
+              If cResult.Available Then
+                If Utils.Cdate_Comp(cResult!datebl) >= Utils.Cdate_dbase(dten0.Text) And Utils.Cdate_Comp(cResult!datebl) <= Utils.Cdate_dbase(dten1.Text) Then
+                  Sresult = Utils.db.Exec("SELECT * from " & Cbase.Table("TabStat") & " where code = &1 and codecli = &2", rResult!mo_code, cResult!cdclibl)
+                  If Sresult.Available Then
+                    qte = Val(rrResult!qte_ligbl) + Val(sResult!qte)
+                    Utils.db.Exec("Update  " & Cbase.Table("TabStat") & "  SET  qte = &2 where code = &1 and codecli = &3", rResult!mo_code, Format$(qte, "0.00"), cResult!cdclibl)
+                  Else
+                    Try qte = Val(rrResult!qte_ligbl)
+                    Try montant = Val(rrResult!nettc_ligbl)
+                    If Not Error Then
+                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabStat") & " (code, intitule, qte, codecli, intitulecli, montant) VALUES (&1, &2, &3, &4, &5, &6)", rResult!mo_code, rResult!mo_design, Format$(qte, "0.00"), cResult!cdclibl, cResult!nmclibl, Format$(montant, "0.00"))
+                    Endif
+                  Endif
+                Endif
+              Endif
+            Until rrResult.MoveNext()
+          Endif
+          rrResult = Utils.db.Exec("SELECT * from " & Cbase.Table("TabHisLigFac") & " where code_ligfac = &1 and typel_ligfac = &2", rResult!mo_code, "M")
+          If rrResult.Available Then
+            Repeat
+              cResult = Utils.db.Exec("SELECT * from " & Cbase.Table("TabHisFac") & " where numfac = &1", rrResult!num_ligfac)
+              If cResult.Available Then
+                If Utils.Cdate_Comp(cResult!datefac) >= Utils.Cdate_dbase(dten0.Text) And Utils.Cdate_Comp(cResult!datefac) <= Utils.Cdate_dbase(dten1.Text) Then
+                  Sresult = Utils.db.Exec("SELECT * from " & Cbase.Table("TabStat") & " where code = &1 and codecli = &2", rResult!mo_code, cResult!cdclifac)
+                  If Sresult.Available Then
+                    qte = Val(rrResult!qte_ligfac) + Val(sResult!qte)
+                    Utils.db.Exec("Update  " & Cbase.Table("TabStat") & "  SET  qte = &2 where code = &1 and codecli = &3", rResult!mo_code, Format$(qte, "0.00"), cResult!cdclifac)
+                  Else
+                    Try qte = Val(rrResult!qte_ligfac)
+                    If IsNull(qte) Then qte = "1"
+                    Try montant = Val(rrResult!nettc_ligfac)
+                    If Not Error Then
+                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabStat") & " (code, intitule, qte, codecli, intitulecli, montant) VALUES (&1, &2, &3, &4, &5, &6)", rResult!mo_code, rResult!mo_design, Format$(Val(Utils.cpoint(qte)), "0.00"), cResult!cdclifac, cResult!nmclifac, Format$(Val(Utils.cpoint(montant)), "0.00"))
+                    Endif
+                  Endif
+                Endif
+              Endif
+            Until rrResult.MoveNext()
+          Endif
+          rrResult = Utils.db.Exec("SELECT * from " & Cbase.Table("TabHisLigFacm") & " where code_ligfac = &1 and typel_ligfac = &2", rResult!mo_code, "M")
+          If rrResult.Available Then
+            Repeat
+              cResult = Utils.db.Exec("SELECT * from " & Cbase.Table("TabHisFacm") & " where numfac = &1", rrResult!num_ligfac)
+              If cResult.Available Then
+                If Utils.Cdate_Comp(cResult!datefac) >= Utils.Cdate_dbase(dten0.Text) And Utils.Cdate_Comp(cResult!datefac) <= Utils.Cdate_dbase(dten1.Text) Then
+                  Sresult = Utils.db.Exec("SELECT * from " & Cbase.Table("TabStat") & " where code = &1 and codecli = &2", rResult!mo_code, cResult!cdclifac)
+                  If Sresult.Available Then
+                    qte = Val(rrResult!qte_ligfac) + Val(sResult!qte)
+                    montant = Val(rrResult!nettc_ligfac) + Val(sResult!montant)
+                    Utils.db.Exec("Update  " & Cbase.Table("TabStat") & "  SET  qte = &2 where code = &1 and codecli = &3", rResult!mo_code, Format$(qte, "0.00"), cResult!cdclifac)
+                  Else
+                    Try qte = Val(rrResult!qte_ligfac)
+                    Try montant = Val(rrResult!nettc_ligfac)
+                    If Not Error Then
+                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabStat") & " (code, intitule, qte, codecli, intitulecli, montant) VALUES (&1, &2, &3, &4, &5, &6)", rResult!mo_code, rResult!mo_design, Format$(qte, "0.00"), cResult!cdclifac, cResult!nmclifac, Format$(montant, "0.00"))
+                    Endif
+                  Endif
+                Endif
+              Endif
+            Until rrResult.MoveNext()
+          Endif
+        Until rResult.MoveNext()
+        MajTab()
+      Endif
+      Me.Mouse = Mouse.Default
+    Endif
+  Else
+    If son Then
+      Music.Play
+    Endif
+    Message.Info("Veuillez saisir votre date SVP")
+    If IsNull(dteN1.Text) Then
+      dteN1_GotFocus()
+      dteN1.SetFocus
+    Else
+      dteN0_GotFocus()
+      dteN0.SetFocus
+    Endif
+  Endif
+  
+End
+
+Public Sub MajTab()
+  
+  Dim rResult As Result
+  
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabStat") & " order by codecli, code ")
+  Repeat
+    If rResult.Available Then
+      RlCli.Add(rResult!codecli & rResult!code, rResult!codecli & rResult!code)
+      RlCli.Item[0] = rResult!codecli
+      RlCli.Item[1] = rResult!intitulecli
+      RlCli.Item[2] = rResult!code
+      RlCli.Item[3] = rResult!intitule
+      RlCli.Item[4] = rResult!qte
+      RlCli.Item[5] = rResult!montant
+    Endif
+  Until rResult.MoveNext()
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim rRESULT As RESULT
+  Dim rrRESULT As RESULT
+  Dim cResult As Result
+  Dim Tableau As String
+  Dim adr1 As String
+  Dim adr2, Libre As String
+  Dim adr21 As String
+  Dim adr22 As String
+  Dim ville As String
+  Dim ville2 As String
+  Dim Pays As String
+  Dim Bur As String
+  Dim Mail As String
+  Dim Rcs As String
+  Dim villercs As String
+  Dim Siret As String
+  Dim Tvaintra As String
+  Dim Cap As String
+  Dim Ape As String
+  Dim Iban As String
+  Dim Tel As String
+  Dim portable As String
+  Dim Fax As String
+  Dim Site As String
+  Dim Rs As String
+  Dim Rs2 As String
+  Dim Niv As String
+  Dim Txt As String
+  Dim dte As String
+  Dim Code As String
+  Dim Lib As String
+  Dim Qte As String
+  Dim Mt As String
+  Dim Logo As Image
+  Dim Imagewidth As Integer
+  Dim Imageheight As Integer
+  Dim Afflog As Boolean
+  Dim jour As String
+  Dim p As Integer = 1
+  Dim Cli As String
+  Dim imp As Boolean = False
+  Dim pdf As Cdocuments
+  
+  Try Rlcli.MoveFirst
+  Txt = "Relevé de nos prestations pour la période du " & DteN0.Text & " au " & Dten1.Text
+  Me.Mouse = Mouse.wait
+  jour = Format$(Now, "dd.mm.yyyy")
+  With utils
+    Shell "cd " & User.Home & ""
+    Filename = User.home & "/Relmo.pdf"
+    pdf = New Cdocuments("Portrait", "mm", "A4")
+    pdf.Open()
+    pdf.AliasNbPages()
+    If Settings["/Soc" & Start.Societe & "/glogo"] Then Try Logo = Settings["/Soc" & Start.Societe & "/Logo"]
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabSoc") & " where cd_sc = &1", Start.Societe)
+    Rs = rResult!type_sc & " " & rResult!int_sc
+    adr1 = rResult!adr1_sc
+    adr2 = rResult!adr2_sc
+    Libre = rResult!libre
+    ville = rResult!cp_sc & "  " & rResult!burdis_sc
+    jour = rResult!burdis_sc & "  le  " & jour
+    If rResult!villerc_sc Then Rcs = "Rcs : " & rResult!rcs_sc & " " & rResult!villerc_sc
+    If rResult!siret_sc Then Siret = "Siret : " & rResult!siret_sc
+    If rResult!tvaintra_sc Then Tvaintra = "Tva intra : " & rResult!tvaintra_sc
+    If rResult!cap_sc Then Cap = "Capital : " & rResult!cap_sc
+    If rResult!ape_sc Then Ape = "Naf : " & rResult!ape_sc
+    If rResult!tel_sc Then Tel = "Tel : " & rResult!tel_sc
+    If rResult!port_sc Then Portable = "Portable : " & rResult!port_sc
+    If rResult!fax_sc Then Fax = "Fax : " & rResult!fax_sc
+    If rResult!email_sc Then Mail = "Courriel : " & rResult!email_sc
+    If rResult!site Then Site = "Site : " & rResult!site
+    If rResult!banq Then Iban = "Iban : " & rResult!banq & " Bic : " & rResult!bic
+    If Rlcli.Available Then
+      Rlcli.MoveFirst
+      Repeat
+        If RB2.Value And Not Rlcli.Item.selected Then
+        Else
+          If Cli <> Rlcli.Item[0] And Not IsNull(Cli) And p = 0 Then
+            p = 1
+          Endif
+          If p = 1 Then
+            imp = True
+            cResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " where cli_code = &1", Rlcli.Item[0])
+            Rs2 = cResult!cli_rs_soc & " " & cResult!cli_nom
+            adr21 = cResult!cli_adr1
+            adr22 = cResult!cli_adr2
+            ville2 = cResult!cli_cd_ptl & "  " & cResult!cli_ville
+            Pays = cResult!cli_pays
+            If Pays = "France" Then Pays = ""
+            pdf.Entete(Rs, adr1, adr2, ville, Cap, Rcs, Siret, Ape, Tvaintra, tel, portable, fax, mail, site, False, Pays, Iban, False, Libre)
+            pdf.Entete2(rs2, adr22, ville2, pays, "", "", False)
+            pdf.Level1r(Jour)
+            Posy = 105
+            pdf.Level4R(txt)
+            Posy += 5
+            pdf.Level2r()
+            Posy += 8
+          Endif
+          code = Rlcli.Item[2]
+          Lib = Rlcli.Item[3]
+          Qte = Rlcli.Item[4]
+          Mt = Rlcli.Item[5]
+          pdf.Level3r(code, Lib, Qte, Mt, Posy)
+          Posy += 5
+          If PosY >= 283 Then
+            pdf.Entete(Rs, adr1, adr2, ville, Cap, Rcs, Siret, Ape, Tvaintra, tel, portable, fax, mail, site, False, Pays, Iban, False)
+            pdf.Entete2(rs2, adr22, ville2, pays, "", "", False)
+            pdf.Level1r(Jour)
+            Posy = 105
+            pdf.Level4R(txt)
+            Posy += 5
+            pdf.Level2r()
+          Endif
+          Cli = Rlcli.Item[0]
+          p = 0
+        Endif
+      Until Rlcli.Movenext()
+      If Imp = True Then
+        pdf.Footer()
+        pdf.Output(Filename, False)
+        Visualiseur.Prog_Editeur(Filename)
+      Else
+        Message.Warning("Veuillez faire une sélection SVP !")
+      Endif
+    Endif
+  End With
+  
+  Me.Mouse = Mouse.Custom
+  
+End
+
+Public Sub RlCli_Click()
+  
+  RB2.Value = True
+  
+End
+
+Public Sub Button3_Click()
+  
+  Me.Close
+  
+End
+
+Public Sub Button7_Click()
+  'Exec ["xdg-open", Application.Path &/ "Ecrans/RelMo.html"]
+  
+End

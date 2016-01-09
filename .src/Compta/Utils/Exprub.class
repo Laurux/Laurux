@@ -1,0 +1,56 @@
+' Gambas class file
+
+'
+'
+' Exprub :
+' Utilitaire servant à générer les fichiers textes des parametrages des comptes de resultat, du bilan et des SIG.
+
+Static Tab1Rslt As Result
+Static hfil As File
+Static hfil2 As File
+Static Tab3Rslt As Result
+Static Tab1 As String
+Static Tab3 As String
+
+Static Public Sub run()
+  
+  Dim Rub As String
+  Dim intitrub As String
+  Dim type As String
+  Dim Det As String
+  Dim cpt1 As String
+  Dim cpt2 As String
+  Dim Amort As String
+  Dim Prod As String
+  
+  Tab1 = "Fiches_Rubriques"
+  Tab3 = "Fiches_RubCompt"
+  HFil = Open User.Home & "/Laurux3/Bcr.txt" For Write Create
+  HFil2 = Open User.Home & "/Laurux3/Bcrcpt.txt" For Write Create
+  Tab1Rslt = Utils.db.Exec("SELECT * FROM " & Tab1 & " order by numrub")
+  If Tab1Rslt.Count Then
+    Repeat
+      Rub = Tab1Rslt!numrub
+      intitrub = Tab1Rslt!intitule
+      type = Tab1Rslt!type
+      Det = Tab1Rslt!detail
+      Prod = Tab1Rslt!num
+      Print #HFil, Rub & ";" & intitrub & ";" & type & ";" & Det & ";" & Prod & ";"
+      If type = "L" Then
+        Tab3Rslt = Utils.db.Exec("SELECT * FROM " & Tab3 & " WHERE numrub = &1 order by numrub", Rub)
+        If Tab3Rslt.Count Then
+          Repeat
+            cpt1 = Tab3Rslt!compte1
+            cpt2 = Tab3Rslt!compte2
+            Amort = Tab3Rslt!amortissement
+            Print #HFil2, Rub & ";" & cpt1 & ";" & cpt2 & ";" & Amort & ";"
+          Until Tab3Rslt.MoveNext()
+        Endif
+      Endif
+    Until Tab1Rslt.MoveNext()
+  Endif
+  Close #HFil
+  Close #Hfil2
+  Message.Info("Traitement terminé !")
+  
+End

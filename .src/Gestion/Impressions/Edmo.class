@@ -1,0 +1,522 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : EdMo.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 23/05/2005
+'# Liste de la Main d'oeuvre
+'################################################
+'
+
+Filename As String
+Tab As String
+PosY As Integer
+son As Integer = Start.Son
+Private Tva As String
+Private Txht As String
+Private montant As String
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  Mo.Text = "00000"
+  Mo2.Text = "ZZZZZ"
+  Fam.Text = "00000"
+  Fam2.Text = "ZZZZZ"
+  Mo.Select
+  Mo.SetFocus
+  
+End
+
+'************************************
+'* Affichage du columnview ColMo    *
+'************************************
+Public Sub ToggleButton1_Click()
+  
+  Dim rResult As Result
+  
+  Tab = "Fiches_Mo" 
+  With Utils
+    If ColMo.visible Then
+      ColMo.clear
+      ColMo.visible = False
+    Else
+      ColMo.visible = True
+      ColMo.Columns.count = 2
+      ColMo.Columns[0].Width = 65
+      ColMo.Columns[1].Width = 280
+      ColMo.Columns[0].Text = "code"
+      ColMo.Columns[1].Text = "Intitulé"
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by mo_code")
+      If rResult.Available Then
+        Repeat
+          ColMo.Add(rResult!mo_code, rResult!mo_code)
+          ColMo.Item[0] = rResult!mo_code
+          ColMo.Item[1] = rResult!mo_design
+        Until rResult.MoveNext()
+      Endif
+      If ColMo.Count Then
+        ColMo.MoveFirst
+        ColMo.SetFocus
+        ColMo.Item.Selected = True
+      Endif
+    Endif
+  End With
+  
+End
+
+'***********************************************************
+'* Gestion du columnview ColMo lors d'une saisie manuelle *
+'***********************************************************
+Public Sub Colmo_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    ColMo.MoveCurrent
+    Colmo_Click()
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    ColMo.visible = False
+    Mo.SetFocus
+    Mo.Select
+    Stop Event
+  Endif
+  
+End
+'************************************
+'* Affichage du columnview ColMo2   *
+'************************************
+
+Public Sub ToggleButton2_Click()
+  
+  Dim rResult As Result
+  
+  Tab = "Fiches_Mo" 
+  With Utils
+    If ColMo2.visible Then
+      ColMo2.clear
+      ColMo2.visible = False
+    Else
+      ColMo2.visible = True
+      ColMo2.Columns.count = 2
+      ColMo2.Columns[0].Width = 65
+      ColMo2.Columns[1].Width = 280
+      ColMo2.Columns[0].Text = "code"
+      ColMo2.Columns[1].Text = "Intitulé"
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by mo_code")
+      If rResult.Available Then
+        Repeat
+          ColMo2.Add(rResult!mo_code, rResult!mo_code)
+          ColMo2.Item[0] = rResult!mo_code
+          ColMo2.Item[1] = rResult!mo_design
+        Until rResult.MoveNext()
+      Endif
+      If ColMo2.Count Then
+        ColMo2.MoveFirst
+        ColMo2.SetFocus
+        ColMo2.Item.Selected = True
+      Endif
+    Endif
+  End With
+  
+End
+
+'***********************************************************
+'* Gestion du columnview ColMo2 lors d'une saisie manuelle *
+'***********************************************************
+Public Sub ColMo2_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    ColMo2.MoveCurrent
+    ColMo2_Click()
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    ColMo2.visible = False
+    ColMo2.clear
+    Mo2.SetFocus
+    Mo2.Select
+    Stop Event
+  Endif
+  
+End
+
+'************************************
+'* Affichage du columnview Colfam  *
+'************************************
+Public Sub ToggleButton3_Click()
+  
+  Dim rResult As Result
+  
+  Tab = "Fiches_Fam" 
+  With Utils
+    If Colfam.visible Then
+      Colfam.clear
+      Colfam.visible = False
+    Else
+      Colfam.visible = True
+      Colfam.Columns.count = 2
+      Colfam.Columns[0].Width = 65
+      Colfam.Columns[1].Width = 280
+      Colfam.Columns[0].Text = "code"
+      Colfam.Columns[1].Text = "Intitulé"
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by code_fam")
+      If rResult.Available Then
+        Repeat
+          Colfam.Add(rResult!code_fam, rResult!code_fam)
+          Colfam.Item[0] = rResult!code_fam
+          Colfam.Item[1] = rResult!libell_fam
+        Until rResult.MoveNext()
+      Endif
+      If Colfam.Count Then
+        Colfam.MoveFirst
+        Colfam.SetFocus
+        Colfam.Item.Selected = True
+      Endif
+    Endif
+  End With
+  
+End
+
+'***********************************************************
+'* Gestion du columnview Colfam lors d'une saisie manuelle *
+'***********************************************************
+Public Sub Colfam_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Colfam.MoveCurrent
+    Colfam_Click()
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Colfam.visible = False
+    Colfam.clear
+    fam.SetFocus
+    fam.Select
+    Stop Event
+  Endif
+  
+End
+
+'************************************
+'* Affichage du columnview Colfam2 *
+'************************************
+Public Sub ToggleButton4_Click()
+  
+  Dim rResult As Result
+  
+  Tab = "Fiches_Fam" 
+  With Utils
+    If Colfam2.visible Then
+      Colfam2.clear
+      Colfam2.visible = False
+    Else
+      Colfam2.visible = True
+      Colfam2.Columns.count = 2
+      Colfam2.Columns[0].Width = 65
+      Colfam2.Columns[1].Width = 280
+      Colfam2.Columns[0].Text = "code"
+      Colfam2.Columns[1].Text = "Intitulé"
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by code_fam")
+      If rResult.Available Then
+        Repeat
+          Colfam2.Add(rResult!code_fam, rResult!code_fam)
+          Colfam2.Item[0] = rResult!code_fam
+          Colfam2.Item[1] = rResult!libell_fam
+        Until rResult.MoveNext()
+      Endif
+      If Colfam2.Count Then
+        Colfam2.MoveFirst
+        Colfam2.SetFocus
+        Colfam2.Item.Selected = True
+      Endif
+    Endif
+  End With
+  
+End
+
+'*************************************************************
+'* Gestion du columnview Colfam2 lors d'une saisie manuelle *
+'*************************************************************
+Public Sub Colfam2_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Colfam2.MoveCurrent
+    Colfam2_Click()
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Colfam2.visible = False
+    Colfam2.clear
+    fam.SetFocus
+    fam2.Select
+    Stop Event
+  Endif
+  
+End
+
+'******************************************
+'* Selection de la premiere main d'oeuvre *
+'******************************************
+Public Sub Colmo_Click()
+  
+  Mo.Text = ColMo.Item[0]
+  ColMo.clear
+  ColMo.visible = False
+  Mo2.Select
+  Mo2.SetFocus
+  
+End
+
+'******************************************
+'* Selection de la seconde main d'oeuvre  *
+'******************************************
+Public Sub ColMo2_Click()
+  
+  Mo2.Text = ColMo2.Item[0]
+  ColMo2.clear
+  ColMo2.visible = False
+  Mo.Select
+  Mo.SetFocus
+  
+End
+
+'************************************
+'* Selection du premier fournisseur *
+'************************************
+Public Sub Colfam_Click()
+  
+  fam.Text = Colfam.Item[0]
+  Colfam.clear
+  Colfam.visible = False
+  fam2.Select
+  fam2.SetFocus
+  
+End
+
+'************************************
+'* Selection du second fournisseur  *
+'************************************
+Public Sub Colfam2_Click()
+  
+  fam2.Text = Colfam2.Item[0]
+  Colfam2.clear
+  Colfam2.visible = False
+  Button2.SetFocus
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Button1_Click()
+      
+    Case 2
+      Button2_Click()
+      
+    Case 3
+      If Exist(filename) Then Try Kill filename
+      Me.Close
+      
+  End Select
+  
+End
+
+Public Sub Btn_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Then
+    Select Case Last.tag
+      Case 2
+        Button2_Click()
+    End Select
+  Endif
+  
+End
+
+Public Sub Cmpt_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+      Case 1
+        Mo2.SetFocus
+        Mo2.Select
+        Stop Event
+        
+      Case 2
+        fam.SetFocus
+        fam.Select
+        Stop Event
+        
+      Case 3
+        fam2.SetFocus
+        fam2.Select
+        Stop Event
+        
+      Case 4
+        Mo.SetFocus
+        Mo.Select
+        Stop Event
+    End Select
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Cmpt_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim rResult As Result
+  Dim code As String
+  Dim intitule As String
+  Dim Fami As String
+  Dim four As String
+  Dim Txmo As String
+  Dim MoTxht As String
+  Dim Tm As String
+  Dim Qte As String
+  Dim dte As String
+  Dim Nbpage As Integer
+  Dim pdf As Carticles
+  
+  Nbpage = 1
+  dte = Format$(Now, "dd.mm.yyyy")
+  Tab = "Fiches_Mo" 
+  Shell "cd " & User.Home & ""
+  Filename = User.home & "/MO.pdf"
+  pdf = New CArticles("Portrait", "mm", "A4")
+  pdf.Open()
+  pdf.AliasNbPages()
+  pdf.Entete("Impression de la main d'oeuvre")
+  pdf.Level1MO()
+  posy = 30
+  Me.Mouse = Mouse.Wait
+  If Radiobutton1.Value Then
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE mo_code >= &1  and mo_code <= &2 and mo_fam >= &3 and mo_fam <= &4 order by mo_code", Mo.Text, Mo2.Text, Fam.Text, Fam2.Text)
+  Else
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE mo_code >= &1  and mo_code <= &2 and mo_fam >= &3 and mo_fam <= &4 order by mo_fam, mo_code", Mo.Text, Mo2.Text, Fam.Text, Fam2.Text)
+  Endif
+  If rResult.Available Then
+    Repeat
+      code = rResult!mo_code
+      intitule = rResult!mo_design
+      fami = rResult!mo_fam
+      four = rResult!mo_four
+      txmo = rResult!mo_txcd
+      Try txht = Format$(rResult!mo_valeurht, "0.00")
+      If Error Then
+        message.Warning("Veuillez verifier le taux horaire de la MO " & code & " !")
+        Return
+      Endif
+      tva = rResult!mo_tva
+      tm = rResult!mo_tempmont
+      qte = rResult!mo_montant
+      MoTxht = rResult!mo_txht
+      If tm = 1 Then Try txht = Format$(Val(Utils.cpoint(MoTxht)) * Val(Utils.cpoint(Qte)), "0.00")
+      If Error Then
+        message.Warning("Veuillez verifier le taux horaire de la MO " & code & " !")
+        Return
+      Endif
+      Valeur2TTC_Calcul()
+      Pdf.level2MO(code, intitule, fami, four, txmo, txht, tva, tm, montant, Qte, posy)
+      PosY += 5
+      If PosY >= 280 Then
+        pdf.Footer()
+        pdf.Entete("Impression de la main d'oeuvre")
+        pdf.Level1MO()
+        posy = 30
+      Endif
+    Until rResult.MoveNext()
+    pdf.Footer()
+    pdf.Output(Filename, False)
+    Visualiseur.Prog_Editeur(Filename)
+  Else
+    If son Then
+      Music.Play
+    Endif
+    message(" Aucune Mo pour cette demande", "OK")
+    Draw.End
+  Endif
+  Me.Mouse = Mouse.Pointing
+  
+End
+
+'**************************************************
+'*   On calcule le montant du prix de vente TTC   *
+'**************************************************
+Public Sub Valeur2TTC_Calcul()
+  
+  Dim Mtva As Float
+  Dim txtva As Float
+  Dim selection As Result
+  
+  selection = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTvav") & " WHERE code_tva = &1", Tva)
+  If selection.Available Then
+    TxTva = selection!taux_tva
+  Endif
+  Mtva = Val(Utils.cpoint(Txtva))
+  Montant = Format$(Val(Txht) + (Val(Txht) * Mtva / 100))
+  Montant = Format$(Val(Montant), "0.00")
+  
+End
+
+Public Sub Button1_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Edmo.html"]
+  
+End

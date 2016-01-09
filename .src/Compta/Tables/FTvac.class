@@ -1,0 +1,390 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : FTvac.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 01/11/2004
+'# Gestion de la table des codes Tva sur achat
+'################################################
+'
+
+Private Tab As String
+Private Dne As String 'texte recherché par F2 ou clic sur bouton
+Private Enr As Integer ' Flag utilisé pour le focus si la donnée a recuperer existe ou non
+Private son As Integer = Start.Son
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  Tvalist.Columns.count = 3
+  Tvalist.Columns[0].Width = 80
+  Tvalist.Columns[1].Width = 80
+  Tvalist.Columns[0].Text = "code"
+  Tvalist.Columns[0].Alignment = 2
+  Tvalist.Columns[1].Text = "Taux    "
+  Tvalist.Columns[1].Alignment = 2
+  Tvalist.Columns[2].Text = "Compte        "
+  Tvalist.Columns[2].Alignment = 2
+  Cdtva_Gotfocus()
+  Cdtva.SetFocus
+  
+End
+
+Public Function cpoint(mtt As String) As String
+  
+  Return (Replace$(mtt, ".", ","))
+  
+End
+
+Public Sub Form_Open()
+  
+  Dim Rtva As Result
+  
+  Tab = "Fiches_Tvaac" 
+  Rtva = Utils.db.Exec("SELECT * FROM " & Tab & "")
+  If Rtva.Available Then
+    Repeat
+      Tvalist.Add(Rtva!code_tva, Rtva!code_tva)
+      If Rtva!taux_tva <> "" Then
+        Tvalist.Item[1] = Format$(Rtva!taux_tva, "-0.00")
+      Endif
+      Tvalist.Item[2] = Rtva!cc_tva
+    Until Rtva.MoveNext()
+    'Maj_Zones()
+  Else
+  Endif
+  
+End
+
+Public Sub Refresh()
+  
+  Tvalist.clear
+  Cdtva.clear
+  Txtva.clear
+  Txtva.clear
+  Tvacc.clear
+  form_Open()
+  'Maj_Zones
+  
+End
+
+Public Sub Maj_Zones()
+  
+  Dim montante As Float
+  
+  With Utils
+    If Tvalist.count > 0 Then
+      Cdtva.Text = Tvalist.Current[0]
+      Txtva.text = Tvalist.current[1]
+      montante = Val(.cpoint(Txtva.Text))
+      Txtva.Text = Format$(montante, "00.00")
+      Tvacc.text = Tvalist.current[2]
+    Endif
+    Cdtva_GotFocus()
+    cdtva.SetFocus
+  End With
+  
+End
+
+Public Sub Cleanchamps()
+  
+  Cdtva.Clear
+  Txtva.Clear
+  Tvacc.Clear
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Tva_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  
+End
+
+Public Sub Tva_KeyPress()
+  
+  Select Case Last.tag
+      
+    Case 1
+      If Key.code = Key.enter Or Key.code = Key.Return Or Key.code = Key.Tab Then
+        Txtva_GotFocus()
+        Txtva.SetFocus
+        Txtva.Select
+        Stop Event
+        
+      Endif
+      
+    Case 2
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        Tvacc_GotFocus()
+        Tvacc.SetFocus
+        Tvacc.Select
+        Stop Event
+      Endif
+      
+    Case 3
+      Dne = Tvacc.Text
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        If Enr = 0 Then
+          Tvacc_GotFocus()
+          Tvacc.SetFocus
+          Tvacc.Select
+          Stop Event
+        Else
+          Enr = 1
+          Button1.SetFocus
+        Endif
+        Stop Event
+      Endif
+      
+      If key.code = key.F1 Then
+        Button5_Click()
+        Stop Event
+      Endif
+      
+      If key.code = key.F2 Then
+        Button4_click()
+        Stop Event
+      Endif
+  End Select
+  
+End
+
+Public Sub Btn_KeyPress()
+  
+  Select Case Last.tag
+      
+    Case 2
+      Button1_Click()
+      
+  End Select
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Button3_Click()
+      
+    Case 2
+      Button1_Click()
+      
+    Case 3
+      Me.Close
+      
+  End Select
+  
+End
+
+Public Sub Cdtva_GotFocus()
+  
+  Cdtva.Background = &HAAFF7F&
+  
+End
+
+Public Sub Txtva_GotFocus()
+  
+  Txtva.Background = &HAAFF7F&
+  
+End
+
+Public Sub Txtva_LostFocus()
+  
+  Dim montante As Float
+  
+  With Utils
+    Txtva.Text = .cpoint(Txtva.Text)
+    If Val(Txtva.text) = Null Then
+      Txtva.Text = "0.00"
+    Else
+      montante = Val(cpoint(Txtva.Text))
+      Txtva.Text = Format$(montante, "00.00")
+    Endif
+  End With
+  
+End
+
+Public Sub Tvacc_GotFocus()
+  
+  Tvacc.Background = &HAAFF7F&
+  
+End
+
+Public Sub Tvacc_LostFocus()
+  
+  Tvaman()
+  
+End
+
+Public Sub Tvalist_Click()
+  
+  Maj_Zones
+  
+End
+
+Public Sub Button1_Click()
+  
+  Dim Rtva As Result
+  
+  Tab = "Fiches_Tvaac" 
+  If CdTva.Text <> "" Then
+    With utils
+      Rtva = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE code_tva = '" & Cdtva.Text & "'")
+      If Rtva.Available Then
+        Utils.db.Exec("UPdate  " & Tab & "  SET  code_tva = '" & Cdtva.Text & "' , taux_tva = '" & .PointBase(Txtva.Text) & "'  , cc_tva = '" & Tvacc.Text & "'WHERE code_tva = '" & Cdtva.Text & "'")
+        Utils.db.Exec("UPdate  " & Cbase.Table("TabComptes") & "  SET  taux_tachat = &1 WHERE code_tachat = &2", .PointBase(Txtva.Text), Cdtva.Text)
+      Else
+        Utils.db.Exec("INSERT INTO " & Tab & "(code_tva,taux_tva, cc_tva) VALUES ('" & Cdtva.Text & "', '" & .PointBase(Txtva.Text) & "', '" & Tvacc.Text & "')")
+      Endif
+    End With
+    Refresh()
+    'Tvacc.Background = Color.TextBackground
+    'Txtva.Background = Color.TextBackground
+  Else
+    Tvacc.Select
+  Endif
+  
+End
+
+Public Sub Button3_Click()
+  
+  Dim Rtva As Result
+  
+  Tab = "Fiches_Tvaac" 
+  If CdTva.Text <> "" Then
+    If son Then
+      Music.Play
+    Endif
+    If Message.Question("Etes vous sur de vouloir effacer cet enregistrement", "Oui", "Non") = 1 Then
+      Rtva = utils.db.Exec("select * from " & Cbase.Table("TabComptes") & " where code_tachat = &1", Tvalist.Current[0])
+      If Rtva.Available Then
+        Message.Warning("Suppression impossible ! Cette tva est utilisée par le compte " & Rtva!compte_cc)
+      Else
+        Utils.db.Exec("DELETE FROM " & Tab & " WHERE code_tva = '" & Tvalist.Current[0] & "'")
+        Refresh()
+      Endif
+    Endif
+  Else
+  Endif
+  
+End
+
+Public Sub Button4_Click()
+  
+  Dim Rcompte As Result
+  
+  Tab = "Fiches_Comptes" 
+  If Tvalist3.visible Then
+    Tvalist3.clear
+    tvalist3.visible = False
+  Else
+    Tvalist3.visible = True
+    Tvalist3.Columns.count = 2
+    Tvalist3.Columns[0].Width = 65
+    Tvalist3.Columns[1].Width = 180
+    Tvalist3.Columns[0].Text = "code"
+    Tvalist3.Columns[1].Text = "Intitulé"
+    If Not Dne Then
+      Rcompte = Utils.db.Exec("SELECT * FROM " & Tab & " where left(compte_cc,3) = '445'")
+    Else
+      Rcompte = Utils.db.Exec("SELECT * FROM " & Tab & " where left(compte_cc,'" & Len(Tvacc.Text) & "') = '" & Tvacc.Text & "'")
+    Endif
+    If Rcompte.Available Then
+      Repeat
+        Tvalist3.Add(Rcompte!compte_cc, Rcompte!compte_cc)
+        Tvalist3.Item[0] = Rcompte!compte_cc
+        Tvalist3.Item[1] = Rcompte!intitule_cc
+      Until Rcompte.MoveNext()
+      Tvalist3.MoveFirst
+      Tvalist3.SetFocus
+      Tvalist3.Item.Selected = True
+    Endif
+  Endif
+  
+End
+
+Public Sub Tvalist3_Click()
+  
+  tvacc.text = Tvalist3.Item[0]
+  Tvalist3.visible = False
+  Tvalist3.clear
+  Button1.SetFocus
+  
+End
+
+'**********************************************************
+'* Gestion du columnview lors d'une saisie manuelle       *
+'**********************************************************
+Public Sub Tvalist3_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Tvalist3.MoveCurrent
+    Tvalist3_Click()
+    Stop Event
+  Endif
+  
+  If key.code = key.F1 Then
+    Button5_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Tvalist3.visible = False
+    Tvalist3.clear
+    Tvacc_GotFocus()
+    Tvacc.SetFocus
+    Tvacc.Select
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Button5_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Tvaachats.html"]
+  
+End
+
+Public Sub Tvaman()
+  
+  Dim Rcompte As Result
+  
+  Tab = "Fiches_Comptes" 
+  Rcompte = Utils.db.Exec("SELECT * FROM " & Tab & " where compte_cc = &1", Tvacc.Text)
+  If Not Rcompte.Available Then
+    If son Then
+      Music.Play
+    Endif
+    Message.Error("Attention ! Ce compte n'existe pas.")
+    Enr = 0
+  Else
+    Enr = 1
+  Endif
+  
+End

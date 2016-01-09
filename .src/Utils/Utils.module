@@ -1,0 +1,888 @@
+' Gambas module file
+
+'#######################################################
+'# Modification Marc GUILLAUME <alarch@alarch.ath.cx>
+'# pour utilisation d'un tunnel ssh de connexion MySQL
+'# 07 janvier 2010
+'########################################################
+
+Public db As New Connection
+Public rs1 As Result
+Public rs2 As Result
+Public rs3 As Result
+Public rs4 As Result
+Public MysqlServeur As String ' nom du serveur mysql utilisé par la connexion ssh
+Public mysqlPort As String
+Public SshPort As String
+
+Public SshPassw As String
+
+Public SshHost As String
+Public SshUser As String
+Public RemotePort As String
+Public TunnelPid As String ' pid du tunnel ssh conservé afin de l'arrêter en quittant le programme
+
+Public Sub Base(tbv As Gridview, qry As String)
+  
+  rs1 = db.exec(qry)
+  With rs1
+    tbv.rows.count = 0
+    If .count <> 0 Then
+      tbv.rows.count = .count
+    End If
+  End With
+  
+End
+
+Public Sub Base2(tbv As Gridview, qry As String)
+  
+  rs2 = db.exec(qry)
+  With rs2
+    tbv.rows.count = 0
+    If .count <> 0 Then
+      tbv.rows.count = .count
+    End If
+  End With
+  
+End
+
+Public Sub Base3(tbv As Gridview, qry As String)
+  
+  rs3 = db.exec(qry)
+  With rs3
+    tbv.rows.count = 0
+    If .count <> 0 Then
+      tbv.rows.count = .count
+    End If
+  End With
+  
+End
+
+Public Sub Base4(tbv As Gridview, qry As String)
+  
+  rs4 = db.exec(qry)
+  With rs4
+    tbv.rows.count = 0
+    If .count <> 0 Then
+      tbv.rows.count = .count
+    End If
+  End With
+  
+End
+
+'########################## DÉBUT DES AJOUTS TUNNEL SSH
+
+'*************************************************
+'* Collationnement des variables de connexion sql
+'* MG - 07 janvier 2010
+'*************************************************
+Public Sub glb()
+  
+  '# -- valeurs de connexion communes avec ou sans tunnel
+  db.type = Settings["/dbase/type"]
+  db.Name = Settings["/dbase/Name"]
+  'db.name = "Laurux"
+  db.Login = Settings["/dbase/Login"]
+  db.Password = hexdblKey.crypt("de", Settings["/dbase/Password"], "Laurux")
+  '# -- valeurs dépendant du tunnel
+  If Settings["/dbase/Con-ssh"] Then
+    '# -- Valeurs de connexion via tunnel
+    db.Host = "127.0.0.1"
+    db.Port = Settings["/dbase/ssh/Portlocal"]
+    MysqlPort = Settings["/dbase/ssh/Portlocal"]
+    ' on définit des variables pour l'établissement du tunnel ssh
+    MysqlServeur = Settings["/dbase/Host"]
+    RemotePort = Settings["/dbase/Port"]
+    SshPort = Settings["/dbase/ssh/Portssh"]
+    SshPassw = hexdblKey.crypt("de", Settings["/dbase/ssh/Passwssh"], "LauruX2012")
+    SshHost = Settings["/dbase/ssh/Hostssh"]
+    SshUser = Settings["/dbase/ssh/Login"]
+  Else
+    '# -- Valeurs de connexion sans tunnel
+    db.Host = Settings["/dbase/Host"]
+    db.Port = Settings["/dbase/Port"]
+  Endif
+  
+End
+
+'*************************************
+'* Fonction de montage du tunnel ssh
+'* MG - 07 janvier 2010
+'*************************************
+Public Function monteTunnel() As Boolean
+  
+  Dim $ligne_ps As String ' retour de la commande ps
+  Dim $tunnel_ok As Boolean ' flag de réussite du montage du tunnel
+  Dim $array_pid As New String[] ' tableau pour les résultats de la recherche regex, ne devrait contenir qu'un résultat
+  Dim $reponse As Integer ' réponse à l'éventuel message de pid existant
+  
+  '# -- On tente d'établir un tunnel ssh, on vérifie d'abord qu'il n'en existe pas un
+  '# -- si il en existe un on demande quoi faire
+  Shell "ps u -C ssh | grep " & db.Port & ":" & MysqlServeur & ":" & RemotePort Wait To $ligne_ps
+  Wait 0.5
+  If Not $ligne_ps Then
+    '# -- Lancement du tunnel ssh sur le modèle : ssh -f -N -L 13306:serveur.tld:3306 -p 222 user@serveur.tld
+    Print Now & " - " & "Pas de tunnel en place, on lance un tunnel ssh "
+    'Exec ["ssh", "-N", "-f", sshuser & "@" & sshhost, "-p", sshport, "-L", db.Port & ":" & MysqlServeur & ":" & RemotePort] Wait
+    Shell "sshpass -p" & SshPassw & " " & "ssh -N -f " & sshuser & "@" & sshhost & " -p " & sshport & " -L " & db.Port & ":" & MysqlServeur & ":" & RemotePort
+    Wait 1
+    Shell "ps u -C ssh | grep " & db.Port & ":" & MysqlServeur & ":" & RemotePort Wait To $ligne_ps
+    If Not $ligne_ps Then
+      Print Now & " - " & "Erreur dans le lancement du tunnel ssh"
+      $tunnel_ok = False
+    Else
+      Print Now & " - " & "Lancement du tunnel ssh réussi"
+      ' le numéro de processus est modifié par l'ordonnanceur à cause du montage en arrière plan
+      ' on le recherche avec ps (pour l'instant je scinde la commande à cause d'un problème grep -> sed)
+      Shell "ps u -C ssh | grep " & db.Port & ":" & MysqlServeur & ":" & RemotePort Wait To $ligne_ps
+      $array_pid = do_pcre_extract(Trim$($ligne_ps), "([0-9]+)")
+      TunnelPid = $array_pid[0]
+      Print Now & " - " & "Le PID du processus tunnel est " & TunnelPid
+      $tunnel_ok = True
+    Endif
+  Else
+    ' on demande si il faut conserver le tunnel existant à la clôture de l'application
+    $reponse = Message.Question("Un tunnnel SSH avec le serveur est déjà en place.\nIl est possible qu'il n'aie pas été fermé suite à un arrêt brutal de Laurux. \nIl est également possible que vous l'ayez monté vous même et veuillez le conserver actif.\nSi vous ne savez pas quoi répondre alors demandez sa fermeture en fin d'utilisation de Laurux.", "Fermer le tunnel lors de l'arrêt de l'application", "Conserver le tunnel")
+    If $reponse = 1 Then
+      $array_pid = do_pcre_extract(Trim$($ligne_ps), "([0-9]+)")
+      TunnelPid = $array_pid[0]
+    Endif
+    Print Now & " - " & "Un tunnel ssh, de pid " & TunnelPid & " est déjà en place, on l'utilise"
+    $tunnel_ok = True
+  Endif
+  Return $tunnel_ok
+  
+End
+
+'**********************************************************************************
+'* routine de fermeture du tunnel à appeler lors de la fermeture de l'application
+'* MG - 07 janvier 2010
+'**********************************************************************************
+Public Sub fermeTunnel()
+  
+  If TunnelPid <> Null Then
+    Exec ["kill", TunnelPid]
+    If Process.LastValue = 0 Then
+      Print Now & " - " & "suppression du processus tunnel " & TunnelPid
+    Else
+      Print Now & " - " & "echec de suppression du processus tunnel " & TunnelPid
+    Endif
+  Endif
+  
+End
+
+'*******************************************************************************
+'* Renvoit les résultats d'une regex contenant des captures (..)
+'* Elle prend en argument la chaîne cible et la chaîne d'expression rationnelle
+'* Les captures sont renvoyées dans un tableau de chaînes
+'* MG - 07 janvier 2010
+'*******************************************************************************
+Public Function do_pcre_extract($cible As String, $regex_string As String) As String[]
+  
+  Dim $regex As Regexp           ' objet regex
+  Dim $nb_match As Integer       ' nombre de captures effectuées
+  Dim $compteur As Integer       ' compteur d'indice des captures
+  Dim $ar_retour As New String[] ' tableau de retour
+  
+  $regex = New Regexp($cible, $regex_string)
+  $nb_match = $regex.SubMatches.Count
+  For $compteur = 0 To $nb_match - 1
+    $ar_retour.Add($regex.SubMatches[$compteur].Text, $compteur)
+  Next
+  Return $ar_retour
+Catch
+  Print Now & " - " & "erreur avec la fonction do_pcre_extract qui a reçu : cible = " & $cible & " et regex=" & $regex_string
+  
+End
+
+'*********************************************************************
+'* Lors de la fermeture de l'application on doit fermer le tunnel ssh
+'* Si l'on veut explictement fermer la connexion SQL, il faut le faire
+'* forcemment avant de fermer le tunnel.
+'*********************************************************************
+Public Sub Form_Close()
+  
+  fermeTunnel()
+  
+End
+
+'###################################### FIN DES AJOUTS TUNNEL SSH / MG - 07 janvier 2010
+
+Public Function cpoint(mtt As String) As String
+  
+  Return (Replace$(LTrim$(mtt), ".", ","))
+  
+End
+
+Public Function CDec(nbdec As String, Decm As String) As String
+  
+  If nbdec = "0" Then
+    Try Decm = Format$(Val(Utils.cpoint(Decm)), "0")
+  Else
+    If nbdec = "2" Then
+      Try decm = Format$(Val(Utils.cpoint(decm)), "0.00")
+    Else
+      If nbdec = "3" Then
+        Try Decm = Format$(Val(Utils.cpoint(Decm)), "0.000")
+      Endif
+    Endif
+  Endif
+  Return Decm
+  
+End
+
+Public Function CSlash(mtt As String) As String
+  
+  Return (Replace$(mtt, ".", "/"))
+  
+End
+
+Public Function PointBase(mtt As String) As String
+  
+  Return (Replace$(mtt, ",", "."))
+  
+End
+
+Public Function Cdate2_Dbase(dte As String) As String
+  
+  Return (Right$(dte, 4) & "-" & Mid$(dte, 4, 2) & "-" & Left$(dte, 2))
+  
+End
+
+Public Function Cdate_Dbase(dte As String) As String
+  
+  Return (Right$(dte, 4) & Mid$(dte, 4, 2) & Left$(dte, 2))
+  
+End
+
+Public Function Cdate_Comp(dte As String) As String
+  
+  Return (Right$(dte, 4) & Left$(dte, 2) & Mid$(dte, 4, 2))
+  
+End
+
+Public Function Cdate_Comp2(dte As String) As String
+  
+  Return (Left$(dte, 4) & Mid$(dte, 6, 2) & Mid$(dte, 9, 2))
+  
+End
+
+Public Function Cdate_Carte(dte As String) As String
+  
+  Return (Right$(dte, 2) & "." & Mid$(dte, 5, 2) & "." & Left$(dte, 4))
+  
+End
+
+Public Function Cdate_Aff(dte As String) As String
+  
+  Return (Mid$(dte, 4, 2) & "." & Left$(dte, 2) & "." & Right$(dte, 4))
+  
+End
+
+Public Function Cdate_Com(dte As String) As String
+  
+  Return (Right$(dte, 4) & "." & Left$(dte, 2) & "." & Mid$(dte, 4, 2))
+  
+End
+
+Public Function Cdate_Ciel(dte As String) As String
+  
+  Return (Mid$(dte, 4, 2) & "/" & Left$(dte, 2) & "/" & Right$(dte, 4))
+  
+End
+
+Public Function Cdate_Cador(dte As String) As String
+  
+  Return (Right$(dte, 2) & Left$(dte, 2) & Mid$(dte, 4, 2))
+  
+End
+
+Public Function Cdate_Sage(dte As String) As String
+  
+  Return (Mid$(dte, 4, 2) & Left$(dte, 2) & Right$(dte, 2))
+  
+End
+
+Public Function Cdate_AffData(dte As String) As String
+  
+  Return Mid$(dte, 4, 2) & "." & (Left$(dte, 2) & "." & Right$(dte, 4))
+  
+End
+
+Public Function Cdate_calc(Datej As String) As Date
+  
+  Dim Dtn As Date
+  Dim son As Integer = Start.Son
+  Dim dte4 As String
+  Dim ye, mo, da As Integer
+  
+  Music.Load(Start.Musique)
+  If Not IsNull(datej) Then
+    dte4 = Format$(Now, "dd.mm.yyyy")
+    datej = Replace$(datej, ".", "")
+    datej = Replace$(datej, "/", "")
+    If Len(Datej) = 2 Then Datej = Left$(Datej, 2) & Mid$(dte4, 4, 7)
+    If Len(Datej) = 4 Then Datej = Left$(Datej, 4) & Right$(dte4, 4)
+    If Len(Datej) = 6 Then Datej = Left$(Datej, 4) & "20" & Right$(Datej, 2)
+    Try ye = Right$(Datej, 4)
+    Try mo = Mid$(Datej, 3, 2)
+    Try da = Left$(Datej, 2)
+    Try dtn = Date(ye, mo, da)
+    If Error Then
+      If son Then
+        Music.Play
+      Endif
+      Try message.Error("Il y a une incohérence dans votre saisie \n          Vérifiez votre date SVP !")
+      Return dtn
+    Else
+      Return dtn
+    Endif
+  Endif
+  
+End
+
+Public Function convBool(bln As String) As String
+  
+  Dim sRet As String
+  
+  If bln = "0" Or bln = "" Then
+    sRet = "0"
+  Else
+    sRet = "1"
+  Endif
+  Return sRet
+  
+End
+
+Public Function convStr(bln As String) As String
+  
+  Dim sRet As String
+  
+  If bln = "0" Or bln = "" Then
+    sRet = False
+  Else
+    sRet = True
+  Endif
+  Return sRet
+  
+End
+
+Public Function Calc_mois(dte As String) As String
+  
+  Dim Mois As String
+  Dim An As String
+  
+  Mois = Left$(dte, 2)
+  Mois = Val(Mois) + 1
+  If Val(Mois) > 12 Then
+    Mois = "01"
+    'Mois = Format$(Mois, "00")
+    An = Right$(dte, 4)
+    An = Val(An) + 1
+  Else
+    Mois = Format$(Mois, "00")
+    An = Right$(dte, 4)
+  Endif
+  dte = "01" & "." & Mois & "." & An
+  Return dte
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub SetEditColor(oObj As Object, objLast As Control)
+  
+  Dim myControl As String
+  Dim hClass As Control
+  Dim hCont As Container
+  Dim Frmt As New String[]
+  Dim CoulZns As Integer ' Variable pour la couleur du background des zones de saisie
+  Dim CoulFoc As Integer ' Variable pour la couleur du focus
+  
+  'If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then
+  Frmt = FColr(Settings["/Coul/Znss"])
+  CoulZns = Val(Frmt[0])
+  Frmt = FColr(Settings["/Coul/Focus"])
+  CoulFoc = Val(Frmt[0])
+  ' Else
+  'CoulFoc = &HAAFF7F&
+  'CoulZns = &HF9F9BD&
+  'Endif
+  myControl = Object.type(objLast)
+  For Each hClass In oObj.Children
+    'IF hClass.Background <> CoulZns THEN
+    'hClass.Background = CoulZns
+    'ENDIF
+    ' is it like my LAST ?
+    If Object.type(hClass) = myControl Then
+      If objLast.Tag = hClass.Tag Then
+        hClass.Background = CoulFoc
+      Else
+        If hClass.Background <> &HD4D0C8& Then
+          hClass.Background = CoulZns
+        Endif
+      Endif
+    Else
+      ' TRY if it is a Container
+      Try hCont = hClass
+      If Not Error Then
+        ' I call my self to find out if there are Children like my LAST
+        SetEditColor(hClass, objLast)
+      Endif
+    Endif
+  Next
+  
+End
+
+'*********************************************
+'*      Calcul de la clé du code a barre     *
+'*********************************************
+Public Function Calcode(Cbarre As String) As String
+  
+  Dim Srb As Integer
+  Dim Impair As Integer
+  Dim Pair As Integer
+  Dim i As Integer
+  Dim Cle As Integer
+  
+  For i = 1 To Len(Cbarre)
+    Srb = Val(Mid$(Cbarre, i, 1))
+    If (i Mod 2) = 0 Then
+      Pair = Pair + Srb
+    Else
+      Impair = Impair + Srb
+    Endif
+  Next
+  Cle = (3 * Pair) + Impair
+  Cle = Right$(Str(Cle), 1)
+  Cle = 10 - Cle
+  If Cle = 10 Then Cle = 0
+  Return Cle
+  
+End
+
+'****************************************
+'*      Recherche d'un code a barre     *
+'****************************************
+Public Function Find_cbarre(Codabarre As String) As String
+  
+  Dim rbarre As Result
+  
+  If Not IsNull(Codabarre) Then
+    Rbarre = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCdBarre") & " where codeb = &1", Codabarre)
+    If Rbarre.Available Then
+      Codabarre = rbarre!codep
+    Else
+      Rbarre = Utils.db.Exec("SELECT art_code FROM " & Cbase.Table("TabArt") & " where art_code = &1", Codabarre)
+      If Rbarre.Available Then
+        Codabarre = rbarre!art_code
+      Else
+        Codabarre = ""
+      Endif
+    Endif
+    Return Codabarre
+  Endif
+  
+End
+
+'****************************************
+'*      Recherche nombre décimales      *
+'****************************************
+Public Function Find_nbdec(nbd As String) As String
+  
+  Dim nbdec As String
+  
+  If nbd = "0" Then
+    nbdec = "0"
+  Else
+    If nbd = "2" Then
+      nbdec = "0.00"
+    Else
+      nbdec = "0.000"
+    Endif
+  Endif
+  Return nbdec
+  
+End
+
+'***********************************
+'*  calcul de la date d'échéance   *
+'***********************************
+Public Function Calcech(dureech As String, jours As String, finmois As Boolean, datef As String) As String
+  
+  Dim mois As String
+  Dim mois2 As String
+  Dim Dppc As Date
+  Dim Dr As Integer
+  Dim dateech As String
+  Dim Jrs As String
+  Dim b As Integer = 0
+  
+  If IsNull(jours) Then jours = "00"
+  Jrs = Left$(datef, 2)
+  If Jrs = "31" Then Jrs = "30"
+  If finmois = True And jours = "00" Or If finmois = False And jours <> "00" Or If finmois = False And jours = "00" Then
+    Dr = Val(dureech) / 30
+  Else
+    Dr = Val(dureech) / 30 + 1
+  Endif
+  If Val(Jrs) <> 30 And jours <> "00" Then
+    If Val(Jrs) >= Val(Jours) Then Dr = Val(dureech) / 30 + 1
+  Endif
+  If dureech = "45" Then
+    If Val(Jrs) > 25 Then Jrs = "30"
+    If Jrs = "30" Then
+      Jours = Val(dureech) - 30 + Val(Jrs)
+      Dr = (Val(Jrs) + Val(dureech)) - 30
+      If Val(Jours) > 30 Then
+        Dr = Val(dureech) / 30 + 1
+        Jours = Val(Jours) - 30
+      Else
+        Dr = Val(dureech) / 30
+      Endif
+    Else
+      Jours = Val(dureech) - 30 + Val(Jrs)
+      If Val(Jours) > 30 Then
+        Jours = Val(Jours) - 30
+        Dr = Val(dureech) / 30 + 1
+      Else
+        Dr = Val(dureech) / 30
+      Endif
+    Endif
+  Endif
+  Jours = Format$(Jours, "00")
+  Mois = Str(Mid$(datef, 4, 2) + Dr)
+  If Len(Mois) = 1 Then Mois = "0" & Mois
+  Mois2 = Mois
+  If Val(Mois) > 12 Then
+    mois = Val(mois) - 12
+    If Len(Mois) = 1 Then Mois = "0" & Mois
+    b = 1
+  Endif
+  
+  If dureech = "00" And jours = "00" Or If finmois = False And dureech <> "45" Then dateech = Datef
+  If dureech <> "00" And jours <> "00" Or If dureech = "00" And jours <> "00" Or If finmois = False And jours = "00" Then
+    If finmois = False And jours = "00" Then
+      Jours = Left$(dateech, 2)
+      Try Dppc = Date(Right$(datef, 4), Val(Mois), Jours)
+      If Error Then Try Dppc = Date(Right$(datef, 4), Val(Mois), Val(Jours) - 1)
+      If Error Then Dppc = Date(Right$(datef, 4), Val(Mois), 28)
+      Jours = Left$(Str(Dppc), 2)
+    Endif
+    '    IF finmois = FALSE THEN Mois = Val(Mois) - 1
+    If Val(Mois) = 0 Then Mois = "01"
+    If Len(Mois) = 1 Then Mois = "0" & Mois
+    If b = 0 Then
+      dateech = jours & "." & Mois & "." & Right$(datef, 4)
+    Else
+      dateech = jours & "." & Mois & "." & Str(Val(Right$(datef, 4)) + 1)
+    Endif
+  Endif
+  
+  If dureech <> "00" And jours = "00" Then
+    '   IF finmois = FALSE THEN Mois = Val(Mois) - 1
+    If Val(Mois) = 0 Then Mois = "01"
+    If Len(Mois) = 1 Then Mois = "0" & Mois
+    ' Determine le dernier jour du mois
+    If b = 0 Then
+      Try Dppc = Date(Right$(datef, 4), Val(Mois) + 1, Jrs)
+      If Error Then Try Dppc = Date(Right$(datef, 4), Val(Mois), Val(Jrs) - 1)
+      If Error Then Dppc = Date(Right$(datef, 4), Val(Mois), 28)
+    Else
+      Try Dppc = Date(Str(Val(Right$(datef, 4)) + 1), Val(Mois), Jrs)
+      If Error Then Try Dppc = Date(Right$(datef, 4), Val(Mois), Val(Jrs - 1))
+      If Error Then Dppc = Date(Str(Val(Right$(datef, 4)) + 1), Val(Mois), 28)
+    Endif
+    If b = 0 Then
+      Try dateech = Day(Date(Year(dppc), Month(dppc), 1) - 1) & "." & Mois & "." & Right$(datef, 4)
+      If Error Then dateech = "31" & "." & Mois & "." & Right$(datef, 4)
+      If mois = "12" Then dateech = "31" & "." & "12" & "." & Right$(datef, 4)
+      If mois = "02" Then dateech = Day(Date(Year(dppc), Month(dppc) + 1, 1) - 1) & "." & Mois & "." & Right$(datef, 4)
+    Else
+      dateech = Day(Date(Year(dppc), Month(dppc), 1) - 1) & "." & Mois & "." & Str(Val(Right$(datef, 4)) + 1)
+      If mois = "02" Then dateech = Day(Date(Year(dppc), Month(dppc), 1) - 1) & "." & Mois & "." & Str(Val(Right$(datef, 4)) + 1)
+    Endif
+    dateech = Left$(dateech, 3) & Mois & Right$(dateech, 5)
+  Endif
+  'On regarde si l'année est bissectile
+  If Mois = "02" And finmois = True And Jours = "00" Or If Mois = "02" And Val(Jours) > 25 And finmois = True Then
+    If (Val(Right$(dateech, 4)) Mod 4 = 0) And (Val(Right$(dateech, 4)) Mod 100 > 0) Or If (Val(Right$(dateech, 4)) Mod 400 = 0) Then
+      dateech = "29." & Mois & Right$(dateech, 5)
+    Else
+      dateech = "28." & Mois & Right$(dateech, 5)
+    Endif
+  Endif
+  'If finmois = True And mois = "03" Then dateech = "31." & Mois & Right$(dateech, 5) 'bug pour mars ?
+  Return dateech
+  
+End
+
+Public Function Remplace(mtt As String) As String
+  
+  If InStr(mtt, "\"") Then mtt = Replace$(mtt, "\"", "''")
+  If InStr(mtt, "&") Then mtt = Replace$(mtt, "&", "et")
+  If InStr(mtt, "\n") Then mtt = Replace$(mtt, "\n", "")
+  Return mtt
+  
+End
+
+Public Function ReplaceLb(mtt As String) As String
+  
+  If InStr(mtt, "\"") Then mtt = Replace$(mtt, "\"", "''")
+  If InStr(mtt, "&") Then mtt = Replace$(mtt, "&", "et")
+  Return mtt
+  
+End
+
+Public Function Nsoc(numero As String) As String[]
+  
+  Dim spl As New String[]
+  Dim Num As String
+  
+  spl = Scan(numero, "*:*")
+  Num = spl[0]
+  Return num
+  
+End
+
+Public Function Fcolr(sFormat As String) As String[]
+  
+  Dim Bcolor As New String[3]
+  Dim s As String
+  Dim spl As New String[]
+  
+  sFormat = Trim(sFormat)
+  If Right(sFormat, 1) = ";" Then sFormat = Left(sFormat, Len(sFormat) - 1)
+  For Each s In Split(LCase(sFormat), ";")
+    spl = Scan(s, "*: *")
+    Select Case Trim(spl[0])
+      Case "background"
+        BColor[0] = spl[1]
+      Case "font"
+        BColor[1] = spl[1]
+      Case "foreground"
+        BColor[2] = spl[1]
+    End Select
+  Next
+  Return BColor
+Catch
+  
+End
+
+Public Function Fcoulfond(sFormat As String) As String[]
+  
+  Dim Bcolor As New String[3]
+  Dim s As String
+  Dim spl As New String[]
+  
+  sFormat = Trim(sFormat)
+  If Right(sFormat, 1) = "," Then sFormat = Left(sFormat, Len(sFormat) - 1)
+  For Each s In Split(LCase(sFormat), ",")
+    spl = Scan(s, "*: *")
+    Select Case Trim(spl[0])
+      Case "R"
+        BColor[0] = spl[1]
+      Case "G"
+        BColor[1] = spl[1]
+      Case "B"
+        BColor[2] = spl[1]
+    End Select
+  Next
+  Return BColor
+Catch
+  
+End
+
+Public Sub Observers(hCont As Form)
+  
+  Dim CoulFn As Integer ' Variable pour la couleur du background des fenetres
+  Dim CoulBtn As Integer ' Variable pour la couleur du background des boutons
+  Dim CoulZns As Integer ' Variable pour la couleur du background des zones de saisie
+  Dim CoulZnaf As Integer ' Variable pour la couleur du background des columnviews
+  Dim hCtrl As Object
+  Dim Frmt As New String[]
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then
+    Frmt = Utils.FColr(Settings["/Coul/Fnets"])
+    hcont.Background = Val(Frmt[0])
+    CoulFn = Val(Frmt[0])
+    Frmt = Utils.FColr(Settings["/Coul/Btns"])
+    CoulBtn = Val(Frmt[0])
+    Frmt = Utils.FColr(Settings["/Coul/Znss"])
+    CoulZns = Val(Frmt[0])
+    Frmt = Utils.FColr(Settings["/Coul/Znaff"])
+    CoulZnaf = Val(Frmt[0])
+    For Each hCtrl In hCont.Controls
+      If hCtrl Is Button Then hCtrl.Background = CoulBtn
+      If hCtrl Is ToggleButton Then hCtrl.Background = CoulBtn
+      If hCtrl Is Panel Then hCtrl.Background = CoulFn
+      If hCtrl Is TabStrip Then hCtrl.Background = CoulFn
+      If hCtrl Is Frame Then hCtrl.Background = CoulFn
+      If hCtrl Is Label Then hCtrl.Background = CoulFn
+      If hCtrl Is TextLabel Then hCtrl.Background = CoulFn
+      If hCtrl Is ColumnView Then hCtrl.Background = CoulZnaf
+      If hCtrl Is TableView Then hCtrl.Background = CoulZnaf
+      If hCtrl Is GridView Then hCtrl.Background = CoulZnaf
+      If hCtrl Is Combobox Then hCtrl.Background = CoulZns
+      If hCtrl Is Textedit Then hCtrl.Background = CoulZns
+      If hCtrl Is TextBox Or If hCtrl Is TextArea Then
+        If hCtrl.readonly = False Then
+          hCtrl.Background = CoulZns
+        Endif
+      Endif
+    Next
+  Endif
+  
+End
+
+Public Sub ObsGotf(TBox As Textbox)
+  
+  Dim CoulFoc As Integer ' Variable pour la couleur du background du focus
+  Dim Frmt As New String[]
+  
+  Frmt = FColr(Settings["/Coul/Focus"])
+  CoulFoc = Val(Frmt[0])
+  If TBox.readonly = False Then
+    Try Tbox.Background = CoulFoc
+    Tbox.select
+  Endif
+  
+End
+
+Public Sub ObsLstf(TBox As TextBox)
+  
+  Dim CoulZns As Integer ' Variable pour la couleur du background du TextBox
+  Dim Frmt As New String[]
+  
+  Frmt = FColr(Settings["/Coul/Znss"])
+  CoulZns = Val(Frmt[0])
+  If TBox.readonly = False Then
+    Try Tbox.Background = CoulZns
+  Endif
+  
+End
+
+Public Sub ObsLstf2(CBox As ComboBox)
+  
+  Dim CoulZns As Integer ' Variable pour la couleur du background des zones de saisie
+  Dim Frmt As New String[]
+  
+  Frmt = Utils.FColr(Settings["/Coul/Znss"])
+  CoulZns = Val(Frmt[0])
+  If CBox.readonly = False Then
+    CBox.Background = CoulZns
+  Else
+    CBox.Background = &D4D0C8&
+  Endif
+  
+End
+
+Public Function Obstch(sel As String) As String
+  
+  If Key.code <> Key.Return Or Key.code <> Key.Enter Then
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    Return sel
+  Endif
+  
+End
+
+Public Sub Formattage(TBox As TextBox)
+  
+  TBox.Text = Format$(Val(Utils.cpoint(Tbox.Text)), "0.00")
+  
+End
+
+Public Sub Coulfonds(TBox As TextBox)
+  
+  If Not IsNull(Tbox.Text) Then
+    If Val(Utils.cpoint(TBox.Text)) <= 0 Then
+      Tbox.Background = &FF0000&
+    Else
+      Tbox.Background = &80FF00&
+    Endif
+  Endif
+  
+End
+
+Public Function Commande(codart As String, decm As String, uv As String, org As String) As String
+  
+  Dim Qtecomm As String
+  Dim FichLig As String
+  Dim Rligcom As Result
+  
+  Qtecomm = "0"
+  With Utils
+    If Org = "Four" Then
+      FichLig = "Fiches_Ligcom" 
+      Rligcom = Utils.db.Exec("SELECT * FROM " & FichLig & " WHERE code = &1", codart)
+      If Rligcom.Available Then
+        Do
+          Try Qtecomm = Val(.cpoint(Qtecomm)) + (Val(.cpoint(Rligcom!qte)) * Val(uv))
+          If Not Error Then Qtecomm = CDec(Decm, Qtecomm)
+        Loop Until Rligcom.MoveNext()
+      Else
+        Qtecomm = "0"
+      Endif
+      Return Qtecomm
+    Else
+      FichLig = "Fiches_Ligbl" 
+      Rligcom = Utils.db.Exec("SELECT * FROM " & FichLig & " WHERE code = &1", codart)
+      If Rligcom.Available Then
+        Do
+          Try Qtecomm = Val(.cpoint(Qtecomm)) + (Val(.cpoint(Rligcom!qte)) * Val(uv))
+          If Not Error Then Qtecomm = CDec(Decm, Qtecomm)
+        Loop Until Rligcom.MoveNext()
+      Else
+        Qtecomm = "0"
+      Endif
+      Return Qtecomm
+    Endif
+  End With
+  
+End
+
+Public Function Coulfd() As String[]
+  
+  Dim Coulfond As New String[]
+  
+  Coulfond = Utils.FColr(Settings["/Coul/Others"])
+  Return Coulfond
+  
+End
+
+Public Sub chkEmail(sMail As String)
+  
+  If Len(sMail) >= 5 Then
+    If InStr(sMail, "@") > 1 Then
+      If InStr(Right(sMail, InStr(sMail, "@") + 2), ".") >= 1 Then
+      Else
+        Try Message.Warning("L'adresse saisie ne parait pas être conforme !")
+      Endif
+    Else
+      Try Message.Warning("L'adresse saisie ne parait pas être conforme !")
+    Endif
+  Else
+    Try Message.Warning("L'adresse saisie ne parait pas être conforme !")
+  Endif
+  
+End
+
+Public Function Accent(mtt As String) As String
+  
+  If InStr(mtt, "é") Then mtt = Replace$(mtt, "é", "e")
+  If InStr(mtt, "è") Then mtt = Replace$(mtt, "è", "e")
+  If InStr(mtt, "ê") Then mtt = Replace$(mtt, "ê", "e")
+  If InStr(mtt, "à") Then mtt = Replace$(mtt, "à", "a")
+  If InStr(mtt, "â") Then mtt = Replace$(mtt, "â", "a")
+  If InStr(mtt, "ô") Then mtt = Replace$(mtt, "ô", "e")
+  If InStr(mtt, "ç") Then mtt = Replace$(mtt, "ç", "c")
+  If InStr(mtt, "\n") Then mtt = Replace$(mtt, "\n", "")
+  If InStr(mtt, "'") Then mtt = Replace$(mtt, "'", "\'")
+  Return mtt
+  
+End

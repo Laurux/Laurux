@@ -1,0 +1,168 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Impclient.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 28/04/2008
+'# Import des clients
+'################################################
+son As Integer = Start.Son
+Num As String
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  
+End
+
+Public Sub Svs_Click()
+  
+  Dialog.Title = "Choisir un repertoire"
+  Dialog.Path = User.home
+  Dialog.Filter = ["*.csv", "Fichiers csv", "*.txt", "Fichiers texte", "*", "Tous les fichiers"]
+  If Dialog.OpenFile() Then Return
+  Sauves.Text = Dialog.Path
+  
+End
+
+Public Sub Button3_Click()
+  
+  Me.Close
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim rClient As Result
+  Dim rCompte As Result
+  Dim rNum As Result
+  Dim Tab As String
+  Dim Tab2 As String
+  Dim Tab3 As String
+  Dim hfil As File
+  Dim Lig As String
+  Dim Lig2 As String[]
+  Dim Key As String
+  Dim x As Integer
+  Dim cv As String
+  Dim nm As String
+  Dim pnm As String
+  Dim adr1 As String
+  Dim adr2 As String
+  Dim cp As String
+  Dim bd As String
+  Dim telb As String
+  Dim teld As String
+  Dim fx As String
+  Dim mail As String
+  Dim Colcpt As String
+  
+  Tab = "Fiches_Cli" 
+  Tab2 = "Fiches_Comptes" 
+  Tab3 = "Fiches_Parametres" 
+  ' On recupere le dernier numero client
+  rNum = Utils.db.Exec("SELECT * FROM " & Tab3 & " ")
+  If rNum.Available Then
+    Num = rNum!dnc
+  Endif
+  Compteur()
+  ' On recupere le collectif client
+  rCompte = Utils.db.Exec("SELECT * FROM " & Tab2 & " where coll = '1' order by cast(compte_cc AS char)")
+  If rCompte.Available Then
+    Repeat
+      Colcpt = rCompte!compte_cc
+      If Left$(Colcpt, 2) = "41" Then Break
+    Until rCompte.MoveNext()
+  Endif
+  'On lance le traitement
+  Try HFil = Open Sauves.Text For Read
+  If Not Error Then
+    Me.Mouse = Mouse.Wait
+    While Not Eof(hFil)
+      Line Input #hFil, Lig
+      Lig2 = Split(Lig, ";")
+      For x = 0 To Lig2.Count - 1
+        If x > 11 Then Break
+        Key = Lig2[x]
+        Select Case x
+          Case 0
+            cv = key
+          Case 1
+            nm = key
+          Case 2
+            pnm = key
+          Case 3
+            adr1 = key
+          Case 4
+            adr2 = key
+          Case 5
+            cp = key
+          Case 6
+            bd = key
+          Case 7
+            telb = key
+          Case 8
+            teld = key
+          Case 9
+            fx = key
+          Case 10
+            mail = key
+        End Select
+      Next
+      rClient = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE cli_code = &1", Num)
+      If Not rClient.Available Then
+        Utils.db.Exec("INSERT INTO " & Tab & " (cli_code,cli_rs_soc, cli_nom, cli_pnm, cli_adr1, cli_adr2,cli_cd_ptl, cli_ville, cli_tel_bur, cli_tel_dom, cli_fx1, cli_email, cli_collectif, cli_exo, cli_cdech, cli_actif) VALUES ( &1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Num, Cv, Nm, Pnm, Adr1, Adr2, Cp, Bd, Telb, Teld, Fx, Mail, Colcpt, 0, "00", 0)
+        Utils.db.Exec("insert into " & tab2 & " (compte_cc,intitule_cc,type_cc,coll,coll_cc, solde,cent_cc,comptr_cc, gen_tv, gen_ta, soldep) values ( &1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11})", Num, Nm, "C", 0, colcpt, 0, 0, 0, 0, 0, 0)
+        Utils.db.Exec("Update " & Tab3 & " set dnc = &1", Num)
+        Compteur()
+      Endif
+    Wend
+    Me.Mouse = Mouse.Default
+    If son Then
+      Music.Play
+    Endif
+    Message.Info("Importation terminée.", "Ok")
+  Else
+    Message.error("Ce fichier n'existe pas.", "Ok")
+  Endif
+  Me.Close
+  
+End
+
+Public Sub Compteur()
+  
+  If IsNull(Num) Or If Val(Num) <= 411000 Then
+    Num = "411001"
+  Else
+    If Val(Num) = 411999 Then
+      Num = 4111000
+    Else
+      If Val(Num) = 4119999 Then
+        Num = 41110000
+      Else
+        Num = Val(Num) + 1
+      Endif
+    Endif
+  Endif
+  
+End

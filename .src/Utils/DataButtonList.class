@@ -1,0 +1,428 @@
+' Gambas class file
+
+'################################################
+'# nom du fichier           : DataButtonList.class
+'# Auteur                   : Fabien Bodard
+'################################################
+'Private $hHBox As HBox
+Private $hForm As Form
+Private $htvw As ColumnView 'GridView
+Private $hbtnObs As Observer
+Private $hObsWin As Observer
+Private $sTable As String
+Private $sFilter As String ' = " order by art_code"
+Private $aDisplay As New String[]
+Private $aFields As New String[]
+Private $hResult As Result
+Private $hButton As ToggleButton
+Private $aColumnsWidth As New Integer[]
+Private $iTotalWidth As Integer
+'PRIVATE $htxtb AS TextBox
+Private $vValue As Variant
+Private $vDataField As Variant
+Private $iDisposition As Integer = align.Right
+
+Property Filter As String
+Property Fields As String[]
+Property Display As String[]
+Property DataField As Variant
+
+Property Table As String
+Property Picture As Picture
+Property Tag As Variant
+Property Header As Boolean
+'PROPERTY ReadOnly AS Boolean
+Property Read Value As Variant
+Property Disposition As Integer
+Property Read {Result} As Result
+Property Read {ColumnView} As ColumnView
+Property ColumnsWidth As Integer[]
+
+'PROPERTY ExternalInput AS Boolean
+
+Event Change()
+Event Input(cview As ColumnView)
+
+Public Sub _New(hButon As ToggleButton)
+  
+  Dim hPanel As Panel
+  
+  $hButton = hButon
+  '$htxtb = txtBox
+  
+  '$hHBox = NEW HBox(txtBox.Parent)
+  '$hHBox.Move(txtBox.Left, txtBox.Top, txtBox.Width + 16, txtBox.Height)
+  'txtBox.Reparent($hHBox)
+  'txtBox.Expand = TRUE
+  'Object.Attach($hButton, ME, "tglb")
+  '$hButton = NEW ToggleButton($hHBox) AS "tglb"
+  $hbtnObs = New Observer($hButton) As "tglb"
+  $hObsWin = New Observer($hButton.Window) As "ObsWin"
+  '$hButton.Resize($hHBox.Height, $hHBox.Height)
+  
+  $hForm = New Form As "Form"
+  Object.Attach($hForm, Me, "Form")
+  $hForm.Border = Form.None
+  $hForm.SkipTaskbar = True
+  $hForm.Arrangement = Arrange.Fill
+  '$hForm.Resize($hHBox.Width * 1.5, 200)
+  $hForm.Stacking = Form.Above
+  '$hForm.AutoResize = TRUE
+  HPanel = New Panel($hForm)
+  HPanel.Arrangement = Arrange.Fill
+  hPanel.Border = Border.Plain
+  '$htvw = NEW GridView($hForm) AS "GridView"
+  $htvw = New ColumnView(hPanel) As "ColumnView"
+  $htvw.Header = False
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then
+    $htvw.Background = Val("&HFAFAFA&")
+  Else
+    $htvw.Background = Val("&HF9F9BD&")
+  Endif
+  $htvw.AutoResize = True
+  $htvw.Border = False
+  $htvw.ScrollBar = Scroll.Vertical
+  '$htvw.ScrollBar = $htvw.Vertical
+  $htvw.Mode = Select.Single
+  ' $hObserv = NEW Observer($hForm) AS "OBS"
+  $htvw.Sorted = True
+  
+End
+
+Public Sub Toggle()
+  
+  $hButton.Value = True
+  $hButton.SetFocus
+  tglb_Click
+  
+End
+
+Public Sub tglb_Click()
+  
+  If $hButton.Value Then
+    LoadValues
+    Select Case $iDisposition
+      Case Align.Left
+        $hForm.Move($hButton.ScreenX - $hForm.Width, $hButton.ScreenY)
+      Case Align.Right
+        $hForm.Move($hButton.ScreenX + $hButton.Width, $hButton.ScreenY)
+      Case Align.Top
+        $hForm.Move($hButton.ScreenX, $hButton.ScreenY - $hForm.Height)
+      Case Align.Bottom
+        $hForm.Move($hButton.ScreenX + ($hButton.Width) / 2 - $hForm.Width / 2, $hButton.ScreenY + $hButton.Height)
+    End Select
+    
+    $hForm.Show
+    '$hForm.TopLevel
+    $htvw.SetFocus
+    $hForm.RAISE
+    $hButton.SetFocus
+  Else
+    $hForm.hide
+    'WAIT 0.5
+  Endif
+  
+End
+
+Private Sub LoadValues()
+  
+  Dim i, j As Integer
+  
+  Try $htvw.Clear
+  
+  If IsNull($sTable) Then
+    Try $htvw.Clear
+    Raise Input($htvw)
+    Return
+  Endif
+  
+  If $aFields.count < 1 Then Error.Raise("You need to give at less one field.")
+  $hResult = DB.Find($sTable, $sFilter)
+  $htvw.Columns.Count = $aFields.count + 1
+  $htvw.Columns[$aFields.count].Width = 3
+  
+  For i = 0 To $aFields.Count - 1
+    
+    If i >= $aDisplay.Count Then
+      $htvw.Columns[i].Text = $aFields[i]
+    Else
+      $htvw.Columns[i].Text = $aDisplay[i]
+    Endif
+  Next
+  
+  For i = 0 To $htvw.Columns.Count - 1
+    
+    If $aColumnsWidth.Count > i Then
+      If $aColumnsWidth[i] > 10 Then $htvw.Columns[i].Width = $aColumnsWidth[i]
+      
+    Endif
+    
+  Next
+  '$htvw.Refresh
+  
+  '$htvw.Rows.count = $hResult.Count
+  '$hForm.Width = $htvw.Rows.Width
+  
+  i = 0
+  For Each $hResult
+    
+    $htvw.Add(i, $hResult[$aFields[0]])
+    For j = 1 To $aFields.Max
+      $htvw[i][j] = $hResult[$aFields[j]]
+    Next
+    Inc i
+  Next
+  $iTotalWidth = 0
+  For i = 0 To $htvw.Columns.Count - 2
+    $iTotalWidth += $htvw.Columns[i].Width
+  Next
+  $hForm.Width = $iTotalWidth + 10
+  
+End
+
+Public Sub GridView_Data(Row As Integer, Column As Integer)
+  
+  $hResult.MoveTo(Row)
+  Last.Data.Text = $hResult[$aDisplay[Column]]
+  
+End
+
+Public Sub Form_DeACtivate()
+  
+  $hButton.Value = False
+  tglb_Click
+  
+End
+
+Private Function Filter_Read() As String
+  
+  Return $sFilter
+  
+End
+
+Private Sub Filter_Write(Value As String)
+  
+  $sFilter = Value
+  
+End
+
+Private Function Table_Read() As String
+  
+  Return $sTable
+  
+End
+
+Private Sub Table_Write(Value As String)
+  
+  $sTable = Value
+  
+End
+
+Private Function Fields_Read() As String[]
+  
+  Return $aFields
+  
+End
+
+Private Sub Fields_Write(Value As String[])
+  
+  $aFields = Value
+  
+End
+
+Private Function Picture_Read() As Picture
+  
+  Return $hButton.Picture
+  
+End
+
+Private Sub Picture_Write(Value As Picture)
+  
+  $hButton.Picture = Value
+  
+End
+
+Private Function Tag_Read() As Variant
+  
+  Return $hButton.Tag
+  
+End
+
+Private Sub Tag_Write(Value As Variant)
+  
+  $hButton = Value
+  
+End
+
+Private Function Display_Read() As String[]
+  
+  Return $aDisplay
+  
+End
+
+Private Sub Display_Write(Value As String[])
+  
+  $aDisplay = Value
+  
+End
+
+Private Function Header_Read() As Boolean
+  
+  Return $htvw.Header
+  
+End
+
+Private Sub Header_Write(Value As Boolean)
+  
+  $htvw.Header = Value
+  
+End
+
+' PRIVATE FUNCTION ReadOnly_Read() AS Boolean
+'
+'   RETURN $htxtb.ReadOnly
+'
+' END
+'
+' PRIVATE SUB ReadOnly_Write(Value AS Boolean)
+'
+'   $htxtb.ReadOnly = Value
+'
+'END
+
+Public Sub ColumnView_KeyPress()
+  
+  If key.Code = key.Esc Then Form_DeACtivate
+  If key.Code = key.Enter Or key.Code = key.Return Then ColumnView_Click
+  
+End
+
+Public Sub ColumnView_Click()
+  
+  ColumnView_Select
+  
+  Raise Change
+  Form_DeACtivate
+  
+End
+
+Public Sub ColumnView_Select()
+  
+  If IsNull($vDataField) Then Return
+  If IsNull($sTable) Then
+    $vValue = $htvw.Current[$vDataField]
+  Else
+    $hResult.MoveTo(Val($htvw.Current.Key))
+    $vValue = $hResult[$vDataField]
+  Endif
+  'FOR EACH s IN $aFields
+  
+  'sRes &= $hResult[s] & " | "
+  
+  'NEXT
+  
+  'sRes = Left(sRes, Len(sRes) - 3)
+  '$htxtb.Text = sRes
+  '$htxtb.Pos = 0
+End
+
+Private Function Value_Read() As Variant
+  
+  Return $vValue
+  
+End
+
+Private Function DataField_Read() As Variant
+  
+  Return $vDataField
+  
+End
+
+Private Sub DataField_Write(Value As Variant)
+  
+  $vDataField = Value
+  
+End
+
+Public Sub ColumnView_MouseMove()
+  
+  $htvw.Find(Mouse.X, Mouse.Y)
+  
+  Try $htvw.Item.Selected = True
+  
+End
+
+Public Sub tglb_KeyPress()
+  
+  If key.Code = key.Esc Then Form_DeACtivate
+  If key.Code = key.Enter Or key.code = key.Down Then
+    $hButton.Value = True
+    tglb_Click
+  Endif
+  
+End
+
+Private Function Disposition_Read() As Integer
+  
+  Return $iDisposition
+  
+End
+
+Private Sub Disposition_Write(Value As Integer)
+  
+  $iDisposition = Value
+  
+End
+
+Public Function _Get(id As Integer) As Variant
+  
+  Try Return $htvw.Current[id]
+  
+End
+
+Public Sub ObsWin_Move()
+  
+  If $hForm.Visible Then
+    Select Case $iDisposition
+      Case Align.Left
+        $hForm.Move($hButton.ScreenX - $hForm.Width, $hButton.ScreenY)
+      Case Align.Right
+        $hForm.Move($hButton.ScreenX + $hButton.Width, $hButton.ScreenY)
+      Case Align.Top
+        $hForm.Move($hButton.ScreenX, $hButton.ScreenY - $hForm.Height)
+      Case Align.Bottom
+        $hForm.Move($hButton.ScreenX + ($hButton.Width) / 2 - $hForm.Width / 2, $hButton.ScreenY + $hButton.Height)
+    End Select
+  Endif
+  
+End
+
+Public Sub ObsWin_Close()
+  
+  Try $hForm.Close
+  
+End
+
+Private Function Result_Read() As Result
+  
+  Return $hResult
+  
+End
+
+Private Function ColumnView_Read() As ColumnView
+  
+  Return $htvw
+  
+End
+
+Private Function ColumnsWidth_Read() As Integer[]
+  
+  Return $aColumnsWidth
+  
+End
+
+Private Sub ColumnsWidth_Write(Value As Integer[])
+  
+  $aColumnsWidth = Value
+  
+End

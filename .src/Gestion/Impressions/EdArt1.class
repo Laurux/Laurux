@@ -1,0 +1,700 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : EdArt.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 23/05/2005
+'# Impression du tarif interne
+'################################################
+'
+
+Filename As String
+Tab As String
+son As Integer = Start.Son
+PosY As Integer
+PosX As Integer
+Coulfond As New String[]
+Phot_art As String
+Public Codearticle As String
+Public Bsel As Boolean = False
+Private Origine As String = ""
+Private b As Integer = 0
+Tri As String
+
+Public Sub _New()
+  
+  Dim Frmt As New String[]
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  Phot_art = Settings["/Soc" & Start.Societe & "/Photart"]
+  Frmt = Utils.FColr(Settings["/Coul/Fnets"])
+  Coulfond = Utils.Coulfd()
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Art.Text = "00000"
+  Art2.Text = "ZZZZZ"
+  Fam.Text = "00000"
+  Fam2.Text = "ZZZZZ"
+  four.Text = "40100001"
+  four2.Text = "40199999"
+  Art.Select
+  Art.SetFocus
+  
+End
+
+Public Sub ToggleButton1_Click()
+  
+  Origine = "1"
+  SelectionArt()
+  
+End
+
+Public Sub ToggleButton2_Click()
+  
+  Origine = "2"
+  SelectionArt()
+  
+End
+
+'************************************
+'* Affichage du columnview Colfam  *
+'************************************
+Public Sub ToggleButton3_Click()
+  
+  Dim Rfams As Result
+  
+  Tab = "Fiches_Fam" 
+  With Utils
+    If Colfam.visible Then
+      Colfam.clear
+      Colfam.visible = False
+    Else
+      Colfam.visible = True
+      Colfam.Columns.count = 2
+      Colfam.Columns[0].Width = 65
+      Colfam.Columns[1].Width = 280
+      Colfam.Columns[0].Text = "code"
+      Colfam.Columns[1].Text = "Intitulé"
+      Rfams = Utils.db.Exec("SELECT * FROM " & Tab & " order by code_fam")
+      If Rfams.Available Then
+        Repeat
+          Colfam.Add(Rfams!code_fam, Rfams!code_fam)
+          Colfam.Item[0] = Rfams!code_fam
+          Colfam.Item[1] = Rfams!libell_fam
+        Until Rfams.MoveNext()
+      Endif
+      If Colfam.Count Then
+        Colfam.MoveFirst
+        Colfam.SetFocus
+        Colfam.Item.Selected = True
+      Endif
+    Endif
+  End With
+  
+End
+
+'***********************************************************
+'* Gestion du columnview Colfam lors d'une saisie manuelle *
+'***********************************************************
+Public Sub Colfam_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Colfam.MoveCurrent
+    Colfam_Click()
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Colfam.visible = False
+    Colfam.clear
+    fam.SetFocus
+    fam.Select
+    Stop Event
+  Endif
+  
+End
+
+'************************************
+'* Affichage du columnview Colfam2 *
+'************************************
+Public Sub ToggleButton4_Click()
+  
+  Dim Rfams As Result
+  
+  Tab = "Fiches_Fam" 
+  With Utils
+    If Colfam2.visible Then
+      Colfam2.clear
+      Colfam2.visible = False
+    Else
+      Colfam2.visible = True
+      Colfam2.Columns.count = 2
+      Colfam2.Columns[0].Width = 65
+      Colfam2.Columns[1].Width = 280
+      Colfam2.Columns[0].Text = "code"
+      Colfam2.Columns[1].Text = "Intitulé"
+      Rfams = Utils.db.Exec("SELECT * FROM " & Tab & " order by code_fam")
+      If Rfams.Available Then
+        Repeat
+          Colfam2.Add(Rfams!code_fam, Rfams!code_fam)
+          Colfam2.Item[0] = Rfams!code_fam
+          Colfam2.Item[1] = Rfams!libell_fam
+        Until Rfams.MoveNext()
+      Endif
+      If Colfam2.Count Then
+        Colfam2.MoveFirst
+        Colfam2.SetFocus
+        Colfam2.Item.Selected = True
+      Endif
+    Endif
+  End With
+  
+End
+
+'*************************************************************
+'* Gestion du columnview Colfam2 lors d'une saisie manuelle *
+'*************************************************************
+Public Sub Colfam2_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Colfam2.MoveCurrent
+    Colfam2_Click()
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Colfam2.visible = False
+    Colfam2.clear
+    fam.SetFocus
+    fam2.Select
+    Stop Event
+  Endif
+  
+End
+
+'************************************
+'* Affichage du columnview Colfour  *
+'************************************
+Public Sub ToggleButton5_Click()
+  
+  Dim Rfours As Result
+  
+  Tab = "Fiches_Four" 
+  With Utils
+    If Colfour.visible Then
+      Colfour.clear
+      Colfour.visible = False
+    Else
+      Colfour.visible = True
+      Colfour.Columns.count = 2
+      Colfour.Columns[0].Width = 65
+      Colfour.Columns[1].Width = 280
+      Colfour.Columns[0].Text = "code"
+      Colfour.Columns[1].Text = "Intitulé"
+      Rfours = Utils.db.Exec("SELECT * FROM " & Tab & " order by fo_code")
+      If Rfours.Available Then
+        Repeat
+          Colfour.Add(Rfours!fo_code, Rfours!fo_code)
+          Colfour.Item[0] = Rfours!fo_code
+          Colfour.Item[1] = Rfours!fo_nom
+        Until Rfours.MoveNext()
+      Endif
+      If Colfour.Count Then
+        Colfour.MoveFirst
+        Colfour.SetFocus
+        Colfour.Item.Selected = True
+      Endif
+    Endif
+  End With
+  
+End
+
+'***********************************************************
+'* Gestion du columnview Colfour lors d'une saisie manuelle *
+'***********************************************************
+Public Sub Colfour_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Colfour.MoveCurrent
+    Colfour_Click()
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Colfour.visible = False
+    Colfour.clear
+    four.SetFocus
+    four.Select
+    Stop Event
+  Endif
+  
+End
+
+'************************************
+'* Affichage du columnview Colfour2 *
+'************************************
+Public Sub ToggleButton6_Click()
+  
+  Dim Rfours As Result
+  
+  Tab = "Fiches_Four" 
+  With Utils
+    If Colfour2.visible Then
+      Colfour2.clear
+      Colfour2.visible = False
+    Else
+      Colfour2.visible = True
+      Colfour2.Columns.count = 2
+      Colfour2.Columns[0].Width = 65
+      Colfour2.Columns[1].Width = 280
+      Colfour2.Columns[0].Text = "code"
+      Colfour2.Columns[1].Text = "Intitulé"
+      Rfours = Utils.db.Exec("SELECT * FROM " & Tab & " order by fo_code")
+      If Rfours.Available Then
+        Repeat
+          Colfour2.Add(Rfours!fo_code, Rfours!fo_code)
+          Colfour2.Item[0] = Rfours!fo_code
+          Colfour2.Item[1] = Rfours!fo_nom
+        Until Rfours.MoveNext()
+      Endif
+      If Colfour2.Count Then
+        Colfour2.MoveFirst
+        Colfour2.SetFocus
+        Colfour2.Item.Selected = True
+      Endif
+    Endif
+  End With
+  
+End
+
+'*************************************************************
+'* Gestion du columnview Colfour2 lors d'une saisie manuelle *
+'*************************************************************
+Public Sub Colfour2_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Colfour2.MoveCurrent
+    Colfour2_Click()
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Colfour2.visible = False
+    Colfour2.clear
+    four.SetFocus
+    four2.Select
+    Stop Event
+  Endif
+  
+End
+
+'****************************************Gestion des articles**************************************************
+Public Sub SelectionArt()
+  
+  Dim sel As String = ""
+  Dim MyForm As TriArticles
+  
+  sel = ""
+  Tri = "art_code"
+  MyForm = New TriArticles(True, "", Tri, "EdArt1", "", "")
+  MyForm.Showmodal()
+  If Bsel = True Then
+    b = 0
+    If Origine = "1" Then
+      Art.text = Codearticle
+      Art2.SetFocus
+      Art2.Select
+    Else
+      If Origine = "2" Then
+        Art2.text = Codearticle
+        Fam.SetFocus
+        Fam.Select
+      Endif
+    Endif
+  Endif
+  
+End
+
+'********************************************
+'* Saisie d'un article manuellement         *
+'********************************************
+Public Sub art_man()
+  
+  Dim rarts As Result
+  
+  With utils
+    rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", Art.Text)
+    If Not rarts.Available Then
+      rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_cfour = &1", Art.Text)
+    Endif
+    If Not rarts.Available Then
+      rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_cbarre = &1", Art.Text)
+    Endif
+    If Not rarts.Available Then
+      rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_refcentrale = &1", Art.Text)
+    Endif
+    If Not rarts.Available Then
+      If son Then
+        Music.Play
+      Endif
+      message.Warning(" Cette référence n'existe pas ! ")
+      b = 1
+    Else
+      b = 0
+    Endif
+  End With
+  
+End
+
+'*************************************
+'* Selection de la premiere famille  *
+'*************************************
+Public Sub Colfam_Click()
+  
+  fam.Text = Colfam.Item[0]
+  Colfam.clear
+  Colfam.visible = False
+  fam2.Select
+  fam2.SetFocus
+  
+End
+
+'************************************
+'* Selection de la seconde famille  *
+'************************************
+Public Sub Colfam2_Click()
+  
+  fam2.Text = Colfam2.Item[0]
+  Colfam2.clear
+  Colfam2.visible = False
+  four.Select
+  four.SetFocus
+  
+End
+
+'*************************************
+'* Selection du premier fournisseur  *
+'*************************************
+Public Sub Colfour_Click()
+  
+  four.Text = Colfour.Item[0]
+  Colfour.clear
+  Colfour.visible = False
+  four2.Select
+  four2.SetFocus
+  
+End
+
+'************************************
+'* Selection du second fournisseur  *
+'************************************
+Public Sub Colfour2_Click()
+  
+  four2.Text = Colfour2.Item[0]
+  Colfour2.clear
+  Colfour2.visible = False
+  Button2.SetFocus
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Button1_Click()
+      
+    Case 2
+      Button2_Click()
+      
+    Case 3
+      If Exist(filename) Then Try Kill filename
+      Me.Close
+      
+  End Select
+  
+End
+
+Public Sub Btn_KeyPress()
+  
+  Select Case Last.tag
+    Case 2
+      Button2_Click()
+  End Select
+  
+End
+
+Public Sub Cmpt_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+      Case 1
+        Art_man()
+        If b = 1 Then
+          Art.SetFocus
+          Art.Select
+          b = 0
+        Else
+          Art2.SetFocus
+          Art2.Select
+        Endif
+        Stop Event
+        
+      Case 2
+        Art_man()
+        If b = 1 Then
+          Art.SetFocus
+          Art.Select
+          b = 0
+        Else
+          Fam.SetFocus
+          Fam.Select
+        Endif
+        Stop Event
+        
+      Case 3
+        fam2.SetFocus
+        fam2.Select
+        Stop Event
+        
+      Case 4
+        four.SetFocus
+        four.Select
+        Stop Event
+        
+      Case 5
+        four2.SetFocus
+        four2.Select
+        Stop Event
+        
+      Case 6
+        Button2.SetFocus
+        Stop Event
+        
+    End Select
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+  If key.code = key.F2 Then
+    Select Case Last.tag
+      Case 1
+        ToggleButton1_Click()
+        Stop Event
+      Case 2
+        ToggleButton2_Click()
+        Stop Event
+      Case 3
+        ToggleButton3_Click()
+        Stop Event
+      Case 4
+        ToggleButton4_Click()
+        Stop Event
+      Case 5
+        ToggleButton5_Click()
+        Stop Event
+      Case 6
+        ToggleButton6_Click()
+        Stop Event
+    End Select
+  Endif
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Cmpt_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim rarts As Result
+  Dim code As String
+  Dim intitule As String
+  Dim Fami As String
+  Dim fourn As String
+  Dim pbht, prht, pmp, marge As String
+  Dim Rem As String
+  Dim paht As String
+  Dim Coef As String
+  Dim Pvht As String
+  Dim Pvcons As String
+  Dim dte As String
+  Dim nbdec As String
+  Dim nbd As String
+  Dim Nbpage As Integer
+  Dim Photos As String
+  Dim Photo As Image
+  Dim Gpvcons As Boolean
+  Dim pdf As Carticles
+  
+  Try Gpvcons = Settings["/Soc" & Start.Societe & "/Pvcons"]
+  
+  If Error Then Gpvcons = False
+  Nbpage = 1
+  Shell "cd " & User.Home & ""
+  Filename = User.home & "/Tarif1.pdf"
+  pdf = New CArticles("Portrait", "mm", "A4")
+  pdf.Open()
+  pdf.AliasNbPages()
+  pdf.Entete("Impression du tarif interne au " & Format$(Now, "dd.mm.yyyy"))
+  dte = Format$(Now, "dd.mm.yyyy")
+  Tab = "Fiches_Art" 
+  posx = 40
+  posy = 26
+  If Phot.Value = True Then
+    pdf.Level7bis()
+  Else
+    If Mg.value = True Then
+      pdf.Level7M()
+    Else
+      pdf.Level7()
+    Endif
+  Endif
+  Me.Mouse = Mouse.Wait
+  If Radiobutton1.Value Then
+    rarts = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE art_code >= &1  and art_code <= &2 and art_fam >= &3 and art_fam <= &4 and art_four >= &5 and art_four <= &6 order by lpad(art_code,15,' ')", Art.Text, Art2.Text, Fam.Text, Fam2.Text, four.Text, four2.Text)
+  Else If Radiobutton2.Value Then
+    rarts = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE art_code >= &1  and art_code <= &2 and art_fam >= &3 and art_fam <= &4 and art_four >= &5 and art_four <= &6 order by art_fam, lpad(art_code,15,' ')", Art.Text, Art2.Text, Fam.Text, Fam2.Text, four.Text, four2.Text)
+  Else If Radiobutton3.Value Then
+    rarts = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE art_code >= &1  and art_code <= &2 and art_fam >= &3 and art_fam <= &4 and art_four >= &5 and art_four <= &6 order by art_four, lpad(art_code,15,' ')", Art.Text, Art2.Text, Fam.Text, Fam2.Text, four.Text, four2.Text)
+  Else If Radiobutton4.Value Then
+    rarts = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE art_code >= &1  and art_code <= &2 and art_fam >= &3 and art_fam <= &4 and art_four >= &5 and art_four <= &6 order by art_design", Art.Text, Art2.Text, Fam.Text, Fam2.Text, four.Text, four2.Text)
+  Endif
+  If rarts.Available Then
+    Repeat
+      code = rarts!art_code
+      intitule = rarts!art_design
+      intitule = Left$(intitule, 36)
+      fami = rarts!art_fam
+      fourn = rarts!art_four
+      nbd = rarts!art_nbd
+      nbdec = Utils.Find_nbdec(nbd)
+      pbht = Format$(rarts!art_pbht, nbdec)
+      If Len(pbht) - InStr(pbht, ",") = 2 Then pbht = pbht & " "
+      rem = Format$(rarts!art_tr, "00.000")
+      paht = Format$(rarts!art_paht, nbdec)
+      prht = Format$(rarts!art_prvt, nbdec)
+      pmp = Format$(rarts!art_pmp, nbdec)
+      If Len(paht) - InStr(pvht, ",") = 2 Then paht = paht & " "
+      coef = Format$(rarts!art_coef, "00.000")
+      pvht = Format$(rarts!art_pvht, nbdec)
+      Marge = Format$(Val(Pvht) - (Val(Pmp)), nbdec)
+      Try pvcons = Format$(rarts!art_pvcons, nbdec)
+      If Error Then Pvcons = "0,00"
+      If Len(pvht) - InStr(pvht, ",") = 2 Then pvht = pvht & " "
+      Photos = rarts!art_photo
+      If Phot.Value = False Then
+        If Mg.value = True Then
+          pdf.level6M(code, intitule, fami, fourn, prht, coef, pvht, pmp, marge, PosY)
+        Else
+          pdf.level6(code, intitule, fami, fourn, pbht, rem, prht, coef, pvht, PosY)
+        Endif
+        PosY = PosY + 5
+        If Gpvcons Then
+          If Val(Pvcons) <> 0 Then
+            pdf.level10(Pvcons, 184, PosY)
+            PosY = PosY + 5
+          Endif
+        Endif
+      Else
+        If Not IsNull(Photos) Then
+          Try Photo = Image.Load(Phot_art & "/" & Photos)
+          If Not Error Then
+            pdf.level6bis(code, intitule, pbht, rem, paht, coef, pvht, PosY)
+            pdf.Photo(Phot_art & "/" & Photos, 170, PosY)
+            PosY = PosY + 5
+            If Gpvcons Then
+              If Val(Pvcons) <> 0 Then
+                pdf.level10(Pvcons, 140, PosY)
+              Endif
+            Endif
+            PosY = PosY + 15
+            pdf.Ligne(PosY)
+          Endif
+        Else
+          pdf.level6bis(code, intitule, pbht, rem, paht, coef, pvht, PosY)
+          PosY = PosY + 5
+          If Gpvcons Then
+            If Val(Pvcons) <> 0 Then
+              pdf.level10(Pvcons, 8, PosY)
+              PosY = PosY + 5
+            Endif
+          Endif
+        Endif
+      Endif
+      If PosY >= 283 Then
+        pdf.Footer()
+        pdf.Entete("Impression du tarif interne au " & Format$(Now, "dd.mm.yyyy"))
+        If Phot.Value = True Then
+          pdf.Level7bis()
+        Else
+          If Mg.value = True Then
+            pdf.Level7M()
+          Else
+            pdf.Level7()
+          Endif
+        Endif
+        posy = 26
+      Endif
+    Until rarts.MoveNext()
+    pdf.Footer()
+    pdf.Output(Filename, False)
+    Visualiseur.Prog_Editeur(Filename)
+  Else
+    If son Then
+      Music.Play
+    Endif
+    message(" Aucun article pour cette demande", "OK")
+  Endif
+  Me.Mouse = Mouse.Pointing
+  
+End
+
+Public Sub Button1_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Edtar.html"]
+  
+End

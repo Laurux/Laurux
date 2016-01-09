@@ -1,0 +1,2787 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Materiel.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 10/01/2009
+'# Gestion du materiel
+'################################################
+'
+
+Ncode As String
+'DB As New Connection
+ComResult As Result
+Rcli As Result
+rart As Result
+nv As Integer ' Flag pour gestion des materiels en création
+Tri As String
+Tricli As String
+tab As String
+Tabmat As String
+Tab2 As String
+rs1 As Result
+sel As String
+txt As String
+MatTable[7] As String
+Clitable[3] As String
+Ttva As Float
+B As Integer
+B2 As Integer = 0
+Stk As Integer
+Stk2 As Integer
+Spd As Integer
+son As Integer = Start.Son
+Dne As String 'texte recherché par F2 ou clic sur bouton
+nbdec As String 'variable pour decimale des prix
+Tvavente As Integer
+Ecotaxe As String
+Dbl As String
+Fml As String ' flag de controle pour changement famille
+Txc As String 'flag de controle pour changement de Taux de conversion
+CoulB As Integer ' Variable pour la couleur du background
+CoulF As Integer ' Variable pour la couleur du Foreground
+CoulZns As Integer ' Variable pour la couleur du background des zones de saisie et des columnviews
+CoulZnaf As Integer ' Variable pour la couleur du background des columnviews
+CoulFc As Integer ' Variable pour la couleur du focus
+Fnt As String ' Variable pour la police
+sKey As String
+Phot_art As String
+Bl As String
+Rcpt As String
+Prd As String
+produit As String
+produit2 As String
+Sens As String
+Private hImage As Image
+Private Epuises As String = Start.Epuises
+Private Stockes As String = Start.Stockes
+Private Nstockes As String = Start.Nstockes
+Private Suspendus As String = Start.Suspendus
+Private Org As Integer 'flag pour origine ouverture datechooser
+
+Public Sub _New(code As String)
+  
+  Dim Frmt As New String[]
+  
+  Me.Center
+  Prd = Code
+  
+  Music.Load(Start.Musique)
+  Phot_art = Settings["/Soc" & Start.Societe & "/Photart"]
+  Frmt = Utils.FColr(Settings["/Coul/Znaff"])
+  CoulZnaf = Val(Frmt[0])
+  Frmt = Utils.FColr(Settings["/Coul/Focus"])
+  Coulfc = Val(Frmt[0])
+  Frmt = Utils.FColr(Settings["/Coul/Znss"])
+  CoulZns = Val(Frmt[0])
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  CO.Text = "Code"
+  Inte.Text = "Intitulé"
+  CLT.Text = "Client"
+  SE.Text = "Numéro série  "
+  fourn.Text = "Ref Fournisseur"
+  B = 0
+  Stk = 1
+  Stk2 = 1
+  Tvavente = 0
+  Totalrcpt.Text = "0,00"
+  Colrcp.Columns.count = 7
+  Colrcp.Columns[0].Width = 80
+  Colrcp.Columns[1].Width = 200
+  Colrcp.Columns[2].Width = 100
+  Colrcp.Columns[3].Width = 80
+  Colrcp.Columns[4].Width = 80
+  Colrcp.Columns[5].Width = 90
+  Colrcp.Columns[6].Width = 100
+  Colrcp.Columns[0].Text = "Code"
+  Colrcp.Columns[1].Text = "Designation"
+  Colrcp.Columns[2].Text = "Qté "
+  Colrcp.Columns[2].Alignment = 2
+  Arr.ReadOnly = True
+  Nbd.ReadOnly = True
+  
+End
+
+Public Sub Form_Open()
+  
+  Tabmat = "Fiches_Materiels"
+  Tri = "mat_code"
+  SetObservers(Me, Me)
+  Utils.Observers(Me)
+  Tris()
+  If Not IsNull(Prd) Then
+    Deb()
+  Else
+    Deb2()
+  Endif
+  CleanChamps()
+  Balloon.delay = 2000
+  Active_champs()
+  
+End
+
+Public Sub Tabstrip1_Click() 
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+End
+
+Public Sub colmat_Data(Row As Integer, Column As Integer)
+  
+  Dim Frmt As New String[]
+  
+  With Utils
+    MatTable[0] = "mat_qte"
+    MatTable[1] = "mat_code"
+    MatTable[2] = "mat_serie"
+    MatTable[3] = "mat_design"
+    MatTable[4] = "mat_cli"
+    MatTable[5] = "mat_cfour"
+    Try .rs1.MoveTo(Row)
+    Try colmat.data.Text = Str(.rs1[MatTable[Column]])
+    If Not Error Then
+      If column = 0 Then
+        If IsNull(colmat.data.text) Then colmat.data.text = "0,000"
+        If IsNull(Val(colmat.data.text)) Then colmat.data.text = "0,000"
+        If Val(colmat.data.text) <= 0 Then
+          Frmt = Utils.FColr(Epuises)
+          Try CoulB = Val(Frmt[0])
+          Try CoulF = Val(Frmt[2])
+          Try Fnt = Frmt[1]
+        Endif
+        If Val(colmat.data.text) > 0 Then
+          Frmt = Utils.FColr(Stockes)
+          Try CoulB = Val(Frmt[0])
+          Try CoulF = Val(Frmt[2])
+          Try Fnt = Frmt[1]
+        Endif
+      Endif
+      If Error Then
+        If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then
+          CoulB = Val("&HFAFAFA&")
+        Else
+          CoulB = Val("&HF9F9BD&")
+        Endif
+        CoulF = Val("&H000000&")
+        Fnt = "serif 10"
+      Endif
+      colmat.Data.Background = CoulB
+      colmat.Data.Foreground = CoulF
+      colmat.Data.Font = Font[Fnt]
+    Endif
+  End With
+  
+End
+
+Public Sub Tris()
+  
+  With colmat
+    .Columns.count = 6
+    .Columns[0].Width = 1
+    .Columns[1].Width = CO.Width - 1
+    .Columns[2].Width = SE.Width
+    .Columns[3].Width = Inte.Width
+    .Columns[4].Width = CLT.Width
+    .Columns[5].Width = Fourn.Width
+  End With
+  
+End
+
+Public Sub Deb()
+  
+  Dim lpd As String
+  
+  With colmat
+    If Radiobutton1.Value Then
+      Stk = 1
+      Stk2 = 1
+    Endif
+    If Radiobutton2.Value Then
+      Stk = 0
+      Stk2 = 0
+    Endif
+    If tri = "mat_code " Then
+      lpd = "cast(mat_code as char), cast(mat_serie as char)"
+    Else
+      If tri = "mat_serie" Then
+        lpd = "cast(mat_serie as char)"
+      Else
+        lpd = tri
+      Endif
+    Endif
+    If Radiobutton1.Value Then
+      Utils.Base(colmat, "select * from " & Tabmat & " where " & tri & " like  \"" & Prd & "%\" order by " & lpd & "")
+    Else
+      If Radiobutton2.Value Then
+        Utils.Base(colmat, "select * from " & Tabmat & " where " & tri & " like  \"" & Prd & "%\" and mat_qte > " & 0 & " order by " & lpd & "")
+      Endif
+    Endif
+  End With
+  
+End
+
+Public Sub Deb2()
+  
+  Dim lpd As String
+  
+  With colmat
+    If Radiobutton1.Value Then
+      Stk = 1
+      Stk2 = 1
+    Endif
+    If Radiobutton2.Value Then
+      Stk = 0
+      Stk2 = 0
+    Endif
+    If tri = "mat_code" Then
+      'lpd = "lpad(mat_code,\"" "0" "\",15)"
+      lpd = "cast(mat_code as char), cast(mat_serie as char)"
+    Else
+      If tri = "mat_serie" Then
+        lpd = "cast(mat_serie as char)"
+      Else
+        lpd = tri
+      Endif
+    Endif
+    If Radiobutton1.Value Then
+      Utils.Base(colmat, "select * from " & Tabmat & " where " & tri & " like  \"" & sel & "%\" order by " & lpd & "")
+    Else
+      If Radiobutton2.Value Then
+        Utils.Base(colmat, "select * from " & Tabmat & " where " & tri & " like  \"" & sel & "%\" and mat_qte > " & 0 & " order by " & lpd & "")
+      Endif
+    Endif
+  End With
+  
+End
+
+Public Sub Deb3()
+  
+  Dim lpd As String
+  
+  With colmat
+    If Radiobutton1.Value Then
+      Stk = 1
+      Stk2 = 1
+    Endif
+    If Radiobutton2.Value Then
+      Stk = 0
+      Stk2 = 0
+    Endif
+    If tri = "mat_code" Then
+      'lpd = "lpad(mat_code,\"" "0" "\",15)"
+      lpd = "cast(mat_code as char)"
+    Else
+      If tri = "mat_serie" Then
+        lpd = "cast(mat_serie as char)"
+      Else
+        lpd = tri
+      Endif
+    Endif
+    If Radiobutton1.Value Then
+      Utils.Base(colmat, "select * from " & Tabmat & " where " & tri & " like  \"" & sel & "%\" order by " & lpd & " desc")
+    Else
+      If Radiobutton2.Value Then
+        Utils.Base(colmat, "select * from " & Tabmat & " where " & tri & " like  \"" & sel & "%\" and mat_qte <= " & 0 & " and mat_stocke = " & Stk & " order by " & lpd & " desc")
+      Endif
+    Endif
+  End With
+  
+End
+
+Public Sub Deb4()
+  
+  Dim lpd As String
+  
+  With colmat
+    If Radiobutton1.Value Then
+      Stk = 1
+      Stk2 = 1
+    Endif
+    If Radiobutton2.Value Then
+      Stk = 0
+      Stk2 = 0
+    Endif
+    lpd = tri
+    If Radiobutton1.Value Then
+      Utils.Base(colmat, "select * from " & Tabmat & " where " & tri & " like  \"%" & sel & "%\" order by " & lpd & "")
+    Else
+      If Radiobutton2.Value Then
+        Utils.Base(colmat, "select * from " & Tabmat & " where " & tri & " like  \"%" & sel & "%\" AND mat_qte <= " & 0 & " order by " & lpd & "")
+      Endif
+    Endif
+  End With
+  
+End
+
+'************************gestion des produits**********************************
+
+'*******************************************
+'*  On appelle la liste des produits       *
+'*******************************************
+Public Sub ToggleButton2_Click()
+  
+  Dim rResult As Result
+  
+  Tab = "Fiches_Art"
+  ColArt.Clear
+  If ColArt.Visible Then
+    ColArt.Clear
+    ColArt.Visible = False
+  Else
+    ColArt.Visible = True
+    With ColArt
+      .Columns.count = 3
+      .Columns[0].Width = 120
+      .Columns[1].Width = 420
+      .Columns[2].Width = 160
+      .Columns[2].Alignment = 4
+      .Columns[0].Text = "Code"
+      .Columns[1].Text = "Intitulé"
+      .Columns[2].Text = "Ref fournisseur"
+    End With
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where art_mat = &1 order by CAST(art_code AS char)", 1)
+    If rResult.Available Then
+      Do
+        With utils
+          ColArt.Add(rResult!art_code, rResult!art_code)
+          ColArt.Item[0] = rResult!art_code
+          ColArt.Item[1] = rResult!art_design
+          ColArt.Item[2] = rResult!art_cfour
+          nbd.Text = rResult!art_nbd
+          nbdec = Utils.Find_nbdec(nbd.text)
+        End With
+      Loop Until rResult.MoveNext()
+    Else
+      If son Then
+        Music.Play
+      Endif
+      Message.Warning("Il n'existe aucun article stocké \n veuillez d'abord stocker vos références SVP ! ")
+      ColArt.Clear
+      ColArt.visible = False
+    Endif
+    If ColArt.Count Then
+      ColArt.MoveFirst
+      ColArt.SetFocus
+      ColArt.Item.Selected = True
+    Endif
+  Endif
+  
+End
+
+'*******************************************
+'*  Saisie d'un article a la souris        *
+'*******************************************
+Public Sub Colart_Click()
+  
+  Codep.Text = ColArt.Current[0]
+  ColArt.Clear
+  ColArt.visible = False
+  art_Man()
+  If b = 1 Then
+    Codep.SetFocus
+    codep.Select
+    b = 0
+  Else
+    Code.SetFocus
+    Code.Select
+  Endif
+  
+End
+
+'*******************************************
+'* Saisie d'un article manuellement        *
+'*******************************************
+Public Sub Colart_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Codep.Text = ColArt.Current[0]
+    ColArt.Clear
+    ColArt.visible = False
+    art_Man()
+    If b = 1 Then
+      Codep.SetFocus
+      codep.Select
+      b = 0
+    Else
+      Code.SetFocus
+      Code.Select
+    Endif
+  Endif
+  
+  If key.code = key.F1 Then
+    Button7_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Or Key.Code = Key.F3 Then
+    ColArt.visible = False
+    ColArt.clear
+  Endif
+  
+End
+
+'*************************************************
+'* Saisie d'un code article manuellement         *
+'*************************************************
+Public Sub art_man()
+  
+  Dim rarts As Result
+  Dim Rtvaav As Result
+  Dim Rfours As Result
+  Dim qtec As Float
+  Dim Tab3 As String
+  Dim Tab4 As String
+  Dim stocke As String
+  Dim Cdp As String
+  
+  b = 0
+  Cdp = Codep.text
+  Qtec = "0"
+  Tab = "Fiches_Art"
+  Tab2 = "Fiches_Tvaav"
+  Tab3 = "Fiches_Four"
+  Tab4 = "Fiches_Four"
+  CleanChamps()
+  With utils
+    rarts = Utils.db.Exec("SELECT * FROM " & Tab & " where art_code = &1", Cdp)
+    If rarts.Available Then
+      Stocke = rarts!art_stocke
+      If Not Stocke Then
+        If son Then
+          Music.Play
+        Endif
+        message.Warning(" Ce produit n'est pas stocké ! ")
+      Else
+        If Not rarts!art_mat Then
+          message.Warning(" Ce produit n'est pas un matériel ! ")
+        Else
+          If rarts!art_suspendu = False Or If IsNull(rarts!art_suspendu) Then
+            Codep.Text = rarts!art_code
+            Desg.text = rarts!art_design
+            Desg2.Text = rarts!art_design2
+            Cfour.Text = rarts!art_cfour
+            Four.text = Rarts!art_four
+            Fam.text = Rarts!art_fam
+            Cbarre.text = rarts!art_cbarre
+            Cequ.Text = rarts!art_cequ
+            nbd.Text = rarts!art_nbd
+            nbdec = Utils.Find_nbdec(nbd.text)
+            Paht.Text = Format$(rarts!art_paht, nbdec)
+            Frais.Text = Format$(rarts!art_frais, nbdec)
+            Prvt.Text = Format$(rarts!art_prvt, nbdec)
+            Coef.Text = Format$(rarts!art_coef, "0.0000")
+            Pvht.Text = Format$(rarts!art_pvht, nbdec)
+            Tva.Text = rarts!art_tva
+            PvTTc.Text = Format$(rarts!art_pvttc, nbdec)
+            Marque.Text = rarts!art_marque
+            Crst.text = rarts!art_crst
+            Try Eco.Text = Format$(rarts!art_eco, nbdec)
+            If Error Then Eco.Text = "0,00"
+            Calc_Percent()
+            Calc_coeff()
+            Arrondi()
+            Fam2()
+            Arr.Text = rarts!art_cdarr
+            Rtvaav = Utils.db.Exec("SELECT * FROM " & Tab2 & " where code_tva = &1", Tva.Text)
+            If Rtvaav.Available Then
+              Txtva.text = Format$(Rtvaav!taux_tva, "0.00")
+            Endif
+            Rfours = Utils.db.Exec("SELECT * FROM " & tab3 & " WHERE fo_code = &1", four.text)
+            Fournom.Text = Rfours!fo_nom
+          Else
+            Message.Warning(" Saisie impossible ! Cet article est suspendu. ")
+            b = 1
+          Endif
+        Endif
+      Endif
+    Endif
+  End With
+  
+End
+
+'***************************************fin de la gestion des produits**********************
+
+'*********************************************
+'*  Appel de la liste des marques            *
+'*********************************************
+Public Sub ToggleButton1_Click()
+  
+  Dim Rfams As Result
+  Dim Tab As String
+  
+  Tab = "Fiches_Marques"
+  
+  If ColMarque.visible Then
+    ColMarque.clear
+    ColMarque.visible = False
+  Else
+    ColMarque.visible = True
+    ColMarque.Columns.count = 2
+    ColMarque.Columns[0].Width = 65
+    ColMarque.Columns[1].Width = 180
+    ColMarque.Columns[0].Text = "code"
+    ColMarque.Columns[1].Text = "Intitulé"
+    Rfams = Utils.db.Exec("SELECT * FROM " & Tab & " order by code ASC")
+    If Rfams.Available Then
+      Do
+        ColMarque.Add(Rfams!code, Rfams!code)
+        ColMarque.Item[0] = Rfams!code
+        ColMarque.Item[1] = Rfams!intitule
+      Loop Until Rfams.MoveNext()
+      ColMarque.MoveFirst
+      ColMarque.SetFocus
+      ColMarque.Item.Selected = True
+    Endif
+  Endif
+  
+End
+
+'************************************
+'*  Saisie d'une marque a la souris *
+'************************************
+Public Sub ColMarque_Click()
+  
+  Marque.text = ColMarque.Item[1]
+  ColMarque.clear
+  ColMarque.visible = False
+  
+End
+
+'*******************************************
+'* Saisie d'une marque manuellement        *
+'*******************************************
+Public Sub ColMarque_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    ColMarque_Click()
+  Endif
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    ColMarque.visible = False
+    ColMarque.clear
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Maj_Zones()
+  
+  Dim qtec As String
+  Dim Uv As String
+  Dim Rligc As Result
+  Dim Rart As Result
+  Dim Rmat As Result
+  Dim Tab3 As String
+  
+  tab = "Fiches_Ligcom"
+  tab2 = "Fiches_Materiels"
+  tab3 = "Fiches_Art"
+  With Utils
+    Rmat = Utils.db.Exec("SELECT * FROM " & Tab2 & " where mat_serie = &1 and mat_code = &2", colmat[colmat.row, 2].Text, colmat[colmat.row, 1].Text)
+    If Rmat.Available Then
+      Bl = Rmat!mat_bl
+      Rcpt = Rmat!mat_rcpt
+      code.Text = Rmat!mat_serie
+      codep.Text = Rmat!mat_code
+      Desg.Text = Rmat!mat_design
+      Desg2.Text = Rmat!mat_design2
+      four.Text = Rmat!mat_four
+      Cd.Text = Rmat!mat_cli
+      Fam.Text = Rmat!mat_fam
+      Cequ.Text = Rmat!mat_four
+      Cbarre.Text = Rmat!mat_cbarre
+      Cfour.Text = Rmat!mat_cfour
+      nbd.text = Rmat!mat_nbd
+      cd.Text = Rmat!mat_cli
+      nbdec = .Find_nbdec(nbd.Text)
+      PaHT.Text = Format$(Rmat!mat_paht, nbdec)
+      Try Frais.Text = Format$(Rmat!mat_frais, nbdec)
+      If IsNull(Frais.Text) Then Frais.Text = "0,00"
+      Try Prvt.Text = Format$(Rmat!mat_paht, nbdec)
+      If IsNull(Prvt.Text) Then Prvt.Text = "0,00"
+      Try Coef.Text = Format$(Rmat!mat_coef, "0.0000")
+      Try Pvht.Text = Format$(Rmat!mat_pvht, nbdec)
+      Try Tva.Text = Format$(Val(.cpoint(Rmat["mat_tva"])), "00.00")
+      Try PvTTc.Text = Format$(Rmat!mat_pvttc, nbdec)
+      Try Eco.Text = Format$(Rmat!mat_eco, "0.00")
+      Try Arr.Text = Rmat!mat_cdarr
+      Try Dpa.Text = Format$(Rmat!mat_dpa, nbdec)
+      Try Dfour.Text = Rmat!mat_dfour
+      Try ddate.Text = Rmat!mat_ddate
+      Try vendu.Value = Rmat!mat_vendu
+      Try Matdiv.Value = Rmat!mat_matdiv
+      Marque.Text = Rmat!mat_marque
+      Type.Text = Rmat!mat_type
+      Crst.text = Rmat!mat_crst
+      Try ChkGarantie.value = Rmat!mat_chkgarantie
+      If Error Then Chkgarantie.value = False
+      If ChkGarantie.value = True Then
+        Panel6.Visible = True
+        Datevte.text = Utils.Cdate_Aff(Rmat!mat_dtevte)
+        DateG1.Text = Utils.Cdate_Aff(Rmat!mat_dateg1)
+      Else
+        Datevte.Clear
+        DateG1.clear
+        Panel6.visible = False
+      Endif
+      Fam2()
+      fourMan()
+      Calc_Percent()
+      Rart = Utils.db.Exec("SELECT * FROM " & Tab3 & " where art_code = &1", colmat[colmat.row, 1].Text)
+      Try Photo.Text = Rart!art_photo
+      If Not IsNull(Photo.text) Then
+        aff_Photo()
+      Endif
+      If Rmat!mat_vendu = "1" Then
+        'reinit()
+      Else
+        'Active_champs()
+      Endif
+      'PvTTcLF()
+    Endif
+  End With
+Catch
+  message.Error(Error.Text & " " & Error.where)
+  
+End
+
+Public Sub Maj_Cli()
+  
+  Dim rCli As Result
+  Dim Tabcli As String
+  
+  Tabcli = "Fiches_Cli"
+  If Not IsNull(Cd.Text) Then
+    rCli = Utils.db.Exec("SELECT * FROM " & Tabcli & " where cli_code = &1", Cd.text)
+    If rCli.Available Then
+      CV.Text = rCli!cli_rs_soc
+      Nm.Text = rCli!cli_nom
+      Pnm.Text = rCli!cli_pnm
+      Adresse1.Text = rCli!cli_adr1
+      Adresse2.Text = rCli!cli_adr2
+      cp.Text = rCli!cli_cd_ptl
+      Burdist.text = rCli!cli_ville
+      Email.text = rCli!cli_email
+      Telbur.text = rCli!cli_tel_bur
+      Teldom.text = rCli!cli_tel_dom
+      poste.text = rCli!cli_tel_poste
+      portable.text = rCli!cli_pble
+      Fax1.text = rCli!cli_fx1
+      Fax2.text = rCli!cli_fx2
+    Else
+      Cd.Clear
+    Endif
+  Endif
+  
+End
+
+Public Sub Vendu_Click()
+  
+  If vendu.Value = True Then
+    Cd.ReadOnly = True
+    Cd.Background = &HD4D0C8&
+    ToggleButton3.Enabled = False
+  Else
+    Cd.ReadOnly = False
+    Cd.Background = Color.TextBackground
+    ToggleButton3.Enabled = True
+  Endif
+  
+End
+
+Public Sub Refresh()
+  
+  form_Open()
+  
+End
+
+Public Sub CleanChamps()
+  
+  code.Clear
+  codep.Clear
+  Desg.Clear
+  Desg2.Clear
+  four.Clear
+  fournom.Clear
+  Fam.Clear
+  LibelFam.Clear
+  Cequ.Clear
+  Cfour.Clear
+  Cbarre.Clear
+  Frais.Text = "0,00"
+  Prvt.Text = "0,00"
+  paht.Clear
+  Coef.Clear
+  Pvht.Clear
+  Tva.Clear
+  Txtva.Text = ""
+  PvTTc.Clear
+  Pmp.Clear
+  Margem.Clear
+  Margep.Clear
+  Dpa.Clear
+  Dfour.Clear
+  ddate.clear
+  Crst.clear
+  paht.Text = "0,00"
+  Coef.Text = "1,0000"
+  Percent.Text = "0,000"
+  Pvht.Text = "0,00"
+  PvTTc.Text = "0,00"
+  Arr.Text = "0,01"
+  Arr.Text = "0,01"
+  nbd.Text = "2"
+  Eco.Background = &HD4D0C8&
+  'Eco.Enabled = FALSE
+  Eco.Text = ""
+  nbdec = Utils.Find_nbdec(2)
+  Photos.Clear
+  Photos.Refresh
+  Photo.Clear
+  Marque.Clear
+  Type.Clear
+  Vendu.Value = False
+  Matdiv.value = False
+  CV.Clear
+  Nm.Clear
+  Pnm.Clear
+  Adresse1.Clear
+  Adresse2.Clear
+  cp.Clear
+  Burdist.Clear
+  Email.Clear
+  Telbur.Clear
+  Teldom.Clear
+  poste.Clear
+  portable.Clear
+  Fax1.Clear
+  Fax2.Clear
+  Cd.Clear
+  
+End
+
+'********************************************
+'* Saisie d'une famille manuellement        *
+'********************************************
+Public Sub Fam2()
+  
+  Dim Rfams As Result
+  Dim Tvav As Result
+  Dim Tvavt As Result
+  Dim tvavn As String
+  Dim tvan As String
+  
+  tvavn = "Fiches_Tvaav"
+  Tab = "Fiches_Fam"
+  tvan = "Fiches_Comptes"
+  Rfams = Utils.db.Exec("SELECT * FROM " & tab & " WHERE code_fam = &1", Fam.Text)
+  LibelFam.Text = Rfams!libell_fam
+  Tva.Text = Rfams!cdtva_fam
+  Txtva.Text = Format$(Rfams!txtva_fam, "0.00")
+  Try Ecotaxe = Format$(Rfams!ect_fam, "0.00")
+  B = 0
+  Tvav = Utils.db.Exec("SELECT * FROM " & tvavn & " WHERE code_tva = &1", Rfams!cdtva_fam)
+  Tvavt = Utils.db.Exec("SELECT * FROM " & tvan & " WHERE compte_cc = &1", Tvav!cc_tva)
+  If Not Tvavt.Available Then
+    Message.Warning("Le compte de tva associé à cette famille n'existe pas \n Veuillez créer ce compte SVP !", "OK")
+    b = 1
+    Tvavente = 1
+    Fam.SetFocus
+    Fam.Select
+  Endif
+Catch
+  B = 1
+  If son Then
+    Music.Play
+  Endif
+  Message.Warning("Cette famille n'existe pas !", "OK")
+  
+End
+
+'********************************************
+'* Saisie d'un fournisseur manuellement     *
+'********************************************
+Public Sub fourMan()
+  
+  Dim Rfours As Result
+  
+  Tab = "Fiches_Four"
+  Rfours = Utils.db.Exec("SELECT * FROM " & tab & " WHERE fo_code = &1", four.Text)
+  fournom.Text = Rfours!fo_nom
+  b = 0
+Catch
+  B = 1
+  If son Then
+    Music.Play
+  Endif
+  Message.Warning("Ce fournisseur n'existe pas !", "OK")
+  
+End
+
+Public Sub colmat_Click()
+  
+  If Colachat.visible Then
+    Colachat.clear
+    Colachat.visible = False
+  Endif
+  If Colventes.visible Then
+    Colventes.Clear
+    Colventes.Visible = False
+  Endif
+  CleanChamps()
+  Maj_Zones()
+  Maj_Cli()
+  Calc_Marge()
+  If vendu.Value = True Then
+    Cd.ReadOnly = True
+    Cd.Background = &HD4D0C8&
+    ToggleButton3.Enabled = False
+  Else
+    Cd.ReadOnly = False
+    Cd.Background = Color.TextBackground
+    ToggleButton3.Enabled = True
+  Endif
+  CodeP.ReadOnly = True
+  Code.SetFocus
+  CO.Text = "Code"
+  Inte.Text = "Intitulé"
+  CLT.Text = "Client"
+  SE.Text = "Numéro série   "
+  Fourn.Text = "Ref Fournisseur"
+  nv = 0
+  
+End
+
+Public Sub Btn_keyPress()
+  
+  Select Case Last.tag
+    Case 2
+      If Key.code = Key.enter Or Key.code = Key.return Then
+        TestenrgMat()
+        code.SetFocus
+      Endif
+      Stop Event
+  End Select
+  
+End
+
+Public Sub Rb_Click()
+  
+  Refresh()
+  CleanChamps()
+  Select Case Last.tag
+    Case 1
+      Stk = 1
+      Stk2 = 1
+      Deb2()
+      Stop Event
+      
+    Case 2
+      Stk = 0
+      Stk2 = 0
+      Deb2()
+      Stop Event
+      
+  End Select
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      mat_Suppr()
+      
+    Case 2
+      B2 = 1
+      Desg3.SetFocus 'sert à gerer la perte de focus
+      Stop Event
+      TestenrgMat()
+      code.SetFocus
+      
+    Case 3
+      
+      Me.Close
+      'If Not IsNull(Prd) Then
+      'Articles.EnrgArt
+      'Articles.AfficheArt
+      'Endif
+      
+    Case 4
+      Histo_ventes()
+      
+    Case 5
+      Histo_Achat()
+      
+    Case 6
+      Colrcp.Clear
+      Colrcp.Visible = False
+      Panel1.Visible = False
+      
+    Case 7
+      Colrcp3.Clear
+      Colrcp3.Visible = False
+      Panel3.Visible = False
+      
+    Case 8
+      Colrcp2.Clear
+      Colrcp2.Visible = False
+      Panel2.Visible = False
+      
+    Case 9
+      CleanChamps()
+      nv = 1
+      CodeP.SetFocus
+      CodeP.ReadOnly = False
+      'Active_champs()
+  End Select
+  
+End
+
+Public Sub Dsg_GotFocus()
+  
+  Select Case Last.tag
+    Case 1
+      If B2 = 1
+        TestenrgMat()
+        b2 = 0
+      Endif
+      
+  End Select
+  
+End
+
+Public Sub Cmpt_Lostfocus()
+  
+  If Not IsNull(CodeP.text) Then
+    Select Case Last.tag
+      Case 1
+        If nv = 1 Then CodePLF()
+        Stop Event
+        
+      Case 2
+        If nv = 1 Then CodeLF()
+        Stop Event
+        
+      Case 5
+        PaHtLF()
+        Stop Event
+        
+      Case 6
+        FraisLF()
+        Stop Event
+        
+      Case 7
+        Coeff()
+        Stop Event
+        
+      Case 8
+        Pourcent()
+        Stop Event
+        
+      Case 9
+        PvhtLF()
+        Stop Event
+        
+      Case 10
+        PvTTcLF()
+        Stop Event
+        
+    End Select
+  Endif
+  
+End
+
+Public Sub Cmpt_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+        
+      Case 1
+        CodePLF()
+        Stop Event
+        If b = 0 Then codep.SetFocus
+        
+      Case 2
+        CodeLF()
+        Stop Event
+        
+      Case 3
+        Type.SetFocus
+        Type.Select
+        Stop Event
+        
+      Case 4
+        Paht.SetFocus
+        Paht.Select
+        Stop Event
+        
+      Case 5
+        PaHtLF()
+        If b = 0 Then
+          Frais.SetFocus
+          Frais.Select
+        Endif
+        Stop Event
+        
+      Case 6
+        FraisLF()
+        Stop Event
+        
+      Case 7
+        Coeff()
+        If b = 0
+          Percent.SetFocus
+          Percent.Select
+        Endif
+        Stop Event
+        
+      Case 8
+        Pourcent()
+        If b = 0 Then
+          Pvht.SetFocus
+          Pvht.Select
+        Endif
+        Stop Event
+        
+      Case 9
+        PvhtLF()
+        If b = 0 Then
+          PvTTc.SetFocus
+          PvTTc.Select
+        Endif
+        Stop Event
+        
+      Case 10
+        PvTTcLF()
+        If b = 0 Then
+          Button4.SetFocus
+        Endif
+        Stop Event
+        
+    End Select
+  Endif
+  
+End
+
+Public Sub CodePLF()
+  
+  If Not CodeP.text Then
+    CodeP.SetFocus
+  Else
+    art_Man()
+    If b = 1 Then
+      CodeP.SetFocus
+      CodeP.Select
+      b = 0
+    Else
+      Code.SetFocus
+    Endif
+  Endif
+  
+End
+
+Public Sub CodeLF()
+  
+  Dim Rmat As Result
+  
+  tab = "Fiches_Materiels"
+  Rmat = Utils.db.Exec("SELECT * FROM " & Tab & " where mat_serie = &1 and mat_code = &2", Code.Text, Codep.text)
+  If Rmat.Available And nv = 1 And Matdiv.Value = False Then
+    Try Message.Warning("Attention ! ce numéro de série est déjà attribué pour ce produit.")
+    Code.SetFocus
+    Code.Select
+    b = 1
+  Else
+    If B2 = 0 Then
+      Marque.SetFocus
+      Marque.Select
+    Else
+      TestenrgMat()
+    Endif
+  Endif
+  Stop Event
+  
+End
+
+Public Sub PaHtLF()
+  
+  With Utils
+    PaHt.Text = .cpoint(PaHt.Text)
+    If Val(PaHt.Text) = Null Then
+      If son Then
+        Music.Play
+      Endif
+      message.Warning("Veuillez verifier votre saisie SVP !")
+      b = 1
+    Else
+      PaHt.Text = Format$(Val(PaHt.Text), nbdec)
+      If Val(PaHt.Text) <> "0" Then
+        Prvt.text = Format(Val(paht.Text) + Val(Frais.Text), nbdec)
+        Pvht.Text = Format$(Val(prvt.Text) * Val(Coef.Text), nbdec)
+        Tva_Calcul()
+        arrondi()
+        Calc_Marge()
+        PvTTCLF()
+      Else
+        paht.Text = "0,00"
+        Frais.Text = "0,00"
+        Pvht.Text = "0,00"
+        PvTTc.Text = "0,00"
+        Arr.Text = "0,01"
+      Endif
+    Endif
+    If b = 1 Then
+      PaHt.SetFocus
+      Paht.Select
+      b = 0
+    Endif
+  End With
+Catch
+  If son Then
+    Music.Play
+  Endif
+  message.Error(Error.Text & " " & Error.where)
+  
+End
+
+Public Sub Active_champs()
+  'HMat1.Spacing = 40
+  
+  Button4.Visible = True
+  ToggleButton2.Visible = True
+  Codep.ReadOnly = False
+  Codep.Background = Color.TextBackground
+  Code.ReadOnly = False
+  Code.Background = Color.TextBackground
+  Marque.ReadOnly = False
+  Marque.Background = Color.TextBackground
+  Type.ReadOnly = False
+  Type.Background = Color.TextBackground
+  PaHT.ReadOnly = False
+  PaHT.Background = Color.TextBackground
+  Frais.ReadOnly = False
+  Frais.Background = Color.TextBackground
+  Coef.ReadOnly = False
+  Coef.Background = Color.TextBackground
+  Percent.ReadOnly = False
+  Percent.Background = Color.TextBackground
+  PvHt.ReadOnly = False
+  PvHt.Background = Color.TextBackground
+  PvTTc.ReadOnly = False
+  PvTTc.Background = Color.TextBackground
+  CodeP.SetFocus
+  
+End
+
+'***************************************************************
+'*   On calcule le montant de la tva et le prix de vente TTC   *
+'***************************************************************
+Public Sub Tva_Calcul()
+  'DIM Mtva AS Float
+  
+  With Utils
+    If PvTTc.Text <> "" Or Pvht.Text <> "" Then
+      'TRY Mtva = Val(Txtva.Text)
+      'Txtva.Text = Format$(Val(.cpoint(Mtva)), "00.00")
+      PvTTc.Text = Format$(Val(Pvht.Text) + (Val(Pvht.Text) * Val(Txtva.Text) / 100), nbdec)
+    End If
+  End With
+  
+End
+
+'***************************************
+'*   On gère le coefficient de vente   *
+'***************************************
+Public Sub Coeff()
+  
+  With Utils
+    Coef.Text = .cpoint(Coef.Text)
+    If Val(Coef.Text) = Null Then
+      If son Then
+        Music.Play
+      Endif
+      Message.Warning("Veuillez verifier votre saisie SVP !", "OK")
+      Coef.Text = "1.0000"
+      b = 1
+    Else
+      Coef.text = Format$(Val(Coef.text), "0.0000")
+      b = 0
+    Endif
+    If b = 1 Then
+      Coef.SetFocus
+      Coef.Select
+      b = 0
+    Else
+      Calc_Percent()
+      Pvht.Text = Format$(Val(prvt.Text) * Val(Coef.Text), nbdec)
+      Tva_calcul()
+      Arrondi()
+      Calc_Percent()
+      Calc_Marge()
+    Endif
+  End With
+Catch
+  message.Error(Error.Text & " " & Error.where)
+  
+End
+
+'***************************************
+'*   On gère le pourcentage de vente   *
+'***************************************
+Public Sub Pourcent()
+  
+  With Utils
+    Percent.Text = .cpoint(Percent.Text)
+    If Val(Percent.Text) = Null Then
+      If son Then
+        Music.Play
+      Endif
+      Message.Warning("Veuillez verifier votre saisie SVP !", "OK")
+      Percent.Text = "0.000"
+      b = 1
+    Else
+      Percent.text = Format$(Val(Percent.text), "0.000")
+      b = 0
+    Endif
+    If b = 1 Then
+      Percent.SetFocus
+      Percent.Select
+      b = 0
+    Else
+      Calc_coeff()
+      Pvht.Text = Format$(Val(prvt.Text) * Val(Coef.Text), nbdec)
+      Tva_calcul()
+      Arrondi()
+      Calc_Marge()
+    Endif
+  End With
+Catch
+  message.Error(Error.Text & " " & Error.where)
+  
+End
+
+'***********************************
+'*  On gère le prix de vente ht    *
+'***********************************
+Public Sub PvhtLF()
+  
+  With Utils
+    Pvht.Text = .cpoint(Pvht.Text)
+    If Val(Pvht.Text) = Null Then
+      If son Then
+        Music.Play
+      Endif
+      message.Warning("Veuillez verifier votre saisie SVP !")
+      b = 1
+    Else
+      Pvht.Text = Format$(Val(Pvht.Text), nbdec)
+      Calc_Percent()
+      Calc_coeff()
+      b = 0
+      Tva_Calcul()
+      arrondi()
+      Calc_Marge()
+    Endif
+    If b = 1 Then
+      Pvht.SetFocus
+      Pvht.Select
+      b = 0
+    Endif
+  End With
+Catch
+  message.Error(Error.Text & " " & Error.where)
+  
+End
+
+'***********************************
+'* On gère le prix de vente TTC    *
+'***********************************
+Public Sub PvTTcLF()
+  
+  Dim tx As Float
+  
+  With Utils
+    Pvttc.Text = .cpoint(Pvttc.Text)
+    If Val(PvTTc.Text) = Null Then
+      If son Then
+        Music.Play
+      Endif
+      message.Warning("Veuillez verifier votre saisie SVP !")
+      b = 1
+    Else
+      tx = (1 + (Val(Txtva.Text) / 100))
+      If Val(PvTTc.Text) <> 0 Then
+        Pvht.Text = Format$(Val(PvTTc.Text) / tx, nbdec)
+        PvTTc.Text = Format$(Val(PvTTc.Text), nbdec)
+      Endif
+      Calc_Percent()
+      Calc_coeff()
+      b = 0
+      arrondi()
+      Calc_Marge()
+    Endif
+    If b = 1 Then
+      PvTTc.SetFocus
+      PvTTc.Select
+      b = 0
+    Endif
+  End With
+Catch
+  message.Error(Error.Text & " " & Error.where)
+  
+End
+
+'***********************************
+'*        On gère l' arrondi       *
+'***********************************
+Public Sub arrondi()
+  
+  If Not PvTTc.Text Then PvTTc.Text = "0,00"
+  Pvttc.Text = Utils.cpoint(Pvttc.Text)
+  If arr.Text = "0,05" Then
+    If Right$(pvTTc.Text) Like "[34567]*" Then
+      PvTTC.Text = Left$(PvTTC.Text, (Len(PvTTC.Text) - 1)) & "5"
+    Else
+      PvTTC.Text = Round(Val(PvTTC.Text), -1)
+      PvTTC.Text = Format$(PvTTC.Text, nbdec)
+    Endif
+  Endif
+  
+  If arr.Text = "0,10" Then
+    PvTTC.Text = Round(Val(PvTTC.Text), -1)
+    PvTTC.Text = Format$(PvTTC.Text, nbdec)
+  Endif
+  
+  If arr.Text = "0,50" Then
+    If Val(pvTTc.Text) <= Val(Left$(pvTTc.Text, (Len(pvTTc.Text) - 2)) & 25) Then
+      PvTTC.Text = Left$(PvTTC.Text, (Len(PvTTC.Text) - 2)) & "00"
+    Else
+      If Val(pvTTc.Text) <= Val(Left$(pvTTc.Text, (Len(pvTTc.Text) - 2)) & 75) Then
+        PvTTC.Text = Left$(PvTTC.Text, (Len(PvTTC.Text) - 2)) & "50"
+      Endif
+      If Val(pvTTc.Text) >= Val(Left$(pvTTc.Text, (Len(pvTTc.Text) - 2)) & 76) Then
+        PvTTC.Text = Round(Val(PvTTC.Text))
+        PvTTC.Text = Format$(PvTTC.Text, nbdec)
+      Endif
+    Endif
+  Endif
+  
+  If arr.Text = "1,00" Then
+    PvTTC.Text = Round(Val(PvTTC.Text))
+    PvTTC.Text = Format$(PvTTC.Text, nbdec)
+  Endif
+  
+End
+
+'***********************************
+'*       On calcule la marge       *
+'***********************************
+Public Sub Calc_Marge()
+  
+  If Pmp.Text = "" Then Pmp.Text = prvt.Text
+  Pmp.Text = Format$(Val(Pmp.Text), nbdec)
+  Margem.Text = Format$(Val(Pvht.Text) - Val(Pmp.Text), nbdec)
+  Try Margep.Text = Format$((Val(Margem.Text) * 100) / Val(Pmp.Text), nbdec)
+  
+End
+
+'********************************************
+'*       On calcule le taux de marque       *
+'********************************************
+Public Sub Calc_Percent()
+  'TRY Percent.Text = Format$((1 - (Val(paht.Text) / Val(Pvht.Text))) * 100, "0.000")
+  
+  Try Percent.Text = Format$((Val(Pvht.Text) - Val(prvt.Text)) / Val(Pvht.Text) * 100, "0.000")
+  'Percent.Text = Format$(1 / Val(Coef.text),"0.000")
+  'Percent.Text =Format$((1 - Val(Percent.Text)) * 100 ,"0.000")
+  
+End
+
+'***************************************************
+'*        On calcule le coefficient de marge       *
+'***************************************************
+Public Sub Calc_coeff()
+  'TRY Coef.Text = Format$(Val(Pvht.Text) / Val(paht.Text) , "0.000")
+  
+  Try Coef.Text = Format$(1 / (1 - (Val(Percent.Text)) / 100), "0.0000")
+  
+End
+
+'**************************
+'*    On gère les frais   *
+'**************************
+Public Sub FraisLF()
+  
+  With Utils
+    If IsNull(Frais.text) Then Frais.Text = "0,00"
+    Frais.Text = .cpoint(Frais.Text)
+    If Val(Frais.Text) = Null Then
+      If son Then
+        Music.Play
+      Endif
+      message.Warning("Veuillez verifier votre saisie SVP !")
+      b = 1
+    Else
+      Frais.Text = Format$(Val(Frais.Text), nbdec)
+      Prvt.Text = Format$(Val(Paht.Text) + Val(Frais.Text), nbdec)
+      Pvht.Text = Format$(Val(Prvt.Text) * Val(coef.Text), nbdec)
+      Tva_Calcul()
+      arrondi()
+      Calc_Marge()
+      PvTTcLF()
+      b = 0
+    Endif
+    If b = 1 Then
+      Frais.SetFocus
+      Frais.Select
+    Else
+      Coef.SetFocus
+      Coef.Select
+    Endif
+  End With
+  'Paua.Background = Color.TextBackground
+  'montante = 0
+Catch
+  message.Error(Error.Text & " " & Error.where)
+  
+End
+
+Public Sub Co_GotFocus()
+  
+  Try Utils.ObsGotf(Co)
+  Co_Click()
+  
+End
+
+Public Sub Co_LostFocus()
+  
+  Try Utils.ObsLstf(CO)
+  
+End
+
+Public Sub Inte_GotFocus()
+  
+  Try Utils.ObsGotf(Inte)
+  Inte_Click()
+  
+End
+
+Public Sub Inte_LostFocus()
+  
+  Try Utils.ObsLstf(Inte)
+  
+End
+
+Public Sub CLT_GotFocus()
+  
+  Try Utils.ObsGotf(Clt)
+  ClT_Click()
+  
+End
+
+Public Sub CLT_LostFocus()
+  
+  Try Utils.ObsLstf(Clt)
+  
+End
+
+Public Sub SE_LostFocus()
+  
+  Try Utils.ObsLstf(SE)
+  
+End
+
+Public Sub SE_GotFocus()
+  
+  Try Utils.ObsGotf(se)
+  SE_Click()
+  
+End
+
+Public Sub fourn_LostFocus()
+  
+  Try Utils.ObsLstf(Fourn)
+  
+End
+
+Public Sub fourn_GotFocus()
+  
+  Try Utils.ObsGotf(fourn)
+  fourn_Click()
+  
+End
+
+Public Sub Dbclk()
+  
+  If Not Dbl Then
+    Deb3()
+    Dbl = "1"
+  Else
+    Deb2()
+    Dbl = ""
+  Endif
+  
+End
+
+Public Sub Co_Click()
+  
+  Dim mat_code As String
+  
+  Dbl = ""
+  sel = ""
+  'ref()
+  Co.Text = ""
+  Inte.Text = "Intitulé"
+  CLT.Text = "Client"
+  SE.Text = "Numéro série   "
+  fourn.Text = "Ref Fournisseur"
+  Tri = "mat_code"
+  Deb2()
+  
+End
+
+Public Sub Co_Dblclick()
+  
+  Dbclk()
+  
+End
+
+Public Sub Co_KeyPress()
+  
+  If key.code = key.backspace Then
+    sel = Left$(sel, (Len(sel) - 1))
+  Else
+    sel = sel & key.Text
+  Endif
+  Deb2()
+Catch
+  
+End
+
+Public Sub Inte_Click()
+  
+  Dim mat_design As String
+  
+  sel = ""
+  Dbl = ""
+  'ref()
+  Co.Text = "Code"
+  Inte.Text = ""
+  CLT.Text = "Client"
+  SE.Text = "Numéro série   "
+  fourn.Text = "Ref Fournisseur"
+  Tri = "mat_design"
+  Deb2()
+  
+End
+
+Public Sub Inte_Dblclick()
+  
+  Dbclk()
+  
+End
+
+Public Sub Inte_KeyPress()
+  
+  If key.code = key.backspace Then
+    sel = Left$(sel, (Len(sel) - 1))
+  Else
+    sel = sel & key.Text
+  Endif
+  Deb4()
+Catch
+  
+End
+
+Public Sub CLT_Click()
+  
+  Dim mat_cli As String
+  
+  sel = ""
+  Dbl = ""
+  'ref()
+  Co.Text = "Code"
+  Inte.Text = "Intitulé"
+  CLT.Text = ""
+  SE.Text = "Numéro série   "
+  fourn.Text = "Ref Fournisseur"
+  Tri = "mat_cli"
+  Deb2()
+  
+End
+
+Public Sub CLT_Dblclick()
+  
+  Dbclk()
+  
+End
+
+Public Sub CLT_KeyPress()
+  
+  If key.code = key.backspace Then
+    sel = Left$(sel, (Len(sel) - 1))
+  Else
+    sel = sel & key.Text
+  Endif
+  Deb2()
+Catch
+  
+End
+
+Public Sub Ta_Click()
+  
+  Dim mat_tva As String
+  
+  sel = ""
+  Dbl = ""
+  'ref()
+  Co.Text = "Code"
+  Inte.Text = "Intitulé"
+  CLT.Text = "Client"
+  SE.Text = "Numéro série   "
+  fourn.Text = "Ref Fournisseur"
+  Tri = "mat_paht"
+  Deb2()
+  
+End
+
+Public Sub Ta_Dblclick()
+  
+  Dbclk()
+  
+End
+
+Public Sub Ta_KeyPress()
+  
+  If key.code = key.backspace Then
+    sel = Left$(sel, (Len(sel) - 1))
+  Else
+    sel = sel & key.Text
+  Endif
+  Deb2()
+Catch
+  
+End
+
+Public Sub Cof_Click()
+  
+  Dim mat_coef As String
+  
+  sel = ""
+  Dbl = ""
+  'ref()
+  Co.Text = "Code"
+  Inte.Text = "Intitulé"
+  CLT.Text = "Client"
+  SE.Text = "Numéro série   "
+  fourn.Text = "Ref Fournisseur"
+  Tri = "mat_coef"
+  Deb2()
+  
+End
+
+Public Sub Cof_Dblclick()
+  
+  Dbclk()
+  
+End
+
+Public Sub Cof_KeyPress()
+  
+  If key.code = key.backspace Then
+    sel = Left$(sel, (Len(sel) - 1))
+  Else
+    sel = sel & key.Text
+  Endif
+  Deb2()
+Catch
+  
+End
+
+Public Sub TTc_Click()
+  
+  Dim mat_pvttc As String
+  
+  sel = ""
+  Dbl = ""
+  'ref()
+  Co.Text = "Ccode"
+  Inte.Text = "Intitulé"
+  CLT.Text = "Client"
+  SE.Text = "Numéro série   "
+  fourn.Text = "Ref Fournisseur"
+  Tri = "mat_pvttc"
+  Deb2()
+  
+End
+
+Public Sub TTc_Dblclick()
+  
+  Dbclk()
+  
+End
+
+Public Sub TTc_KeyPress()
+  
+  If key.code = key.backspace Then
+    sel = Left$(sel, (Len(sel) - 1))
+  Else
+    sel = sel & key.Text
+  Endif
+  Deb2()
+Catch
+  
+End
+
+Public Sub SE_Click()
+  
+  sel = ""
+  Dbl = ""
+  'ref()
+  Co.Text = "Ccode"
+  Inte.Text = "Intitulé"
+  CLT.Text = "Client"
+  SE.Text = ""
+  fourn.Text = "Ref Fournisseur"
+  Tri = "mat_serie"
+  Deb2()
+  
+End
+
+Public Sub SE_Dblclick()
+  
+  Dbclk()
+  
+End
+
+Public Sub SE_KeyPress()
+  
+  If Key.Code = key.Return Or If key.Code = key.Enter Then
+    SE.clear
+  Else
+    If Left$(Key.Text, 1) = "*" Then
+      SE.Text = Mid$(SE.Text, 2, Len(SE.Text) - 1)
+    Else
+      If key.code = key.backspace Then
+        sel = Left$(sel, (Len(sel) - 1))
+      Else
+        sel = sel & key.Text
+      Endif
+    Endif
+    Deb2()
+  Endif
+Catch
+  
+End
+
+Public Sub fourn_Click()
+  
+  Dim mat_cfour As String
+  
+  sel = ""
+  Dbl = ""
+  'ref()
+  Co.Text = "Code"
+  Inte.Text = "Intitulé"
+  CLT.Text = "Client"
+  SE.Text = "Numéro série   "
+  fourn.Text = ""
+  Tri = "mat_cfour"
+  Deb2()
+  
+End
+
+Public Sub fourn_Dblclick()
+  
+  Dbclk()
+  
+End
+
+Public Sub fourn_KeyPress()
+  
+  If Left$(Key.Text, 1) = "*" Then
+    fourn.Text = Mid$(fourn.Text, 2, Len(fourn.Text) - 1)
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+  Endif
+  Deb2()
+Catch
+  
+End
+
+Public Sub Ref()
+  
+  Tab = "Fiches_Art"
+  Tri = "mat_code"
+  CleanChamps()
+  Tris()
+  'Deb2()
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Cmpt_Gotfocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  Select Case Last.tag
+    Case 1
+      If Nv = 0 Then Code.setfocus
+      
+      Stop Event
+      
+  End Select
+  
+End
+
+'PUBLIC SUB Cmpt_Click()
+'SELECT CASE LAST.tag
+'  CASE 11
+' Desg.SetFocus
+' STOP EVENT
+'END SELECT
+
+'END
+
+'PUBLIC SUB Desg_GotFocus()
+' SELECT CASE LAST.tag
+
+'  CASE 1
+' Button4_Click()
+' END SELECT
+'END
+
+'*********************************************
+'*            Validation du materiel         *
+'*********************************************
+Public Sub TestenrgMat()
+  
+  Dim rarts As Result
+  Dim Fm As Result
+  Dim Col As Boolean
+  Dim Tab As String
+  Dim qte As String = "0"
+  Dim Countrow As Integer
+  
+  Tab = "Fiches_Materiels"
+  If b = 0 Then
+    If Matdiv.value = False Then
+      If IsNull(code.text) Then
+        If son Then
+          Music.Play
+        Endif
+        Message.Warning("Vous n'avez pas saisit de numéro de série !")
+        Code.SetFocus
+        b = 1
+      Else
+        If IsNull(Marque.text) Then
+          If son Then
+            Music.Play
+          Endif
+          Message.Warning("Vous n'avez pas saisit de marque !")
+          Marque.SetFocus
+          b = 1
+        Endif
+      Endif
+    Else
+      b = 0
+    Endif
+    If b = 0 Then
+      EnrgMat()
+    Else
+      b = 0
+    Endif
+  Endif
+Catch
+  If son Then
+    Music.Play
+  Endif
+  Try message.Error(Error.Text & " " & Error.where)
+  b2 = 0
+  Code.SetFocus
+  
+End
+
+Public Sub EnrgMat()
+  
+  Dim rarts As Result
+  Dim Fm As Result
+  Dim Col As Boolean
+  Dim Tab As String
+  Dim qte As String = "0"
+  Dim Countrow As Integer
+  
+  With Utils
+    Tab = "Fiches_Materiels"
+    Desg.Text = .Remplace(Desg.Text)
+    Desg2.Text = .Remplace(Desg2.Text)
+    rarts = Utils.db.Exec("SELECT * FROM " & Tab & " where mat_code = &1 and mat_serie = &2 ", codep.Text, code.Text)
+    If Not rarts.Available Then
+      If chkgarantie.value = True Then
+        Utils.db.Exec("INSERT INTO " & Tab & "(mat_serie,mat_code,mat_design,mat_design2, mat_fam,mat_four,mat_cequ,mat_cbarre,mat_cfour,mat_paht,mat_frais,mat_prvt,mat_coef, mat_pvht, mat_pvttc,mat_eco,mat_cdarr,mat_nbd, mat_pmp, mat_qte, mat_vendu, mat_marque, mat_type, mat_matdiv, mat_cli, mat_crst, mat_dtevte, mat_dateg1, mat_chkgarantie) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24}, &{25}, &{26}, &{27}, &{28}, &{29})", code.Text, codep.Text, Desg.Text, Desg2.Text, Fam.Text, four.Text, Cequ.Text, CBarre.Text, Cfour.Text, Val(Paht.Text), Val(.cpoint(Frais.Text)), Val(.cpoint(Prvt.Text)), Val(.cpoint(Coef.Text)), Val(Pvht.Text), Val(Pvttc.Text), Val(Eco.Text), Arr.Text, Nbd.Text, Val(Pmp.Text), 0, 0, Marque.Text, Type.Text, Matdiv.value, cd.Text, crst.text, Utils.Cdate_Dbase(Datevte.Text), Utils.Cdate_Dbase(DateG1.Text), True)
+      Else
+        Utils.db.Exec("INSERT INTO " & Tab & "(mat_serie,mat_code,mat_design,mat_design2, mat_fam,mat_four,mat_cequ,mat_cbarre,mat_cfour,mat_paht,mat_frais,mat_prvt,mat_coef, mat_pvht, mat_pvttc,mat_eco,mat_cdarr,mat_nbd, mat_pmp, mat_qte, mat_vendu, mat_marque, mat_type, mat_matdiv, mat_cli, mat_crst) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24}, &{25}, &{26})", code.Text, codep.Text, Desg.Text, Desg2.Text, Fam.Text, four.Text, Cequ.Text, CBarre.Text, Cfour.Text, Val(Paht.Text), Val(.cpoint(Frais.Text)), Val(.cpoint(Prvt.Text)), Val(.cpoint(Coef.Text)), Val(Pvht.Text), Val(Pvttc.Text), Val(Eco.Text), Arr.Text, Nbd.Text, Val(Pmp.Text), 0, 0, Marque.Text, Type.Text, Matdiv.value, cd.Text, crst.text)
+      Endif
+      Refresh()
+      Cleanchamps()
+      'reinit()
+      nv = 0
+    Else
+      If nv = 0 Then
+        If vendu.value = True Then Qte = "1"
+        If nv = 0 Then
+          If vendu.Value = True Then
+            Utils.db.Exec("Update " & Tab & " set mat_serie = &1, mat_code = &2,mat_design = &3,mat_design2 = &4, mat_fam = &5,mat_four = &6,mat_cequ = &7,mat_cbarre = &8,mat_cfour = &9,mat_paht = &{10},mat_frais = &{11},mat_prvt = &{12},mat_coef = &{13}, mat_pvht = &{14}, mat_pvttc = &{15},mat_eco = &{16},mat_cdarr = &{17},mat_nbd = &{18}, mat_pmp = &{19}, mat_qte = &{20}, mat_vendu = &{21}, mat_marque = &{22}, mat_type = &{23}, mat_matdiv = &{24}, mat_crst = &{25}, mat_dtevte = &{26}, mat_dateg1 = &{27}, mat_chkgarantie = &{28} where mat_code = &2 and mat_serie = &1", code.Text, codep.Text, Desg.Text, Desg2.Text, Fam.Text, four.Text, Cequ.Text, CBarre.Text, Cfour.Text, Val(Paht.Text), Val(.cpoint(Frais.Text)), Val(.cpoint(Prvt.Text)), Val(.cpoint(Coef.Text)), Val(Pvht.Text), Val(Pvttc.Text), Val(Eco.Text), Arr.Text, Nbd.Text, Val(Pmp.Text), Qte, Vendu.value, Marque.Text, Type.Text, Matdiv.value, Crst.Text, Utils.Cdate_Dbase(Datevte.Text), Utils.Cdate_Dbase(DateG1.Text), Chkgarantie.value)
+          Else
+            Utils.db.Exec("Update " & Tab & " set mat_serie = &1, mat_code = &2,mat_design = &3,mat_design2 = &4, mat_fam = &5,mat_four = &6,mat_cequ = &7,mat_cbarre = &8,mat_cfour = &9,mat_paht = &{10},mat_frais = &{11},mat_prvt = &{12},mat_coef = &{13}, mat_pvht = &{14}, mat_pvttc = &{15},mat_eco = &{16},mat_cdarr = &{17},mat_nbd = &{18}, mat_pmp = &{19}, mat_qte = &{20}, mat_vendu = &{21}, mat_marque = &{22}, mat_type = &{23}, mat_matdiv = &{24}, mat_cli = &{25}, mat_crst = &{26} where mat_code = &2 and mat_serie = &1", code.Text, codep.Text, Desg.Text, Desg2.Text, Fam.Text, four.Text, Cequ.Text, CBarre.Text, Cfour.Text, Val(Paht.Text), Val(.cpoint(Frais.Text)), Val(.cpoint(Prvt.Text)), Val(.cpoint(Coef.Text)), Val(Pvht.Text), Val(Pvttc.Text), Val(Eco.Text), Arr.Text, Nbd.Text, Val(Pmp.Text), Qte, Vendu.value, Marque.Text, Type.Text, Matdiv.value, cd.Text, crst.Text)
+          Endif
+          Cleanchamps()
+        Endif
+      Endif
+      If nv = 1 And Matdiv.Value = False Then
+        If son Then
+          Music.Play
+        Endif
+        Message.Warning("Ce matériel existe déjà !")
+      Else
+        Form_Open()
+      Endif
+    Endif
+  End With
+  
+End
+
+'************************************
+'  On remet les zones en read only  *
+'************************************
+Public Sub reinit()
+  
+  'HMat1.Spacing = 40
+  'Button4.Visible = FALSE
+  ToggleButton2.Visible = False
+  CodeP.ReadOnly = True
+  Code.ReadOnly = True
+  Marque.ReadOnly = True
+  Type.ReadOnly = True
+  PaHT.ReadOnly = True
+  Frais.ReadOnly = True
+  Coef.ReadOnly = True
+  Percent.ReadOnly = True
+  PvHt.ReadOnly = True
+  PvTTc.ReadOnly = True
+  Vendu.Enabled = False
+  
+End
+
+'**********************************
+'* Suppression du code Materiel   *
+'**********************************
+Public Sub mat_Suppr()
+  
+  Dim rarts As Result
+  Dim rResult As Result
+  Dim tabcom As String
+  Dim tabrecpt As String
+  Dim tabligbl As String
+  Dim tabmvt As String
+  Dim tabinv As String
+  Dim Suppr As Integer
+  
+  Tab = "Fiches_Ligbl"
+  Suppr = 1
+  If nv = 0 Then
+    If Not IsNull(code.Text) Then
+      If son Then
+        Music.Play
+      Endif
+      If Message.Question("Etes vous sur de vouloir effacer cet enregistrement", "Oui", "Non") = 1 Then
+        Me.Mouse = Mouse.Wait
+        rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE  code_ligbl = &1", code.Text)
+        If rResult.Available Then
+          Message.Warning("Annulation Impossible ! Ce matériel est utilisé en facturation.")
+          Me.Mouse = Mouse.Default
+          'Materiel.Show
+        Else
+          Tab = "Fiches_Materiels"
+          rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE  mat_serie = &1 and mat_code = &2", code.Text, Codep.text)
+          If rResult.Available Then
+            Utils.db.Exec("DELETE FROM " & Tab & " WHERE mat_serie = &1 and mat_code = &2", code.Text, codep.text)
+            sKey = colmat.row
+            Refresh()
+            Cleanchamps()
+            colmat.MoveTo(skey, 0)
+          Endif
+          Me.Mouse = Mouse.Default
+        Endif
+      Endif
+    Endif
+  Else
+    CleanChamps()
+  Endif
+Catch
+  If son Then
+    Music.Play
+  Endif
+  message.Error(Error.Text & " " & Error.where)
+  Me.Mouse = Mouse.Default
+  
+End
+
+'**********************************
+'*     Recherche histo ventes      *
+'**********************************
+Public Sub Histo_Ventes()
+  
+  Dim Histolig As Result
+  Dim Histofac As Result
+  Dim LigblResult As Result
+  Dim BlResult As Result
+  Dim TabHis As String
+  Dim Tab2 As String
+  Dim Tab3 As String
+  Dim Tab4 As String
+  
+  TabHis = "Fiches_HistoLigfac"
+  Tab2 = "Fiches_HistoFac"
+  Tab3 = "Fiches_Bl"
+  Tab4 = "Fiches_Ligbl"
+  With utils
+    If Colachat.visible Then
+      Colachat.clear
+      Colachat.visible = False
+    Endif
+    If Colventes.visible Then
+      Colventes.Clear
+      Colventes.Visible = False
+    Else
+      Colventes.visible = True
+      Colventes.Columns.count = 8
+      Colventes.Columns[0].Width = 100
+      Colventes.Columns[1].Width = 80
+      Colventes.Columns[2].Width = 180
+      Colventes.Columns[3].Alignment = 2
+      Colventes.Columns[3].Width = 100
+      Colventes.Columns[4].Alignment = 2
+      Colventes.Columns[4].Width = 100
+      Colventes.Columns[5].Alignment = 2
+      Colventes.Columns[5].Width = 100
+      Colventes.Columns[6].Alignment = 2
+      Colventes.Columns[6].Width = 60
+      Colventes.Columns[7].Alignment = 4
+      Colventes.Columns[7].Width = 100
+      Colventes.Columns[0].Text = "Date"
+      Colventes.Columns[1].Text = "Code"
+      Colventes.Columns[2].Text = "Nom"
+      Colventes.Columns[3].Text = "Pv brut"
+      Colventes.Columns[4].Text = "Remise"
+      Colventes.Columns[5].Text = "Pv net"
+      Colventes.Columns[6].Text = "Qte"
+      Colventes.Columns[7].Text = "N° Fac/Bl"
+      If Not IsNull(code.Text) Then
+        LigblResult = Utils.db.Exec("SELECT * FROM " & Tab4 & " where num_ligbl = &1 and code_ligbl = &2", bl, code.Text)
+        If LigblResult.Available Then
+          Do
+            BlResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " where numbl = &1 ", LigblResult!num_ligbl)
+            If BlResult.Available Then
+              If BlResult!type = "B" Or BlResult!type = "F" Then
+                Colventes.Add(LigblResult!num_ligbl & LigblResult!numlig_ligbl, LigblResult!num_ligbl & LigblResult!numlig_ligbl)
+                If BlResult!imp = "1" Then
+                  Colventes.Item[0] = .Cdate_Aff(blResult!dtefac)
+                Else
+                  Colventes.Item[0] = .Cdate_Aff(blResult!datebl)
+                Endif
+                Colventes.Item[1] = BlResult!cdclibl
+                Colventes.Item[2] = BlResult!nmclibl
+                Colventes.Item[3] = LigblResult!pu_ligbl
+                If Len(Colventes.Item[3]) - InStr(Colventes.Item[3], ",") = 2 Then Colventes.Item[3] = Colventes.Item[3] & " "
+                Colventes.Item[4] = LigblResult!rem_ligbl
+                Colventes.Item[5] = LigblResult!netht_ligbl
+                If Len(Colventes.Item[5]) - InStr(Colventes.Item[5], ",") = 2 Then Colventes.Item[5] = Colventes.Item[5] & " "
+                Colventes.Item[6] = LigblResult!qte_ligbl
+                If BlResult!imp = "1" Then
+                  Colventes.Item[7] = BlResult!numfac
+                Else
+                  Colventes.Item[7] = BlResult!numbl
+                Endif
+              Endif
+            Endif
+          Loop Until LigblResult.MoveNext()
+        Endif
+        Histolig = Utils.db.Exec("SELECT * FROM " & TabHis & " where code_ligfac = &1 and num_ligfac = &2 ", code.Text, bl)
+        If Histolig.Available Then
+          Do
+            Colventes.Add(Histolig!num_ligfac & Histolig!numlig_ligfac, Histolig!num_ligfac & Histolig!numlig_ligfac)
+            Histofac = Utils.db.Exec("SELECT * FROM " & Tab2 & " where numfac = &1 ", Histolig!num_ligfac)
+            Colventes.Item[0] = .Cdate_Aff(Histofac!datefac)
+            Colventes.Item[1] = Histofac!cdclifac
+            Colventes.Item[2] = Histofac!nmclifac
+            Colventes.Item[3] = Histolig!pu_ligfac
+            If Len(Colventes.Item[3]) - InStr(Colventes.Item[3], ",") = 2 Then Colventes.Item[3] = Colventes.Item[3] & " "
+            Colventes.Item[4] = Histolig!rem_ligfac
+            Colventes.Item[5] = Histolig!netht_ligfac
+            If Len(Colventes.Item[5]) - InStr(Colventes.Item[5], ",") = 2 Then Colventes.Item[5] = Colventes.Item[5] & " "
+            Colventes.Item[6] = Histolig!qte_ligfac
+            Colventes.Item[7] = Histofac!numfac
+          Loop Until Histolig.MoveNext()
+          Colventes.MoveFirst
+          Colventes.SetFocus
+          Colventes.Item.Selected = True
+        Endif
+        Tab2 = "Fiches_HistoFacM"
+        Tab3 = "Fiches_BlM"
+        BlResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " where numserie = &1 and codep = &2", Code.Text, CodeP.Text)
+        If BlResult.Available Then
+          If BlResult!type = "B" Or BlResult!type = "F" Then
+            Colventes.Add(blResult!numserie & blResult!codep, blResult!numserie & blResult!codep)
+            If BlResult!imp = "1" Then
+              Colventes.Item[0] = .Cdate_Aff(blResult!dtefac)
+            Else
+              Colventes.Item[0] = .Cdate_Aff(blResult!datebl)
+            Endif
+            Colventes.Item[1] = BlResult!cdclibl
+            Colventes.Item[2] = BlResult!nmclibl
+            If BlResult!imp = "1" Then
+              Colventes.Item[7] = BlResult!numfac
+            Else
+              Colventes.Item[7] = BlResult!numbl
+            Endif
+          Endif
+        Endif
+        Histolig = Utils.db.Exec("SELECT * FROM " & Tab2 & " where numserie = &1 and codep = &2", Code.Text, CodeP.Text)
+        If Histolig.Available Then
+          Do
+            Colventes.Add(Histolig!numserie & Histolig!codep & Histolig!numfac, Histolig!numserie & Histolig!codep & Histolig!numfac)
+            Colventes.Item[0] = .Cdate_Aff(Histolig!datefac)
+            Colventes.Item[1] = Histolig!cdclifac
+            Colventes.Item[2] = Histolig!nmclifac
+            Colventes.Item[7] = Histolig!numfac
+          Loop Until Histolig.MoveNext()
+          Colventes.MoveFirst
+          Colventes.SetFocus
+          Colventes.Item.Selected = True
+        Endif
+        
+      Endif
+    Endif
+  End With
+  
+End
+
+'**************************************************
+'*      Selection d'une facture a la souris       *
+'**************************************************
+Public Sub Colventes_click()
+  
+  Dim bl As String
+  
+  Tab = "Fiches_Cli"
+  Tab2 = "Fiches_Art"
+  Totalfac.Text = "0,00"
+  Colrcp3.clear
+  Colrcp3.Columns.count = 7
+  Colrcp3.Columns[0].Width = 50
+  Colrcp3.Columns[1].Width = 140
+  Colrcp3.Columns[2].Width = 310
+  Colrcp3.Columns[3].Width = 60
+  Colrcp3.Columns[4].Width = 80
+  Colrcp3.Columns[5].Width = 80
+  Colrcp3.Columns[6].Width = 80
+  Colrcp3.Columns[0].Text = "Ligne"
+  Colrcp3.Columns[1].Text = "Code"
+  Colrcp3.Columns[2].Text = "Designation"
+  Colrcp3.Columns[3].Text = "Qté "
+  Colrcp3.Columns[3].Alignment = 2
+  Colrcp3.Columns[4].Text = "Px brut ht"
+  Colrcp3.Columns[4].Alignment = 2
+  Colrcp3.Columns[5].Text = "Remise"
+  Colrcp3.Columns[5].Alignment = 2
+  Colrcp3.Columns[6].Text = "Px net ht"
+  Colrcp3.Columns[6].Alignment = 2
+  With Utils
+    If Colventes.Count Then
+      Rcli = Utils.db.Exec("SELECT * FROM " & tab & " WHERE cli_code = &1", Colventes.Item[1])
+      codecli.Text = Rcli!cli_code
+      nomcli.Text = Rcli!cli_nom
+      datef.Text = .Cdate_Aff(Colventes.Item[0])
+      numfac.Text = Colventes.Item[7]
+      If Left$(Numfac.text, 1) <> 0 Then
+        Tab = "Fiches_HisentMat" 
+        Rcli = Utils.db.Exec("SELECT * FROM " & tab & " WHERE numfac = &1 and numserie = &2", numfac.Text, Code.text)
+        If Rcli.Available Then ComentMat.Text = Rcli!libelle
+        Tab = "Fiches_HistoLigfac"
+        Rcli = Utils.db.Exec("SELECT * FROM " & tab & " WHERE num_ligfac = &1", Colventes.Item[7])
+        If Rcli.Available Then
+          recupfac(Rcli)
+        Else
+          Tab = "Fiches_HistoLigfacM"
+          Rcli = Utils.db.Exec("SELECT * FROM " & tab & " WHERE num_ligfac = &1", Colventes.Item[7])
+          If Rcli.Available Then
+            recupfac(Rcli)
+          Else
+            Tab = "Fiches_Bl"
+            Rcli = Utils.db.Exec("SELECT * FROM " & tab & " WHERE numfac = &1", Colventes.Item[7])
+            If Rcli.available Then Bl = Rcli!numbl
+            Tab = "Fiches_Ligbl"
+            Rcli = Utils.db.Exec("SELECT * FROM " & tab & " WHERE num_ligbl = &1", bl)
+            If Rcli.Available Then
+              recupbl()
+            Else
+              Tab = "Fiches_BlM"
+              Rcli = Utils.db.Exec("SELECT * FROM " & tab & " WHERE numfac = &1", Colventes.Item[7])
+              Bl = Rcli!numbl
+              Tab = "Fiches_LigblM"
+              Rcli = Utils.db.Exec("SELECT * FROM " & tab & " WHERE num_ligbl = &1", bl)
+              If Rcli.Available Then
+                recupbl()
+              Endif
+            Endif
+          Endif
+        Endif
+      Else
+        Tab = "Fiches_Ligbl"
+        Rcli = Utils.db.Exec("SELECT * FROM " & tab & " WHERE num_ligbl = &1", Colventes.Item[7])
+        If Rcli.Available Then
+          recupbl()
+        Else
+          Tab = "Fiches_LigblM"
+          Rcli = Utils.db.Exec("SELECT * FROM " & tab & " WHERE num_ligbl = &1", Colventes.Item[7])
+          If Rcli.Available Then
+            recupbl()
+          Endif
+        Endif
+      Endif
+    Endif
+  End With
+  
+End
+
+'******************************************************
+'*       On récupère les lignes de facture            *
+'******************************************************
+
+Public Sub recupfac(rcli As Result)
+  
+  Panel3.Visible = True
+  Colrcp3.Visible = True
+  Button8.Visible = True
+  Do
+    Colrcp3.Add(Rcli!numlig_ligfac, Rcli!numlig_ligfac)
+    rart = Utils.db.Exec("SELECT * FROM " & tab2 & " WHERE art_code = &1", Rcli!code_ligfac)
+    If rart.Available Then
+      Colrcp3.Item[1] = Rcli!code_ligfac
+      Colrcp3.Item[2] = Utils.CDec(rart!art_dec, Rcli!qte_ligfac)
+    Endif
+    If Not Colrcp3.Item[3] Then Colrcp3.Item[3] = Rcli!qte_ligfac
+    Colrcp3.Item[2] = Rcli!libel_ligfac
+    If Rcli!typel_ligfac <> "C" Then
+      Colrcp3.Item[4] = Rcli!brut_ligfac
+      If Not Colrcp3.Item[3] Then Colrcp3.Item[3] = 0
+      Colrcp3.Item[5] = Rcli!rem_ligfac
+      Colrcp3.Item[6] = Rcli!netht_ligfac
+      If Colrcp3.Item[6] Then Totalfac.Text = Format$(Val(Totalfac.Text) + (Val(Rcli!netht_ligfac) * Val(Colrcp3.Item[3])), nbdec)
+    Else
+      Colrcp3.Item[2] = Rcli!com_ligfac
+    Endif
+  Loop Until Rcli.MoveNext()
+  Nlgf.Text = Colrcp3.count
+  
+End
+
+'******************************************************
+'*          On récupère les lignes de Bl              *
+'******************************************************
+Public Sub recupbl()
+  
+  Panel3.Visible = True
+  Colrcp3.Visible = True
+  Button8.Visible = True
+  Do
+    Colrcp3.Add(Rcli!numlig_ligbl, Rcli!numlig_ligbl)
+    rart = Utils.db.Exec("SELECT * FROM " & tab2 & " WHERE art_code = &1", Rcli!code_ligbl)
+    If rart.Available Then
+      Colrcp3.Item[3] = Utils.CDec(rart!art_dec, Rcli!qte_ligbl)
+    Endif
+    If Not Colrcp3.Item[2] Then Colrcp3.Item[2] = Rcli!qte_ligbl
+    Colrcp3.Item[1] = Rcli!code_ligbl
+    Colrcp3.Item[2] = Rcli!libel_ligbl
+    If Rcli!typel_ligbl <> "C" Then
+      Colrcp3.Item[4] = Rcli!brut_ligbl
+      If Not Colrcp3.Item[3] Then Colrcp3.Item[3] = 0
+      Colrcp3.Item[5] = Rcli!rem_ligbl
+      Colrcp3.Item[6] = Rcli!netht_ligbl
+      If Colrcp3.Item[6] Then Totalfac.Text = Format$(Val(Totalfac.Text) + (Val(Rcli!netht_ligbl) * Val(Colrcp3.Item[3])), nbdec)
+    Else
+      Colrcp3.Item[2] = Rcli!com_ligbl
+    Endif
+  Loop Until Rcli.MoveNext()
+  Nlgf.Text = Colrcp3.count
+  
+End
+
+'***************************************************
+'*       Selection d'une facture manuellement      *
+'***************************************************
+Public Sub Colventes_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Colventes_click()
+  Endif
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Colventes.visible = False
+    Colventes.clear
+    Stop Event
+  Endif
+  
+End
+
+'**********************************
+'*     Recherche histo achats     *
+'**********************************
+Public Sub Histo_Achat()
+  
+  Dim Ligrcpt As Result
+  Dim fours As Result
+  Dim Tab As String
+  Dim Tab2 As String
+  Dim Prod As String
+  Dim Ligprod As Result
+  
+  Tab = "Fiches_Ligrecpt"
+  Tab2 = "Fiches_Four"
+  Prod = "Fiches_Art"
+  With Utils
+    If Colventes.visible Then
+      Colventes.clear
+      Colventes.visible = False
+    Endif
+    If Colachat.visible Then
+      Colachat.clear
+      Colachat.Visible = False
+    Else
+      Colachat.visible = True
+      Colachat.Columns.count = 8
+      Colachat.Columns[0].Width = 70
+      Colachat.Columns[1].Width = 100
+      Colachat.Columns[2].Width = 70
+      Colachat.Columns[3].Width = 240
+      Colachat.Columns[4].Alignment = 2
+      Colachat.Columns[4].Width = 100
+      Colachat.Columns[5].Alignment = 2
+      Colachat.Columns[5].Width = 100
+      Colachat.Columns[6].Alignment = 2
+      Colachat.Columns[6].Width = 100
+      Colachat.Columns[7].Alignment = 2
+      Colachat.Columns[7].Width = 96
+      Colachat.Columns[0].Text = "N° Bl"
+      Colachat.Columns[1].Text = "Date"
+      Colachat.Columns[2].Text = "Code"
+      Colachat.Columns[3].Text = "Nom"
+      Colachat.Columns[4].Text = "Pa brut"
+      Colachat.Columns[5].Text = "Remise"
+      Colachat.Columns[6].Text = "Pa net"
+      Colachat.Columns[7].Text = "Qte"
+      If Not IsNull(code.Text) Then
+        Ligprod = Utils.db.Exec("SELECT * FROM " & Prod & " where art_code = &1", codep.text)
+        If Not Ligprod.Available Then Ligprod = Utils.db.Exec("SELECT * FROM " & Prod & " where art_cfour = &1", codep.text)
+        Produit = Ligprod!art_code
+        Produit2 = Ligprod!art_cfour
+        Ligrcpt = Utils.db.Exec("SELECT * FROM " & Tab & " where numrecpt = &1 and code = &2", rcpt, produit)
+        If Not Ligrcpt.Available Then Ligrcpt = Utils.db.Exec("SELECT * FROM " & Tab & " where numrecpt = &1 and code = &2", rcpt, produit2)
+        If Ligrcpt.Available Then
+          Do
+            fours = Utils.db.Exec("SELECT * FROM " & Tab2 & " where fo_code = &1 ", Ligrcpt!four)
+            Colachat.Add(Ligrcpt!numrecpt & Ligrcpt!four & Ligrcpt!nligne, Ligrcpt!numrecpt & Ligrcpt!four & Ligrcpt!nligne)
+            Colachat.Item[0] = Ligrcpt!numrecpt
+            Colachat.Item[1] = .Cdate_Aff(Ligrcpt!daterecpt)
+            Colachat.Item[2] = Ligrcpt!four
+            Colachat.Item[3] = fours!fo_nom
+            Colachat.Item[4] = Format$(Val(Ligrcpt!pbht), nbdec)
+            If Len(Colachat.Item[4]) - InStr(Colachat.Item[4], ",") = 2 Then Colachat.Item[4] = Colachat.Item[4] & " "
+            Colachat.Item[5] = Ligrcpt!rm
+            Colachat.Item[6] = Format$(Val(Ligrcpt!paht), nbdec)
+            If Len(Colachat.Item[6]) - InStr(Colachat.Item[6], ",") = 2 Then Colachat.Item[6] = Colachat.Item[6] & " "
+            Colachat.Item[7] = Ligrcpt!qte
+          Loop Until Ligrcpt.MoveNext()
+          Colachat.MoveFirst
+          Colachat.SetFocus
+          Colachat.Item.Selected = True
+        Endif
+      Endif
+    Endif
+  End With
+  
+End
+
+'**************************************************
+' Selection d'un Bl fournisseur a la souris       *
+'**************************************************
+Public Sub Colachat_click()
+  
+  Dim Ligrcpt As Result
+  Dim fours As Result
+  Dim Arts As Result
+  
+  Tab = "Fiches_Four"
+  Tab2 = "Fiches_Art"
+  Totalbl.Text = "0,00"
+  Colrcp2.Clear
+  Colrcp2.Columns.count = 7
+  Colrcp2.Columns[0].Width = 80
+  Colrcp2.Columns[1].Width = 200
+  Colrcp2.Columns[2].Width = 100
+  Colrcp2.Columns[3].Width = 80
+  Colrcp2.Columns[4].Width = 80
+  Colrcp2.Columns[5].Width = 90
+  Colrcp2.Columns[6].Width = 100
+  Colrcp2.Columns[0].Text = "code"
+  Colrcp2.Columns[1].Text = "designation"
+  Colrcp2.Columns[2].Text = "Qté "
+  Colrcp2.Columns[2].Alignment = 2
+  Colrcp2.Columns[3].Text = "Pb ht"
+  Colrcp2.Columns[3].Alignment = 2
+  Colrcp2.Columns[4].Text = "Remise"
+  Colrcp2.Columns[4].Alignment = 2
+  Colrcp2.Columns[5].Text = "Pa ht"
+  Colrcp2.Columns[5].Alignment = 2
+  With Utils
+    If Colachat.Count Then
+      fours = Utils.db.Exec("SELECT * FROM " & tab & " WHERE fo_code = &1", Colachat.Item[2])
+      codefour2.Text = fours!fo_code
+      nomfour2.Text = fours!fo_nom
+      datebl.Text = Colachat.Item[0]
+      Tab = "Fiches_Ligrecpt"
+      Ligrcpt = Utils.db.Exec("SELECT * FROM " & tab & " WHERE numrecpt = &1 AND code = &2 or numrecpt = &1 AND code = &3 ", Colachat.Item[0], produit, produit2)
+      If Ligrcpt.Available Then
+        Panel2.Visible = True
+        Colrcp2.Visible = True
+        Button6.Visible = True
+        numbl2.Text = Ligrcpt!numrecpt
+        Do
+          Colrcp2.Add(Ligrcpt!numrecpt & Ligrcpt!code & Ligrcpt!four & Ligrcpt!nligne, Ligrcpt!numrecpt & Ligrcpt!code & Ligrcpt!four & Ligrcpt!nligne)
+          Colrcp2.Item[0] = Ligrcpt!code
+          Arts = Utils.db.Exec("SELECT * FROM " & tab2 & " WHERE art_code = &1", Ligrcpt!code)
+          If Arts.Available Then
+            Colrcp2.Item[2] = .CDec(Arts!art_dec, Ligrcpt!qte)
+            If Not Colrcp2.Item[2] Then Colrcp2.Item[2] = .CDec(Arts!art_dec, 0)
+          Else
+            Colrcp2.Item[2] = .cpoint(Ligrcpt!qte)
+          Endif
+          Colrcp2.Item[1] = Ligrcpt!design
+          Colrcp2.Item[3] = Format$(Val(Ligrcpt!pbht), nbdec)
+          If Len(Colrcp2.Item[3]) - InStr(Colrcp2.Item[3], ",") = 2 Then Colrcp2.Item[3] = Colrcp2.Item[3] & " "
+          Colrcp2.Item[4] = Ligrcpt!rm
+          Colrcp2.Item[5] = Format$(Val(Ligrcpt!paht), nbdec)
+          If Len(Colrcp2.Item[5]) - InStr(Colrcp2.Item[5], ",") = 2 Then Colrcp2.Item[5] = Colrcp2.Item[5] & " "
+          Totalbl.Text = Format$(Val(Totalbl.Text) + (Val(Ligrcpt!paht) * Val(Colrcp2.Item[2])), nbdec)
+        Loop Until Ligrcpt.MoveNext()
+        Nlgbl.Text = Colrcp2.count
+      Endif
+    Endif
+  End With
+  'Colachat.clear
+  'Colachat.visible = FALSE
+  
+End
+
+'***************************************************
+'* Selection d'un Bl fournisseur manuellement      *
+'***************************************************
+Public Sub Colachat_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Colachat_click()
+  Endif
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Colachat.visible = False
+    Colachat.clear
+    Stop Event
+  Endif
+  
+End
+
+Public Sub aff_Photo()
+  
+  Try hImage = Image.Load(Photo.Text)
+  If Not Error Then
+    Photos.Cached = True
+    Photos.Clear
+    Photos.Cached = False
+  Endif
+Catch
+  Try message.Error(Error.Text & " " & Error.where)
+  
+End
+
+Public Sub photos_Draw()
+  
+  Try Draw.Image(hImage, 0, 0, Photos.Width - 2, Photos.Height - 2)
+  
+End
+
+Public Sub Nom_Photo()
+  
+  Dim iPos As Integer
+  Dim x As Integer
+  Dim Pht As String
+  
+  For x = 1 To Len(Photo.Text)
+    iPos = InStr(Photo.Text, "/")
+    Pht = Left$(Photo.Text, iPos - 1)
+    Photo.Text = Mid$(Photo.Text, iPos + 1)
+  Next
+  
+End
+
+'*************************************** Gestion des gridviews clients **************************************************
+
+Public Sub TrisCli()
+  
+  With colcli
+    .Columns.count = 2
+    .Columns[0].Width = 70
+    .Columns[1].Width = 200
+    .Columns[0].Text = "Code"
+    .Columns[1].Text = "Nom"
+  End With
+  
+End
+
+Public Sub Colcli_Data(Row As Integer, Column As Integer)
+  
+  With Utils
+    CliTable[0] = "cli_code"
+    CliTable[1] = "cli_nom"
+    .rs2.MoveTo(Row)
+    Try Colcli.data.Text = Str(.rs2[CliTable[Column]])
+    
+  End With
+  
+End
+
+Public Sub Colcli_ColumnClick(Column As Integer)
+  
+  Dim col As GridView
+  Dim coln As String
+  
+  Coln = Column
+  col = Colcli
+  colinit(Col, coln)
+  
+End
+
+Public Sub colinit(Col As GridView, Coln As String)
+  
+  With Utils
+    If sens = "Asc" Then
+      sens = "Desc"
+    Else
+      sens = "Asc"
+    Endif
+    If coln = 0 Then
+      tricli = "cli_code"
+      AffClients(tricli, sens, Col)
+    Endif
+    If coln = 1 Then
+      tricli = "cli_nom"
+      AffClients(tricli, sens, Col)
+    Endif
+  End With
+  
+End
+
+'************************************
+'*   Affichage du gridview ColCli   *
+'************************************
+Public Sub AffClients(tricli As String, sens As String, col As Gridview)
+  
+  Dim tabclient As String
+  
+  Tabclient = "Fiches_Cli"
+  TrisCli()
+  Utils.Base2(col, "select * from " & Tabclient & " order by " & Tricli & " " & sens & "")
+  Colcli.MoveTo(0, 0)
+  Colcli.SetFocus
+  
+End
+
+'******************************************
+'*      On appelle la premiere liste      *
+'******************************************
+Public Sub ToggleButton3_Click()
+  
+  Dim col As GridView
+  
+  Tab = "Fiches_Cli"
+  sens = "Asc"
+  tricli = "cli_code"
+  col = Colcli
+  If Colcli.Visible = False Then
+    Colcli.Visible = True
+    AffClients(tricli, sens, col)
+  Else
+    Colcli.Clear
+    Colcli.visible = False
+  Endif
+  
+End
+
+'***********************************
+'*  Selection du  code client      *
+'***********************************
+Public Sub ColCli_Click()
+  
+  Cd.Text = colcli[colcli.row, 0].Text
+  Maj_Cli()
+  'Cli_Man()
+  ColCli.clear
+  ColCli.visible = False
+  
+End
+
+'**********************************************************
+'*       On recupere les données du compte saisi          *
+'**********************************************************
+Public Sub Cli_Man()
+  
+  Dim rResult As Result
+  
+  Tab = "Fiches_Cli"
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where cli_code = &1", Cd.Text)
+  With Utils
+    If rResult.available Then
+      
+    Else
+      If Son Then
+        Music.Play
+      Endif
+      Message.Warning("Attention ! Veuillez saisir un compte existant SVP.", "Ok")
+      Cd.SetFocus
+      Cd.Select
+    Endif
+  End With
+  
+End
+
+'***********************************************************
+'* Gestion du gridview ColCli lors d'une saisie manuelle *
+'***********************************************************
+Public Sub ColCli_KeyPress()
+  
+  If key.code = key.F1 Then
+    Button7_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    ColCli_Click()
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    If Colcli.Visible = True Then
+      ColCli.visible = False
+      ColCli.clear
+      Cd.SetFocus
+      Cd.Select
+      Stop Event
+    Endif
+  Endif
+  
+End
+
+Public Sub SetObservers(hClass As Object, hCont As Container)
+  
+  Dim hCtrl As Object
+  Dim hOBS As Observer
+  Dim hTab As Container
+  
+  For Each hCtrl In hCont.Children
+    If hCtrl Is TextBox Then
+      hOBS = New Observer(hCtrl) As "OBS"
+    Endif
+    If hCtrl Is Container Then SetObservers(hClass, hCtrl)
+  Next
+  
+End
+
+'***************************************
+'*      Appel de la documentation      *
+'***************************************
+Public Sub Button7_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Materiels.html"]
+  
+End
+
+Public Sub Button10_Click()
+  
+  If DateChooser1.Visible = False Then
+    DateChooser1.visible = True
+    DateChooser1.X = 119
+  Else
+    DateChooser1.Visible = False
+  Endif
+  Org = 1
+  
+End
+
+Public Sub ToggleButton4_Click()
+  
+  If DateChooser1.Visible = False Then
+    DateChooser1.visible = True
+    DateChooser1.X = 483
+  Else
+    DateChooser1.Visible = False
+  Endif
+  Org = 2
+  
+End
+
+Public Sub DateChooser1_Activate()
+  
+  If Org = 1 Then
+    DateG1.text = Format$(DateChooser1.Value, "dd.mm.yyyy")
+    DateG2.SetFocus
+    DateG2.Select
+  Else
+    DateG2.text = Format$(DateChooser1.Value, "dd.mm.yyyy")
+    DateG1.SetFocus
+    DateG1.Select
+  Endif
+  DateChooser1.Visible = False
+  
+End
+
+Public Sub ChkGarantie_Click()
+  
+  If ChkGarantie.value = True Then
+    Panel6.visible = True
+  Else
+    Panel6.Visible = False
+  Endif
+  
+End

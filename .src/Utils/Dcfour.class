@@ -1,0 +1,72 @@
+' Gambas class file
+
+Public Sub _new()
+  
+  Utils.Observers(Me)
+  Me.center
+  Dcfour.SetFocus
+  
+End
+
+Public Sub Button3_Click()
+  
+  Me.close
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim rPmp As Result
+  Dim rPmp2 As Result
+  Dim hfil As File
+  Dim code As String
+  Dim codef As String
+  Dim intitule As String
+  Dim son As Integer = Start.Son
+  
+  HFil = Open User.home & "/Doublon.txt" For Write Create
+  ' On recupere les articles
+  rPmp = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & "")
+  If rPmp.Available Then
+    Repeat
+      Codef = rPmp!art_cfour
+      If Not IsNull(codef) Then
+        rPmp2 = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_cfour = &1", Codef)
+        If rPmp2.Available And rPmp2.count > 1 Then
+          Repeat
+            Code = rPmp2!art_code
+            Intitule = rPmp2!art_design
+            Print #HFil, code & ";" & Intitule & "; Doublon dans les références fournisseurs"
+          Until rPmp2.MoveNext()
+          Print #HFil, "---------------------------------------------------------------------------------------------------------------"
+        Endif
+      Endif
+    Until rPmp.MoveNext()
+    rPmp = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & "")
+    Repeat
+      Codef = rPmp!art_cfour
+      If Not IsNull(codef) Then
+        rPmp2 = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", Codef)
+        If rPmp2.Available And rPmp2.count > 1 Then
+          Repeat
+            Code = rPmp2!art_code
+            Intitule = rPmp2!art_design
+            Print #HFil, code & ";" & Intitule & "; Doublon dans les références produits et fournisseurs"
+          Until rPmp2.MoveNext()
+          Print #HFil, "---------------------------------------------------------------------------------------------------------------"
+        Endif
+      Endif
+    Until rPmp.MoveNext()
+    Me.Mouse = Mouse.Default
+    If son Then
+      Music.Play
+    Endif
+    Message.Info("Traitement terminé.")
+    Me.close
+    Editeur.Prog_Editeur(User.home & "/Doublon.txt")
+  Else
+    Message.error("Il n'existe aucun doublon.")
+  Endif
+  Close #HFil
+  
+End

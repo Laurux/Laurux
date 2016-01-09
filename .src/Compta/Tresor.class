@@ -1,0 +1,2596 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à  " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# Nom du fichier           : Tresor.class
+'# Auteur                   : Jacky Tripoteau
+'# Date de création         : 01/11/2004
+'# Gestion des écritures de trésorerie
+'################################################
+'
+Private hForm As FCalc
+Private Type As String
+Private type_jour As String
+Private Ncpt As String
+Private n As Integer
+Private l As Integer
+Private Cnt As String
+Private soldec As Float
+Private montantdb As Float
+Private montantcd As Float
+Private Montantsel As Float
+Private Totalcd As Float
+Private Totaldb As Float
+Private Modif As String
+Private Vld As Boolean
+Private Prov As Boolean
+Private numCpt As String
+Private numlotT As String
+Private Gntva As Boolean
+Private num As Integer
+Private ecriture As String
+Private TT As Float
+Private TD As String
+Private TC As String
+Private iLet As Integer
+Private ye2 As Integer
+Private dte3 As String
+Private numlet As String
+Private nvlle As Integer
+Private Lettrable As Integer
+Private b As Integer = 0
+Private b2 As Integer = 1
+Private Lf As Integer = 0
+Private son As Integer = Start.Son
+Private Prg As String
+Private Numr As String = ""
+Private LbCptbanque As String
+Private Tri As String
+Private sel As String
+Private Nv As Integer = 0
+Private TypeAbt As String
+Private ecrA As String = "0"
+Private Cle As String
+Private Numlig As Integer = 1
+Private rappel As Boolean = False 'variable pour savoir si une écriture a été rappelée. Dans ce cas on ne touche pas au sens si clic sur le type de compte.
+Private hder As TextBox
+Private Sjour As String 'on mémorise le numéro du journal
+Private Ext As Boolean = False
+
+Public Sub _new(num2 As String)
+  
+  numr = num2
+  If Not IsNull(num2) Then Ext = True
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  nvlle = 1
+  cnt = 1
+  Prg = "3"
+  Type = "C"
+  Totselection.Text = "0,00"
+  Credit.Value = True
+  Journal_Gotfocus()
+  Journal.SetFocus
+  If Not IsNull(numr) Then
+    Nv = 1
+    Ecrit_Click()
+  Endif
+  
+End
+
+Public Sub form_open()
+  
+  Dim WidthCol As String
+  Dim s As String
+  ' [GB2:ARRD] Dim spl As String[7]
+  Dim spl As New String[7]
+  
+  Try WidthCol = Settings["/Soc" & Start.Societe & "/Col/LcolT"]
+  Ecrit1.Columns.count = 11
+  If Not IsNull(WidthCol) Then
+    WidthCol = Trim(WidthCol)
+    If Right(WidthCol, 1) = ";" Then WidthCol = Left(WidthCol, Len(WidthCol) - 1)
+    For Each s In Split(LCase(WidthCol), ";")
+      spl = Scan(s, "*:*")
+      Select Case Trim(spl[0])
+        Case "col0"
+          Try Ecrit1.Columns[0].Width = spl[1]
+        Case "col1"
+          Try Ecrit1.Columns[1].Width = Val(spl[1])
+        Case "col2"
+          Try Ecrit1.Columns[2].Width = spl[1]
+        Case "col3"
+          Try Ecrit1.Columns[3].Width = spl[1]
+        Case "col4"
+          Try Ecrit1.Columns[4].Width = spl[1]
+        Case "col5"
+          Try Ecrit1.Columns[5].Width = spl[1]
+        Case "col6"
+          Try Ecrit1.Columns[6].Width = spl[1]
+      End Select
+    Next
+  Else
+    Ecrit1.Columns[0].Width = 100
+    Ecrit1.Columns[1].Width = 240
+    Ecrit1.Columns[2].Width = 110
+    Ecrit1.Columns[3].Width = 110
+    Ecrit1.Columns[4].Width = 110
+    Ecrit1.Columns[5].Width = 110
+    Ecrit1.Columns[6].Width = 300
+  Endif
+  Ecrit1.Columns[6].Alignment = 2
+  Ecrit1.Columns[0].Text = "Compte"
+  Ecrit1.Columns[1].Text = "Libellé écriture"
+  Ecrit1.Columns[2].Text = "N° document"
+  Ecrit1.Columns[3].Text = "N° Lot"
+  Ecrit1.Columns[4].Text = "Debit"
+  Ecrit1.Columns[4].Alignment = 2
+  Ecrit1.Columns[5].Text = "Credit"
+  Ecrit1.Columns[5].Alignment = 2
+  
+End
+
+Public Sub Maj_Zones()
+  
+  Journal.Text = jour.Current[0]
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Cmpt_enter()
+  
+  Select Case Last.tag
+    Case 1
+      LF = 1
+  End Select
+  
+End
+
+Public Sub Cmpt_leave()
+  
+  Select Case Last.tag
+    Case 1
+      LF = 0
+  End Select
+  
+End
+
+Public Sub Cmpt_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  Select Case Last.tag
+    Case 1
+      Sjour = Journal.Text
+  End Select
+  
+End
+
+Public Sub Lib()
+  
+  Dim rResult As Result
+  
+  Libview.Clear
+  Libview.Columns.count = 2
+  Libview.Columns[0].Width = 80
+  Libview.Columns[1].Width = 180
+  Libview.Columns[0].Text = "Code"
+  Libview.Columns[1].Text = "Libellé"
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLibel") & " ")
+  If rResult.Available Then
+    Repeat
+      Libview.Add(rResult!num, rResult!num)
+      Libview.Item[0] = rResult!num
+      Libview.Item[1] = rResult!intitule
+    Until rResult.MoveNext()
+  Endif
+  
+End
+
+Public Sub Libutton_Click()
+  
+  l = 1
+  If Libview.Visible = True Then
+    Libview.Visible = False
+  Else
+    Libview.Visible = True
+    lib()
+    Libview.MoveFirst
+    Libview.SetFocus
+    Libview.Item.Selected = True
+  Endif
+Catch
+  
+End
+
+Public Sub Libutton2_Click()
+  
+  l = 0
+  If Libview.Visible = True Then
+    Libview.Visible = False
+  Else
+    Libview.Visible = True
+    lib()
+    Libview.MoveFirst
+    Libview.SetFocus
+    Libview.Item.Selected = True
+  Endif
+Catch
+  
+End
+
+Public Sub Libview_Keypress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Then
+    Libview_Click()
+    Stop Event
+  Endif
+  If Key.Code = Key.Escape Or Key.Code = Key.F2 Then
+    Libview.visible = False
+    Libview.clear
+    If l = 1 Then
+      Libelecrit.setfocus
+      Libelecrit.select
+    Else
+      libelletresor.setfocus
+      libelletresor.select
+    Endif
+    Stop Event
+  Endif
+  
+  If key.code = key.F1 Then
+    Button3_Click()
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Libview_Click()
+  
+  If l = 1 Then
+    Libelecrit.Text = Libview.Current[1] & " "
+    Libelecrit.setfocus
+  Else
+    libelletresor.Text = Libview.Current[1] & " "
+    libelletresor.setfocus
+  Endif
+  Libview.Visible = False
+  
+End
+
+Public Sub DelMvt()
+  
+  Dim rResult As Result
+  
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " WHERE numero = &1 ", numecrit.Text)
+  If rResult.Available Then
+    Repeat
+      Utils.db.Exec("DELETE FROM " & Cbase.Table("TabMvt") & " WHERE numero = &1", numecrit.Text)
+    Until rResult.Movenext()
+  Endif
+  
+End
+
+Public Sub DelEcr()
+  
+  Dim rResult As Result
+  Dim collectif As String
+  
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " WHERE numero = &1 and compte = &2 and numdoc = &3 and numlot = &4", numecrit.Text, numcpt, numdoc.Text, numlot.Text)
+  If rResult.Available Then
+    Repeat
+      Utils.db.Exec("DELETE FROM " & Cbase.Table("TabMvt") & " WHERE numero = &1 and compte = &2 and numdoc = &3 and numlot = &4", numecrit.Text, numcpt, numdoc.Text, numlot.Text)
+      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " WHERE compte_cc = &1", numcpt)
+      If rResult.Available Then
+        collectif = rResult!coll_cc
+      Endif
+      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " WHERE numero = &1 and compte = &2 and numdoc = &3 and intitule = &5", numecrit.Text, collectif, numdoc.Text, numlot.Text, Intitulcompte.Text)
+      If rResult.Available Then
+        Utils.db.Exec("DELETE FROM " & Cbase.Table("TabMvt") & " WHERE numero = &1 and compte = &2 and numdoc = &3 and intitule = &5", numecrit.Text, collectif, numdoc.Text, numlot.Text, Intitulcompte.Text)
+      Endif
+    Until rResult.Movenext()
+  Endif
+  
+End
+
+Public Sub Cleanchamps()
+  
+  numcompte.Clear
+  Intitulcompte.Clear
+  soldecompte.Clear
+  Montant.Clear
+  numdoc.Clear
+  numlot.Clear
+  If soldeecrit.Text = "0,00" Then Libelecrit.Clear
+  montantdb = 0
+  montantcd = 0
+  Totselection.Text = "0,00"
+  If Val(soldeecrit.text) <> Null Then
+    If Bfournisseur.value = True Then
+      debit.Value = True
+      credit.Value = False
+    Else
+      If Bclient.value = True Then
+        debit.Value = False
+        credit.Value = True
+      Endif
+    Endif
+  Endif
+  
+End
+
+Public Sub Movt()
+  
+  Dim rResult As Result
+  
+  With utils
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " WHERE numero = &1 and compte = &2 and numdoc = &3 and numlot = &4 ", numecrit.Text, numcpt, numdoc.Text, numlot.Text)
+    If rResult.Available Then
+      Utils.db.Exec("UPDATE  " & Cbase.Table("TabMvt") & "  SET  jour = &1, numero = &2, compte = &3, intitule = &4, dte = &5, numdoc = &6, numlot = &7, libelle = &8, montantd = &9, montantc = &{10}, validee = &{11}, provisoire = &{12}, tresorerie = &{13}, lettree = &{14}, Cloturee = &{15}, datee = &{16} where numero = &2 and compte = &3 and numdoc = &6 and numlot = &7", Journal.Text, numecrit.Text, numcpt, Intitulcompte.Text, .Cdate_Dbase(Datej.Text), numdoc.Text, numlot.Text, Libelecrit.Text, montantdb, montantcd, 0, 1, 1, iLet, 0, .Cdate_Dbase(datee.Text))
+    Else
+      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Journal.Text, numecrit.Text, numcpt, Intitulcompte.Text, .Cdate_Dbase(Datej.Text), numdoc.Text, numlot.Text, Libelecrit.Text, montantdb, montantcd, 0, 1, 1, iLet, 0, .Cdate_Dbase(datee.Text))
+    Endif
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " Where numero = &1 and compte = &2", numecrit.Text, Cptt.Text)
+    If rResult.Available Then
+      Utils.db.Exec("UPDATE  " & Cbase.Table("TabMvt") & "  SET  jour = &1, numero = &2, compte = &3, intitule = &4, dte = &5, numdoc = &6, numlot = &7, libelle = &8, montantd = &9, montantc = &{10}, validee = &{11}, provisoire = &{12}, tresorerie = &{13}, lettree = &{14}, Cloturee = &{15}, datee = &{16} where numero = &2 and compte = &3 and numdoc = &6 and numlot = &7", Journal.Text, numecrit.Text, Cptt.Text, LbCptbanque, .Cdate_Dbase(Datej.Text), numdoc.Text, numlot.Text, libelletresor.Text, montantdb, montantcd, 0, 1, 1, iLet, 0, .Cdate_Dbase(datee.Text), 0)
+    Else
+      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, Pointee) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Journal.Text, numecrit.Text, Cptt.Text, LbCptbanque, .Cdate_Dbase(Datej.Text), numdoc.Text, numlot.Text, libelletresor.Text, montantdb, montantcd, 0, 1, 1, iLet, 0, .Cdate_Dbase(datee.Text), 0)
+    Endif
+  End With
+  
+End
+
+Public Sub compte()
+  
+  Dim MyForm As TriComptes
+  
+  Comptabilite.Bsel = False 
+  Tri = "cast(compte_cc AS char)"
+  MyForm = New TriComptes(Tri, Type, "", "D4", "")
+  MyForm.Showmodal()
+  If Comptabilite.Bsel = True Then
+    Numcompte.text = Comptabilite.sCmpt
+    If Not IsNull(Numcompte.Text) Then
+      LF = 0
+      numcpt = numcompte.Text
+      ncpt = numcompte.Text
+      compteman()
+      'Montant.SetFocus
+    Else
+      Intitulcompte.Clear
+      Soldecompte.Clear
+    Endif
+  Else
+    Numcompte.SetFocus
+  Endif
+  
+End
+
+Public Sub compteman()
+  
+  Dim rResult As Result
+  
+  b = 0
+  If journal.Text = "" Then
+    If son Then
+      Music.Play
+    Endif
+    Message.Error("Veuillez saisir votre Code journal SVP !")
+    numcompte.Text = ""
+    Journal.SetFocus
+  Endif
+  If Left$(numcompte.Text, 2) = "40" Then 
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " left join " & Cbase.Table("TabFour") & " on fo_code = &2 WHERE compte_cc like '" & numcompte.Text & "%' and coll <> &1  order by compte_cc", 1, numcompte.Text)
+  Else
+    If Left$(numcompte.Text, 2) = "41" Then
+      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " left join " & Cbase.Table("TabCli") & " on cli_code = &2 WHERE compte_cc like '" & numcompte.Text & "%' and coll <> &1  order by compte_cc", 1, numcompte.Text) 
+    Else
+      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & "  WHERE compte_cc like '" & numcompte.Text & "%' and coll <> &2 and type_cc = &3  order by compte_cc", numcompte.Text, 1, type)
+    Endif
+  Endif
+  If rResult.Available Then
+    If rResult!cprincipal = True Then
+      Message.Warning("Saisie impossible sur ce compte !\nIl s'agit d'un compte principal")
+      Return
+    Endif
+    If rResult!comptr_cc = 0 Then
+      numcompte.Text = rResult!compte_cc
+      Intitulcompte.Text = rResult!intitule_cc
+      soldecompte.Text = Format$(rResult!solde, "0.00")
+      If Left$(numcompte.Text, 2) = "41" Then 
+        Intitulcompte.Text = rResult!cli_rs_soc & " " & rResult!cli_nom & " " & rResult!cli_pnm
+      Else
+        If Left$(numcompte.Text, 2) = "40" Then 
+          Intitulcompte.Text = rResult!fo_rs_soc & " " & rResult!fo_nom & " " & rResult!fo_pnm
+        Endif
+      Endif
+      If Left$(numcompte.Text, 3) = "401" And rResult!lettrable = True Or Left$(numcompte.Text, 3) = "411" And rResult!lettrable = True Or If rResult!type_cc = "B" And rResult!lettrable = True Then 
+        Lettre_Click()
+        EcritL.setfocus
+        Montant.SetFocus
+      Else
+        Montant.SetFocus
+      Endif
+    Else
+      b = 1
+      If son Then
+        Music.Play
+      Endif
+      Try message.Warning("Vous ne pouvez pas  saisir un compte de trésorerie dans un journal de trésorerie !")
+      numcompte.SetFocus
+    Endif
+  Else
+    b = 1
+    If son Then
+      Music.Play
+    Endif
+    Try message.Warning("Ce compte n'existe pas, ou n'est pas du type sélectionné, ou est un collectif!\n Verifiez votre saisie SVP !")
+    numcompte.SetFocus
+  Endif
+  
+End
+
+Public Sub Journauxman()
+  
+  Dim intitule As String
+  Dim rResult As Result
+  
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabJour") & "  WHERE code_jo = &1", Journal.Text)
+  If rResult.Available Then
+    If rResult!type_jo <> "TR" Then
+      b = 1
+      If son Then
+        Music.Play
+      Endif
+      message.Warning("Ce journal n'est pas un journal de trésorerie !\n Veuillez saisir un autre code SVP !")
+      Journal.Text = ""
+      Datej.Text = ""
+      Journal.SetFocus
+    Else
+      libelle.Text = rResult!libelle_jo
+      type_jour = rResult!type_jo
+      intitule = libelle.text
+      Titre.Text = "Saisie des écritures du journal " & intitule & " N° " & Journal.Text
+      comptetresorerie()
+      b = 0
+    Endif
+  Else
+    b = 1
+    If son Then
+      Music.Play
+    Endif
+    message.Warning("Ce journal n'existe pas !\n Veuillez saisir un autre code SVP !")
+  Endif
+  
+End
+
+Public Sub Ecritures(numecr As String)
+  
+  Dim Params As Result
+  
+  Params = Utils.db.Exec("SELECT " & numecr & " FROM " & Cbase.Table("TabParam") & " ")
+  If Params.Available Then
+    num = Params["" & numecr & ""]
+  Endif
+  
+End
+
+'************************************************
+'*  Mise a jour du dernier numéro d'écriture    *
+'************************************************
+Public Sub Majnum(numecr As String)
+  
+  Utils.db.Exec("UPDATE " & Cbase.Table("TabParam") & " set " & numecr & " = &1", numecrit.Text)
+  
+End
+
+Public Sub Journaux()
+  
+  Dim rResult As Result
+  
+  cnt = "0"
+  jour.Visible = True
+  jour.clear
+  jour.Columns.count = 4
+  jour.Columns[0].Width = 40
+  jour.Columns[1].Width = 110
+  jour.Columns[2].Width = 50
+  jour.Columns[2].Alignment = 4
+  jour.Columns[0].Text = "Code"
+  jour.Columns[1].Text = "Libellé"
+  jour.Columns[2].Text = "Type"
+  jour.Columns[3].Text = "cde_banque"
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabJour") & "  WHERE type_jo = 'TR'  order by code_jo")
+  If rResult.Available Then
+    Repeat
+      jour.Add(rResult!code_jo, rResult!code_jo)
+      jour.Item[0] = rResult!code_jo
+      jour.Item[1] = rResult!libelle_jo
+      jour.Item[2] = rResult!type_jo
+      jour.Item[3] = rResult!cde_banque
+    Until rResult.MoveNext()
+    Jour.MoveFirst
+    Jour.SetFocus
+    Jour.Item.Selected = True
+  Else
+    If son Then
+      Music.Play
+    Endif
+    message.Info("Aucun journal de trésorerie n'existe !")
+    jour.Visible = False
+  Endif
+  
+End
+
+Public Sub Lettrage()
+  
+  Dim WidthCol As String
+  Dim rResult As Result
+  ' [GB2:ARRD] Dim spl As String[7]
+  Dim spl As New String[7]
+  Dim s As String
+  
+  Try WidthCol = Settings["/Soc" & Start.Societe & "/Col/LcolTL"]
+  EcritL.Columns.count = 11
+  If Not IsNull(WidthCol) Then
+    WidthCol = Trim(WidthCol)
+    If Right(WidthCol, 1) = ";" Then WidthCol = Left(WidthCol, Len(WidthCol) - 1)
+    For Each s In Split(LCase(WidthCol), ";")
+      spl = Scan(s, "*:*")
+      Select Case Trim(spl[0])
+        Case "col0"
+          Try EcritL.Columns[0].Width = spl[1]
+        Case "col1"
+          Try EcritL.Columns[1].Width = Val(spl[1])
+        Case "col2"
+          Try EcritL.Columns[2].Width = spl[1]
+        Case "col3"
+          Try EcritL.Columns[3].Width = spl[1]
+        Case "col4"
+          Try EcritL.Columns[4].Width = spl[1]
+        Case "col5"
+          Try EcritL.Columns[5].Width = spl[1]
+        Case "col6"
+          Try EcritL.Columns[6].Width = spl[1]
+        Case "col7"
+          Try EcritL.Columns[7].Width = spl[1]
+        Case "col8"
+          Try EcritL.Columns[8].Width = spl[1]
+        Case "col9"
+          Try EcritL.Columns[9].Width = spl[1]
+      End Select
+    Next
+  Else
+    EcritL.Columns[0].Width = 30
+    EcritL.Columns[1].Width = 80
+    EcritL.Columns[2].Width = 100
+    EcritL.Columns[3].Width = 110
+    EcritL.Columns[4].Width = 90
+    EcritL.Columns[5].Width = 240
+    EcritL.Columns[6].Width = 80
+    EcritL.Columns[7].Width = 80
+    EcritL.Columns[8].Width = 70
+    EcritL.Columns[9].Width = 10
+  Endif
+  With utils
+    TT = 0 
+    TC = 0
+    TD = 0
+    EcritL.Clear
+    EcritL.Columns[0].Text = "Jal"
+    EcritL.Columns[1].Text = "Code"
+    EcritL.Columns[2].Text = "Date"
+    EcritL.Columns[3].Text = "Document N°"
+    EcritL.Columns[4].Text = "Lot N°"
+    EcritL.Columns[5].Text = "Libelle"
+    EcritL.Columns[6].Alignment = 2
+    EcritL.Columns[6].Text = "Debit"
+    EcritL.Columns[7].Alignment = 2
+    EcritL.Columns[7].Text = "Crédit"
+    EcritL.Columns[8].Alignment = 2
+    EcritL.Columns[8].Text = "Numero"
+    EcritL.Columns[9].Alignment = 1
+    EcritL.Columns[9].Text = "Let"
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & "  WHERE compte = &1 and lettree = &2 and validee = &3 or compte = &1 and lettree is null and validee = &3 order by dte", numcompte.Text, 0, 1)
+    If rResult.Available Then
+      B2 = 3
+      EcritL.Visible = True
+      SELCT.Visible = True
+      Frame6.Visible = True
+      Totselection.Visible = True
+      QUIT.visible = True
+      Repeat
+        EcritL.Add(rResult!numero & rResult!lind, rResult!numero)
+        EcritL.Item[0] = rResult!jour
+        EcritL.Item[1] = rResult!compte
+        EcritL.Item[2] = Format$(CDate(rResult!dte), "dd.mm.yyyy")
+        EcritL.Item[3] = rResult!numdoc
+        EcritL.Item[4] = rResult!numlot
+        EcritL.Item[5] = rResult!libelle
+        EcritL.Item[6] = Format$(rResult!montantd, "0.00")
+        EcritL.Item[7] = Format$(rResult!montantc, "0.00")
+        ecritL.Item[8] = rResult!numero
+      Until rResult.MoveNext()
+      EcritL.MoveFirst()
+      EcritL.Item.Selected = True
+      EcritL.setfocus
+    Else
+      EcritL.Visible = False
+      B2 = 1
+    Endif
+  End With
+Catch
+  
+End
+
+Public Sub EcritL_KeyPress()
+  
+  If key.code = key.Esc Then Quit_Click()
+  If key.code = key.F2 Then Quit_Click
+  Cle = EcritL.key
+  Try EcritL.Item.Selected = True
+  If key.code = key.Space Then
+    EcritL_Click()
+  Endif
+  If key.code = key.Up Then
+    EcritL.MovePrevious()
+    Try EcritL.Item.Selected = True
+  Endif
+  If key.code = key.Down Then
+    EcritL.MoveNext()
+    Try EcritL.Item.Selected = True
+  Endif
+  
+End
+
+Public Sub EcritL_Click()
+  
+  TD = 0
+  TC = 0
+  TT = 0
+  Try TT = Val(Utils.cpoint(Totselection.Text))
+  If EcritL.Item[9] = "" Then
+    EcritL.Item[9] = "L"
+    TD = Utils.Cpoint(EcritL.current[6])
+    If Val(TD) = Null Then TD = "0"
+    TC = Utils.Cpoint(EcritL.Current[7])
+    If Val(TC) = Null Then TC = "0"
+    If Bclient.Value = True And Val(TC) <> 0 Then
+      TT = TT - Val(TC)
+    Else
+      If Bclient.Value = True And Val(TD) <> 0 Then
+        TT = TT + Val(TD)
+      Endif
+    Endif
+    If Bfournisseur.Value = True And Val(TD) <> 0 Then
+      TT = TT - Val(TD)
+    Else
+      If Bfournisseur.Value = True And Val(TC) <> 0 Then
+        TT = TT + Val(TC)
+      Endif
+    Endif
+    If Bbilan.Value = True And Val(TC) <> 0 Then
+      TT = TT - Val(TC)
+    Else
+      If Bbilan.Value = True And Val(TD) <> 0 Then
+        TT = TT + Val(TD)
+      Endif
+    Endif
+    Totselection.Text = Format$(TT, "0.00")
+    numlotT = EcritL.Item[4]
+  Else
+    If EcritL.Item[9] = "L" Then
+      EcritL.Item[9] = ""
+      TD = Utils.Cpoint(EcritL.current[6])
+      If Val(TD) = Null Then TD = "0"
+      TC = Utils.Cpoint(EcritL.Current[7])
+      If Val(TC) = Null Then TC = "0"
+      If Bclient.Value = True And Val(TC) <> 0 Then
+        TT = TT + Val(TC)
+      Else
+        If Bclient.Value = True And Val(TD) <> 0 Then
+          TT = TT - Val(TD)
+        Endif
+      Endif
+      If Bfournisseur.Value = True And Val(TD) <> 0 Then
+        TT = TT + Val(TD)
+      Else
+        If Bfournisseur.Value = True And Val(TC) <> 0 Then
+          TT = TT - Val(TC)
+        Endif
+      Endif
+      Totselection.Text = Format$(TT, "0.00")
+      numlotT = EcritL.Item[4]
+    Endif
+  Endif
+  iLet = 0
+  'Montant.SetFocus
+  
+End
+
+Public Sub Totsl(sens As String)
+  
+  EcritL.MoveFirst()
+  Repeat
+    If EcritL.Item[9] = "L" Then
+      TD = Utils.Cpoint(EcritL.current[6])
+      If Val(TD) = Null Then TD = "0"
+      TC = Utils.Cpoint(EcritL.Current[7])
+      If Val(TC) = Null Then TC = "0"
+      If sens = "plus" Then
+        TT = TT + Val(TD) - Val(TC)
+      Else
+        TT = TT - Val(TD) + Val(TC)
+      Endif
+      Totselection.Text = Format$(Abs(TT), "0.00")
+      numlotT = EcritL.Item[4]
+    Endif
+  Until EcritL.MoveNext()
+  
+End
+
+Public Sub ecritnv()
+  
+  Dim MyForm As TriEcritures
+  
+  Sel = ""
+  Nv = 0
+  Tri = "dte"
+  Comptabilite.Bsel = False
+  MyForm = New TriEcritures("0", Sel, "1")
+  MyForm.Showmodal()
+  If Comptabilite.Bsel = True Then
+    ecrit2()
+  Endif
+  
+End
+
+Public Sub ecritv()
+  
+  Dim MyForm As TriEcritures
+  
+  Sel = ""
+  Nv = 1
+  Tri = "dte"
+  Comptabilite.Bsel = False
+  MyForm = New TriEcritures("1", Sel, "1")
+  MyForm.Showmodal()
+  If Comptabilite.Bsel = True Then
+    ecrit3()
+  Endif
+  
+End
+
+Public Sub comptetresorerie()
+  
+  Dim rResult As Result
+  Dim tab As String
+  
+  Tab = "Fiches_Journaux" 
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & "  WHERE code_jo = &1", Journal.Text)
+  If rResult.Available Then
+    Cptt.Text = rResult!cde_banque
+  Endif
+  Tab = "Fiches_Comptes" 
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & "  WHERE compte_cc = &1", Cptt.Text)
+  If rResult.Available Then
+    soldecptt.Text = Format$(rResult!solde, "0.00")
+    LbCptbanque = rResult!intitule_cc
+  Endif
+  Datej_Gotfocus()
+  Datej.SetFocus
+  Datej.Select
+  
+End
+
+'**************************
+'*  On gére les touches   *
+'**************************
+Public Sub Cmpt_LostFocus()
+  
+  Try hder = Last
+  Select Case Last.tag
+    Case 1
+      If LF = 0 Then Journal_LF()
+      
+    Case 2
+      If LF = 0 Then
+        Datej_LF()
+        If B = 1 Then
+          Datej_GotFocus()
+          Datej.SetFocus
+          datej.Select
+          Stop Event
+        Else
+          b = 0
+          LibelleTresor.SetFocus
+          LibelleTresor.Select
+        Endif
+      Endif
+      Stop Event
+  End Select
+  
+End
+
+Public Sub Cmpt_KeyPress()
+  
+  Dim hForm2 As Extrait
+  Dim Org As String = "S"
+  
+  b2 = 1
+  Select Case Last.tag
+      
+    Case 1
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        Journal_LF()
+        If journal.Text <> "" Then
+          journauxman()
+          If b = 1 Then
+            Journal_GotFocus()
+            Journal.SetFocus
+            Journal.Select
+            Stop Event
+          Else
+            b = 0
+            Datej_GotFocus()
+            Datej.SetFocus
+            Datej.Select
+          Endif
+        Endif
+        Stop Event
+      Endif
+      If Key.code = Key.F2 Then
+        Journaux()
+        Jour.MoveFirst
+        Jour.SetFocus
+        Jour.Item.Selected = True
+        Stop Event
+      Endif
+      
+    Case 2
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.tab Then
+        Datej_LF()
+        If b = 1 Then
+          Datej_Gotfocus()
+          Datej.SetFocus
+          datej.Select
+          Stop Event
+        Else
+          b = 0
+          libelleTresor.SetFocus
+          libelleTresor.Select
+        Endif
+        Stop Event
+      Endif
+      
+    Case 3
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.tab Then
+        libelleTresor.Text = Utils.Remplace(libelleTresor.Text)
+        Libelecrit.Text = libelleTresor.Text
+        numcompte.SetFocus
+        numcompte.Select
+        Stop Event
+      Endif
+      
+    Case 4
+      If Key.code = Key.F4 Then 
+        If Bgestion.value Or If Bbilan.value Then FComptes.ShowModal()
+        If Bclient.value Then FClient.ShowModal()
+        If Bfournisseur.Value Then FFournisseur.ShowModal()
+      Endif
+      If key.code = key.F8 Then
+        If Not IsNull(numcompte.Text) And If Not IsNull(Intitulcompte.Text) Then
+          hForm2 = New Extrait(Numcompte.text, Intitulcompte.Text, type, Org)
+          hForm2.Showmodal()
+        Endif
+      Endif
+      If Key.code = 60 Then
+        Numcompte.text = Ncpt
+        Stop Event
+      Endif
+      
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.tab Then
+        numcompte_LF()
+        If Not IsNull(Numcompte.Text) Then
+          If Left$(Numcompte.text, 1) = "6" Or If Left$(Numcompte.text, 1) = "7" Then
+            Bgestion.Value = True
+          Else
+            Bbilan.Value = True
+          Endif
+          If Left$(Numcompte.text, 3) = "401" Then Bfournisseur.Value = True
+          If Left$(Numcompte.text, 3) = "411" Then Bclient.Value = True
+        Endif
+        If B = 1 Or numcompte.Text = "" Then
+          numcompte.SetFocus
+          numcompte.Select
+          B = 0
+        Else
+          If b2 = 1 Then
+            Montant.SetFocus
+            Montant.Select
+          Else
+            If b2 = 0 Then
+              Libelecrit.SetFocus
+            Else
+              If b2 = 3 Then
+                Try EcritL.MoveFirst
+                Try EcritL.Item.Selected = True
+                Try Ecritl.setfocus
+                b2 = 1
+              Endif
+            Endif
+          Endif
+        Endif
+        Stop Event
+      Endif
+    Case 5
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.tab Then
+        Montant_LF()
+        If montant.Text = "" Or montant.Text = "0.00" Or montant.Text = "0,00" Then
+          If son Then
+            Music.Play
+          Endif
+          Message.Warning(" Attention ! Veuillez saisir un montant SVP !")
+          Montant.SetFocus
+          Montant.Select
+        Else
+          numdoc.SetFocus
+          numdoc.Select
+        Endif
+        If B = 1 Then
+          Montant.SetFocus
+          Montant.Select
+          B = 0
+        Endif
+        Stop Event
+      Endif
+      
+    Case 6
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.tab Then
+        numdoc_LF()
+        numlot.SetFocus
+        numlot.Select
+        Stop Event
+      Endif
+      
+    Case 7
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.tab Then
+        Libelecrit.SetFocus
+        Libelecrit.Select
+        Stop Event
+      Endif
+      
+    Case 8
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.tab Then
+        Libelecrit.Text = Utils.Remplace(Libelecrit.Text)
+        datee_GotFocus()
+        datee.SetFocus
+        datee.Select
+        Stop Event
+      Endif
+      
+    Case 9
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.tab Then
+        datee_LF()
+        ToggleButton4.SetFocus
+        Stop Event
+      Endif
+  End Select
+  
+  If key.code = key.F1 Then
+    Button3_Click()
+    Stop Event
+  Endif
+  
+  If Key.Code = Key.F2 Then
+    Select Case Last.Tag
+      Case 1
+        Journaux()
+        Stop Event
+        
+      Case 3
+        Libutton2_Click()
+        Stop Event
+        
+      Case 4
+        LF = 1
+        ToggleButton8_Click()
+        Stop Event
+        
+      Case 8
+        Libutton_Click()
+        Stop Event
+    End Select
+  Endif
+  
+  If Key.code = Key.F5 Then
+    hForm = New FCalc
+    Select Case Last.tag
+        
+      Case 5
+        hForm.Showmodal()
+        If Not IsNull(FCalc.Resultat) Then
+          Montant.Text = Format$(Val(FCalc.Resultat), "0.00")
+        Endif
+        Stop Event
+        
+    End Select
+  Endif
+  
+  If Key.code = Key.F7 Then
+    
+    Select Case Last.tag
+        
+      Case 4
+        Aff_Mask()
+        Stop Event
+        
+    End Select
+  Endif
+  
+End
+
+Public Sub Btn_KeyPress()
+  
+  Select Case Last.tag
+      
+    Case 4
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.tab Then
+        Stop Event
+      Endif
+      ToggleButton4_Click()
+      
+    Case 8
+      Button2_Click()
+      Stop Event
+  End Select
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Necrit_Click()
+      
+    Case 2
+      Suppr_Click()
+      
+    Case 3
+      Lettre_Click()
+      
+    Case 4
+      ToggleButton4_Click()
+      
+    Case 5
+      Button3_Click()
+      
+    Case 6
+      Selct_Click()
+      
+    Case 7
+      Quit_Click()
+      
+    Case 8
+      Button2_Click()
+      
+    Case 9
+      Button1_click()
+      
+  End Select
+  
+End
+
+Public Sub Journal_GotFocus()
+  
+  cnt = "1"
+  
+End
+
+Public Sub Journal_LF()
+  
+  If Ecrit1.Count = 0 Then
+    If Journal.Text = "" Then
+      If son Then
+        Music.Play
+      Endif
+      Try Message.Warning(" Attention ! Veuillez saisir votre journal SVP !")
+      Journal_GotFocus()
+    Endif
+  Else
+    If Sjour <> Journal.Text And Not IsNull(Sjour) Then
+      If son Then
+        Music.Play
+      Endif
+      Try Message.Warning("Attention ! Vous venez de modifier le numéro du journal !")
+      journauxman()
+      numcompte.setfocus
+      numcompte.Select
+    Endif
+  Endif
+  
+End
+
+Public Sub Datej_GotFocus()
+  
+  Datej.Background = &HAAFF7F&
+  If nvlle = 1 Then
+    Datej.Text = Format$(Now, "dd.mm.yyyy")
+  Endif
+  If cnt = "1" Then
+    Datej.Background = Color.TextBackground
+    Journal.SetFocus
+  Endif
+Catch
+  
+End
+
+Public Sub Datej_LF()
+  
+  QuitteDate()
+  datee.Text = Datej.Text
+  
+End
+
+Public Sub numcompte_LF()
+  
+  If Not IsNull(Numcompte.Text) Then
+    If Left$(Numcompte.text, 1) = "6" Or If Left$(Numcompte.text, 1) = "7" Then
+      Bgestion.Value = True
+    Else
+      Bbilan.Value = True
+    Endif
+    If Left$(Numcompte.text, 3) = "401" Then Bfournisseur.Value = True
+    If Left$(Numcompte.text, 3) = "411" Then Bclient.Value = True
+    Libelecrit.SetFocus
+  Else
+    Message.Warning("Vous devez saisir un code !")
+    Numcompte.SetFocus
+  Endif
+  If Not IsNull(numcompte.Text) Then
+    numcpt = numcompte.Text
+    compteman()
+    Totselection.Text = "0,00"
+    ncpt = numcompte.Text
+  Else
+    If son Then
+      Music.Play
+    Endif
+    Message.Warning(" Attention ! Veuillez saisir votre compte SVP !")
+    b = 1
+  Endif
+Catch
+  
+End
+
+Public Sub Montant_LF()
+  
+  Dim montante As Float
+  
+  With utils
+    montant.Text = .Cpoint(montant.Text)
+    If Val(Montant.text) = Null Then
+      If son Then
+        Music.Play
+      Endif
+      message.Warning("Veuillez verifier votre saisie SVP !")
+      b = 1
+    Else
+      montante = Val(.Cpoint(Montant.Text))
+      Montant.Text = Format$(Montante, "0.00")
+    Endif
+  End With
+  
+End
+
+Public Sub numdoc_LF()
+  
+  Dim Eresult As Result
+  
+  If Modif = "0" Then
+    EResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & "  WHERE numdoc = &1 and compte = &2 and jour = &3 and numero <> &4 and collectif is null", numdoc.Text, numcompte.Text, Journal.Text, numecrit.Text)
+    If EResult.Available Then
+      If son Then
+        Music.Play
+      Endif
+      If Message.Question("Une écriture portant ce numero à  déjà  été saisie dans ce journal ! \n Voulez-vous continuer ?", "Oui", "Non") = 1 Then
+      Endif
+    Endif
+  Endif
+  If IsNull(numlot.Text) Then numlot.Text = numdoc.Text
+  
+End
+
+Public Sub Debit_Click()
+  
+  Try hder.setfocus
+  
+End
+
+Public Sub Credit_Click()
+  
+  Try hder.setfocus
+  
+End
+
+Public Sub datee_GotFocus()
+  
+  datee.Text = Datej.Text
+  
+End
+
+Public Sub datee_LF()
+  
+  QuitteDate()
+  
+End
+
+Public Sub QuitteDate()
+  
+  Dim rResult As Result
+  Dim dte As String
+  Dim dtee As String
+  Dim dte4 As String
+  Dim numecr As String
+  
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabParam") & "")
+  dte = rResult!dtepc
+  dte3 = Right$(dte, 4) & Left$(dte, 2)
+  dtee = rResult!dteclec
+  ye2 = Right$(dtee, 4)
+  Inc Ye2
+  With utils
+    Datej.text = .CDate_calc(datej.text)
+    Datej.Text = .Cdate_aff(Datej.Text)
+    dte4 = rResult!dteclec
+    If Datej.Text = "00.00.0:00" Then
+      Datej.Text = Format$(Now, "dd.mm.yyyy")
+      Datej_gotfocus()
+      Datej.SetFocus
+      b = 1
+    Else
+      If Right$(Datej.text, 4) & Mid$(Datej.text, 4, 2) <= dte3 Then
+        If son Then
+          Music.Play
+        Endif
+        If Message.Warning("Attention ! La date saisie est inférieure au début de la période en cours.", "Ok") = 1 Then
+          B = 1
+        Endif
+      Else
+        If Right$(datej.text, 4) & Mid$(datej.text, 4, 2) & Left$(datej.text, 2) > (Ye2 + 1) & Left$(dtee, 2) & Mid$(dtee, 4, 2) Then
+          If son Then
+            Music.Play
+          Endif
+          If Message.Warning("Attention ! La date saisie est supérieure à  la date de fin d'exercice.", "Ok") = 1 Then
+            b = 1
+          Endif
+        Else
+          b = 0
+          If nvlle = 1 Then
+            numecr = "numecriture"
+            Ecritures(numecr)
+            num = num + 1
+            numecrit.Text = num
+            Majnum(numecr)
+            nvlle = 0
+          Endif
+          LibelleTresor.SetFocus
+          n = 0
+        Endif
+      Endif
+    Endif
+  End With
+Catch
+  
+End
+
+Public Sub Button1_Click()
+  
+  If numcompte.Text <> "" Or If Ecrit1.count <> 0 Then
+    If son Then
+      Music.Play
+    Endif
+    If message.Question("Il y a une saisie en cours !\n Souhaitez-vous quitter ? \n Si oui, l'écriture en cours sera dans les écritures non validées.", "Oui", "Non") = "1" Then
+      Try Settings["/Soc" & Start.Societe & "/Col/LcolT"] = "col0:" & Ecrit1.Columns[0].Width & ";" & "col1:" & Ecrit1.Columns[1].Width & ";" & "col2:" & Ecrit1.Columns[2].Width & ";" & "col3:" & Ecrit1.Columns[3].Width & ";" & "col4:" & Ecrit1.Columns[4].Width & ";" & "col5:" & Ecrit1.Columns[5].Width & ";" & "col6:" & Ecrit1.Columns[6].Width
+      Try Settings["/Soc" & Start.Societe & "/Col/LcolTL"] = "col0:" & EcritL.Columns[0].Width & ";" & "col1:" & EcritL.Columns[1].Width & ";" & "col2:" & EcritL.Columns[2].Width & ";" & "col3:" & EcritL.Columns[3].Width & ";" & "col4:" & EcritL.Columns[4].Width & ";" & "col5:" & EcritL.Columns[5].Width & ";" & "col6:" & EcritL.Columns[6].Width & ";" & "col7:" & EcritL.Columns[7].Width & ";" & "col8:" & EcritL.Columns[8].Width & ";" & "col9:" & EcritL.Columns[9].Width
+      Settings.Save
+      Me.Close
+    Endif
+  Else
+    Try Settings["/Soc" & Start.Societe & "/Col/LcolT"] = "col0:" & Ecrit1.Columns[0].Width & ";" & "col1:" & Ecrit1.Columns[1].Width & ";" & "col2:" & Ecrit1.Columns[2].Width & ";" & "col3:" & Ecrit1.Columns[3].Width & ";" & "col4:" & Ecrit1.Columns[4].Width & ";" & "col5:" & Ecrit1.Columns[5].Width & ";" & "col6:" & Ecrit1.Columns[6].Width
+    Try Settings["/Soc" & Start.Societe & "/Col/LcolTL"] = "col0:" & EcritL.Columns[0].Width & ";" & "col1:" & EcritL.Columns[1].Width & ";" & "col2:" & EcritL.Columns[2].Width & ";" & "col3:" & EcritL.Columns[3].Width & ";" & "col4:" & EcritL.Columns[4].Width & ";" & "col5:" & EcritL.Columns[5].Width & ";" & "col6:" & EcritL.Columns[6].Width & ";" & "col7:" & EcritL.Columns[7].Width & ";" & "col8:" & EcritL.Columns[8].Width & ";" & "col9:" & EcritL.Columns[9].Width
+    Settings.Save
+    Me.Close
+  Endif
+  
+End
+
+Public Sub Choix1_Click()
+  
+  Wait 0.2
+  If Choix1.index = "0" Then
+    Journaux()
+  Else
+    If Choix1.Index = "1" Then
+      Ecritnv()
+    Else
+      Ecritv()
+    Endif
+  Endif
+  Choix1.visible = False
+  
+End
+
+'********************************************************************
+'*      Gestion du columnview Jour lors d'une saisie manuelle       *
+'********************************************************************
+Public Sub Jour_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Jour.MoveCurrent
+    Jour.Item.Selected = True
+    Jour_Click()
+    Stop Event
+  Endif
+  
+  If key.code = key.F1 Then
+    Button3_Click()
+    Stop Event
+  Endif
+  
+  If Key.Code = Key.Escape Or Key.Code = Key.F2 Then
+    Jour.visible = False
+    Jour.clear
+    Journal_Gotfocus()
+    Journal.Select
+    Journal.SetFocus
+    Stop Event
+  Endif
+  
+End
+
+Public Sub jour_Click()
+  
+  Dim intitule As String
+  
+  Journal.Text = jour.Current[0]
+  intitule = jour.Current[1]
+  type_jour = jour.current[2]
+  Cptt.Text = jour.Current[3]
+  jour.Visible = False
+  jour.clear
+  Titre.Text = "Saisie des écritures du journal " & intitule & " N° " & Journal.Text
+  libelle.Text = intitule
+  Journal_LF()
+  Jour.Visible = False
+  comptetresorerie()
+  
+End
+
+Public Sub ToggleButton4_Click()
+  
+  Prov = 1
+  Montant_LF()
+  If b <> 1 Then
+    If numcompte.Text = "" Then
+      If son Then
+        Music.Play
+      Endif
+      Message.Warning(" Attention ! Veuillez saisir un compte avant de valider votre ligne SVP !")
+      numcompte.SetFocus
+      numcompte.Select
+    Else
+      If montant.Text = "" Then
+        If son Then
+          Music.Play
+        Endif
+        Message.Warning(" Attention ! Veuillez saisir un montant avant de valider votre ligne SVP !")
+        Montant.SetFocus
+        Montant.Select
+        Return
+      Else
+        If numdoc.Text = "" Then
+          If son Then
+            Music.Play
+          Endif
+          message.Info(" Veuillez renseigner le numero de document avant d'enregistrer SVP !")
+          numdoc.SetFocus
+          numdoc.Select
+          Return
+        Else
+          If numecrit.Text = "" Then
+            If son Then
+              Music.Play
+            Endif
+            Message.Info(" Veuillez valider la Date de l'écriture afin d'affecter un numero SVP !")
+            Datej_Gotfocus()
+            Datej.SetFocus
+            Return
+          Else
+            Montant_LF()
+            If Debit.value Then
+              montantdb = Val(Montant.text)
+              montantcd = 0
+            Else
+              montantcd = Val(Montant.text)
+              montantdb = 0
+            Endif
+            'montantdb = Val(ecrit1.Item[4])
+            'montantcd = Val(ecrit1.Item[5])
+            Totaldb = Totaldb + montantdb
+            Totalcd = Totalcd + montantcd
+            Movt()
+            Cle = numcompte.Text & numdoc.Text & numecrit.Text & Numlig
+            Ecrit1.Add(Cle, Cle)
+            Ecrit1.Item[0] = numcompte.text
+            Ecrit1.Item[1] = Libelecrit.Text
+            Ecrit1.Item[2] = numdoc.text
+            Ecrit1.Item[3] = numlot.text
+            numcpt = numcompte.Text
+            If Debit.value Then
+              Ecrit1.Item[4] = Format$(Val(Montant.text), "0.00")
+              Ecrit1.Item[5] = Format$(0.00, "0.00")
+            Else
+              Ecrit1.Item[5] = Format$(Val(Montant.text), "0.00")
+              Ecrit1.Item[4] = Format$(0.00, "0.00")
+            Endif
+            Ecrit1.Item[6] = Datej.Text
+            Ecrit1.Item[7] = Intitulcompte.Text
+            Ecrit1.Item[8] = Journal.Text
+            Ecrit1.Item[9] = datee.Text
+            Inc Numlig
+            Calculsolde()
+            'soldec = Totalcd - Totaldb
+            'soldeecrit.Text = Format$(soldec, "0.00")
+            If Val(Utils.CPoint(soldeecrit.Text)) = 0 Then soldeecrit.Text = "0,00"
+            'Cleanchamps()
+            Modif = "0"
+            B = "0"
+            numcompte.SetFocus
+            numcompte.Select
+          Endif
+        Endif
+      Endif
+    Endif
+    b = 0
+  Endif
+  If ecrA = "1" Then LignAbt()
+  Cleanchamps()
+Catch
+  If son Then
+    Music.Play
+  Endif
+  Message.Info(" Il semblerait que cette ecriture a déjà  été saisie !", "Ok")
+  
+End
+
+'***************************************
+'*  On calcule le solde de l'écriture  *
+'***************************************
+Public Sub Calculsolde()
+  
+  Ecrit1.MoveFirst
+  Totaldb = 0
+  Totalcd = 0
+  soldec = 0
+  If Ecrit1.Count Then
+    Repeat
+      Ecrit1.Item.Selected = True
+      montantdb = Val(ecrit1.Item[4])
+      montantcd = Val(ecrit1.Item[5])
+      Totaldb = Totaldb + montantdb
+      Totalcd = Totalcd + montantcd
+      soldec = Totalcd - Totaldb
+      soldeecrit.Text = Format$(soldec, "0.00")
+    Until Ecrit1.MoveNext()
+  Endif
+  If Val(Utils.CPoint(soldeecrit.Text)) = 0 Then soldeecrit.Text = "0,00"
+  
+End
+
+Public Sub btn_Enter()
+  
+  Select Case Last.tag
+      
+    Case 8
+      LF = 1
+      
+    Case 9
+      LF = 1
+  End Select
+  
+End
+
+Public Sub Btn_Leave()
+  
+  Select Case Last.tag
+      
+    Case 8
+      LF = 0
+      
+    Case 9
+      LF = 0
+  End Select
+  
+End
+
+Public Sub Button2_Click()
+  
+  If Ecrit1.count <> 0 Then
+    'IF Val(Utils.CPoint(soldeecrit.Text)) = 0 THEN
+    'message.Warning("Une écriture de trésorerie ne peut être enregistrée\nque si son solde est différent de zéro \ncar la contrepartie est automatique !")
+    'ELSE
+    Prov = 0
+    Vld = 1
+    DelMvt2() ' on efface l'écriture
+    Enrg_Ecr() ' on la reécrit
+    Numlig = 1
+    'ENDIF
+  Endif
+  
+End
+
+'**********************************************
+'*    On supprime une écriture suite a rappel *
+'**********************************************
+Public Sub DelMvt2()
+  
+  Dim rResult As Result
+  
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " WHERE numero = &1 ", numecrit.Text)
+  If rResult.Available Then
+    Utils.db.Exec("DELETE FROM " & Cbase.Table("TabMvt") & " WHERE numero = &1 ", numecrit.Text)
+  Endif
+  Journal.Select
+  Journal.SetFocus
+  Journal_Gotfocus()
+  
+End
+
+Public Sub Enrg_Ecr()
+  
+  Dim rResult As Result
+  Dim MvtResult As Result
+  Dim Mnt As Float
+  Dim num_coll As String
+  Dim numdocT As String
+  Dim Montand As Float = 0
+  Dim Montanc As Float = 0
+  
+  Prov = 0
+  Vld = 1
+  iLet = 0
+  With utils
+    If Ecrit1.Count <> 0 Then
+      Ecrit1.MoveFirst
+      Repeat
+        numcpt = Ecrit1.Item[0]
+        Intitulcompte.Text = Ecrit1.Item[7]
+        numdocT = ecrit1.Item[2]
+        numlotT = ecrit1.Item[3]
+        montantdb = Val(ecrit1.Item[4])
+        Totaldb = Totaldb + montantdb
+        montantcd = Val(ecrit1.Item[5])
+        Totalcd = Totalcd + montantcd
+        'Journal.Text = Ecrit1.Item[8]
+        Libelecrit.Text = Ecrit1.Item[1]
+        Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Journal.Text, numecrit.Text, numcpt, Intitulcompte.Text, .Cdate_Dbase(Datej.Text), numdocT, numlotT, Libelecrit.Text, montantdb, montantcd, 1, 0, 1, iLet, 0, .Cdate_Dbase(Ecrit1.Item[9]))
+        rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " WHERE compte_cc = &1", numcpt)
+        If rResult.Available Then
+          Mnt = rResult!solde
+          Mnt = Mnt + montantdb - montantcd
+          num_coll = rResult!coll_cc
+          If num_coll <> "" Then
+            Utils.db.Exec("Update " & Cbase.Table("TabComptes") & " set solde = &1 Where compte_cc = &2", Mnt, numcpt)
+            rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " WHERE compte_cc = &1", num_coll)
+            If rResult.Available Then
+              Mnt = rResult!solde
+              Mnt = Mnt + montantdb - montantcd
+              Utils.db.Exec("Update " & Cbase.Table("TabComptes") & " set solde = &1 Where compte_cc = &2", Mnt, num_coll)
+            Endif
+            MvtResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " Where compte = &1 and numero = &2 and jour = &4", num_coll, numecrit.Text, numdocT, Journal.Text)
+            If MvtResult.Available Then
+              montand = montantdb + MvtResult!montantd
+              Montanc = montantcd + MvtResult!montantc
+              Utils.db.Exec("update " & Cbase.Table("TabMvt") & " set  validee = &1, provisoire = &2 , libelle = &3, Cloturee = &9, tresorerie = &{10}, datee = &{12}, montantd = &{13}, montantc = &{14} Where compte = &6 and numero = &7 and jour = &{11}", 1, 0, Libelecrit.Text, numlotT, numdocT, num_coll, numecrit.Text, numlot.Text, 0, 1, Journal.Text, .Cdate_Dbase(datej.Text), montand, montanc)
+            Else
+              Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,Cloturee,collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15})", Journal.Text, numecrit.Text, num_coll, Intitulcompte.Text, .Cdate_Dbase(Datej.Text), numdocT, numlotT, Libelecrit.Text, montantdb, montantcd, 1, 0, 1, 0, 1)
+            Endif
+          Else
+            If rResult!comptr_cc = 0 Then
+              Utils.db.Exec("Update " & Cbase.Table("TabComptes") & " set solde = &1 Where compte_cc = &2", Mnt, numcpt)
+              Utils.db.Exec("update " & Cbase.Table("TabMvt") & " set  validee = &1, provisoire = &2 , libelle = &3, Cloturee = &9, tresorerie = &{10}, datee = &{12} Where compte = &6 and numero = &7 and numdoc = &5 and jour = &{11}", 1, 0, Libelecrit.Text, numlotT, numdocT, num_coll, numecrit.Text, numlot.Text, 0, 1, Journal.Text, .Cdate_Dbase(datej.Text))
+            Endif
+          Endif
+        Endif
+        Controle()
+        If Lettrable = 1 Then
+          rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " WHERE numlot = &1 and compte = &2", numlotT, numcpt)
+          If rResult.Available Then
+            Utils.db.Exec("Update " & Cbase.Table("TabMvt") & " set lettree = &1 where numlot = &2 and compte = &3", 1, numlotT, numcpt)
+          Endif
+        Endif
+      Until Ecrit1.Movenext()
+      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " WHERE compte_cc = &1", Cptt.text)
+      If rResult.Available Then
+        Mnt = rResult!solde
+        Mnt = Mnt + soldec
+        Utils.db.Exec("Update " & Cbase.Table("TabComptes") & " set solde = &1 Where compte_cc = &2", Mnt, Cptt.text)
+      Endif
+      If soldec > 0 Then
+        Montand = Abs(soldec)
+        Montanc = 0
+      Else
+        Montanc = Abs(soldec)
+        Montand = 0
+      Endif
+      If Val(Utils.CPoint(soldeecrit.Text)) <> 0 Then
+        rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " Where numero = &1 and compte = &2", numecrit.Text, Cptt.Text)
+        If rResult.Available Then
+          Utils.db.Exec("update " & Cbase.Table("TabMvt") & " set validee = &1, provisoire = &2 , libelle = &3, numlot = &4 , numdoc = &5, montantd = &8, montantc = &9, datee = &{10}, dte = &{10} Where compte = &6 and numero = &7 ", 1, 0, libelletresor.Text, numlotT, numdocT, Cptt.Text, numecrit.Text, Montand, Montanc, .Cdate_Dbase(datej.Text))
+        Else
+          Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & " (jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee,datee) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Journal.Text, numecrit.Text, Cptt.Text, LbCptbanque, Utils.Cdate_Dbase(Datej.Text), numdocT, numlotT, libelletresor.Text, Montand, Montanc, 1, 0, 1, iLet, 0, Utils.Cdate_Dbase(datej.Text))
+        Endif
+      Endif
+      Montand = 0
+      Montanc = 0
+      ecrit1.clear
+      numlot.text = ""
+      datee.text = ""
+      numdoc.text = ""
+      Intitulcompte.Text = ""
+      numecrit.Text = ""
+      soldeecrit.text = "0,00"
+      soldeCptt.Text = Format$(Mnt, "0.00")
+      Totalcd = 0
+      Totaldb = 0
+      Mnt = 0
+      soldec = 0
+      Modif = "0"
+      Gntva = False
+      n = 1
+      Journal.SetFocus
+      nvlle = 1
+      iLet = 0
+      numcompte.Background = &HF0F2C7&
+      datej.SetFocus
+      Datej.Select
+    Endif
+  End With
+  
+End
+
+Public Sub Controle()
+  
+  Dim LetResult As Result
+  Dim TotLd As String
+  Dim TotLc As String
+  Dim TotL As Float
+  
+  With Utils
+    TotLd = "0"
+    TotLc = "0"
+    LetResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " Where numlot = &1 and compte = &2 and validee = &3", numlotT, numcpt, 1)
+    If LetResult.Available Then
+      Repeat
+        TotLd = Val(.cpoint(TotLd)) + LetResult!montantd
+        TotLc = Val(.cpoint(TotLc)) + LetResult!montantc
+      Until LetResult.MoveNext()
+      TotL = Val(.cpoint(TotLd)) - Val(.cpoint(TotLc))
+    Endif
+    If TotL = 0 Then
+      Lettrable = 1
+    Else
+      Lettrable = 0
+    Endif
+    TotLd = 0
+    TotLc = 0
+    Totl = 0
+  End With
+  
+End
+
+Public Sub ToggleButton6_Enter()
+  
+  LF = 1
+  
+End
+
+Public Sub ToggleButton6_Leave()
+  
+  LF = 0
+  
+End
+
+Public Sub ToggleButton6_Click()
+  
+  If Choix1.Visible = True Then
+    Choix1.Visible = False
+  Else
+    Choix1.clear
+    Choix1.Add("1- Liste des journaux", 0)
+    Choix1.Add("2- Liste des écritures non validées", 1)
+    Choix1.Add("3- Liste des écritures validées", 2)
+    Choix1.Visible = True
+  Endif
+  If jour.Visible = True Then
+    Jour.Visible = False
+    Choix1.Visible = False
+  Endif
+  
+End
+
+'*******************************************************
+'*   Gestion des columnviews des comptes en cliquant   *
+'*******************************************************
+Public Sub ToggleButton8_Click()
+  
+  With utils
+    If nvlle = 1 Then
+      If son Then
+        Music.Play
+      Endif
+      message.Error("Veuillez valider votre date SVP !")
+      Datej.SetFocus
+      Datej_Gotfocus()
+    Else
+      If Journal.Text = "" Then
+        If son Then
+          Music.Play
+        Endif
+        message.Warning("  Veuillez saisir votre code journal SVP !")
+        Journal.SetFocus
+      Else
+        compte()
+      Endif
+    Endif
+    If Choix1.Visible = True Then
+      Choix1.Visible = False
+    Endif
+  End With
+  
+End
+
+Public Sub Boutonmontant_Click()
+  
+  Montant.Text = Format$(Abs(soldec), "0.00")
+  Montant.SetFocus
+  Montant.Select
+  
+End
+
+Public Sub Boutonmontant_KeyPress()
+  
+  If key.code = key.Return Or Key.code = Key.Enter Then
+    Montant.Text = Format$(Abs(soldec), "0.00")
+    Montant.SetFocus
+    Montant.Select
+  Endif
+  
+End
+
+Public Sub Ecrit1_Activate()
+  
+  Rappel = True
+  If ecrit1.count <> 0 Then
+    'Ecrit1.MoveCurrent
+    numcompte.Text = Ecrit1.Current[0]
+    numcpt = numcompte.text
+    Intitulcompte.Text = Ecrit1.Current[7]
+    numdoc.Text = Ecrit1.Current[2]
+    numlot.Text = ecrit1.Current[3]
+    Journal.Text = Ecrit1.Current[8]
+    Libelecrit.Text = Ecrit1.Current[1]
+    Datej.Text = Ecrit1.Current[6]
+    datee.Text = Ecrit1.Current[9]
+    If Val(ecrit1.Current[4]) <> 0 Then
+      Debit.Value = True
+      Montant.Text = ecrit1.Current[4]
+      montantdb = Val(ecrit1.Item[4])
+    Else
+      Credit.Value = True
+      Montant.Text = ecrit1.Current[5]
+      montantcd = Val(ecrit1.Item[5])
+    Endif
+    Totaldb = Totaldb - montantdb
+    Totalcd = Totalcd - montantcd
+    soldec = Totalcd - Totaldb
+    soldeecrit.Text = Format$(soldec, "0.00")
+    If Val(Utils.CPoint(soldeecrit.Text)) = 0 Then soldeecrit.Text = "0,00"
+    ecrit1.Current.Delete
+    Modif = "1"
+    DelEcr()
+    montantcd = 0
+    montantdb = 0
+  Endif
+  Recup_Type()
+  If Type = "" Then
+    If Left$(Numcompte.text, 1) = "1" Or Left$(Numcompte.text, 1) = "2" Or Left$(Numcompte.text, 1) = "3" Or Left$(Numcompte.text, 1) = "4" Or Left$(Numcompte.text, 1) = "5" Then
+      Type = "B"
+      Bbilan.value = True
+    Endif
+    If Left$(Numcompte.text, 1) = "6" Or Left$(Numcompte.text, 1) = "7" Then
+      Type = "G"
+      Bgestion.Value = True
+    Endif
+    If Left$(numcompte.text, 2) = "41" Then
+      Type = "C"
+      BClient.Value = True
+    Endif
+    If Left$(numcompte.text, 2) = "40" Then
+      Type = "F"
+      Bfournisseur.Value = True
+    Endif
+  Endif
+  numcompte.SetFocus
+  numcompte.Select
+  Rappel = False
+  
+End
+
+Public Sub Recup_Type()
+  
+  Dim rType As Result
+  
+  rType = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " WHERE compte_cc = &1", Numcompte.text)
+  If rType.Available Then
+    Type = rType!type_cc
+  Else
+    Type = ""
+  Endif
+  If Type = "B" Then Bbilan.value = True
+  If Type = "G" Then Bgestion.Value = True
+  If Type = "C" Then BClient.Value = True
+  If Type = "F" Then Bfournisseur.Value = True
+  
+End
+
+Public Sub Ecrit1_Keypress()
+  
+  If Key.code = Key.delete Then
+    If son Then
+      Music.Play
+    Endif
+    If Message.Question("Etes-vous sur de vouloir supprimer cette ligne ?", "Oui", "Non") = 1 Then
+      If Val(ecrit1.Current[4]) <> 0 Then
+        montantdb = Val(ecrit1.current[4])
+      Else
+        montantcd = Val(ecrit1.current[5])
+      Endif
+      numcpt = ecrit1.current[0]
+      Totaldb = Totaldb - montantdb
+      Totalcd = Totalcd - montantcd
+      soldec = Totalcd - Totaldb
+      soldeecrit.Text = Format$(soldec, "0.00")
+      If Val(Utils.CPoint(soldeecrit.Text)) = 0 Then soldeecrit.Text = "0,00"
+      ecrit1.Current.Delete
+      Modif = "1"
+      DelEcr()
+      montantcd = 0
+      montantdb = 0
+      Stop Event
+    Endif
+  Endif
+  If key.code = key.F1 Then
+    Button3_Click()
+    Stop Event
+  Endif
+  
+End
+
+'*********************************
+'*  On sélectionne une écriture  *
+'*********************************
+Public Sub Ecrit_Click()
+  
+  If Nv = 0 Then
+    ecrit2()
+  Else
+    ecrit3()
+  Endif
+  
+End
+
+'*******************************************************************
+'*  On affiche l'écriture non validée qui vient d'etre sélectionnée  *
+'*******************************************************************
+Public Sub ecrit2()
+  
+  Dim rResult As Result
+  Dim Cpt As String
+  Dim numecriture As String
+  
+  If Ecrit1.Count Then
+    Message.Warning("Attention ! Veuillez valider l' écriture en cours. ")
+  Else
+    CleanChamps()
+    Try num = Comptabilite.snum
+    If Not Error Then
+      libelletresor.Text = Comptabilite.libelle
+      numecrit.Text = num
+      Journal.Text = Comptabilite.journal
+      Totaldb = 0
+      Totalcd = 0
+      soldec = 0
+      Prov = 1
+      Vld = 0
+      nvlle = 0
+      With Utils
+        rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & "  WHERE numero = &1 and collectif is null ", num)
+        If rResult.Available Then
+          Repeat
+            numecriture = rResult!numero
+            Cpt = rResult!compte
+            If Left(Cpt, 3) <> "512" And If Left(Cpt, 2) <> "53" Then
+              Ecrit1.Add(rResult!lind, rResult!lind)
+              Ecrit1.Item[0] = rResult!compte
+              Ecrit1.Item[1] = rResult!libelle
+              Ecrit1.Item[2] = rResult!numdoc
+              Ecrit1.Item[3] = rResult!numlot
+              Ecrit1.Item[4] = Format$(rResult!montantd, "0.00")
+              Ecrit1.Item[5] = Format$(rResult!montantc, "0.00")
+              Ecrit1.Item[6] = Format$(CDate(rResult!dte), "dd.mm.yyyy")
+              Ecrit1.Item[7] = rResult!intitule
+              Ecrit1.Item[8] = rResult!jour
+              Ecrit1.Item[9] = Format$(CDate(rResult!datee), "dd.mm.yyyy")
+              montantdb = Val(Ecrit1.Item[4])
+              montantcd = Val(Ecrit1.Item[5])
+              Totaldb = Totaldb + montantdb
+              Totalcd = Totalcd + montantcd
+              soldec = Totalcd - Totaldb
+              soldeecrit.Text = Format$(soldec, "0.00")
+              numlot.Text = rResult!numlot
+              numdoc.Text = rResult!numdoc
+            Else
+              libelletresor.Text = rResult!libelle
+            Endif
+            If Val(.CPoint(soldeecrit.Text)) = 0 Then soldeecrit.Text = "0,00"
+          Until rResult.MoveNext()
+          Utils.db.Exec("UPdate  " & Cbase.Table("TabMvt") & "  SET  validee = &1, provisoire = &2 where numero = &3", 0, 1, num)
+          Datej.Text = Ecrit1.Item[6]
+          Journal.Text = Ecrit1.Item[8]
+          ecrit1.MoveLast()
+          ecrit1.Item.EnsureVisible
+        Endif
+        ecriture = "0"
+        Journal_LF()
+        JournauxMan()
+        comptetresorerie()
+        Numcompte.SetFocus
+      End With
+    Endif
+  Endif
+Catch
+  If son Then
+    Music.Play
+  Endif
+  message.Error("Votre écriture n'est pas terminée, veuillez la valider \n ou bien cliquer sur Nouvelle écriture SVP  !")
+  
+End
+
+'***************************************************************
+'*  On affiche l'écriture validée qui vient d'etre sélectionnée  *
+'***************************************************************
+Public Sub Ecrit3()
+  
+  Dim rResult As Result
+  Dim rrResult As Result
+  Dim rrrResult As Result
+  Dim num_coll As String
+  Dim Nlot As String
+  Dim Nlot2 As String
+  Dim Mnt As Float
+  Dim Mnt1 As Float
+  Dim Mnt2 As Float
+  Dim coll As String
+  Dim Bcol As Boolean = False
+  Dim numecriture As String
+  Dim Ndc As String
+  Dim Nlt As String
+  Dim Cpt As String
+  
+  Totaldb = 0
+  Totalcd = 0
+  If Ecrit1.Count Then
+    If son Then
+      Music.Play
+    Endif
+    Message.Warning("Attention ! Veuillez valider l' écriture en cours. ")
+  Else
+    If son Then
+      Music.Play
+    Endif
+    CleanChamps()
+    If Not IsNull(numr) Then
+      Try num = numr
+    Else
+      Try num = Comptabilite.snum
+    Endif
+    If Not Error Then
+      If Message.Question("Attention ! Vous allez modifier l'écriture n° " & num, "Oui", "Non") = 1 Then
+        numecrit.Text = num
+        n = 1
+        nvlle = 0
+        With utils
+          rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & "  WHERE numero = &1", num)
+          If rResult.Available Then
+            Journal.Text = rResult!jour
+            Repeat
+              Try Bcol = rResult!collectif
+              If Error Then Bcol = False
+              If Not Bcol Then
+                Ndc = rResult!numdoc
+                Nlt = rResult!numlot
+                Cpt = rResult!compte
+                coll = rResult!collectif
+                numecriture = rResult!numero
+                If Left(Cpt, 3) <> "512" And If Left(Cpt, 2) <> "53" Then
+                  'Cle = rResult!compte & rResult!numdoc & numecriture
+                  Ecrit1.Add(rResult!lind, rResult!lind)
+                  Ecrit1.Item[0] = rResult!compte
+                  Ecrit1.Item[1] = rResult!libelle
+                  Ecrit1.Item[2] = rResult!numdoc
+                  Ecrit1.Item[3] = rResult!numlot
+                  Ecrit1.Item[4] = Format$(rResult!montantd, "0.00")
+                  Ecrit1.Item[5] = Format$(rResult!montantc, "0.00")
+                  Ecrit1.Item[6] = Format$(CDate(rResult!dte), "dd.mm.yyyy")
+                  Ecrit1.Item[7] = rResult!intitule
+                  Ecrit1.Item[8] = rResult!jour
+                  Ecrit1.Item[9] = Format$(CDate(rResult!datee), "dd.mm.yyyy")
+                  numcpt = rResult!compte
+                  Libelecrit.Text = rResult!libelle
+                  montantdb = rResult!montantd
+                  montantcd = rResult!montantc
+                  Try iLet = rResult!lettree
+                  If Error Then iLet = False
+                  numlot.Text = rResult!numlot
+                  numdoc.Text = rResult!numdoc
+                  montantdb = Val(Ecrit1.Item[4])
+                  montantcd = Val(Ecrit1.Item[5])
+                  Totaldb = Totaldb + montantdb
+                  Totalcd = Totalcd + montantcd
+                  soldec = Totalcd - Totaldb
+                  soldeecrit.Text = Format$(soldec, "0.00")
+                  If Val(.CPoint(soldeecrit.Text)) = 0 Then soldeecrit.Text = "0,00"
+                  'ENDIF
+                  If Left(rResult!compte, 3) = "401" Or Left(rResult!compte, 3) = "411" Then Nlot = rResult!numlot
+                  '      Utils.db.Exec("UPDATE " & Cbase.Table("TabMvt") & "  SET  validee =&1, provisoire =&2, lettree =&5 where compte = &3 AND numero = &4 ", 0, 1, Cpt, numecriture, 0)
+                  '     Utils.db.Exec("UPDATE " & Cbase.Table("TabMvt") & "  SET  lettree = &1 where numlot = &2 ", 0, Nlt)
+                  rrResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " WHERE compte_cc = &1", numcpt)
+                  If rrResult.Available Then
+                    num_coll = rrResult!coll_cc
+                    Mnt1 = rrResult!solde
+                    Mnt = Mnt1 - montantdb + montantcd
+                    If Left$(numcpt, 2) = "41" Then
+                      Mnt2 = montantcd
+                      'Encaisse.Value = TRUE
+                    Else
+                      Mnt2 = montantdb
+                      'Decaisse.Value = TRUE
+                    Endif
+                    Utils.db.Exec("Update " & Cbase.Table("TabComptes") & " set solde = &1 Where compte_cc = &2", Mnt, numcpt)
+                    mnt = 0
+                    If num_coll <> "" Then
+                      rrrResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " WHERE compte_cc = &1", num_coll)
+                      If rrrResult.Available Then
+                        Mnt = rrrResult!solde
+                        If Left$(numcpt, 2) = "41" Then
+                          Mnt = Mnt + Mnt2
+                        Else
+                          Mnt = Mnt - Mnt2
+                        Endif
+                        Utils.db.Exec("Update " & Cbase.Table("TabComptes") & " set solde = &1 Where compte_cc = &2", Mnt, num_coll)
+                        'Utils.db.Exec("UPDATE " & Cbase.Table("TabMvt") & "  SET  validee =&1, provisoire =&2, lettree = &5 where compte = &3 AND numero = &4 ", 0, 1, num_coll, numecriture, 0)
+                        Utils.db.Exec("DELETE FROM " & Cbase.Table("TabMvt") & " WHERE numero = &2 and compte = &1", num_coll, numecriture)
+                      Endif
+                    Endif
+                  Endif
+                Else
+                  libelletresor.Text = rResult!libelle
+                Endif
+                'Journal.Text = Ecrit1.Item[8]
+                ' ELSE
+                '   Utils.db.Exec("UPDATE " & Cbase.Table("TabMvt") & "  SET  validee =&1, provisoire =&2, lettree = &5 where compte = &3 AND numero = &4 ", 0, 1, Cpt, numecriture, 0)
+                Journal.Text = rResult!jour
+              Endif
+            Until rResult.MoveNext()
+          Endif
+          ecrit1.MoveLast()
+          Try ecrit1.Item.EnsureVisible
+          ecriture = "0"
+          montantdb = 0
+          montantcd = 0
+          Journal_LF()
+          comptetresorerie()
+          soldeCptt.Text = Format$(Val(soldeCptt.Text) - soldec, "0.00")
+          Mnt = Val(soldecptt.Text)
+          rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & "  WHERE compte_cc= &1", Cptt.Text)
+          If rResult.Available Then
+            Utils.db.Exec("Update " & Cbase.Table("TabComptes") & " set solde = &1 Where compte_cc = &2", Mnt, Cptt.Text)
+          Endif
+          Mnt = 0
+          JournauxMan()
+          
+          ' On delettre les ecritures portant un numero de lot identique
+          If Left(Nlot, 1) = "M" Or Left(Nlot, 1) = "S" Then
+            Nlot2 = Mid$(Nlot, 2, (Len(Nlot) - 1))
+          Else
+            Nlot2 = Nlot
+          Endif
+          rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & "  WHERE numlot = &1 and collectif is null", Nlot)
+          If rResult.Available Then
+            Utils.db.Exec("UPDATE " & Cbase.Table("TabMvt") & " SET lettree = &1, numlot = &3 WHERE numlot =  &2", 0, Nlot, Nlot2)
+          Endif
+        End With
+        Datej.Text = Ecrit1.Item[6]
+        Numcompte.SetFocus
+        ' On passe l'écriture en provisoire
+        Utils.db.Exec("UPDATE  " & Cbase.Table("TabMvt") & "  SET  validee = &2, provisoire = &3 where numero = &1", numecrit.Text, 0, 1)
+      Else
+        If Ext = True Then Me.close
+      Endif
+    Endif
+  Endif
+Catch
+  If son Then
+    Music.Play
+  Endif
+  If Message.Question("Cette écriture est incoherente, elle ne peut pas être rappelée !\nVoulez-vous la supprimer ?", "Oui", "Non") = 1 Then
+    Utils.db.Exec("delete FROM " & Cbase.Table("TabMvt") & "  WHERE numero = &1", num)
+  Endif
+  
+End
+
+Public Sub Jour_Activate()
+  
+  Jour.Visible = False
+  
+End
+
+Public Sub Lettre_Click()
+  
+  If ecritL.Visible Then
+    'Quit_Click()
+  Else
+    If numcompte.Text = "" Then
+      numcompte.SetFocus()
+    Else
+      Lettrage()
+    Endif
+  Endif
+  
+End
+
+Public Sub Quit_Click()
+  
+  EcritL.Visible = False
+  SELCT.Visible = False
+  Frame6.Visible = False
+  Totselection.Visible = False
+  QUIT.Visible = False
+  Totselection.text = "0,00"
+  TT = 0
+  TD = 0
+  TC = 0
+  EcritL.clear
+  Montant.Select
+  Montant.setfocus
+  
+End
+
+Public Sub Selct_Click()
+  
+  If EcritL.Count > 0 Then
+    EcritL.MoveFirst()
+    Repeat
+      If EcritL.Item[9] = "L" Then
+        numlet = EcritL.Item[8]
+        numdoc.Text = EcritL.Item[3]
+        numcpt = EcritL.Item[1]
+        Libelecrit.Text = EcritL.Item[5]
+        Utils.db.Exec("UPDATE " & Cbase.Table("TabMvt") & " SET numlot = &1 where compte = &2 and numero = &3", numlotT, numcompte.Text, numlet)
+      Endif
+    Until EcritL.Movenext()
+    numlot.Text = numlotT
+    If Val(totselection.text) = Null Then
+      Totselection.Text = "0,00"
+      numdoc.Text = ""
+      numlot.Text = ""
+    Endif
+    Montant.Text = Format$(Val(Totselection.Text), "0.00")
+    Montantsel = Val(Totselection.Text)
+    Quit_Click()
+  Endif
+  
+End
+
+'PUBLIC SUB Encaisse_Click()
+'Decaisse.Value = FALSE
+'Debit.Value = FALSE
+'Credit.Value = TRUE
+'Bclient.Value = TRUE
+'END
+
+'PUBLIC SUB Decaisse_Click()
+'Encaisse.Value = FALSE
+'Debit.Value = TRUE
+'Credit.Value = FALSE
+'Bfournisseur.Value = TRUE
+'END
+
+Public Sub Necrit_Click()
+  
+  If ecrit1.count <> 0 Then
+    Message.Warning("Vous avez une écriture en cours. Vous pourrez la retrouver dans les écritures non validées")
+    clear()
+    nvlle = 1
+    Datej_Gotfocus()
+    Datej.SetFocus
+    Datej.Select
+  Endif
+  
+End
+
+Public Sub Clear()
+  
+  ecrit1.clear
+  numcompte.text = ""
+  numecrit.Text = ""
+  numlot.text = ""
+  datee.text = ""
+  numdoc.text = ""
+  Intitulcompte.Text = ""
+  Montant.text = ""
+  libelletresor.text = ""
+  Libelecrit.text = ""
+  soldeecrit.text = "0,00"
+  Totselection.Text = "0,00"
+  Totalcd = 0
+  Totaldb = 0
+  soldec = 0
+  Modif = "0"
+  Gntva = False
+  n = 1
+  Journal.SetFocus
+  iLet = 0
+  
+End
+
+Public Sub Suppr_Click()
+  
+  Delmvt()
+  Calculsolde()
+  nvlle = 1
+  Clear()
+  
+End
+
+Public Sub Bclient_Click()
+  
+  Type = "C"
+  If rappel = False Then Credit.Value = True
+  Numcompte.SetFocus
+  
+End
+
+Public Sub Bfournisseur_Click()
+  
+  Type = "F"
+  If rappel = False Then Debit.Value = True
+  Numcompte.SetFocus
+  
+End
+
+Public Sub Bgestion_Click()
+  
+  Type = "G"
+  If rappel = False Then Debit.Value = True
+  Numcompte.SetFocus
+  
+End
+
+Public Sub Bbilan_Click()
+  
+  Type = "B"
+  If rappel = False Then Debit.Value = True
+  Numcompte.SetFocus
+  
+End
+
+Public Sub Button3_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Saisiestresorerie.html"]
+  
+End
+
+'*********************************************************************************
+'                     On gère les masques de saisies.
+
+Public Sub Ecrit1_MouseDown()
+  
+  If Mouse.right Then Aff_Mask()
+  
+End
+
+Public Sub Aff_Mask()
+  
+  If Colabt.visible = True Then
+    Colabt.Visible = False
+  Else
+    Colabt.Visible = True
+  Endif
+  Colabt.Columns.count = 4
+  Colabt.Columns[0].Width = 80
+  Colabt.Columns[1].Width = 300
+  Colabt.Columns[2].Width = 100
+  Colabt.Columns[3].Width = 80
+  Colabt.Columns[0].Text = "Numéro"
+  Colabt.Columns[1].Text = "Intitulé"
+  Colabt.Columns[2].Text = "Type écriture"
+  Colabt.Columns[3].Text = "Type saisie"
+  If journal.Text = "" Then
+    Colabt.Visible = False
+    If son Then
+      Music.Play
+    Endif
+    Message.Error("Veuillez saisir votre Code journal SVP !")
+    Journal.SetFocus
+  Else
+    If IsNull(Numecrit.text) Then
+      Colabt.Visible = False
+      If son Then
+        Music.Play
+      Endif
+      Message.Error("Veuillez valider la date d'écriture SVP !")
+      datej.SetFocus
+    Else
+      Colabt.Clear
+      Deb3()
+    Endif
+  Endif
+  
+End
+
+Public Sub Deb3()
+  
+  Dim recr As Result
+  
+  typeAbt = "T"
+  recr = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabNumabon") & " where type = &1", typeAbt)
+  If recr.Available Then
+    Repeat
+      Colabt.Add(recr!numero, recr!numero)
+      Colabt.Item[0] = recr!numero
+      Colabt.Item[1] = recr!intitule
+      Colabt.Item[2] = "Trésorerie"
+      If recr!typem = "1" Then
+        Colabt.Item[3] = "Montant"
+      Else
+        Colabt.Item[3] = "Pourcentage"
+      Endif
+    Until recr.MoveNext()
+    Colabt.MoveFirst()
+    Colabt.Item.Selected = True
+    Colabt.SetFocus
+  Endif
+  
+End
+
+Public Sub Colabt_Click()
+  
+  Dim recr As Result
+  Dim Totabd As Float
+  Dim Totabc As Float
+  
+  If Colabt.Count > 0 Then
+    recr = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigabon") & " where numero = &1", Colabt.Current[0], "0,00")
+    If recr.Available Then
+      Numcompte.text = recr!compte
+      Numcpt = Numcompte.Text
+      Intitulcompte.Text = recr!intitule
+      libelecrit.Text = Colabt.Current[1]
+      libelleTresor.Text = Colabt.Current[1]
+      Repeat
+        If recr!debit <> 0 Then
+          Totabd += Val(Utils.cpoint(recr!debit))
+        Else
+          Totabc += Val(Utils.cpoint(recr!credit))
+        Endif
+        If Totabd > 0 Then
+          Montant.Text = Format$(Totabd, "0.00")
+          debit.Value = True
+        Else
+          Montant.Text = Format$(Totabc, "0.00")
+          credit.Value = True
+        Endif
+      Until recr.MoveNext()
+      Colabt.Visible = False
+      EcrA = "1"
+    Endif
+    Type_compte()
+    Numdoc.SetFocus
+  Endif
+  
+End
+
+Public Sub Colabt_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    Intitulcompte.SetFocus
+    Colabt_Click()
+  Endif
+  If Key.code = Key.F7 Or If key.code = key.Esc Then
+    Colabt.Visible = False
+    Numcompte.SetFocus
+  Endif
+  
+End
+
+Public Sub LignAbt()
+  
+  Dim recr As Result
+  
+  Ecrit1.clear
+  recr = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigabon") & " where numero = &1", Colabt.Current[0], "0,00")
+  If recr.Available Then
+    Credit.Value = True
+    Repeat
+      Ecrit1.Add(recr!lig, recr!lig)
+      Ecrit1.Item[0] = recr!compte
+      Ecrit1.Item[1] = Libelecrit.Text
+      Ecrit1.Item[2] = numdoc.text
+      Ecrit1.Item[3] = numlot.text
+      numcpt = numcompte.Text
+      Ecrit1.Item[5] = Format$(Val(Utils.cpoint(recr!credit)), "0.00")
+      Ecrit1.Item[4] = Format$(Val(Utils.cpoint(recr!debit)), "0.00")
+      Ecrit1.Item[6] = datej.Text
+      Ecrit1.Item[7] = Intitulcompte.Text
+      Ecrit1.Item[8] = journal.Text
+      If Val(Utils.CPoint(soldeecrit.Text)) = 0 Then soldeecrit.Text = "0,00"
+    Until recr.MoveNext()
+  Endif
+  EcrA = "0"
+  Calculsolde()
+  Cleanchamps()
+  Button2.SetFocus
+  
+End
+
+Public Sub Type_compte()
+  
+  If Not IsNull(Numcompte.Text) Then
+    If Left$(Numcompte.text, 1) = "6" Or If Left$(Numcompte.text, 1) = "7" Then
+      Bgestion.Value = True
+    Else
+      Bbilan.Value = True
+    Endif
+    If Left$(Numcompte.text, 3) = "401" Then Bfournisseur.Value = True
+    If Left$(Numcompte.text, 3) = "411" Then Bclient.Value = True
+    LF = 0
+  Else
+    Message.Warning("Vous devez saisir un compte !")
+    LF = 1
+    Numcompte.SetFocus
+  Endif
+  
+End
+
+Public Sub Button5_Click()
+  
+  Dim hFormg As Gged
+  Dim $cpt, Tab As String
+  Dim dResult As Result
+  
+  Etiquette.Clear
+  If ecrit1.count > 0 Then
+    Select Case Message.Question("Que voulez-vous faire ?\n1- Joindre un fichier existant\n2- Scanner un document\n3 -Sortir", "1", "2", "3")
+      Case 1
+        Panel2.Visible = True
+        
+      Case 2
+        ecrit1.MoveFirst()
+        ecrit1.Item.Selected = True
+        $cpt = ecrit1.Current[0]
+        If Left$(ecrit1.Current[0], 3) = "411" Then tab = "Docs_Clients"
+        If Left$(ecrit1.Current[0], 3) = "401" Then tab = "Docs_Fournisseurs"
+        If Not IsNull($cpt) Then
+          hFormg = New Gged(Numecrit.text, "CPT", $cpt, Cptt.text)
+          hFormg.Showmodal()
+          Try Utils.db.Exec("insert into " & Tab & " (code,doc, doc2, org) values ( &1,&2, &3, &4)", ecrit1.Current[0], Variables.$fic, Variables.$doc & "," & ecrit1.Current[0], "")
+          ecrit1.MoveNext()
+          Repeat
+            Try ecrit1.Item.Selected = True
+            If Not Error Then
+              If Left$(ecrit1.Current[0], 3) = "411" Then tab = "Docs_Clients"
+              If Left$(ecrit1.Current[0], 3) = "401" Then tab = "Docs_Fournisseurs"
+              Utils.db.Exec("insert into " & Tab & " (code,doc, doc2, org) values ( &1,&2, &3, &4)", ecrit1.Current[0], Variables.$fic, Variables.$doc & "," & ecrit1.Current[0], "")
+              dResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCPTdocs") & " Where code = &1 and doc = &2", Numecrit.text, Variables.$fic)
+              If dResult.Available Then Utils.db.Exec("update " & Cbase.Table("TabCPTdocs") & " set doc2 = &1 where code = &2 and doc = &3", dResult!doc2 & "," & ecrit1.Current[0], Numecrit.text, Variables.$fic)
+            Endif
+          Until ecrit1.MoveNext()
+        Endif
+        
+      Case 3
+        Panel2.Visible = False
+        
+    End Select
+  Endif 
+  
+End
+
+Public Sub Button8_Click()
+  
+  Dim rDoc As Result
+  Dim $NmFic As String = Settings["/Soc" & Start.Societe & "/FactcheminC"]
+  Dim Fic, Fichier As String
+  Dim NmFic As String[]
+  Dim ific As Integer
+  Dim $cpt As String
+  
+  Dialog.Filter = FileFilter(True)
+  Dialog.Path = User.home
+  Dialog.Title = "Choix d'un fichier"
+  If Dialog.OpenFile() Then Return
+  Fic = Dialog.Path
+  NmFic = Split(Fic, "/")
+  For ific = 0 To NmFic.Count - 1
+    Fichier = NmFic[ific]
+  Next
+  ecrit1.MoveFirst()
+  ecrit1.Item.Selected = True
+  $cpt = ecrit1.Current[0]
+  If Not Exist($NmFic) Then Mkdir $NmFic
+  $NmFic &= "/" & Format$(Now, "yyyy")
+  If Not Exist($NmFic) Then Mkdir $NmFic
+  $Nmfic &= "/" & $cpt
+  If Not Exist($NmFic) Then Mkdir $NmFic
+  Shell "cp " & Fic & " " & $NmFic Wait
+  Fichier = $NmFic & "/" & Fichier
+  rDoc = Utils.db.Exec("SELECT * from " & Cbase.Table("TabCPTdocs") & " where code = &1 AND doc = &2 ", Numecrit.Text, Fichier)
+  If rDoc.Available Then
+    Utils.db.Exec("Update " & Cbase.Table("TabCPTdocs") & " set doc = &2, doc2 = &3, org = &4 where code = &1 AND doc = &2 ", Numecrit.Text, Fichier, Numecrit.text & "," & $cpt & "," & Etiquette.text, "Docs")
+  Else
+    Try Utils.db.Exec("insert into " & Cbase.Table("TabCPTdocs") & " (code,doc, doc2, org) values ( &1, &2, &3, &4)", Numecrit.Text, Fichier, Numecrit.text & "," & $cpt & "," & Etiquette.text, "Docs")
+  Endif
+  Panel2.visible = False
+Catch
+  Message.Warning(ERROR.Text)
+  
+End
+
+Private Function FileFilter(Optional All As Boolean = False) As String[]
+  
+  Dim filter As New String[]
+  
+  filter.Add("*.*")
+  Return filter
+  
+End
+
+Public Sub Etiquette_KeyPress()
+  
+  If Key.code = Key.Esc Or If Key.code = Key.Escape Then Panel1.Visible = False
+  
+End

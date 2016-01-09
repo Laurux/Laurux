@@ -1,0 +1,103 @@
+' Gambas module file
+
+'################################################
+'# nom du fichier           : modCrBcode.class
+'# Auteur                   : Charles guerin
+'################################################
+Public Sub PrintBarcode(bcode As String, posX As Integer, posY As Integer, bcHeight As Integer, barThickness As Integer, SorP As Boolean)
+  
+  Dim structure As New String[10]
+  'Dim enc As String[10, 3]. 'I did it the following way 'cos I get not get the prg to read a multi-dimension array!
+  Dim enc1 As New String[10]
+  Dim enc2 As New String[10]
+  Dim enc3 As New String[10]
+  Dim fontSizeScreen As New Integer[10]
+  Dim fontSizePrinter As New Integer[10]
+  
+  Dim first6 As String ' encoding for first 6: l-code(1), g-code(2)
+  Dim j As Integer
+  Dim l As Integer
+  Dim k As Integer
+  Dim frst As Integer 'the first digit
+  Dim num As Integer 'each digit in turn
+  Dim bars As String ' the bars for the digit
+  Dim LinePos As Integer 'used to horizontaly locate the next bar
+  
+  '
+  structure = ["111111", "112122", "112212", "112221", "121122", "122112", "122211", "121212", "121221", "122121"]
+  enc1 = ["0001101", "0011001", "0010011", "0111101", "0100011", "0110001", "0101111", "0111011", "0110111", "0001011"]
+  enc2 = ["0100111", "0110011", "0011011", "0100001", "0011101", "0111001", "0000101", "0010001", "0001001", "0010111"]
+  enc3 = ["1110010", "1100110", "1101100", "1000010", "1011100", "1001110", "1010000", "1000100", "1001000", "1110100"]
+  fontSizeScreen = [6, 9, 12, 16, 20, 24, 26, 28, 28, 30]
+  fontSizePrinter = [2, 2, 2, 4, 4, 6, 6, 8, 8, 10]
+  
+  frst = Val(Left(bcode, 1))
+  first6 = structure[frst]
+  
+  'draw 1st 2 deep bars-----------------------------------------------
+  For l = 1 To barThickness
+    Draw.Line(l + posX, 1 + posY, l + posX, bcHeight * 1.2 + posY)
+  Next
+  LinePos = LinePos + barThickness * 2 'allows for following gap
+  For l = 1 To barThickness
+    Draw.Line(LinePos + l + posX, 1 + posY, LinePos + l + posX, bcHeight * 1.2 + posY)
+  Next
+  LinePos = LinePos + barThickness
+  '---------------------------------------------------------------
+  
+  For j = 2 To 13 'loop through each of the 12 digits
+    Try num = Val(Mid$(bcode, j, 1)) 'find the individual number IN the first 6
+    If Error Then Return
+    If j < 8 Then 'different for first 6
+      If Val(Mid(first6, j - 1, 1)) = 1 Then 'find the bars making up that number (L,G or R)
+        bars = enc1[num]
+      Else
+        bars = enc2[num]
+      Endif
+    Else
+      bars = enc3[num]
+    Endif
+    
+    'put the 2 middle deep bars----------------------------------------
+    If j = 8 Then
+      LinePos = LinePos + barThickness
+      For l = 1 To barThickness
+        Draw.Line(linepos + l + posX, 1 + posY, linepos + l + posX, bcHeight * 1.2 + posY)
+      Next
+      LinePos = LinePos + barThickness * 2 'allows for following gap
+      For l = 1 To barThickness
+        Draw.Line(LinePos + l + posX, 1 + posY, LinePos + l + posX, bcHeight * 1.2 + posY)
+      Next
+      LinePos = LinePos + barThickness * 2 'allows for following gap
+    Endif
+    '---------------------------------------------------------------
+    For k = 1 To 7 'draw bars for single digit
+      If Mid(bars, k, 1) = "1" Then
+        For l = 1 To barThickness
+          Draw.Line(linepos + l + posX, 1 + posY, LinePos + l + posX, bcHeight + posY)
+        Next
+      Endif
+      linepos = LinePos + barThickness
+    Next
+  Next
+  
+  'draw last 2 deep bars------------------------------------------------
+  For l = 1 To barThickness
+    Draw.Line(linepos + l + posX, 1 + posY, linepos + l + posX, bcHeight * 1.2 + posY)
+  Next
+  LinePos = LinePos + barThickness * 2 'allows for following gap
+  For l = 1 To barThickness
+    Draw.Line(LinePos + l + posX, 1 + posY, LinePos + l + posX, bcHeight * 1.2 + posY)
+  Next
+  '---------------------------------------------------------------
+  'write the barcode text
+  If SorP Then
+    Draw.Font.Size = fontSizeScreen[barThickness - 1]
+  Else
+    Draw.Font.Size = fontSizePrinter[barThickness - 1]
+  Endif
+  Draw.Text(Left(bcode, 1), posX - barThickness * 6, posY + bcHeight * 1.02)
+  Draw.Text(Mid(bcode, 2, 6), posX + barThickness * 9, posY + bcHeight * 1.02)
+  Draw.Text(Right(bcode, 6), posX + barThickness * 58, posY + bcHeight * 1.02)
+  
+End

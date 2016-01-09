@@ -1,0 +1,165 @@
+' Gambas module file
+
+Public Sub Envoi(Email As String, sujet As String, Txt As String, piece As Boolean, chemin As String, TypeM As String, FileN As String)
+  
+  Dim Hmail As New SmtpClient
+  
+  With Hmail
+    If Not IsNull(EMail) Then
+      .Host = Settings["/Smtp"]
+      .Port = Settings["/Port"]
+      .From = Settings["/Adrmail"]
+      .Subject = sujet
+      .Alternative = False
+      .To.Add(Email)
+      .Add(Txt, "text/plain")
+      If piece = True Then
+        .Add(File.Load(chemin), TypeM, FileN)
+      Endif
+      Try .Send()
+      If Error Then Message.Error("Veuillez vérifier le mail indiqué ci-dessous SVP car l'envoi n'a pas pu se faire !")
+    Endif
+  End With
+  
+End
+
+Public Sub Envoi2(Email As String, sujet As String, Corps As String, piece As String)
+  
+  If Not IsNull(Settings["/Soc" & Start.Societe & "/Prgmail"]) Then
+    Select Case Settings["/Soc" & Start.Societe & "/Prgmail"]
+      Case "Thunderbird"
+        corps = Replace$(corps, ",", "%2C")
+        corps = Replace$(corps, "\n", "%0A")
+        corps = Replace$(corps, "(", "{")
+        corps = Replace$(corps, ")", "}")
+        corps = Replace$(corps, "'", " ")
+        corps = Replace$(corps, ";", "%2C")
+        'Print "thunderbird -compose" & " \"" & "to=" & Email & ",subject=" & sujet & ",body=" & corps & ",attachment=" & piece & "\""
+        Shell "thunderbird -compose" & " \"" & "to=" & Email & ",subject=" & sujet & ",body=" & corps & ",attachment=" & piece & "\""
+        
+      Case "Icedove"
+        corps = Replace$(corps, ",", "%2C")
+        corps = Replace$(corps, "\n", "%0A")
+        corps = Replace$(corps, "(", "{")
+        corps = Replace$(corps, ")", "}")
+        corps = Replace$(corps, "'", " ")
+        corps = Replace$(corps, ";", "%2C")
+        Shell "icedove -compose" & " to=" & Email & ",subject=" & sujet & " ,attachment=" & piece & ",body=" & corps
+        
+      Case "Evolution"  
+        Exec ["evolution", "mailto:" & Email & "?subject=" & sujet & "\\&body=" & corps & "\\&attach=" & piece]
+        
+      Case "Kmail"  
+        Exec ["kmail -s " & sujet & " --attach " & piece & " --msg " & corps & " " & Email]
+        
+    End Select
+  Else
+    Message.Warning("Le gestionnaire de messagerie n'est pas défini dans les préférences !") 
+  Endif
+  
+End
+
+Public Sub Envoi3(Email As String, sujet As String, Corps As String, piece As String, piece2 As String)
+  
+  If Not IsNull(Settings["/Soc" & Start.Societe & "/Prgmail"]) Then
+    Select Case Settings["/Soc" & Start.Societe & "/Prgmail"]
+      Case "Thunderbird"
+        corps = Replace$(corps, ",", "%2C")
+        corps = Replace$(corps, "\n", "%0A")
+        corps = Replace$(corps, "(", "{")
+        corps = Replace$(corps, ")", "}")
+        corps = Replace$(corps, "'", " ")
+        corps = Replace$(corps, ";", "%2C")
+        Shell "thunderbird -compose" & " \"" & "to=" & Email & ",subject=" & sujet & ",body=" & corps & ",attachment=" & "'" & piece & "," & piece2 & "'" & "\""
+        
+      Case "Icedove"
+        corps = Replace$(corps, ",", "%2C")
+        corps = Replace$(corps, "\n", "%0A")
+        corps = Replace$(corps, "(", "{")
+        corps = Replace$(corps, ")", "}")
+        corps = Replace$(corps, "'", " ")
+        corps = Replace$(corps, ";", "%2C")
+        Shell "thunderbird -compose" & " \"" & "to=" & Email & ",subject=" & sujet & ",body=" & corps & ",attachment=" & "'" & piece & "," & piece2 & "'" & "\""
+        
+      Case "Evolution"  
+        Exec ["evolution", "mailto:" & Email & "?subject=" & sujet & "\\&body=" & corps & "\\&attach=" & piece & "," & piece2]
+        
+      Case "Kmail"  
+        Exec ["kmail -s " & sujet & "--attach " & piece & "--msg " & corps & " " & Email]
+        
+    End Select
+  Else
+    Message.Warning("Le gestionnaire de messagerie n'est pas défini dans les préférences !") 
+  Endif
+  
+End
+
+Public Function Extension(FileN As String) As String
+  
+  Dim Ext As New String[]
+  Dim Type As String
+  Dim i As Integer
+  
+  Ext = Split(FileN, ".")
+  ' types text
+  For i = 1 To 2
+    If LCase$(Ext[i]) = "html" Or If LCase$(Ext[i]) = "css" Or If LCase$(Ext[i]) = "xml" Or If LCase$(Ext[i]) = "xsl"
+      Type = "text/" & Ext[i]
+    Endif
+    If LCase$(Ext[i]) = "txt" Or If LCase$(Ext[i]) = "csv"
+      Type = "text/plain"
+    Endif
+    ' types images
+    If LCase$(Ext[i]) = "gif" Or If LCase$(Ext[i]) = "png" Or If LCase$(Ext[i]) = "tiff" Or If LCase$(Ext[i]) = "bmp"
+      Type = "image/" & Ext[i]
+    Endif
+    If LCase$(Ext[i]) = "jpg" Or If LCase$(Ext[i]) = "jpeg"
+      Type = "image/jpeg"
+    Endif
+    'types video
+    If LCase$(Ext[i]) = "mpeg" Or If LCase$(Ext[i]) = "mpg" Or If LCase$(Ext[i]) = "avi" Or If LCase$(Ext[i]) = "wav"
+      Type = "video/" & Ext[i]
+    Endif
+    'type audio
+    If LCase$(Ext[i]) = "mp3"
+      Type = "audio/mpeg"
+    Endif
+    If LCase$(Ext[i]) = "wma"
+      Type = "audio/x-ms-wma"
+    Endif
+    'types application
+    If LCase$(Ext[i]) = "ogg" Or If LCase$(Ext[i]) = "pdf" Or If LCase$(Ext[i]) = "rtf" Or If LCase$(Ext[i]) = "zip"
+      Type = "application/" & Ext[i]
+    Endif
+    If LCase$(Ext[i]) = "ps"
+      Type = "application/postscript"
+    Endif
+    If LCase$(Ext[i]) = "bz2"
+      Type = "application/x-bzip"
+    Endif
+    If LCase$(Ext[i]) = "gz"
+      Type = "application/x-gzip"
+    Endif
+    If LCase$(Ext[i]) = "tar"
+      Type = "application/x-tar"
+    Endif
+    If LCase$(Ext[i]) = "doc" Or If LCase$(Ext[i]) = "rtf"
+      Type = "application/msword"
+    Endif
+    If LCase$(Ext[i]) = "xls"
+      Type = "application/excel"
+    Endif
+    If LCase$(Ext[i]) = "pps" Or If LCase$(Ext[i]) = "ppt"
+      Type = "application/vnd.ms-powerpoint"
+    Endif
+    If LCase$(Ext[i]) = "swf"
+      Type = "application/x-shockwave-flash"
+    Endif
+    If LCase$(Ext[i]) = "ods" Or If LCase$(Ext[i]) = "odp" Or If LCase$(Ext[i]) = "odt"
+      Type = "application/x-zip"
+    Endif
+    If Not IsNull(type) Then Break
+  Next
+  Return Type
+  
+End

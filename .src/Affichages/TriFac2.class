@@ -1,0 +1,780 @@
+' Gambas class file
+
+Private Fac[8] As String
+Private Tri As String
+Private sel As String
+Private sel2 As String
+Private Dbl As Boolean = False
+Private Dat As Integer = 0
+Private CoulB As Integer ' Variable pour la couleur du background
+Private CoulF As Integer ' Variable pour la couleur du Foreground
+Private Fnt As String ' Variable pour la police
+Private Prenom As String
+Private Prxdec As Boolean = False
+Private NbEnreg As Integer = 0 ' Enregistrement de départ de la sélection
+Private sDa As String ' Flage sur tri designation
+Private lg As Integer
+Private Client As String
+
+Public Sub _New(cclient As String)
+  
+  Titre()
+  lg = Int(ColFac.height / ColFac.Rows.Height) - 1
+  If Not IsNull(cclient) Then
+    CO.Text = cclient
+    sel = Co.Text
+    CO.SetFocus
+    Client = cclient
+  Else
+    sel = ""
+  Endif
+  If Not IsNull(cclient) Then
+    If encours.value Then
+      Tri = "cdclibl"
+    Else
+      Tri = "cdclifac"
+    Endif
+  Else
+    If encours.value Then
+      Tri = "numbl"
+    Else
+      Tri = "numfac"
+    Endif
+  Endif
+  Tris()
+  Deb2()
+  ColFac.MoveTo(0, 0)
+  Try ColFac.Current.EnsureVisible
+  Try ColFac.SetFocus
+  
+End
+
+Public Sub ColFac_Data(Row As Integer, Column As Integer)
+  
+  Dim Facture As String
+  Dim Avoir As String
+  Dim Frmt As New String[]
+  
+  With Utils
+    Facture = Settings["/Coul/Facts"]
+    If IsNull(Facture) Then Facture = "&HF9F9BD&"
+    Avoir = Settings["/Coul/Avs"]
+    If IsNull(Avoir) Then Avoir = "&HF9F9BD&"
+    If encours.value Then
+      Fac[0] = "pnmclibl"
+      Fac[1] = "numbl"
+      Fac[2] = "numfac"
+      Fac[3] = "datebl"
+      Fac[4] = "cdclibl"
+      Fac[5] = "nmclibl"
+      Fac[6] = "totalht"
+      Fac[7] = "totalttc"
+    Else
+      Fac[0] = "pnmclifac"
+      Fac[1] = ""
+      Fac[2] = "numfac"
+      Fac[3] = "datefac"
+      Fac[4] = "cdclifac"
+      Fac[5] = "nmclifac"
+      Fac[6] = "totfac"
+      Fac[7] = "totfacttc"
+    Endif
+    .rs2.MoveTo(Row)
+    ColFac.data.Text = Str(Utils.rs2[Fac[Column]])
+    Frmt = Utils.FColr(Facture)
+    Try CoulB = Val(Frmt[0])
+    Try CoulF = Val(Frmt[2])
+    Try Fnt = Frmt[1]
+    If Error Then
+      If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then
+        CoulB = Val("&HFAFAFA&")
+      Else
+        CoulB = Val("&HF9F9BD&")
+      Endif
+      CoulF = Val("&H000000&")
+      Fnt = "serif 10"
+    Endif
+    ColFac.Data.Background = CoulB
+    ColFac.Data.Foreground = CoulF
+    ColFac.Data.Font = Font[Fnt]
+    If Column = 0 Then prenom = ColFac.data.Text
+    If column = 1 And encours.Value = False Then ColFac.data.Text = ""
+    If Column = 3 Then
+      ColFac.data.Text = Replace$(ColFac.data.Text, "/", ".")
+      ColFac.data.Text = Left$(ColFac.data.Text, 6) & Mid$(ColFac.data.Text, 7, 4)
+    Endif
+    If Column = 5 Then
+      ColFac.data.Text = ColFac.data.Text & " " & prenom
+    Endif
+    If column = 6 Or If column = 7 Then
+      ColFac.Data.Alignment = 2
+      Try ColFac.Data.Text = Format$(Val(.cpoint(ColFac.Data.Text)), "0.00")
+      If Prxdec Then Try ColFac.Data.Text = Round(Val(ColFac.Data.Text))
+    Endif
+    'If column = 7 And Not IsNull(ColFac.Data.Text) Then 
+    'Colfac.Column[1].Text = ColFac.Data.Text
+    'Endif
+  End With
+  
+End
+
+Public Sub Deb2()
+  
+  If dat = 0 Then
+    Utils.Base2(colFac, "select pnmclibl, numbl, numfac, datebl, cdclibl, nmclibl, totalht, totalttc from " & Cbase.Table("TabBl") & " where " & Tri & " like  \"%" & sel & "%\" and totalht <> '0' order by " & Tri & " desc limit " & NbEnreg & ", " & lg & "")
+    'Utils.Base2(ColFac, "select pnmclifac, numfac, datefac, cdclifac, nmclifac, totfac, totfacttc from " & Cbase.Table("TabHisFac") & " where " & Tri & " like  \"%" & sel & "%\" order by abs(lpad(" & tri & ",10,' ')) limit " & NbEnreg & ", " & lg & "")
+  Else
+    Utils.Base2(colFac, "select pnmclibl, numbl, numfac, datebl, cdclibl, nmclibl, totalht, totalttc from " & Cbase.Table("TabBl") & " where " & Tri & " like  \"%" & sel & "%\" and totalht <> '0'   order by " & Tri & " desc limit " & NbEnreg & ", " & lg & "")
+    ' Utils.Base2(ColFac, "select pnmclifac, numfac, datefac, cdclifac, nmclifac, totfac, totfacttc from " & Cbase.Table("TabHisFac") & " where " & Tri & " like  \"%" & sel & "%\" order by " & tri & " limit " & NbEnreg & ", " & lg & "")
+  Endif
+  ColFac.Refresh
+  
+End
+
+Public Sub Deb2b()
+  
+  If dat = 0 Then
+    Utils.Base2(colFac, "select pnmclibl, numbl, numfac, datebl, cdclibl, nmclibl, totalht, totalttc from " & Cbase.Table("TabBl") & " where " & Tri & " like  \"%" & sel2 & "%\" and totalht <> '0' order by " & Tri & " desc limit " & NbEnreg & ", " & lg & "")
+    'Utils.Base2(ColFac, "select pnmclifac, numfac, datefac, cdclifac, nmclifac, totfac, totfacttc from " & Cbase.Table("TabHisFac") & " where " & Tri & " like  \"%" & sel2 & "%\"  limit " & NbEnreg & ", " & lg & "")
+  Else
+    Utils.Base2(colFac, "select pnmclibl, numbl, numfac, datebl, cdclibl, nmclibl, totalht, totalttc from " & Cbase.Table("TabBl") & " where " & Tri & " like  \"%" & sel2 & "%\" and totalht <> '0' order by " & Tri & " desc limit " & NbEnreg & ", " & lg & "")
+    'Utils.Base2(ColFac, "select pnmclifac, numfac, datefac, cdclifac, nmclifac, totfac, totfacttc from " & Cbase.Table("TabHisFac") & " where " & Tri & " like  \"%" & sel2 & "%\"  limit " & NbEnreg & ", " & lg & "")
+  Endif
+  ColFac.Refresh
+  
+End
+
+Public Sub Deb3b()
+  
+  If dat = 0 Then
+    Utils.Base2(colFac, "select pnmclibl, numbl, numfac, datebl, cdclibl, nmclibl, totalht, totalttc from " & Cbase.Table("TabBl") & " where " & Tri & " like  \"%" & sel2 & "%\" and totalht <> '0' order by " & Tri & "  limit " & NbEnreg & ", " & lg & "")
+    'Utils.Base2(ColFac, "select pnmclifac, numfac, datefac, cdclifac, nmclifac, totfac, totfacttc from " & Cbase.Table("TabHisFac") & " where " & Tri & " like  \"%" & sel2 & "%\" order by " & tri & "  desc limit " & NbEnreg & ", " & lg & "")
+  Else
+    Utils.Base2(colFac, "select pnmclibl, numbl, numfac, datebl, cdclibl, nmclibl, totalht, totalttc from " & Cbase.Table("TabBl") & " where " & Tri & " like  \"%" & sel2 & "%\" and totalht <> '0' order by " & Tri & "  limit " & NbEnreg & ", " & lg & "")
+    'Utils.Base2(ColFac, "select pnmclifac, numfac, datefac, cdclifac, nmclifac, totfac, totfacttc from " & Cbase.Table("TabHisFac") & " where " & Tri & " like  \"%" & sel2 & "%\" order by " & tri & "  desc limit " & NbEnreg & ", " & lg & "")
+  Endif
+  ColFac.Refresh
+  
+End
+
+Public Sub Deb3()
+  
+  If dat = 0 Then
+    Utils.Base2(colFac, "select pnmclibl, numbl, numfac, datebl, cdclibl, nmclibl, totalht, totalttc from " & Cbase.Table("TabBl") & " where " & Tri & " like  \"%" & sel & "%\" and totalht <> '0' order by " & Tri & " limit " & NbEnreg & ", " & lg & "")
+  Else
+    Utils.Base2(colFac, "select pnmclibl, numbl, numfac, datebl, cdclibl, nmclibl, totalht, totalttc from " & Cbase.Table("TabBl") & " where " & Tri & " like  \"%" & sel & "%\"  and totalht <> '0' order by " & Tri & " limit " & NbEnreg & ", " & lg & "")
+  Endif
+  ColFac.Refresh
+  
+End
+
+Public Sub Deb2bis()
+  
+  If dat = 0 Then
+    Utils.Base2(colFac, "select pnmclifac, numfac, datefac, cdclifac, nmclifac, totfac, totfacttc from " & Cbase.Table("TabHisFac") & " where " & Tri & " like  \"%" & sel & "%\" order by " & Tri & " desc limit " & NbEnreg & ", " & lg & "")
+    'Utils.Base2(ColFac, "select pnmclifac, numfac, datefac, cdclifac, nmclifac, totfac, totfacttc from " & Cbase.Table("TabHisFac") & " where " & Tri & " like  \"%" & sel & "%\" order by abs(lpad(" & tri & ",10,' ')) limit " & NbEnreg & ", " & lg & "")
+  Else
+    Utils.Base2(colFac, "select pnmclifac, numfac, datefac, cdclifac, nmclifac, totfac, totfacttc from " & Cbase.Table("TabHisFac") & " where " & Tri & " like  \"%" & sel & "%\" order by " & Tri & " desc limit " & NbEnreg & ", " & lg & "")
+    ' Utils.Base2(ColFac, "select pnmclifac, numfac, datefac, cdclifac, nmclifac, totfac, totfacttc from " & Cbase.Table("TabHisFac") & " where " & Tri & " like  \"%" & sel & "%\" order by " & tri & " limit " & NbEnreg & ", " & lg & "")
+  Endif
+  ColFac.Refresh
+  
+End
+
+Public Sub Deb2bbis()
+  
+  If dat = 0 Then
+    Utils.Base2(colFac, "select pnmclifac, numfac, datefac, cdclifac, nmclifac, totfac, totfacttc from " & Cbase.Table("TabHisFac") & " where " & Tri & " like  \"%" & sel2 & "%\" order by " & Tri & " desc limit " & NbEnreg & ", " & lg & "")
+    'Utils.Base2(ColFac, "select pnmclifac, numfac, datefac, cdclifac, nmclifac, totfac, totfacttc from " & Cbase.Table("TabHisFac") & " where " & Tri & " like  \"%" & sel2 & "%\"  limit " & NbEnreg & ", " & lg & "")
+  Else
+    Utils.Base2(colFac, "select pnmclifac, numfac, datefac, cdclifac, nmclifac, totfac, totfacttc from " & Cbase.Table("TabHisFac") & " where " & Tri & " like  \"%" & sel2 & "%\" order by " & Tri & " desc limit " & NbEnreg & ", " & lg & "")
+    'Utils.Base2(ColFac, "select pnmclifac, numfac, datefac, cdclifac, nmclifac, totfac, totfacttc from " & Cbase.Table("TabHisFac") & " where " & Tri & " like  \"%" & sel2 & "%\"  limit " & NbEnreg & ", " & lg & "")
+  Endif
+  ColFac.Refresh
+  
+End
+
+Public Sub Deb3bbis()
+  
+  If dat = 0 Then
+    Utils.Base2(colFac, "select pnmclifac, numfac, datefac, cdclifac, nmclifac, totfac, totfacttc from " & Cbase.Table("TabHisFac") & " where " & Tri & " like  \"%" & sel2 & "%\" order by " & Tri & "  limit " & NbEnreg & ", " & lg & "")
+    'Utils.Base2(ColFac, "select pnmclifac, numfac, datefac, cdclifac, nmclifac, totfac, totfacttc from " & Cbase.Table("TabHisFac") & " where " & Tri & " like  \"%" & sel2 & "%\" order by " & tri & "  desc limit " & NbEnreg & ", " & lg & "")
+  Else
+    Utils.Base2(colFac, "select pnmclifac, numfac, datefac, cdclifac, nmclifac, totfac, totfacttc from " & Cbase.Table("TabHisFac") & " where " & Tri & " like  \"%" & sel2 & "%\" order by " & Tri & "  limit " & NbEnreg & ", " & lg & "")
+    'Utils.Base2(ColFac, "select pnmclifac, numfac, datefac, cdclifac, nmclifac, totfac, totfacttc from " & Cbase.Table("TabHisFac") & " where " & Tri & " like  \"%" & sel2 & "%\" order by " & tri & "  desc limit " & NbEnreg & ", " & lg & "")
+  Endif
+  ColFac.Refresh
+  
+End
+
+Public Sub Deb3bis()
+  
+  If dat = 0 Then
+    Utils.Base2(colFac, "select pnmclifac, numfac, datefac, cdclifac, nmclifac, totfac, totfacttc from " & Cbase.Table("TabHisFac") & " where " & Tri & " like  \"%" & sel & "%\" order by " & Tri & " limit " & NbEnreg & ", " & lg & "")
+  Else
+    Utils.Base2(colFac, "select pnmclifac, numfac, datefac, cdclifac, nmclifac, totfac, totfacttc from " & Cbase.Table("TabHisFac") & " where " & Tri & " like  \"%" & sel & "%\" order by " & Tri & " limit " & NbEnreg & ", " & lg & "")
+  Endif
+  ColFac.Refresh
+  
+End
+
+Public Sub Tris()
+  
+  With ColFac
+    .Columns.count = 8
+    .Columns[0].Width = 1
+    .Columns[1].Width = NOMM.Width - 2
+    .Columns[2].Width = NMF.Width
+    .Columns[3].Width = DA.Width
+    .Columns[4].Width = CO.Width
+    .Columns[5].Width = NM.Width
+    .Columns[6].Width = MT.Width
+    .Columns[6].Alignment = 2
+    .Columns[7].Width = MTC.Width - 3
+    .Columns[7].Alignment = 2
+  End With
+  
+End
+
+Public Sub Titre()
+  
+  NOMM.Text = "Num BL"
+  NMF.Text = "Num Fac"
+  DA.Text = "Date"
+  CO.Text = "Code"
+  NM.Text = "Nom"
+  MT.Text = "Montant HT"
+  MTC.Text = "Montant TTC"
+  
+End
+
+Public Sub NOMM_MouseDown()
+  
+  Dat = 1
+  sel = ""
+  Dbl = ""
+  sDa = ""
+  NbEnreg = 0
+  Titre()
+  NOMM.Text = ""
+  If encours.value Then
+    Tri = "numbl"
+    Deb2()
+  Else
+    Tri = "numfac"
+    Deb2bis()
+  Endif
+  
+End
+
+Public Sub NOMM_Dblclick()
+  
+  Dat = 1
+  Dbclk()
+  
+End
+
+Public Sub NOMM_KeyPress()
+  
+  Dat = 1
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    If encours.value Then
+      Deb2()
+    Else
+      Deb2bis()
+    Endif
+  Endif
+  If Key.code = Key.Esc Or key.code = key.F2 Then Me.Close
+  If Key.code = Key.Down Then ColFac.SetFocus
+  
+End
+
+Public Sub DA_MouseDown()
+  
+  Dat = 1
+  sel = ""
+  Dbl = ""
+  sDa = "1"
+  NbEnreg = 0
+  Titre()
+  DA.Text = ""
+  If encours.value Then
+    Tri = "datebl"
+  Else
+    Tri = "datefac"
+  Endif
+  If encours.value Then
+    Deb2()
+  Else
+    Deb2bis()
+  Endif
+  
+End
+
+Public Sub DA_Dblclick()
+  
+  Dat = 1
+  sDa = "1"
+  Dbclk()
+  
+End
+
+Public Sub DA_KeyPress()
+  
+  Dat = 1
+  If Key.code = Key.Return Or Key.code = Key.Enter Or key.code = 46 Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+      If Len(sel) = 0 Then Deb2()
+    Else
+      sel = sel & key.Text
+      If Len(sel) = 4 Then
+        sel2 = "%-" & Right$(sel, 2) & "-" & Left$(sel, 2)
+        If encours.value Then
+          Deb2b()
+        Else
+          Deb2bbis()
+        Endif
+        sDa = "1"
+      Else
+        If Len(sel) = 8 Then
+          sel2 = Right$(sel, 2) & "-" & Mid$(sel, 3, 2) & "-" & Left$(sel, 2)
+          If encours.value Then
+            Deb2b()
+          Else
+            Deb2bbis()
+          Endif
+          sDa = "1"
+        Endif
+      Endif
+    Endif
+  Endif
+  If Key.code = Key.Esc Or key.code = key.F2 Then Me.Close
+  If Key.code = Key.Down Then ColFac.SetFocus
+  
+End
+
+Public Sub CO_MouseDown()
+  
+  Dat = 0
+  sel = ""
+  Dbl = ""
+  sDa = ""
+  NbEnreg = 0
+  Titre()
+  CO.Text = ""
+  If encours.value Then
+    Tri = "cdclibl"
+  Else
+    Tri = "cdclifac"
+  Endif
+  If encours.value Then
+    Deb2()
+  Else
+    Deb2bis()
+  Endif
+  
+End
+
+Public Sub CO_Dblclick()
+  
+  Dat = 0
+  Dbclk()
+  
+End
+
+Public Sub CO_KeyPress()
+  
+  Dat = 1
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    If encours.value Then
+      Deb2()
+    Else
+      Deb2bis()
+    Endif
+  Endif
+  If Key.code = Key.Esc Or key.code = key.F2 Then Me.Close
+  If Key.code = Key.Down Then ColFac.SetFocus
+  
+End
+
+Public Sub NM_MouseDown()
+  
+  Dat = 1
+  sel = ""
+  Dbl = ""
+  sDa = ""
+  NbEnreg = 0
+  Titre()
+  NM.Text = ""
+  If encours.value Then
+    Tri = "nmclibl"
+  Else
+    Tri = "nmclifac"
+  Endif
+  If encours.value Then
+    Deb2()
+  Else
+    Deb2bis()
+  Endif
+  
+End
+
+Public Sub NM_Dblclick()
+  
+  Dat = 1
+  Dbclk()
+  
+End
+
+Public Sub NM_KeyPress()
+  
+  Dat = 1
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    If encours.value Then
+      Deb2()
+    Else
+      Deb2bis()
+    Endif
+  Endif
+  If Key.code = Key.Esc Or key.code = key.F2 Then Me.Close
+  If Key.code = Key.Down Then ColFac.SetFocus
+  
+End
+
+Public Sub NMF_MouseDown()
+  
+  Dat = 0
+  sel = ""
+  Dbl = ""
+  sDa = ""
+  NbEnreg = 0
+  Titre()
+  NMF.Text = ""
+  Tri = "numfac"
+  If encours.value Then
+    Deb2()
+  Else
+    Deb2bis()
+  Endif
+  
+End
+
+Public Sub NMF_Dblclick()
+  
+  Dat = 0
+  Dbclk()
+  
+End
+
+Public Sub NMF_KeyPress()
+  
+  Dat = 1
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    If encours.value Then
+      Deb2()
+    Else
+      Deb2bis()
+    Endif
+  Endif
+  If Key.code = Key.Esc Or key.code = key.F2 Then Me.Close
+  If Key.code = Key.Down Then ColFac.SetFocus
+  
+End
+
+Public Sub MT_MouseDown()
+  
+  Dat = 1
+  sel = ""
+  Dbl = ""
+  sDa = ""
+  NbEnreg = 0
+  Titre()
+  MT.Text = ""
+  If encours.value Then
+    Tri = "totalht"
+  Else
+    Tri = "totfac"
+  Endif
+  If encours.value Then
+    Deb2()
+  Else
+    Deb2bis()
+  Endif
+  
+End
+
+Public Sub MT_Dblclick()
+  
+  Dat = 1
+  Dbclk()
+  
+End
+
+Public Sub MT_KeyPress()
+  
+  Dat = 1
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    If encours.value Then
+      Deb2()
+    Else
+      Deb2bis()
+    Endif
+  Endif
+  If Key.code = Key.Esc Or key.code = key.F2 Then Me.Close
+  If Key.code = Key.Down Then ColFac.SetFocus
+  
+End
+
+Public Sub MTC_MouseDown()
+  
+  Dat = 1
+  sel = ""
+  Dbl = ""
+  sDa = ""
+  NbEnreg = 0
+  Titre()
+  MTC.Text = ""
+  If encours.value Then
+    Tri = "totalttc"
+  Else
+    Tri = "totfacttc"
+  Endif
+  If encours.value Then
+    Deb2()
+  Else
+    Deb2bis()
+  Endif
+  
+End
+
+Public Sub MTC_Dblclick()
+  
+  Dat = 1
+  Dbclk()
+  
+End
+
+Public Sub MTC_KeyPress()
+  
+  Dat = 1
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    If encours.value Then
+      Deb2()
+    Else
+      Deb2bis()
+    Endif
+  Endif
+  If Key.code = Key.Esc Or key.code = key.F2 Then Me.Close
+  If Key.code = Key.Down Then ColFac.SetFocus
+  
+End
+
+Public Sub Dbclk()
+  
+  If Not Dbl Then
+    If encours.value Then
+      Deb3()
+    Else
+      Deb3bis()
+    Endif
+    Dbl = "1"
+  Else
+    If encours.value Then
+      Deb2()
+    Else
+      Deb2bbis()
+    Endif
+    Dbl = ""
+  Endif
+  NbEnreg = 0
+  
+End
+
+Public Sub ColFac_Click()
+  
+  Facture.Bsel = True
+  If encours.Value Then
+    Facture.numeroFac = ColFac[ColFac.row, 1].Text
+  Else
+    Facture.numeroFac = ColFac[ColFac.row, 2].Text
+  Endif
+  Me.close
+  
+End
+
+Public Sub ColFac_KeyPress()
+  
+  If Key.code = Key.Return Or Key.Code = Key.Enter Then ColFac_Click()
+  If Key.code = Key.Esc Or key.code = key.F2 Then
+    Facture.Bsel = False
+    Me.Close
+  Endif
+  If Key.code = Key.Up Then
+    If ColFac.Row = 0 Then
+      Remonter_Click()
+    Endif
+  Endif
+  If Key.code = Key.down Then
+    If ColFac.Row = lg - 1 Then
+      Descendre_Click()
+    Endif
+  Endif
+  If Key.code = Key.PageDown Then
+    Descendre_Click()
+  Endif
+  
+  If Key.code = Key.PageUp Then
+    Remonter_Click()
+  Endif
+  
+End
+
+Public Sub ColFac_MouseWheel()
+  
+  If mouse.Delta = -1 Then
+    If Colfac.Rows.Count = lg Then NbEnreg = NbEnreg + lg
+  Else
+    If Colfac.Rows.Count <= lg Then NbEnreg = NbEnreg - lg
+  Endif
+  Deplacement()
+  
+End
+
+Public Sub Descendre_Click()
+  
+  If ColFac.Rows.Count = lg Then
+    NbEnreg = NbEnreg + lg
+    Deplacement()
+  Endif
+  Try ColFac.MoveTo(0, 0)
+  Try ColFac.Current.EnsureVisible
+  Try ColFac.SetFocus
+  
+End
+
+Public Sub Remonter_Click()
+  
+  NbEnreg = NbEnreg - lg
+  Deplacement()
+  Try ColFac.MoveTo(0, 0)
+  Try ColFac.Current.EnsureVisible
+  Try ColFac.SetFocus
+  
+End
+
+Public Sub Descendre_KeyPress()
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Me.Close
+  Endif
+  If key.code = key.PageDown Then Descendre_Click()
+  If key.code = key.PageUp Then Remonter_Click()
+  
+End
+
+Public Sub Remonter_KeyPress()
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Me.Close
+  Endif
+  If key.code = key.PageDown Then Descendre_Click()
+  If key.code = key.PageUp Then Remonter_Click()
+  
+End
+
+Public Sub Deplacement()
+  
+  If NbEnreg < 0 Then NbEnreg = 0
+  If Dbl = True Then
+    If sda = "1" Then
+      If encours.value Then
+        Deb3b()
+      Else
+        Deb3bbis()
+      Endif
+    Else
+      If encours.value Then
+        Deb3()
+      Else
+        Deb3bis()
+      Endif
+    Endif
+  Else
+    If sda = "1" Then
+      If encours.value Then
+        Deb2b()
+      Else
+        Deb2bbis()
+      Endif
+    Else
+      If encours.value Then
+        Deb2()
+      Else
+        Deb2bis()
+      Endif
+    Endif
+  Endif
+  
+End
+
+Public Sub Archives_Click()
+  
+  Tri = "numfac"
+  Dat = 0
+  Tris()
+  Deb2bis()
+  ColFac.MoveTo(0, 0)
+  Try ColFac.Current.EnsureVisible
+  Try ColFac.SetFocus
+  
+End
+
+Public Sub Encours_Click()
+  
+  Tri = "numbl"
+  Dat = 0
+  Tris()
+  Deb2()
+  ColFac.MoveTo(0, 0)
+  Try ColFac.Current.EnsureVisible
+  Try ColFac.SetFocus
+  
+End

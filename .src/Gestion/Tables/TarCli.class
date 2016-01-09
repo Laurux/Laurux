@@ -1,0 +1,641 @@
+' Gambas class file
+
+'
+Public Bsel As Boolean = False
+Public CodeClient As String
+Public Codearticle As String
+Private nbdec As String 'variable pour decimale des prix
+Private arr As String
+Private son As Integer = Start.Son
+Private B As Boolean
+Private Origine As String
+
+Public Sub _new()
+  
+  Me.center
+  If Variables.OrgTarCli <> "Art" Then 
+    Lstart.Columns.count = 6
+    Lstart.Columns[0].Width = 160
+    Lstart.Columns[1].Width = 160
+    Lstart.Columns[2].Width = 90
+    Lstart.Columns[3].Width = 160
+    Lstart.Columns[4].Width = 160
+    Lstart.Columns[5].Width = 160
+    Lstart.Columns[1].Alignment = 2
+    Lstart.Columns[2].Alignment = 2
+    Lstart.Columns[3].Alignment = 2
+    Lstart.Columns[4].Alignment = 3
+    Lstart.Columns[5].Alignment = 2
+    Lstart.Columns[0].Text = "            Code"
+    Lstart.Columns[1].Text = "  Prix revient HT"
+    Lstart.Columns[2].Text = "   Coef HT"
+    Lstart.Columns[3].Text = "  Prix vente HT"
+    Lstart.Columns[4].Text = "           Tva"
+    Lstart.Columns[5].Text = "  Prix vente TTC"
+    If Variables.OrgTarCli = "Art" Then Aff_Tarart()
+  Else
+    Lstart.Columns.count = 7
+    Lstart.Columns[0].Width = 80
+    Lstart.Columns[1].Width = 260
+    Lstart.Columns[2].Width = 120
+    Lstart.Columns[3].Width = 90
+    Lstart.Columns[4].Width = 120
+    Lstart.Columns[5].Width = 80
+    Lstart.Columns[6].Width = 120 
+    Lstart.Columns[2].Alignment = 2
+    Lstart.Columns[3].Alignment = 2
+    Lstart.Columns[4].Alignment = 2
+    Lstart.Columns[5].Alignment = 3
+    Lstart.Columns[6].Alignment = 2
+    Lstart.Columns[0].Text = "    Code"
+    Lstart.Columns[1].Text = "                  Nom"
+    Lstart.Columns[2].Text = "  Prix revient HT"
+    Lstart.Columns[3].Text = "   Coef HT"
+    Lstart.Columns[4].Text = "  Prix vente HT"
+    Lstart.Columns[5].Text = "     Tva"
+    Lstart.Columns[6].Text = "  Prix vente TTC"
+    If Variables.OrgTarCli = "Art" Then Aff_Tarart()
+  Endif
+  If Variables.OrgTarCli = "Art" Then
+    Button5.visible = False
+    Tart.ReadOnly = True
+    Tdesign.ReadOnly = True
+    Tart.Text = Variables.ArtCode
+    Tdesign.Text = Variables.Artintitule
+    Art_Man(Tart.text)
+  Endif
+  If Variables.OrgTarCli = "Art" Then
+    Button5.visible = False
+    Tart.ReadOnly = True
+    Tdesign.ReadOnly = True
+    Tart.Text = Variables.ArtCode
+    Tdesign.Text = Variables.Artintitule
+    Art_Man(Tart.text)
+    Tclient.SetFocus
+  Else
+    Tclient.SetFocus
+    Tclient.Select
+  Endif
+  
+End
+
+'******************************************* Gestion des clients tarifs*************************************************
+'**********************************************************
+'*      Le bouton sert a rechercher les clients tarif     *
+'**********************************************************
+Public Sub Button4_click()
+  
+  Lstart.Clear
+  SelectionClient()
+  
+End
+
+'******************************************
+'*      Selection du  code client         *
+'******************************************
+Public Sub Tclient_KeyPress()
+  
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+    Cli_man()
+  Endif
+  
+End
+
+Public Sub Cli_man()
+  
+  Dim Clitab As Result
+  Dim Tabcli As String
+  
+  Lstart.Clear
+  Tabcli = "Fiches_Cli" 
+  Try Clitab = Utils.db.Exec("SELECT * FROM " & tabcli & " where cli_code = &1", Tclient.Text)
+  If Not Error And If Clitab.Available Then
+    TNom.Text = Clitab!cli_nom
+    TPrenom.Text = Clitab!cli_pnm
+    Aff_Tarart()
+    If Variables.OrgTarCli <> "Art" Then
+      Tart.SetFocus
+    Else
+      Tcoeff.SetFocus
+      Tcoeff.Select
+    Endif
+    If Variables.OrgTarCli <> "Art" Then
+      Tart.SetFocus
+    Else
+      Tcoeff.SetFocus
+      Tcoeff.Select
+    Endif
+  Else
+    If Not Clitab.Available Then 
+      message.Warning("Ce client n'existe pas ! ")
+      Tclient.SetFocus
+      Tclient.Select
+    Endif
+  Endif
+  
+End
+
+'**********************************************************
+'*                 Gestion onglet Saisie Client         *
+'**********************************************************
+Public Sub SelectionClient()
+  
+  Dim MyForm As Triclients
+  
+  bsel = False
+  MyForm = New Triclients("TarCli")
+  MyForm.Showmodal()
+  If Bsel = True Then
+    Tclient.text = Codeclient
+    Cli_Man()
+  Else
+    Tclient.SetFocus
+  Endif
+  
+End
+
+Public Sub Aff_Tarart()
+  
+  Dim rResult As Result
+  
+  Lstart.clear
+  If Variables.OrgTarCli <> "Art" Then
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTarcli") & " T " & ", " & Cbase.Table("TabArt") & " A " & " where A.art_code = T.cart and T.ccli = &1 order by cart", Tclient.Text)
+  Else
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTarcli") & " T " & ", " & Cbase.Table("TabCli") & " C " & " where C.cli_code = T.ccli and T.cart = &1  order by cart ", Tart.Text)
+  Endif
+  If rResult.Available Then
+    Repeat
+      If Variables.OrgTarCli <> "Art" Then
+        Lstart.Add(rResult!cart, rResult!cart)
+        Lstart.Item[0] = rResult!cart
+      Else
+        Lstart.Add(rResult!ccli & rResult!cart, rResult!ccli & rResult!cart)
+        Lstart.Item[0] = rResult!ccli
+      Endif
+      If Variables.OrgTarCli <> "Art" Then 
+        Lstart.Item[1] = Format$(rResult!art_prvt, "0.00")
+        Lstart.Item[4] = rResult!art_tva
+      Else
+        Lstart.Item[2] = Tprht.Text
+        Lstart.Item[5] = Variables.ArtTva
+      Endif
+      If Variables.OrgTarCli <> "Art" Then
+        Lstart.Item[2] = Format$(rResult!coef, "0.0000")
+      Else
+        Lstart.Item[1] = rResult!cli_nom
+        Lstart.Item[3] = Format$(rResult!coef, "0.0000")
+      Endif
+      Calc_pvht2()
+    Until rResult.MoveNext()
+  Endif
+  
+End
+
+'******************************************* On gère les produits *******************************************************************
+'**********************************************************
+'*                 Gestion onglet Saisie Articles         *
+'**********************************************************
+
+Public Sub Button5_click()
+  
+  SelectionArt()
+  
+End
+
+Public Sub Tart_KeyPress()
+  
+  If Key.code = Key.F2 Then SelectionArt()
+  If Key.code = Key.Return Or Key.code = Key.Enter Then Art_Man(Tart.Text)
+  
+End
+
+Public Sub SelectionArt()
+  
+  Dim sel As String
+  Dim MyForm As TriArticles
+  Dim Tri As String
+  
+  Bsel = False
+  Tri = "art_code"
+  MyForm = New TriArticles("", "", Tri, "TarCli", "", "")
+  MyForm.Showmodal()
+  If Bsel = True Then
+    Tart.text = Codearticle
+    Art_Man(Tart.Text)
+  Else
+    Tart.SetFocus
+  Endif
+  
+End
+
+'**************************************
+'* On Selectionne l'article saisi     *
+'**************************************
+Public Sub Art_man(Prod As String)
+  
+  Dim Tab As String
+  Dim Rarts As Result
+  
+  Tab = "Fiches_Art" 
+  With utils
+    If Left$(Tart.Text, 1) = "*" Then
+      Rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", Mid$(Tart.Text, 2, Len(Tart.Text)))
+    Else
+      Rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", Tart.Text)
+    Endif
+    If Not Rarts.Available Then
+      Rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_cequ = &1", Tart.Text)
+    Endif
+    If Not Rarts.Available Then
+      Rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_refcentrale = &1", Tart.Text)
+    Endif
+    If Rarts.Available Then
+      Tart.text = Rarts!art_code
+      Tdesign.text = Rarts!art_design
+      Nbdec = .Find_Nbdec(Rarts!art_nbd)
+      Nbd.Text = Rarts!art_nbd
+      Tprht.Text = Format$(Rarts!art_prvt, nbdec)
+      Tpvht.Text = Format$(Rarts!art_pvht, Nbdec)
+      arr = Rarts!art_cdarr
+      TarTva.Text = Rarts!art_tva
+      TpvTTc.Text = Format$(Rarts!art_pvttc, nbdec)
+      Try Tcoeff.Text = Format$(Val(Tpvht.Text) / Val(Tprht.Text), "0.0000")
+      Tcoeff.Select
+      Tcoeff.SetFocus
+    Else
+      If start.son Then
+        Music.Play
+      Endif
+      Try message.Warning(" L'article " & Tart.Text & " n'existe pas ! ")
+      Tart.Clear
+      Tart.SetFocus
+    Endif
+  End With
+Catch
+  If start.son Then
+    Music.Play
+  Endif
+  Try message.Error(Error.Text & " " & Error.where)
+  
+End
+
+Public Sub Button2_Click()
+  
+  Me.close
+  
+End
+
+Public Sub Button3_Click()
+  
+  If Lstart.Count <> 0 Then
+    If message.Question("Attention ! Vous allez supprimer tous les produits pour le client séléctionné.", "Oui", "Non") = 1 Then
+      Utils.db.Exec("DELETE FROM " & Cbase.Table("TabTarcli") & " WHERE ccli = &1", Tclient.text)
+      Refresh()
+    Endif
+  Endif
+  
+End
+
+Public Sub Button6_Click()
+  
+  Dim Taresult As Result
+  
+  If Not IsNull(Tclient.text) Then
+    Taresult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTarcli") & " where ccli = &1 and cart = &2", Tclient.Text, Tart.Text)
+    If Not Taresult.Available Then
+      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabTarcli") & "(ccli, cart, coef) VALUES(&1, &2, &3)", Tclient.Text, Tart.Text, Val(Utils.cpoint(Tcoeff.Text)))
+    Else
+      If message.Question("Attention ce produit existe déjà dans la liste ! Voulez-vous le mettre à jour ?", "Oui", "Non") = 1 Then
+        Utils.db.Exec("UPdate  " & Cbase.Table("TabTarcli") & "  SET coef = &3 WHERE ccli = &1 and cart = &2", Tclient.Text, Tart.Text, Val(Utils.cpoint(Tcoeff.Text)))
+      Endif
+    Endif
+    Aff_Tarart()
+    If Variables.OrgTarCli <> "Art" Then Refresh()
+    Tart.SetFocus()
+    If Variables.OrgTarCli = "Art" Then
+      Tart.Text = Variables.ArtCode
+      Tdesign.Text = Variables.Artintitule
+      Art_Man(Tart.text)
+      Tclient.Clear
+      Tnom.Clear
+      TPrenom.Clear
+    Endif
+  Else
+    Message.Warning("Veuillez saisir un client SVP !")
+    Tclient.setfocus
+  Endif
+  
+End
+
+Public Sub Refresh()
+  
+  Tart.Clear
+  Tdesign.Clear
+  Tprht.Clear
+  Tcoeff.Clear
+  Tpvht.Clear
+  TarTva.Text = ""
+  Tpvttc.Clear
+  
+End
+
+Public Sub Button6_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then Button6_Click()
+  
+End
+
+Public Sub Tcoeff_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Tcoeff_Lostfocus()
+    If B = True Then
+      Button6.setfocus
+    Endif
+  Endif
+  
+End
+
+Public Sub Tcoeff_Lostfocus()
+  
+  Dim Tx As Float
+  
+  With Utils
+    tcoeff.Text = .cpoint(Tcoeff.Text)
+    If Val(Tcoeff.text) = Null Then
+      If son Then
+        Music.Play
+      Endif
+      message.Warning("Veuillez verifier la saisie de votre coefficient SVP !")
+      b = False
+    Else
+      Tx = Val(.cpoint(Tcoeff.Text))
+      Tcoeff.Text = Format$(Tx, "0.0000")
+      Calc_pvht()
+      b = True
+    Endif
+  End With
+  
+End
+
+Public Sub Calc_pvht()
+  
+  Tpvht.Text = Format$(Val(Tprht.Text) * Val(Tcoeff.Text), nbdec)
+  Tva_calcul()
+  Arrondi()
+  
+End
+
+Public Sub Calc_pvht2()
+  
+  If Variables.OrgTarCli <> "Art" Then
+    Lstart.Item[3] = Format$(Val(Lstart.Item[1]) * Val(Lstart.Item[2]), "0.00")
+  Else
+    Lstart.Item[4] = Format$(Val(Lstart.Item[2]) * Val(Lstart.Item[3]), "0.00")
+  Endif
+  Tva_calcul2()
+  Arrondi()
+  
+End
+
+'***************************************************************
+'*   On calcule le montant de la tva et le prix de vente TTC   *
+'***************************************************************
+Public Sub Tva_Calcul()
+  
+  Dim Mtva As Float
+  
+  With Utils
+    Mtva = CPrix.CTva(TarTva.Text)
+    TpvTTc.Text = Format$(Val(Tpvht.Text) + (Val(Tpvht.Text) * Val(.cpoint(Mtva)) / 100), nbdec)
+    Arrondi()
+    TpvTTc_LostFocus()
+  End With
+  
+End
+
+Public Sub Tva_Calcul2()
+  
+  Dim Mtva As Float
+  
+  With Utils
+    If Variables.OrgTarCli <> "Art" Then
+      Mtva = CPrix.CTva(Lstart.Item[4])
+    Else
+      Mtva = Val(.cpoint(Variables.ArtTva))
+    Endif
+    If Variables.OrgTarCli <> "Art" Then
+      Lstart.Item[5] = Format$(Val(Lstart.Item[3]) + (Val(Lstart.Item[3]) * Val(.cpoint(Mtva)) / 100), "0.00")
+    Else
+      Lstart.Item[6] = Format$(Val(Lstart.Item[4]) + (Val(Lstart.Item[4]) * Val(.cpoint(Mtva)) / 100), "0.00")
+    Endif
+  End With
+  
+End
+
+'***********************************
+'*        On gère l' arrondi       *
+'***********************************
+Public Sub arrondi()
+  
+  If Not Tpvttc.Text Then Tpvttc.Text = "0,00"
+  Tpvttc.Text = Utils.cpoint(Tpvttc.Text)
+  If arr = "0,05" Then
+    If Right$(Tpvttc.Text) Like "[34567]*" Then
+      Tpvttc.Text = Left$(Tpvttc.Text, (Len(Tpvttc.Text) - 1)) & "5"
+    Else
+      Tpvttc.Text = Round(Val(Tpvttc.Text), -1)
+      Tpvttc.Text = Format$(Tpvttc.Text, nbdec)
+    Endif
+  Endif
+  
+  If arr = "0,10" Then
+    Tpvttc.Text = Round(Val(Tpvttc.Text), -1)
+    Tpvttc.Text = Format$(Tpvttc.Text, nbdec)
+  Endif
+  
+  If arr = "0,50" Then
+    If Val(Tpvttc.Text) <= Val(Left$(Tpvttc.Text, (Len(Tpvttc.Text) - 2)) & 25) Then
+      Tpvttc.Text = Left$(Tpvttc.Text, (Len(Tpvttc.Text) - 2)) & "00"
+    Else
+      If Val(Tpvttc.Text) <= Val(Left$(Tpvttc.Text, (Len(Tpvttc.Text) - 2)) & 75) Then
+        Tpvttc.Text = Left$(Tpvttc.Text, (Len(Tpvttc.Text) - 2)) & "50"
+      Endif
+      If Val(Tpvttc.Text) >= Val(Left$(Tpvttc.Text, (Len(Tpvttc.Text) - 2)) & 76) Then
+        Tpvttc.Text = Round(Val(Tpvttc.Text))
+        Tpvttc.Text = Format$(Tpvttc.Text, nbdec)
+      Endif
+    Endif
+  Endif
+  
+  If arr = "1,00" Then
+    Tpvttc.Text = Round(Val(Tpvttc.Text))
+    Tpvttc.Text = Format$(Tpvttc.Text, nbdec)
+  Endif
+  
+End
+
+Public Sub Lstart_Click()
+  
+  Lstart.Item.Selected = True
+  
+End
+
+Public Sub Lstart_KeyPress()
+  
+  If Key.code = Key.Delete Then
+    If Lstart.Count <> 0 Then
+      If message.Question("Attention ! Vous allez supprimer ce produit pour le client séléctionné.", "Oui", "Non") = 1 Then
+        Lstart.MoveFirst()
+        Repeat
+          If Lstart.Item.selected = True Then
+            If Variables.OrgTarCli <> "Art" Then
+              Utils.db.Exec("DELETE FROM " & Cbase.Table("TabTarcli") & " WHERE ccli = &1 and cart = &2", Tclient.text, Lstart.Item[0])
+            Else
+              Utils.db.Exec("DELETE FROM " & Cbase.Table("TabTarcli") & " WHERE ccli = &1 and cart = &2", Lstart.Item[0], Tart.text)
+            Endif
+            If Variables.OrgTarCli <> "Art" Then Refresh()
+            Lstart.Clear
+            Aff_Tarart()
+            Break
+          Endif
+        Until Lstart.MoveNext()
+      Endif
+    Endif
+  Else
+    Message.Warning("Suppression impossible ! Veuillez aller en gestion des tarifs clients SVP.")
+  Endif
+  
+End
+
+Public Sub Lstart_Activate()
+  
+  If Variables.OrgTarCli <> "Art" Then
+    Refresh()
+    Tart.Text = Lstart.Item[0]
+    Art_Man(Tart.Text)
+    Tprht.Text = Lstart.Item[1]
+    Tcoeff.Text = Lstart.Item[2]
+    Tpvht.Text = Lstart.Item[3]
+    TarTva.Text = Lstart.Item[4]
+    Tpvttc.Text = Lstart.Item[5]
+  Else
+    Tclient.Text = Lstart.Item[0]
+    Tnom.Text = Lstart.Item[1]
+  Endif
+  Tcoeff.SetFocus
+  Tcoeff.Select 
+  
+End
+
+'***********************************
+'*  On gère le prix de vente ht    *
+'***********************************
+Public Sub Tpvht_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then Tpvttc.SetFocus
+  
+End
+
+Public Sub Tpvht_LostFocus()
+  
+  With Utils
+    TPvht.Text = .cpoint(TPvht.Text)
+    If Val(TPvht.Text) = Null Then
+      If start.son Then
+        Music.Play
+      Endif
+      Try message.Warning("Veuillez verifier votre saisie SVP !")
+      Tpvht.SetFocus
+      Tpvht.select
+    Else
+      Tpvht.Text = Format$(Val(Tpvht.Text), nbdec)
+      If Val(Tpvht.Text) < Val(Tprht.Text) Then
+        If start.son Then
+          Music.Play
+        Endif
+        Try message.warning("ATTENTION ! Le Prix de vente est inférieur au prix de revient", "OK !")
+        Me.visible = True
+        Tpvht.SetFocus
+        Tpvht.select
+      Else
+        Tva_calcul()
+      Endif
+    Endif
+  End With
+Catch
+  If start.son Then
+    Music.Play
+  Endif
+  Try message.Error(Error.Text & " " & Error.where)
+  b = 1
+  
+End
+
+'***********************************
+'* On gère le prix de vente TTC    *
+'***********************************
+Public Sub Tpvttc_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then Button6.SetFocus()
+  
+End
+
+Public Sub TpvTTc_LostFocus()
+  
+  Dim tx As Float
+  
+  With Utils
+    Tpvttc.Text = .cpoint(Tpvttc.Text)
+    If Val(TpvTTc.Text) = Null Then
+      If start.son Then
+        Music.Play
+      Endif
+      Try message.Warning("Veuillez verifier votre saisie SVP !")
+      b = 1
+    Else
+      If Val(TpvTTc.Text) > 0 Then
+        tx = CPrix.CTva(TarTva.Text)
+        tx = (1 + tx / 100)
+        If Val(TpvTTc.Text) <> 0 Then
+          Tpvht.Text = Format$(Val(TpvTTc.Text) / tx, nbdec)
+          'TpvTTc.Text = Format$(Val(TpvTTc.Text), nbdec)
+        Endif
+        arrondi()
+        Calc_coeff()
+      Endif
+    Endif
+    If Val(Tpvht.Text) < Val(Tprht.Text) Then
+      If start.son Then
+        Music.Play
+      Endif
+      Try message.warning("ATTENTION ! Le Prix de vente est inférieur au prix de revient", "OK")
+    Endif
+  End With
+Catch
+  If start.son Then
+    Music.Play
+  Endif
+  Try message.Error(Error.Text & " " & Error.where)
+  b = 1
+  
+End
+
+'***************************************
+'*      On calcule le coefficient      *
+'***************************************
+Public Sub Calc_coeff()
+  
+  Try Tcoeff.Text = Format$(Val(Tpvht.Text) / Val(Tprht.Text), "0.0000")
+  
+End
+
+'********************
+'* On lance la doc  *
+'********************
+Public Sub Button1_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/TarifClient.html"]
+  
+End

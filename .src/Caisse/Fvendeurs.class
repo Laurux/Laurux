@@ -1,0 +1,259 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Fvendeurs.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 25/09/2009
+'# Gestion de la tables des vendeurs
+'################################################
+'
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Me.Center
+  Vendeur.Columns.count = 3
+  Vendeur.Columns[0].Width = 40
+  Vendeur.Columns[1].Width = 1
+  Vendeur.Columns[2].Width = 140
+  Vendeur.Columns[0].Text = "code"
+  Vendeur.Columns[0].Alignment = 1
+  Vendeur.Columns[2].Text = "          Libellé"
+  Vendeur.Columns[2].Alignment = 1
+  Code.SetFocus
+  
+End
+
+Public Sub Form_Open()
+  
+  Dim rResult As Result
+  
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabVendeurs") & " ")
+  If rResult.Available Then
+    Repeat
+      Vendeur.Add(rResult!code, rResult!code)
+      Vendeur.Item[0] = rResult!code
+      Vendeur.Item[2] = rResult!nom
+      Vendeur.Item[1] = rResult!mdp
+      Vendeur.Item[3] = rResult!admin
+    Until rResult.MoveNext()
+  Endif
+  
+End
+
+Public Sub Refresh()
+  
+  Vendeur.clear
+  Admin.Value = False
+  form_Open()
+  Maj_Zones()
+  
+End
+
+Public Sub Maj_Zones()
+  
+  With Utils
+    If Vendeur.Count <> 0 Then
+      Code.Text = Vendeur.Item[0]
+      Libelle.text = Vendeur.Item[2]
+      Mdp.Text = hexdblKey.crypt("de", Vendeur.Item[1], "Laurux")
+      Try Admin.value = Vendeur.Item[3]
+    Endif
+  End With
+  Code.SetFocus
+  
+End
+
+Public Sub Cleanchamps()
+  
+  Code.Clear
+  Libelle.Clear
+  Mdp.Clear
+  Mdp2.clear
+  admin.Value = False
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Cais_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  
+End
+
+Public Sub Cais_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.RETURN Or Key.code = Key.Tab Then
+    Select Case Last.tag
+        
+      Case 1
+        Libelle.SetFocus
+        Libelle.Select
+        Stop Event
+        
+      Case 2
+        Mdp.SetFocus
+        Mdp.Select
+        Stop Event
+        
+      Case 3
+        Mdp2.SetFocus
+        Mdp2.Select
+        Stop Event
+        
+      Case 4
+        Button1.SetFocus
+        Stop Event
+    End Select
+  Endif
+  
+  If key.code = key.F1 Then
+    Button5_Click()
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Btn_KeyPress()
+  
+  Select Case Last.tag
+      
+    Case 2
+      Button1_Click()
+      
+  End Select
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Button3_Click()
+      
+    Case 2
+      Button1_Click()
+      
+    Case 3
+      Me.Close
+      
+  End Select
+  
+End
+
+Public Sub Vendeur_Click()
+  
+  Maj_Zones
+  
+End
+
+Public Sub Button1_Click()
+  
+  Dim Rcai As Result
+  Dim $mdp As String
+  
+  If Mdp.text = Mdp2.Text Then
+    If Len(Mdp.text) >= 3 Then
+      $mdp = hexdblKey.crypt("en", Mdp.text, "Laurux")
+      If Code.Text <> "" Then
+        With utils
+          Rcai = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabVendeurs") & " WHERE code = &1", Code.text)
+          If Rcai.Available Then
+            Utils.db.Exec("UPdate  " & Cbase.Table("TabVendeurs") & "  SET nom = &2, mdp = &3, admin = &4 WHERE code = &1", Code.text, Libelle.Text, $mdp, Admin.Value)
+          Else
+            Utils.db.Exec("INSERT INTO " & Cbase.Table("TabVendeurs") & " (code,nom, mdp, admin) VALUES (&1, &2, &3, &4)", Code.text, Libelle.Text, $mdp, Admin.value)
+          Endif
+        End With
+        Refresh()
+        Cleanchamps()
+      Else
+        Code.Select
+      Endif
+    Else
+      Music.Play
+      Message.Warning("La longueur du mot de passe doit être égale ou supérieure à 3")
+      Mdp.SetFocus
+      Mdp.Select
+    Endif
+  Else
+    Message.Error("Les deux mots de passe ne sont pas identiques !")
+    Mdp.SetFocus
+    Mdp.Select
+  Endif
+  
+End
+
+Public Sub Button3_Click()
+  
+  If Code.Text <> "" Then
+    Music.Play
+    If Message.Question("Etes vous sur de vouloir effacer cet enregistrement", "Oui", "Non") = 1 Then
+      Utils.db.Exec("DELETE FROM  " & Cbase.Table("TabVendeurs") & " WHERE code = '" & Vendeur.Current[0] & "'")
+      Refresh()
+      Cleanchamps()
+    Endif
+  Else
+  Endif
+  
+End
+
+'**********************************************************
+'* Gestion du columnview lors d'une saisie manuelle       *
+'**********************************************************
+Public Sub Vendeur_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Or If Key.Code = Key.Tab Then
+    Vendeur.MoveCurrent
+    Vendeur_Click()
+    Stop Event
+  Endif
+  
+  If key.code = key.F1 Then
+    Button5_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Vendeur.visible = False
+    Vendeur.clear
+    Code.SetFocus
+    Code.Select
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Button5_Click()
+  
+End
+
+'**********************************
+'*    Appel de la doc html        *
+'**********************************
+Public Sub Button4_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Doc_Caisse/Table.Vendeurs.html"]
+  
+End

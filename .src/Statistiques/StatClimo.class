@@ -1,0 +1,323 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston5
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : StatClimo.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 28/06/2006
+'# Chiffre d'affaires produits et main d'oeuvre par client
+'################################################
+
+hForm As VisStatClimo
+Filename As String
+Filetxt As String
+hfile As File
+dte4 As String
+ye As String
+mo As String
+da As String
+dte1 As String
+dte2 As String
+Txt As String
+Tot As Integer
+son As Integer = Start.Son
+
+Public Sub _New()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  Dim jour As String
+  Dim Frmt As New String[]
+  
+  Frmt = Utils.FColr(Settings["/Coul/Fnets"])
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Tab = "Fiches_Parametres" 
+  Tot = 40
+  
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
+  dteN0.Text = rResult!dteclec1
+  Music.Load(Start.Musique)
+  'filename = User.Home & "/Sinv.kud"
+  Me.Center
+  dteN0.Text = Utils.Calc_mois(dteN0.Text)
+  dteN1.Text = Format$(Now, "dd.mm.yyyy")
+  dateN1()
+  If Settings["/Soc" & Start.Societe & "/Materiel"] = 0 Then
+    HBox3.visible = False
+    Facn.value = True
+  Endif
+  
+End
+
+Public Sub dte_KeyPress()
+  
+  Select Case Last.tag
+      
+    Case 1
+      If Key.code = Key.enter Or Key.code = Key.Return Or Key.code = Key.Tab Then
+        dteN0_LF()
+        dteN1.SetFocus
+        dteN1.Select
+        Stop Event
+      Endif
+      
+    Case 2
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        dteN1_LF()
+        dteN0.SetFocus
+        dteN0.Select
+        Stop Event
+      Endif
+  End Select
+  
+End
+
+Public Sub dateN1()
+  
+  dte1 = Val(Right$(dteN0.Text, 4)) - 1
+  dte1 = Left$(dteN0.Text, 6) & dte1
+  dte2 = Val(Right$(dteN1.Text, 4)) - 1
+  dte2 = Left$(dteN1.Text, 6) & dte2
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      dateN1()
+      Traitement()
+      
+    Case 2
+      Me.Close
+  End Select
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub dte_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  
+End
+
+'****************************************************
+'*          Gestion de la premiere date             *
+'****************************************************
+Public Sub dteN0_LF()
+  
+  Dim Dtn As String
+  
+  With utils
+    dteN0.text = .Cdate_calc(dteN0.text)
+    dteN0.Text = .Cdate_aff(dteN0.Text)
+    dateN1()
+    If dteN0.Text = "00.00.0:00" Then dteN0.Text = Format$(Now, "dd.mm.yyyy")
+  End With
+  dteN1.setfocus
+  dteN1.Select
+Catch
+  dteN0.setfocus
+  dteN0.Select
+  
+End
+
+'****************************************************
+'*           Gestion de la seconde date             *
+'****************************************************
+Public Sub dteN1_LF()
+  
+  Dim Dtn As String
+  
+  With utils
+    dteN1.text = .Cdate_calc(dteN1.text)
+    dteN1.Text = .Cdate_aff(dteN1.Text)
+    dateN1()
+    If dteN1.Text = "00.00.0:00" Then dteN1.Text = Format$(Now, "dd.mm.yyyy")
+  End With
+  If Val(Right$(dteN1.text, 4) & Mid$(dteN1.text, 4, 2) & Left$(dteN1.text, 2)) < Val(Right$(dteN0.text, 4) & Mid$(dteN0.text, 4, 2) & Left$(dteN0.text, 2)) Then
+    If son Then
+      Music.Play
+    Endif
+    If Message.Warning("Attention ! Votre selection n'est pas possible.", "Ok") = 1 Then
+      dteN1.setfocus
+      dteN1.Select
+    Endif
+  Endif
+Catch
+  dteN1.setfocus
+  dteN1.Select
+  
+End
+
+Public Sub Traitement()
+  
+  Dim Tab As String
+  Dim Tab1 As String
+  Dim Tab2 As String
+  Dim Tab3 As String
+  Dim Tab4 As String
+  Dim Tab5 As String
+  Dim Tab6 As String
+  Dim Tab7 As String
+  Dim Tab8 As String
+  Dim rResult As Result
+  Dim N1Result As Result
+  Dim LigResult As Result
+  Dim TotResult As Result
+  Dim TotA As Float
+  Dim TotM As Float
+  Dim Totcli As Float
+  Dim RemP As Float
+  Dim RemMo As Float
+  
+  Tab = "Fiches_HistoFac" 
+  Tab1 = "Fiches_HistoLigfac" 
+  Tab2 = "Total"
+  Tab3 = "Fiches_HistoFacM" 
+  Tab4 = "Fiches_HistoLigfacM" 
+  Tab5 = "Fiches_Bl" 
+  Tab6 = "Fiches_BlM" 
+  Tab7 = "Fiches_Ligbl" 
+  Tab8 = "Fiches_LigblM" 
+  With Utils
+    Me.Mouse = Mouse.Wait
+    Utils.db.Exec("DROP TABLE IF EXISTS  Total")
+    Utils.db.Exec("CREATE TABLE " & Tab2 & 
+      "(cdclifac Char(8) NOT NULL," &
+      "nmclifac Char(25)," &
+      "pnmclifac Char(25)," &
+      "TotA Decimal(12,2)," &
+      "TotM Decimal(12,2)," &
+      "RemP Decimal(12,2)," &
+      "RemMo Decimal(12,2)," &
+      "PRIMARY KEY (cdclifac))" & "ENGINE = MYISAM")
+    RemP = 0
+    RemMo = 0
+    TotA = 0
+    TotM = 0
+    If dteN0.Text <> "" Or Left$(dteN0.Text, 2) = "00" Or dteN1.Text <> "" Or Left$(dteN1.Text, 2) = "00" Then
+      'On récupère les données archivées.
+      If Facn.value = True Then rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where datefac >= &1 and datefac <= &2", .Cdate_Dbase(dteN0.Text), .Cdate_Dbase(dteN1.Text))
+      If Face.value = True Then rResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " where datefac >= &1 and datefac <= &2", .Cdate_Dbase(dteN0.Text), .Cdate_Dbase(dteN1.Text))
+      If Fact.value = True Then rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where datefac >= &1 and datefac <= &2 union SELECT * FROM " & Tab3 & " where datefac >= &1 and datefac <= &2", .Cdate_Dbase(dteN0.Text), .Cdate_Dbase(dteN1.Text))
+      If rResult.Available Then
+        Repeat
+          If Facn.value = True Then LigResult = Utils.db.Exec("SELECT * FROM " & Tab1 & " where num_ligfac = &1 ", rResult!numfac)
+          If Face.value = True Then LigResult = Utils.db.Exec("SELECT * FROM " & Tab4 & " where num_ligfac = &1 ", rResult!numfac)
+          If Fact.value = True Then LigResult = Utils.db.Exec("SELECT * FROM " & Tab1 & " where num_ligfac = &1 union SELECT * FROM " & Tab4 & " where num_ligfac = &1", rResult!numfac)
+          If LigResult.Available Then
+            Repeat
+              If LigResult!typel_ligfac = "A" Then
+                TotA = TotA + Val(LigResult!brut_ligfac)
+                RemP = RemP + (Val(LigResult!brut_ligfac) - Val(LigResult!netht_ligfac))
+              Else
+                If LigResult!typel_ligfac = "M" Then
+                  TotM = TotM + Val(LigResult!brut_ligfac)
+                  RemMo = RemMo + (Val(LigResult!brut_ligfac) - Val(LigResult!netht_ligfac))
+                Endif
+              Endif
+            Until LigResult.MoveNext()
+          Endif
+          TotResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " Where cdclifac = &1", rResult!cdclifac)
+          If Totresult.Available Then
+            TotA = TotA + TotResult!TotA
+            TotM = TotM + TotResult!TotM
+            RemP = RemP + TotResult!RemP
+            RemMo = RemMo + TotResult!RemMo
+            Utils.db.Exec("UPdate " & Tab2 & " set cdclifac = &1, nmclifac = &2, pnmclifac = &3, TotA = &4, TotM = &5, RemP = &6, RemMo = &7 Where cdclifac = &1", rResult!cdclifac, rResult!nmclifac, rResult!pnmclifac, TotA, TotM, RemP, RemMo)
+          Else
+            Utils.db.Exec("INSERT INTO " & Tab2 & "(cdclifac, nmclifac, pnmclifac, TotA, Totm, RemP, RemMo) VALUES (&1, &2, &3, &4, &5, &6, &7)", rResult!cdclifac, rResult!nmclifac, rResult!pnmclifac, TotA, TotM, RemP, RemMo)
+          Endif
+          TotA = 0
+          TotM = 0
+          RemP = 0
+          RemMo = 0
+        Until rResult.MoveNext()
+      Endif
+      'On récupère les données en cours.
+      'Sans les BL
+      If bl.value Then
+        If Facn.value = True Then rResult = Utils.db.Exec("SELECT * FROM " & Tab5 & " where datebl >= &1 and datebl <= &2 and type = &3 or type = &4", .Cdate_Dbase(dteN0.Text), .Cdate_Dbase(dteN1.Text), "F", "B")
+        If Face.value = True Then rResult = Utils.db.Exec("SELECT * FROM " & Tab6 & " where datebl >= &1 and datebl <= &2 and type = &3 or type = &4", .Cdate_Dbase(dteN0.Text), .Cdate_Dbase(dteN1.Text), "F", "B")
+        If Fact.value = True Then rResult = Utils.db.Exec("SELECT * FROM " & Tab5 & " where datebl >= &1 and datebl <= &2  and type = &3 or type = &4 union SELECT * FROM " & Tab6 & " where datebl >= &1 and datebl <= &2 and type = &3 or type = &4", .Cdate_Dbase(dteN0.Text), .Cdate_Dbase(dteN1.Text), "F", "B")
+      Else
+        'avec les BL
+        If Facn.value = True Then rResult = Utils.db.Exec("SELECT * FROM " & Tab5 & " where datebl >= &1 and datebl <= &2 and type = &3", .Cdate_Dbase(dteN0.Text), .Cdate_Dbase(dteN1.Text), "F")
+        If Face.value = True Then rResult = Utils.db.Exec("SELECT * FROM " & Tab6 & " where datebl >= &1 and datebl <= &2 and type = &3", .Cdate_Dbase(dteN0.Text), .Cdate_Dbase(dteN1.Text), "F")
+        If Fact.value = True Then rResult = Utils.db.Exec("SELECT * FROM " & Tab5 & " where datebl >= &1 and datebl <= &2  and type = &3 union SELECT * FROM " & Tab6 & " where datebl >= &1 and datebl <= &2 and type = &3", .Cdate_Dbase(dteN0.Text), .Cdate_Dbase(dteN1.Text), "F")
+      Endif
+      If rResult.Available Then
+        Repeat
+          ' RemMo = RemMo + Val(rResult!remmofac)
+          ' RemP = RemP + Val(rResult!remartfac)
+          If Facn.value = True Then LigResult = Utils.db.Exec("SELECT * FROM " & Tab7 & " where num_ligbl = &1 ", rResult!numbl)
+          If Face.value = True Then LigResult = Utils.db.Exec("SELECT * FROM " & Tab8 & " where num_ligbl = &1 ", rResult!numbl)
+          If Fact.value = True Then LigResult = Utils.db.Exec("SELECT * FROM " & Tab7 & " where num_ligbl = &1 union SELECT * FROM " & Tab8 & " where num_ligbl = &1", rResult!numbl)
+          If LigResult.Available Then
+            Repeat
+              If LigResult!typel_ligbl = "A" Then
+                TotA = TotA + Val(LigResult!brut_ligbl)
+                RemP = RemP + (Val(LigResult!brut_ligbl) - Val(LigResult!netht_ligbl))
+              Else
+                If LigResult!typel_ligbl = "M" Then
+                  TotM = TotM + Val(LigResult!brut_ligbl)
+                  RemMo = RemMo + (Val(LigResult!brut_ligbl) - Val(LigResult!netht_ligbl))
+                Endif
+              Endif
+            Until LigResult.MoveNext()
+          Endif
+          TotResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " Where cdclifac = &1", rResult!cdclibl)
+          If Totresult.Available Then
+            TotA = TotA + TotResult!TotA
+            TotM = TotM + TotResult!TotM
+            RemP = RemP + TotResult!RemP
+            RemMo = RemMo + TotResult!RemMo
+            Utils.db.Exec("UPdate " & Tab2 & " set cdclifac = &1, nmclifac = &2, pnmclifac = &3, TotA = &4, TotM = &5, RemP = &6, RemMo = &7 Where cdclifac = &1", rResult!cdclibl, rResult!nmclibl, rResult!pnmclibl, TotA, TotM, RemP, RemMo)
+          Else
+            Utils.db.Exec("INSERT INTO " & Tab2 & "(cdclifac, nmclifac, pnmclifac, TotA, Totm, RemP, RemMo) VALUES (&1, &2, &3, &4, &5, &6, &7)", rResult!cdclibl, rResult!nmclibl, rResult!pnmclibl, TotA, TotM, RemP, RemMo)
+          Endif
+          TotA = 0
+          TotM = 0
+          RemP = 0
+          RemMo = 0
+        Until rResult.MoveNext()
+      Endif
+    Else
+      If son Then
+        Music.Play
+      Endif
+      message.Warning("Veuillez saisir une date SVP !", "Ok")
+    Endif
+  End With
+  Me.Mouse = Mouse.Default
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " ")
+  If rResult.Available Then
+    hForm = New VisStatClimo(Me, Start.Societe, son, dteN0.Text, dteN1.Text)
+    hForm.Show()
+  Else
+    Message.Warning("Aucune donnée pour cette période !", "OK")
+  Endif
+  
+End

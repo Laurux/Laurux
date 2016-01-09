@@ -1,0 +1,941 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : EtiCli.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 25/05/2008
+'# Génération d'un fichier etiquettes client
+'################################################
+'
+
+Tab As String
+Tab2 As String
+rCli As Result
+rCli2 As Result
+son As Integer = Start.Son
+Nbetiq As Integer
+txtPosX As Integer
+txtPosY As Integer
+txtWidth As Integer
+SorP As Boolean
+CoulZns As Integer ' Variable pour la couleur du background des zones de saisie et des columnviews
+CoulZnaf As Integer ' Variable pour la couleur du background des columnviews
+CoulFoc As Integer ' Variable pour la couleur du focus
+i2 As Integer
+Nblargeur As String
+Nbhauteur As String
+Largeur As Integer
+Hauteur As Integer
+Mrghaut As Integer
+Mrgauche As Integer
+Esplargeur As Integer
+Esphauteur As Integer
+Clitable[3] As String
+Sens As String
+Tri As String
+Nbre As Integer ' nombre etiquettes pour la liste
+Nom As String
+nombretiq As Integer
+Filename As String
+Private pdf As Cetiquettes
+
+Public Sub _New()
+  
+  Dim Frmt As New String[]
+  
+  Me.Center
+  
+  Music.Load(Start.Musique)
+  Frmt = Utils.FColr(Settings["/Coul/Znaff"])
+  CoulZnaf = Val(Frmt[0])
+  Frmt = Utils.FColr(Settings["/Coul/Focus"])
+  Coulfoc = Val(Frmt[0])
+  Frmt = Utils.FColr(Settings["/Coul/Znss"])
+  CoulZns = Val(Frmt[0])
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  If CheckType.value = False Then
+    Radiobutton2.Visible = False
+    Panel3.Visible = False
+  Endif
+  If CheckCp.value = False Then
+    Radiobutton3.Visible = False
+    Panel2.Visible = False
+  Endif
+  Type.Text = "00000"
+  Type2.Text = "ZZZZZ"
+  client1.Text = "41100001"
+  client2.Text = "4119999999"
+  Cp1.text = "01000"
+  Cp2.Text = "94738"
+  client1.Select
+  client1.SetFocus
+  SetObservers(Me, Me)
+  Utils.Observers(Me)
+  init_ComboBox()
+  
+End
+
+Public Sub init_ComboBox()
+  
+  Dim retiq As Result
+  
+  Codetiq.clear
+  Try rEtiq = Utils.db.Exec("SELECT * FROM " & Tab & " ")
+  If Not Error Then
+    If rEtiq.Available Then
+      Do
+        Codetiq.Add(rEtiq!code & "- " & rEtiq!libelle)
+      Loop Until rEtiq.MoveNext()
+    Endif
+    Codetiq.Text = ""
+  Endif
+  
+End
+
+Public Sub CheckType_Click()
+  
+  If CheckType.value = False Then
+    Radiobutton2.Visible = False
+    Panel3.Visible = False
+  Endif
+  If CheckType.value = True Then
+    Radiobutton2.Visible = True
+    Panel3.Visible = True
+  Endif
+  
+End
+
+Public Sub CheckCp_Click()
+  
+  If CheckCp.value = False Then
+    Radiobutton3.Visible = False
+    Panel2.Visible = False
+  Endif
+  If CheckCp.value = True Then
+    Radiobutton3.Visible = True
+    Panel2.Visible = True
+  Endif
+  
+End
+'*************************************** Gestion des gridviews clients **************************************************
+
+Public Sub Tris()
+  
+  With colcli
+    .Columns.count = 2
+    .Columns[0].Width = 70
+    .Columns[1].Width = 200
+    .Columns[0].Text = "Code"
+    .Columns[1].Text = "Nom"
+  End With
+  
+End
+
+Public Sub Tris2()
+  
+  With colcli2
+    .Columns.count = 2
+    .Columns[0].Width = 70
+    .Columns[1].Width = 200
+    .Columns[0].Text = "Code"
+    .Columns[1].Text = "Nom"
+  End With
+  
+End
+
+Public Sub Colcli_Data(Row As Integer, Column As Integer)
+  
+  With Utils
+    CliTable[0] = "cli_code"
+    CliTable[1] = "cli_nom"
+    Try .rs1.MoveTo(Row)
+    Try Colcli.data.Text = Str(.rs1[CliTable[Column]])
+    
+  End With
+  
+End
+
+Public Sub Colcli2_Data(Row As Integer, Column As Integer)
+  
+  With Utils
+    CliTable[0] = "cli_code"
+    CliTable[1] = "cli_nom"
+    Try .rs1.MoveTo(Row)
+    Try Colcli2.data.Text = Str(.rs1[CliTable[Column]])
+    
+  End With
+  
+End
+
+Public Sub Colcli_ColumnClick(Column As Integer)
+  
+  Dim col As GridView
+  Dim coln As String
+  
+  Coln = Column
+  col = Colcli
+  colinit(Col, coln)
+  
+End
+
+Public Sub Colcli2_ColumnClick(Column As Integer)
+  
+  Dim col As GridView
+  Dim coln As String
+  
+  Coln = Column
+  col = Colcli2
+  colinit(Col, coln)
+  
+End
+
+Public Sub colinit(Col As GridView, Coln As String)
+  
+  With Utils
+    If sens = "Asc" Then
+      sens = "Desc"
+    Else
+      sens = "Asc"
+    Endif
+    If coln = 0 Then
+      tri = "cli_code"
+      AffClients(tri, sens, Col)
+    Endif
+    If coln = 1 Then
+      tri = "cli_nom"
+      AffClients(tri, sens, Col)
+    Endif
+  End With
+  
+End
+
+'************************************
+'*   Affichage du gridview ColCli   *
+'************************************
+Public Sub AffClients(tri2 As String, sens2 As String, col As Gridview)
+  
+  Dim tabclient As String
+  
+  Tabclient = "Fiches_Cli"
+  Tris()
+  Utils.Base(col, "select * from " & Tabclient & " order by " & Tri2 & " " & sens2 & "")
+  Colcli.MoveTo(0, 0)
+  Colcli.SetFocus
+  
+End
+
+'************************************
+'*   Affichage du gridview ColCli2   *
+'************************************
+Public Sub AffClients2(tri2 As String, sens2 As String, col As Gridview)
+  
+  Dim tabclient As String
+  
+  Tabclient = "Fiches_Cli"
+  Tris2()
+  Utils.Base(col, "select * from " & Tabclient & " order by " & Tri2 & " " & sens2 & " ")
+  Colcli2.MoveTo(0, 0)
+  Colcli2.SetFocus
+  
+End
+
+'******************************************
+'*      On appelle la premiere liste      *
+'******************************************
+Public Sub ToggleButton1_Click()
+  
+  Dim col As GridView
+  
+  Tab = "Fiches_Cli"
+  sens = "Asc"
+  tri = "cli_code"
+  col = Colcli
+  If Colcli.Visible = False Then
+    Colcli.Visible = True
+    AffClients(tri, sens, col)
+  Else
+    Colcli.Clear
+    Colcli.visible = False
+  Endif
+  
+End
+
+'******************************************
+'*  Selection du premier code client      *
+'******************************************
+Public Sub ColCli_Click()
+  
+  If Liste.value = True Then
+    Client1.Text = colcli[colcli.row, 0].Text
+    Cli_Man()
+  Else
+    Client1.Text = colcli[colcli.row, 0].Text
+  Endif
+  ColCli.clear
+  ColCli.visible = False
+  Client2.Select
+  Client2.SetFocus
+  
+End
+
+'**********************************************************
+'*       On recupere les données du compte saisi          *
+'**********************************************************
+Public Sub Cli_Man()
+  
+  Dim rResult As Result
+  
+  Tab = "Fiches_Cli"
+  Tab2 = "Etiquettes"
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where cli_code = &1", Client1.Text)
+  With Utils
+    If rResult.available Then
+      If Liste.Value = True Then
+        Try Utils.db.Exec("INSERT INTO " & Tab2 & " (code, nombre) Values (&1, &2)", Client1.Text, Val(Nbtiq.text))
+        If Not Error Then listCli.Text = listCli.Text & " " & Client1.Text
+        Client1.Clear
+      Endif
+    Else
+      If Son Then
+        Music.Play
+      Endif
+      Message.Warning("Attention ! Veuillez saisir un compte existant SVP.", "Ok")
+      Client1.SetFocus
+      Client1.Select
+    Endif
+  End With
+  
+End
+
+'***********************************************************
+'* Gestion du gridview ColCli lors d'une saisie manuelle *
+'***********************************************************
+Public Sub ColCli_KeyPress()
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    ColCli_Click()
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    If Colcli.Visible = True Then
+      ColCli.visible = False
+      ColCli.clear
+      Client1.SetFocus
+      Client1.Select
+      Stop Event
+    Endif
+  Endif
+  
+End
+
+'*****************************************
+'*      On appelle la deuxieme liste     *
+'*****************************************
+Public Sub ToggleButton2_Click()
+  
+  Dim col As GridView
+  
+  Tab = "Fiches_Cli"
+  sens = "Asc"
+  tri = "cli_code"
+  col = Colcli2
+  If Colcli2.Visible = False Then
+    Colcli2.Visible = True
+    AffClients2(tri, sens, col)
+  Else
+    Colcli2.Clear
+    Colcli2.visible = False
+  Endif
+  
+End
+
+'***********************************************************
+'* Gestion du columnview ColCli2 lors d'une saisie manuelle *
+'***********************************************************
+Public Sub ColCli2_KeyPress()
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    ColCli2_Click()
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    If Colcli2.Visible = True Then
+      ColCli2.visible = False
+      ColCli2.clear
+      Client2.SetFocus
+      Client2.Select
+      Stop Event
+    Endif
+  Endif
+  
+End
+
+'******************************************
+'*   Selection du second code client      *
+'******************************************
+Public Sub ColCli2_Click()
+  
+  Client2.Text = colcli2[colcli2.row, 0].Text
+  ColCli2.clear
+  ColCli2.visible = False
+  Type.Select
+  Type.SetFocus
+  
+End
+
+'**************************************** Gestion des types clients ************************************
+'************************************
+'* Affichage du columnview ColType    *
+'************************************
+Public Sub ToggleButton3_Click()
+  
+  Dim rType As Result
+  
+  Tab = "Fiches_Typec"
+  With Utils
+    If ColType.visible Then
+      ColType.clear
+      ColType.visible = False
+    Else
+      ColType.visible = True
+      ColType.Columns.count = 2
+      ColType.Columns[0].Width = 65
+      ColType.Columns[1].Width = 280
+      ColType.Columns[0].Text = "code"
+      ColType.Columns[1].Text = "Intitulé"
+      rType = Utils.db.Exec("SELECT * FROM " & Tab & " order by code")
+      If rType.Available Then
+        Repeat
+          ColType.Add(rType!code, rType!code)
+          ColType.Item[0] = rType!code
+          ColType.Item[1] = rType!libelle
+        Until rType.MoveNext()
+      Endif
+      If ColType.Count Then
+        ColType.MoveFirst
+        ColType.SetFocus
+        ColType.Item.Selected = True
+      Endif
+    Endif
+  End With
+  
+End
+
+'***********************************************************
+'* Gestion du columnview ColType lors d'une saisie manuelle *
+'***********************************************************
+Public Sub ColType_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    ColType.MoveCurrent
+    ColType_Click()
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    ColType.visible = False
+    ColType.clear
+    Type2.SetFocus
+    Type2.Select
+    Stop Event
+  Endif
+  
+End
+
+'************************************
+'* Affichage du columnview ColType    *
+'************************************
+Public Sub ToggleButton4_Click()
+  
+  Dim rType As Result
+  
+  Tab = "Fiches_Typec"
+  With Utils
+    If ColType2.visible Then
+      ColType2.clear
+      ColType2.visible = False
+    Else
+      ColType2.visible = True
+      ColType2.Columns.count = 2
+      ColType2.Columns[0].Width = 65
+      ColType2.Columns[1].Width = 280
+      ColType2.Columns[0].Text = "code"
+      ColType2.Columns[1].Text = "Intitulé"
+      rType = Utils.db.Exec("SELECT * FROM " & Tab & " order by code")
+      If rType.Available Then
+        Repeat
+          ColType2.Add(rType!code, rType!code)
+          ColType2.Item[0] = rType!code
+          ColType2.Item[1] = rType!libelle
+        Until rType.MoveNext()
+      Endif
+      If ColType2.Count Then
+        ColType2.MoveFirst
+        ColType2.SetFocus
+        ColType2.Item.Selected = True
+      Endif
+    Endif
+  End With
+  
+End
+
+'***********************************************************
+'* Gestion du columnview ColType2 lors d'une saisie manuelle *
+'***********************************************************
+Public Sub ColType2_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    ColType2.MoveCurrent
+    ColType2_Click()
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    ColType2.visible = False
+    ColType2.clear
+    Type2.SetFocus
+    Type2.Select
+    Stop Event
+  Endif
+  
+End
+
+'*************************************
+'* Selection du premier type client  *
+'*************************************
+Public Sub ColType_Click()
+  
+  Type.Text = ColType.Item[0]
+  ColType.clear
+  ColType.visible = False
+  Type2.Select
+  Type2.SetFocus
+  
+End
+
+'************************************
+'* Selection du second type client  *
+'************************************
+Public Sub ColType2_Click()
+  
+  Type2.Text = ColType2.Item[0]
+  ColType2.clear
+  ColType2.visible = False
+  Client1.Select
+  Client1.SetFocus
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Button1_Click()
+      
+    Case 2
+      Button2_Click()
+      
+    Case 3
+      Try Kill filename
+      Me.Close
+      
+  End Select
+  
+End
+
+Public Sub Btn_KeyPress()
+  
+  Select Case Last.tag
+    Case 2
+      Button2_Click()
+  End Select
+  
+End
+
+Public Sub liste_Click()
+  
+  Tab = "Etiquettes"
+  If Liste.Value = False Then
+    ListCli.visible = False
+    ListCli.Text = ""
+    Label3.Visible = True
+    Client2.Visible = True
+    ToggleButton2.Visible = True
+    Label2.text = "Du code client"
+    Utils.db.Exec("drop Table IF exists " & Tab & "")
+  Else
+    ListCli.visible = True
+    ListCli.BackColor = &F9F9BD&
+    Label3.Visible = False
+    Client2.Visible = False
+    ToggleButton2.Visible = False
+    Label2.text = "Code client"
+    Nbre = 0
+    Utils.db.Exec("drop Table IF exists " & Tab & "")
+    Utils.db.Exec("CREATE temporary TABLE " & Tab &
+      "(code Char(15) NOT NULL," &
+      "nombre integer," &
+      "PRIMARY KEY (code))" & "ENGINE = MYISAM")
+  Endif
+  
+End
+
+Public Sub ChkInput()
+  
+  If InStr("0123456789", Key.Text) = 0 Then
+    If key.code <> key.BackSpace And Key.Code <> Key.tab And Key.Code <> Key.Delete And Key.code <> Key.enter And Key.code <> Key.return Then
+      Stop Event
+    Endif
+  Endif
+  
+End
+
+Public Sub Etiq_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+        
+      Case 1
+        If Liste.Value = False Then
+          Cli_man()
+          Client2.SetFocus
+          Client2.Select
+        Else
+          Cli_man()
+        Endif
+        Stop Event
+        
+      Case 2
+        If CheckType.Value = True Then
+          Type.SetFocus
+          Type.Select
+        Else
+          If CheckCp.Value = True Then
+            Cp1.SetFocus
+            Cp1.Select
+          Else
+            Nbtiq.SetFocus
+            Nbtiq.Select
+          Endif
+        Endif
+        Stop Event
+        
+      Case 3
+        Type2.SetFocus
+        Type2.Select
+        Stop Event
+        
+      Case 4
+        If CheckCp.Value = True Then
+          Cp1.SetFocus
+          Cp1.Select
+        Else
+          Nbtiq.SetFocus
+          Nbtiq.Select
+        Endif
+        Stop Event
+        
+      Case 5
+        If Not IsNull(Cp1.text) And If Len(Cp1.text) = 5 Then
+          Cp2.SetFocus
+          Cp2.Select
+        Endif
+        Stop Event
+        
+      Case 6
+        If Not IsNull(Cp2.text) And If Len(Cp2.text) = 5 Then
+          Nbtiq.SetFocus
+          Nbtiq.Select
+        Endif
+        Stop Event
+        
+      Case 7
+        Posetiq.SetFocus
+        Posetiq.Select
+        Stop Event
+        
+      Case 8
+        Button2.SetFocus
+        Stop Event
+        
+    End Select
+  Else
+    Select Case Last.Tag
+      Case 7
+        ChkInput()
+        
+      Case 8
+        ChkInput()
+    End Select
+  Endif
+  
+  If key.code = key.F2 Then
+    Select Case Last.Tag
+        
+      Case 1
+        ToggleButton1_Click()
+        Stop Event
+        
+      Case 2
+        ToggleButton2_Click()
+        Stop Event
+        
+      Case 3
+        ToggleButton3_Click()
+        Stop Event
+        
+      Case 4
+        ToggleButton4_Click()
+        Stop Event
+    End Select
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim Etiqr As Result
+  Dim i As Integer
+  
+  If IsNull(codetiq.text) Then
+    Message.Warning("Veuillez selectionner un modèle d'étiquettes SVP !")
+    Return
+  Endif
+  i = 1
+  i2 = 0
+  Nbetiq = 1
+  If Liste.Value = True Then
+    nombretiq = rcli2!nombre
+  Else
+    nombretiq = Val(Nbtiq.Text)
+  Endif
+  Tab = "Fiches_Etiquettes"
+  If Codetiq.Text <> "" Then
+    Try Etiqr = Utils.db.Exec("SELECT * FROM " & tab & " WHERE code = &1", Left$(Codetiq.Text, 1))
+    If Not Error Then
+      If Not IsNull(ListCli.Text) Or If Liste.Value = False Then
+        If Etiqr.Available Then
+          Nblargeur = Etiqr!nblargeur
+          Nbhauteur = Etiqr!nbhauteur
+          Largeur = Etiqr!largeur / 10
+          Hauteur = Etiqr!hauteur / 10
+          Mrghaut = Etiqr!mrghaut / 10
+          Mrgauche = Etiqr!mrgauche / 10
+          Esplargeur = Etiqr!esplargeur / 10
+          Esphauteur = Etiqr!esphauteur / 10
+        Endif
+        txtPosX = 2 + Mrgauche
+        txtPosY = 2.1 + Mrghaut
+        txtWidth = 7
+        Shell "cd " & User.Home & ""
+        Filename = User.home & "/EtiqCli.pdf"
+        Try Kill Filename
+        pdf = New CEtiquettes("Portrait", "mm", "A4")
+        pdf.Open()
+        pdf.NewPage()
+        SorP = False
+        Tab = "Fiches_Cli"
+        Me.Mouse = Mouse.Wait
+        If Liste.Value = False Then
+          If CheckType.value = False Then
+            If Radiobutton1.Value Then rCli = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE cast(cli_code as char) >= &1  and cli_code <= &2 order by cast(cli_code as char)", Client1.Text, Client2.Text)
+            If Radiobutton3.Value Then rCli = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE cast(cli_code as char) >= &1  and cli_code <= &2 order by cli_cd_ptl, cast(cli_code as char)", Client1.Text, Client2.Text)
+          Endif
+          If CheckType.value = True Then
+            If Radiobutton1.Value Then rCli = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE cast(cli_code as char) >= &1  and cli_code <= &2 and cli_typec >= &3 and cli_typec <= &4 order by cast(cli_code as char)", Client1.Text, Client2.Text, Type.Text, Type2.Text)
+            If Radiobutton2.Value And Not CheckCp.value Then
+              rCli = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE cast(cli_code as char) >= &1  and cast(cli_code as char) <= &2 and cli_typec >= &3 and cli_typec <= &4 order by cli_typec, cast(cli_code as char)", Client1.Text, Client2.Text, Type.Text, Type2.Text)
+            Else
+              If Radiobutton2.Value And CheckCp.value Then
+                rCli = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE cast(cli_code as char) >= &1  and cast(cli_code as char) <= &2 and cli_typec >= &3 and cli_typec <= &4 order by cli_typec, cli_cd_ptl, cast(cli_code as char)", Client1.Text, Client2.Text, Type.Text, Type2.Text)
+              Endif
+            Endif
+            If Radiobutton3.Value Then rCli = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE cast(cli_code as char) >= &1  and cast(cli_code as char) <= &2 and cli_typec >= &3 and cli_typec <= &4 order by cli_cd_ptl, cli_typec, cast(cli_code as char)", Client1.Text, Client2.Text, Type.Text, Type2.Text)
+          Endif
+        Else
+          Tab2 = "Etiquettes"
+          rcli2 = Utils.db.Exec("SELECT * FROM " & Tab2 & "")
+        Endif
+        If Val(Posetiq.Text) > 1 Then
+          nom = ""
+          For i = 1 To Val(Posetiq.text) - 1
+            pos_Etiq()
+            Inc Nbetiq
+            pdf.Nom(nom, txtPosX, txtPosY)
+          Next
+        Endif
+        If Liste.Value = True
+          Repeat
+            Try rcli = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE cli_code >= &1", rcli2!code)
+            If Not Error Then Imprime()
+          Until rcli2.MoveNext()
+          fin_impression()
+        Else
+          If rcli.Available Then
+            Repeat
+              Imprime()
+            Until rcli.MoveNext()
+            fin_impression()
+          Else
+            If son Then
+              Music.Play
+            Endif
+            message(" Aucun client pour cette demande", "OK")
+          Endif
+        Endif
+        Me.Mouse = Mouse.Pointing
+      Endif
+    Else
+      If son Then
+        Music.Play
+      Endif
+      message(" Ce format d'étiquettes n'existe pas !!!", "OK")
+    Endif
+  Endif
+  
+End
+
+Public Sub Imprime()
+  
+  Dim Rs As String
+  Dim Prenom As String
+  Dim Adr1 As String
+  Dim Adr2 As String
+  Dim Cp As String
+  Dim Ville As String
+  Dim i As Integer
+  
+  Rs = rCli!cli_rs_soc
+  Nom = rCli!cli_nom
+  Prenom = rCli!cli_pnm
+  Adr1 = rCli!cli_adr1
+  Adr2 = rCli!cli_adr2
+  CP = rCli!cli_cd_ptl
+  Ville = rCli!cli_ville
+  For i = 1 To Val(Nbtiq.Text)
+    pos_Etiq()
+    pdf.Nom(Rs & " " & Nom & " " & Prenom, txtPosX, txtPosY)
+    pdf.Nom(Adr1, txtPosX, txtPosY + 5)
+    pdf.Nom(Adr2, txtPosX, txtPosY + 10)
+    pdf.Cp(Cp & " " & Left$(Ville, 20), txtPosX, txtPosY + 15)
+    Inc Nbetiq
+  Next
+  
+End
+
+Public Sub fin_impression()
+  
+  pdf.Output(Filename, False)
+  Visualiseur.Prog_Editeur(Filename)
+  If son Then
+    Music.Play
+  Endif
+  message.Warning(" Traitement terminé.", "OK")
+  liste_Click()
+  ListCli.Text = ""
+  Codetiq.Text = ""
+  'ME.Stacking = 0
+  
+End
+
+Public Sub pos_Etiq()
+  
+  If Nbetiq = 1 Then
+    txtPosX = 2 + Mrgauche
+  Else
+    txtPosX = 2 + Mrgauche + (Largeur * (Nbetiq - 1)) + Esplargeur
+  Endif
+  Nbetiq = 1
+  txtPosX = 2 + Mrgauche
+  txtPosY = txtPosY + Hauteur + Esphauteur
+  Inc i2
+  If i2 > Val(Nbhauteur) Then
+    pdf.NewPage()
+    i2 = 0
+    Nbetiq = 1
+    txtPosX = 2 + Mrgauche
+    txtPosY = 2.1 + Mrghaut
+  Endif
+  
+End
+
+Public Sub OBS_GotFocus()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then
+    Try Last.Background = CoulFoc
+  Endif
+  Try Last.SetFocus
+  Try Last.SELECT
+  
+End
+
+Public Sub OBS_LostFocus()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then
+    Try Last.Background = CoulZns
+  Else
+    Try Last.Background = Color.TextBackground
+  Endif
+  
+End
+
+Public Sub SetObservers(hClass As Object, hCont As Container)
+  
+  Dim hCtrl As Object
+  Dim hOBS As Observer
+  
+  For Each hCtrl In hCont.Children
+    If hCtrl Is TextBox Then
+      hOBS = New Observer(hCtrl) As "OBS"
+    Endif
+    If hCtrl Is Container Then SetObservers(hClass, hCtrl)
+  Next
+  
+End
+
+Public Sub Button1_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Eticli.html"]
+  
+End

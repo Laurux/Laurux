@@ -1,0 +1,324 @@
+' Gambas class file
+
+Private Legende As String[] = ["Données X", "Retraits", "Versements", "Autres"]
+Private DonneesText As String[] = ["Janvier", "Février", "Mars", "Avril", "Mai"]
+Private Donnees As New String[]
+Private Couleurs As Long[] = [Color.Red, Color.Green, Color.Blue]
+total As Integer
+Dtn0 As String
+Dtn1 As String
+Tri As String
+sens As String
+Sc As String
+son As Integer = Start.Son
+
+Public Sub _new(Hitniv As StatFam, Tot As Integer, Soc As String, Sn As Integer, dte1 As String, dte2 As String)
+  
+  son = Sn
+  Total = Tot
+  Dtn0 = dte1
+  Dtn1 = dte2
+  Sc = Soc
+  Tri = "codefam"
+  Sens = "asc"
+  
+End
+
+Public Sub Form_Open()
+  
+  RecupDonnees()
+  txtTitre.Text = Graph1.Titre
+  btnGraph1.Value = True
+  chkEtiq.Value = False
+  chkLeg.Value = True
+  Graph1.Etiquette = chkEtiq.Value
+  Graph1.Legende_Visible = chkLeg.Value
+  cmbSymb.Text = "€"
+  Graph1.Symbole = cmbSymb.Text
+  spinAngl.Value = 15
+  spinProf.Value = 30
+  ColorButton2.Value = Graph1.Background
+  affichTab
+  affichGraph
+  
+End
+
+Public Sub RecupDonnees()
+  
+  Dim Tab3 As String
+  Dim Tab4 As String
+  Dim rResult As Result
+  Dim Totl As Float
+  Dim totrem, totnet, totqte As Float = 0
+  
+  Tab3 = "Total"
+  Tab4 = "Fiches_Fam" & Sc
+  'If Bcode.value = True Or If Bnom.value = True Then
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " order by " & Tri & " " & Sens & "")
+  'Else
+  'rResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " order by abs(lpad(" & Tri & ", 12, ' ')) " & Sens & "")
+  'Endif
+  'value.Resize(Total + 1)
+  With Donnees
+    .Clear
+    'Sens_Aff()
+    If rResult.Available Then
+      Repeat
+        Totl = Totl + rResult!totalht
+      Until rResult.MoveNext()
+      If Totl <> 0 Then
+        rResult.MoveFirst()
+        Repeat
+          If IsNull(rResult!codeFam) Then
+            .Add("Divers", "Divers")
+          Else
+            .Add(rResult!codeFam, rResult!codeFam)
+          Endif
+          Totrem = totrem + rResult!Remise
+          Totnet = totnet + rResult!totalht
+          Totqte = totqte + rResult!qte
+          'value[n] = Format$(rResult!totalht / Totl * 100, "0.00")
+        Until rResult.MoveNext()
+      Else
+        Message.Info("Aucune donnée à traiter !")
+      Endif
+    Endif
+  End With 
+  
+End
+
+Public Sub affichGraph()
+  
+  Dim i As Integer
+  
+  Graph1.Values.Clear
+  Graph1.ValuesText.Clear
+  Graph1.Legende.Clear
+  Graph1.Couleur.Clear
+  For i = 1 To Legende.Count - 1
+    Graph1.Legende.Add(Legende[i])
+    Graph1.Couleur.Add(Couleurs[i - 1])
+  Next
+  
+  For i = 0 To Donnees.Count - 1
+    Graph1.Values.Add(Donnees[i])
+    Graph1.ValuesText.Add(DonneesText[i])
+    
+  Next
+  
+End
+
+Public Sub Graph1_Draw()
+  
+  Stop
+  
+End
+
+Public Sub chkEtiq_Click()
+  
+  Graph1.Etiquette = chkEtiq.Value
+  
+End
+
+Public Sub chkLeg_Click()
+  
+  Graph1.Legende_Visible = chkLeg.Value
+  
+End
+
+Public Sub cmbSymb_Click()
+  
+  Graph1.Symbole = cmbSymb.Text
+  
+End
+
+Private Sub affichTab()
+  
+  Dim i, j As Integer
+  
+  Object.Lock(tab)
+  
+  tab.Clear
+  
+  tab.Columns.Count = Legende.Count
+  For i = 0 To Legende.Count - 1
+    
+    tab.Columns[i].Width = 60
+    tab.Columns[i].Text = Legende[i]
+    
+  Next
+  tab.Rows.Count = Donnees.Count
+  For i = 0 To tab.Rows.Count - 1
+    For j = 0 To Legende.Count - 1
+      Select Case j
+        Case 0
+          tab[i, j].Text = DonneesText[i]
+        Case Else
+          tab[i, j].Background = Couleurs[j - 1]
+          If Couleurs[j - 1] > Color.RGB(220, 220, 220) Then
+            tab[i, j].Foreground = Color.Black
+          Else
+            tab[i, j].Foreground = Color.White
+          Endif
+          tab[i, j].Text = Donnees[i][j - 1]
+      End Select
+    Next
+  Next
+  
+  tab.Rows[0].Selected = True
+  Object.Unlock(tab)
+  affichGraph
+  
+End
+
+Public Sub btnColPlus_Click()
+  
+  Dim i As Integer
+  
+  Legende.Add("Autres")
+  Couleurs.Add(Color.Cyan)
+  For i = 0 To Donnees.Count - 1
+    Donnees[i].Add(0)
+    
+  Next
+  
+  affichTab
+  
+End
+
+Public Sub btnColMoins_Click()
+  
+  Dim i As Integer
+  
+  If Legende.Count = 1 Then Return
+  Legende.Remove(Legende.Count - 1)
+  Couleurs.Remove(Couleurs.Count - 1)
+  For i = 0 To Donnees.Count - 1
+    Donnees[i].Remove(Donnees[i].Count - 1)
+    
+  Next
+  
+  affichTab
+  
+End
+
+Public Sub tab_Click()
+  
+  tab.Edit
+  
+End
+
+Public Sub tab_MouseDown()
+  
+  If tab.Column > 0 Then
+    ColorButton1.Tag = tab.Column
+    '  btnColor.Background = tab[tab.Row, tab.Column].Background
+    ColorButton1.Value = tab[tab.Row, tab.Column].Background
+    lblColor.Text = "Couleur de '" & tab.Columns[tab.Column].Text & "'"
+    ' btnColor.Text = "Couleur de '" & tab.Columns[tab.Column].Text & "'"
+    Object.Lock(txtH)
+    txtH.Text = tab.Columns[tab.Column].Text
+    txtH.Tag = tab.Column
+    Object.UnLock(txtH)
+    ColorButton1.Enabled = True
+    txtH.Enabled = True
+  Else
+    ColorButton1.Enabled = False
+    txtH.Enabled = False
+  Endif
+  
+End
+
+Public Sub ColorButton1_Change()
+  
+  Try Couleurs[CInt(ColorButton1.Tag) - 1] = ColorButton1.Value
+  If Not Error Then affichTab
+  
+End
+
+Public Sub txtH_Change()
+  
+  Legende[CInt(txtH.Tag)] = txtH.Text
+  
+  affichTab
+  
+End
+
+Public Sub tab_Save(Row As Integer, Column As Integer, Value As String)
+  
+  If Column > 0 Then
+    Donnees[Row][Column - 1] = Value
+  Else
+    DonneesText[Row] = Value
+  Endif
+  affichTab
+  
+End
+
+Public Sub txtTitre_Change()
+  
+  Graph1.Titre = txtTitre.Text
+  affichTab
+  
+End
+
+Public Sub btnRangPlus_Click()
+  
+  Dim i As Integer
+  Dim spl As New Float[]
+  
+  DonneesText.Add("")
+  
+  For i = 1 To Legende.Count - 1
+    spl.Add(0)
+    
+  Next
+  Donnees.Add(spl)
+  affichTab
+  
+End
+
+Public Sub btnRangMoins_Click()
+  
+  If DonneesText.Count = 0 Then Return
+  DonneesText.Remove(DonneesText.Count - 1)
+  
+  Donnees.Remove(Donnees.Count - 1)
+  affichTab
+  
+End
+
+Public Sub spinAngl_Change()
+  
+  Graph1.AnglZ = spinAngl.Value
+  
+End
+
+Public Sub spinProf_Change()
+  
+  Graph1.Profondeur = spinProf.Value
+  
+End
+
+Public Sub ColorButton2_Change()
+  
+  Graph1.Background = ColorButton2.Value
+  
+End
+
+Public Sub btnG_Click()
+  
+  Graph1.GraphType = CInt(Last.Tag)
+  If CInt(Last.Tag) = 7 Then
+    pan3D.Visible = True
+  Else
+    pan3D.Visible = False
+  Endif
+  
+End
+
+Public Sub chkCont_Click()
+  
+  Graph1.Contrainte = chkCont.Value
+  
+End

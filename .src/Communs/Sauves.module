@@ -1,0 +1,82 @@
+' Gambas module file
+
+Public Sub Sauve()
+  
+  Dim Tab As String
+  Dim rResult As Result
+  Dim Envr As String
+  Dim sDesktop As String = Desktop.Type
+  Dim Soc As String
+  Dim SocResult As Result
+  Dim $hform As Form
+  Dim hLabel As Label
+  Dim n As Integer = 1
+  
+  $hForm = New Form As "Form"
+  $hform.Width = 600
+  $hform.Height = 400
+  $hForm.Border = Border.Etched
+  $hform.Title = "Création des bases de données"
+  hLabel = New Label($hForm)
+  hLabel.Text = "Ce programme va créer les nouvelles bases pour chaque société\n\n Veuillez patienter SVP."
+  hLabel.Background = &EBEBEB&
+  hLabel.Width = 600
+  hLabel.Alignment = 3
+  hLabel.Height = $hform.Height / 2
+  $hForm.Move($hForm.ScreenX, $hForm.ScreenY, 600, 200)
+  $hform.Center
+  $hForm.Show
+  Wait 1
+  Application.Busy = 1
+  If sDesktop = "KDE" Then Envr = "kdesu"
+  If sDesktop = "GNOME" Or If sDesktop = "MATE" Or If sDesktop = "CINNAMONE" Then Envr = "gksu"
+  Shell "mysqldump --lock-tables=0 -h " & Settings["/dbase/Host"] & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " Laurux --add-drop-table > " & User.home & "/Laurux.sql" Wait
+  SocResult = Utils.db.Exec("SELECT * from  " & "Fiches_Societes" & "")
+  If SocResult.Available Then
+    Repeat
+      Soc = "Laurux" & SocResult!cd_sc
+      hLabel.Text = "Ce programme va créer les nouvelles bases pour chaque société\n\n Veuillez patienter SVP.\n\n Société " & SocResult!cd_sc & " en cours de création."
+      Wait 1
+      Utils.db.Exec("Create database " & Soc & " character set latin1")
+      Utils.db.exec("SET NAMES 'latin1'")
+      Shell " cd " & User.home
+      Shell "cp Laurux.sql" & " ~/Laurux3/Laurux.sql" Wait
+      Shell "mysql" & " -h " & Settings["/dbase/Host"] & " -u " & Utils.db.Login & " -p" & Utils.db.Password & "  " & Soc & " < ~/Laurux3/Mysql3" Wait
+      Wait 60
+      Utils.db.Exec("UPDATE mysql.db SET Db = &1 WHERE Db = &2", Soc, "Laurux")
+      Utils.db.Exec("UPDATE mysql.host SET Db = &1 WHERE Db = &2", Soc, "Laurux")
+      Utils.db.Exec("UPDATE mysql.tables_priv SET Db = &1 WHERE Db = &2", Soc, "Laurux")
+      Utils.db.Exec("UPDATE mysql.columns_priv SET Db = &1 WHERE Db = &2", Soc, "Laurux")
+      Utils.db.Exec("UPDATE mysql.procs_priv SET Db = &1 WHERE Db = &2", Soc, "Laurux")
+      Utils.db.Exec("Flush PRIVILEGES")
+    Until SocResult.MoveNext()
+  Endif
+  Tab = "Fiches_Societes"
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ORDER BY cd_sc")
+  Repeat
+    If rResult.Available Then
+      Settings["/Societes/Soc" & n] = rResult!cd_sc & ":" & n
+      Settings["/Societes/intitule" & n] = rResult!int_sc
+      Settings["/Soc"] = rResult!cd_sc
+      Inc n
+    Endif
+  Until rResult.MoveNext()
+  Settings["/dbase/Name"] = "Laurux" & Settings["/Soc"]
+  Settings.Save
+  Settings.Reload
+  Application.Busy = 0
+  $hform.Delete
+  Utils.db.Close
+  Utils.db.name = "Laurux" & Settings["/Soc"]
+  Utils.db.Open
+  Utils.db.exec("SET NAMES 'latin1'")
+  start.societe = Settings["/Soc"]
+Catch
+  If start.son Then
+    Music.Play
+  Endif
+  message.Error(Error.Text & " " & Error.Where)
+  Application.Busy = 0
+  $hform.Delete
+  
+End

@@ -1,0 +1,288 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# Nom du fichier           : VisStatCli.class
+'# Auteur                   : Jacky Tripoteau
+'# Date de création         : 26/06/2006
+'# Chiffre d'affaire par client
+'################################################
+
+Public total As Integer
+Public value As Float[]
+Public Dtn0 As String
+Public Dtn1 As String
+Public Tri As String
+Public sens As String
+Filename As String
+son As Integer = Start.Son
+PosY As Integer
+Page As Integer
+Coulfond As New String[]
+
+Public Sub _New(Hitniv As StatFour, Soc As String, Sn As Integer, Dte1 As String, Dte2 As String)
+  
+  Me.center
+  With Liste
+    son = Sn
+    Dtn0 = dte1
+    Dtn1 = dte2
+    .Columns.count = 5
+    .Columns[0].Width = 80
+    .Columns[1].Width = 300
+    .Columns[2].Width = 120
+    .Columns[3].Width = 120
+    .Columns[4].Width = 100
+    .Columns[0].Text = "Code"
+    .Columns[0].Alignment = 1
+    .Columns[1].Text = "Nom"
+    .Columns[1].Alignment = 1
+    .Columns[2].Text = "Montant"
+    .Columns[2].Alignment = 2
+    .Columns[3].Text = "Net N-1"
+    .Columns[3].Alignment = 2
+    .Columns[4].Text = "% N/N-1"
+    .Columns[4].Alignment = 2
+    Tri = "cdfour"
+    Sens = "desc"
+    Affichage()
+  End With
+  
+End
+
+Public Sub Affichage()
+  
+  Dim Tab As String
+  Dim Tab2 As String
+  Dim rResult As Result
+  Dim Totl As Float
+  
+  filename = User.Home & "/Edstatfour.kud"
+  Tab = "Total"
+  Tab2 = "Fiches_art"
+  With Liste
+    .clear
+    Sens_Aff()
+    If Bnom.value = True Or If Bcode.value = True Then
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by " & Tri & " " & Sens & "")
+    Else
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by lpad(" & Tri & ", 12, ' ') " & Sens & "")
+    Endif
+    If rResult.Available Then
+      Repeat
+        Totl = Totl + rResult!montant
+      Until rResult.MoveNext()
+      rResult.MoveFirst()
+      Repeat
+        .Add(rResult!cdfour, rResult!cdfour)
+        .Item[0] = rResult!cdfour
+        .Item[1] = rResult!nmfour
+        .Item[2] = Format$(rResult!montant, "0.00")
+        .Item[3] = Format$(rResult!montant1, "0.00")
+        Try .Item[4] = Format$(((rResult!montant - rResult!montant1) * 100) / rResult!montant, " 0.00 ")
+      Until rResult.MoveNext()
+    Endif
+  End With
+  
+End
+
+Public Sub Sens_Aff()
+  
+  If sens = "asc" Then
+    sens = "desc"
+  Else
+    Sens = "asc"
+  Endif
+  
+End
+
+Public Sub Bcode_Click()
+  
+  Tri = "cdfour"
+  Affichage()
+  
+End
+
+Public Sub Bnom_Click()
+  
+  Tri = "nmfour"
+  Affichage()
+  
+End
+
+Public Sub Ca_Click()
+  
+  Tri = "montant"
+  Affichage()
+  
+End
+
+Public Sub Ca1_Click()
+  
+  Tri = "montant1"
+  Affichage()
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim Code As String
+  Dim Intitule As String
+  Dim Ca As String
+  Dim Ca1 As String
+  Dim Pourcent As String
+  Dim Tot1 As Float
+  Dim Totn1 As Float
+  Dim totpourcent As String
+  Dim pdf As Chistoriques
+  
+  Tot1 = 0
+  totn1 = 0
+  Totpourcent = "0"
+  Shell "cd " & User.Home & ""
+  Filename = User.home & "/Statfour.pdf"
+  Me.Mouse = mouse.Wait
+  page = 1
+  Coulfond = Utils.Coulfd()
+  If Liste.Count Then
+    pdf = New Chistoriques("Portrait", "mm", "A4")
+    pdf.Open()
+    pdf.AliasNbPages()
+    pdf.Entete("Impression du CA fournisseurs")
+    pdf.Level0F(dtn0, dtn1)
+    pdf.Level1FO()
+    posy = 32
+    Liste.MoveFirst
+    Do
+      Liste.Item.Selected = True
+      code = Liste.Current[0]
+      intitule = Liste.Current[1]
+      ca = Liste.Current[2]
+      Tot1 = Tot1 + Val(ca)
+      ca1 = Liste.Current[3]
+      If IsNull(ca1) Then ca1 = "0,00"
+      Totn1 = Totn1 + Val(ca1)
+      pourcent = Liste.Current[4]
+      pdf.level2FO(code, intitule, ca, ca1, pourcent, Posy)
+      posy += 5
+      If PosY >= 283 Then
+        pdf.Footer()
+        pdf.Entete("Impression du CA clients")
+        pdf.Level0F(dtn0, dtn1)
+        pdf.Level1FO()
+        posy = 32
+      Endif
+    Loop Until Liste.MoveNext()
+    pdf.Lines(PosY)
+    posy += 5
+    pdf.Level4FO(PosY)
+    posy += 8
+    totpourcent = Format$(((tot1 - totn1) * 100) / tot1, "0.00")
+    If tot1 < totn1 Then totpourcent = totpourcent
+    pdf.level5FO(Format$(tot1, "0.00"), Format$(totn1, "0.00"), totpourcent, PosY)
+    pdf.Footer()
+    pdf.Output(Filename, False)
+    Visualiseur.Prog_Editeur(Filename)
+  Endif
+  Me.Mouse = Mouse.Pointing
+  
+End
+
+'Entete société
+Public Sub Level0(dtn0 As String, dtn1 As String)
+  
+  Draw.font = font["Bitstream Charter"]
+  Draw.Font.Bold = True
+  Draw.Font.Size = 12
+  Draw.Text("CA pour la période du  " & dtn0 & " au " & dtn1, 90, PosY)
+  
+End
+
+'Entete des lignes d'écritures
+Public Sub Level1()
+  
+  Draw.FillStyle = Fill.Dense12
+  Draw.font = font["Bitstream Charter"]
+  Draw.Font.Bold = False
+  Draw.Font.Size = 9
+  Draw.Rect(700, PosY, 500, 140)
+  Draw.Rect(1200, PosY, 1200, 140)
+  Draw.Rect(2400, PosY, 600, 140)
+  Draw.Rect(3000, PosY, 600, 140)
+  Draw.Rect(3600, PosY, 400, 140)
+  Draw.Text("Compte", 700, PosY + 20, 500, 100, 3)
+  Draw.Text("Intitulé", 1200, PosY + 20, 1200, 100, 3)
+  Draw.Text("CA période", 2400, PosY + 20, 600, 100, 3)
+  Draw.Text("CA N-1", 3000, PosY + 20, 600, 100, 3)
+  Draw.Text("%", 3600, PosY + 20, 400, 100, 3)
+  
+End
+
+'Lignes d'écritures
+Public Sub level2(code As String, intitule As String, ca As String, ca1 As String, pourcent As String)
+  
+  Draw.font = font["Bitstream Charter"]
+  Draw.Font.Bold = False
+  Draw.Font.Size = 9
+  Draw.Text(code, 720, PosY)
+  Draw.Text(intitule, 1220, PosY)
+  Draw.Text(Format$(Val(ca), "0.00"), 2400, PosY, 580, 100, 2)
+  Draw.Text(Format$(Val(ca1), "0.00"), 3000, PosY, 580, 100, 2)
+  Draw.Text(Format$(Val(pourcent), "0.00"), 3600, PosY, 380, 100, 2)
+  
+End
+
+'Entete total
+Public Sub Level4()
+  
+  Draw.FillStyle = Fill.Vertical
+  Draw.font = font["Bitstream Charter"]
+  Draw.Font.Bold = False
+  Draw.Font.Size = 9
+  Draw.Rect(2400, PosY, 600, 140)
+  Draw.Rect(3000, PosY, 600, 140)
+  Draw.Rect(3600, PosY, 400, 140)
+  Draw.Text("Total période", 2400, PosY + 20, 600, 100, 3)
+  Draw.Text("Total N-1", 3000, PosY + 20, 600, 100, 3)
+  Draw.Text("%", 3600, PosY + 20, 400, 100, 3)
+  
+End
+
+' total
+Public Sub Level5(ca As String, ca1 As String, pourcent As String)
+  
+  Draw.FillStyle = Fill.Vertical
+  Draw.font = font["Bitstream Charter"]
+  Draw.Font.Bold = False
+  Draw.Font.Size = 9
+  Draw.Rect(2400, PosY, 600, 140)
+  Draw.Rect(3000, PosY, 600, 140)
+  Draw.Rect(3600, PosY, 400, 140)
+  Draw.Text(ca, 2400, PosY + 20, 580, 100, 2)
+  Draw.Text(ca1, 3000, PosY + 20, 580, 100, 2)
+  Draw.Text(pourcent, 3600, PosY + 20, 380, 100, 2)
+  
+End
+
+Public Sub Button1_Click()
+  
+  If Exist(filename) Then Try Kill filename
+  Me.close
+  
+End

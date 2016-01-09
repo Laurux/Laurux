@@ -1,0 +1,77 @@
+' Gambas module file
+
+Public Sub Run()
+  
+  Dim Tab As String
+  Dim rResult, r2 As Result
+  Dim Tab0 As String
+  Dim Lg, nm As Integer
+  
+  Tab = "Fiches_Mvt"
+  Tab0 = "Fiches_Mvt1"
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where jour = &1 order by dte, numero", "80")
+  Repeat
+    lg = (Len(Str(rResult!numero)) - 1)
+    nm = Val(Mid$(Str(rResult!numero), 2, lg))
+    r2 = Utils.db.Exec("SELECT * FROM " & Tab0 & " where numero = &1 and compte = &2", Mid$(Str(rResult!numero), 2, lg), rResult!compte)
+    Print r2.Count
+    If Not r2.Available Then 
+      Utils.db.Exec("INSERT INTO " & Tab0 & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,cloturee,pointee, numcol) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17} )", rResult!jour, nm, rResult!compte, rResult!intitule, rResult!dte, rResult!numdoc, rResult!numlot, rResult!libelle, rResult!montantd, rResult!montantc, rResult!validee, rResult!provisoire, rResult!tresorerie, rResult!lettree, rResult!cloturee, rResult!pointee, rResult!numcol)
+      Utils.db.Exec("delete FROM " & Tab & " where numero = &1 and compte = &2", Mid$(Str(rResult!numero), 2, lg), rResult!compte)
+      Print rResult!numerodef
+    Endif
+  Until rResult.MoveNext()
+  Message.Warning("Traitement terminé")
+  
+End
+
+Public Sub Ren()
+  
+  Dim Tab As String
+  Dim rResult As Result
+  Dim numecr1 As Integer ' Numero écriture provisoire
+  Dim num As String
+  Dim Tab0 As String
+  
+  Tab0 = "Fiches_Parametres"
+  ' On renumérote les écritures cloturées
+  'Tab = "Fiches_M.Soc
+  ' rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where cloturee = &1 order by dte, numerodef", 1)
+  numecr1 = 0
+  'IF rResult.Available THEN
+  '  INC numecr1
+  '  num = rResult!numerodef
+  ' REPEAT
+  '  IF rResult!numerodef <> num THEN
+  '   Utils.db.Exec("UPdate  " & Tab & "  SET numerodef =  &1 where numerodef = &2", numecr1, num)
+  '    INC numecr1
+  ' ENDIF
+  ' num = rResult!numerodef
+  '  UNTIL rResult.MoveNext()
+  ' ENDIF
+  Utils.db.Exec("UPdate  " & Tab0 & "  SET  numecriture2 = &1", numecr1)
+  
+  ' On renumérote les écritures provisoires
+  Tab = "Fiches_Mvt"
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by dte, numero")
+  numecr1 = 0
+  If rResult.Available Then
+    Inc numecr1
+    num = rResult!numero
+    Repeat
+      If rResult!numero <> num Then
+        'IF rResult!cloturee THEN
+        'Utils.db.Exec("UPdate  " & Tab & "  SET numero =  &1, cloturee = &3 where numero = &2 and jour = &4", 0, num, 0, rResult!jour)
+        'ELSE
+        Utils.db.Exec("UPdate  " & Tab & "  SET numero =  &1, cloturee = &3, numerodef = &4 where numero = &2 and jour = &5", numecr1, num, 0, 0, rResult!jour)
+        'ENDIF
+        Inc numecr1
+      Endif
+      num = rResult!numero
+    Until rResult.MoveNext()
+  Endif
+  Utils.db.Exec("UPdate  " & Tab0 & "  SET  numecriture = &1, numecriture1 = &2", numecr1, 0)
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
+  Utils.db.Exec("UPdate  " & Tab & "  SET cloturee = &1, numerodef = &2", 0, 0)
+  
+End

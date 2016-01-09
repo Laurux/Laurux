@@ -1,0 +1,301 @@
+' Gambas class file
+
+Private CoTable[5] As String
+Private Dbl As Boolean = False
+Private sel As String
+Private NbEnreg As Integer = 0 ' Enregistrement de départ de la sélection
+Private Tri As String
+Private lg As Integer
+Private Origine As String
+Private Codecp As String
+
+'************************************** Gestion des comptes comptables *****************************************************
+
+Public Sub _new(sOrg As String, cdcp As String)
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Origine = sOrg
+  Codecp = cdcp
+  lg = Int(Colco.height / colco.Rows.Height) - 1
+  Tri = "cp"
+  Tris()
+  Co.SetFocus
+  Co.Select
+  If IsNull(codecp) Then
+    Sel = ""
+    Deb2()
+  Else
+    Sel = Codecp
+    Deb2()
+  Endif
+  Colco.MoveTo(0, 0)
+  Try Colco.Current.EnsureVisible
+  
+End
+
+Public Sub colco_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Colco_Click()
+  Endif
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Me.Close
+  Endif
+  If Key.code = Key.Up Then
+    If Colco.Row = 0 Then
+      Remonter_Click()
+    Endif
+  Endif
+  If Key.code = Key.down Then
+    If Colco.Row = lg - 1 Then
+      Descendre_Click()
+    Endif
+  Endif
+  If Key.code = Key.PageDown Then
+    Descendre_Click()
+  Endif
+  
+  If Key.code = Key.PageUp Then
+    Remonter_Click()
+  Endif
+  
+End
+
+Public Sub Colco_MouseWheel()
+  
+  If mouse.Delta = -1 Then
+    If Colco.Rows.Count = lg Then NbEnreg = NbEnreg + lg
+  Else
+    If Colco.Rows.Count <= lg Then NbEnreg = NbEnreg - lg
+  Endif
+  Deplacement()
+  
+End
+
+Public Sub Descendre_Click()
+  
+  If Colco.Rows.Count = lg Then
+    NbEnreg = NbEnreg + lg
+    Deplacement()
+  Endif
+  Try Colco.MoveTo(0, 0)
+  Try Colco.Current.EnsureVisible
+  Try Colco.SetFocus
+  
+End
+
+Public Sub Remonter_Click()
+  
+  NbEnreg = NbEnreg - lg
+  Deplacement()
+  Try Colco.MoveTo(0, 0)
+  Try Colco.Current.EnsureVisible
+  Try Colco.SetFocus
+  
+End
+
+Public Sub Descendre_KeyPress()
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Me.Close
+  Endif
+  If key.code = key.PageDown Then Descendre_Click()
+  If key.code = key.PageUp Then Remonter_Click()
+  
+End
+
+Public Sub Remonter_KeyPress()
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Me.Close
+  Endif
+  If key.code = key.PageDown Then Descendre_Click()
+  If key.code = key.PageUp Then Remonter_Click()
+  
+End
+
+Public Sub Deplacement()
+  
+  If NbEnreg < 0 Then NbEnreg = 0
+  If Dbl = True Then
+    Deb3()
+  Else
+    Deb2()
+  Endif
+  
+End
+
+Public Sub colco_Click()
+  
+  Select Case Origine
+    Case "Client"
+      FClient.Bsel = True
+      Try FClient.codepostal = colco[colco.row, 0].Text
+      Try FClient.Bureaudistributeur = colco[colco.row, 1].Text
+    Case "Fournisseur"
+      FFournisseur.Bsel = True
+      Try FFournisseur.codepostal = colco[colco.row, 0].Text
+      Try FFournisseur.Bureaudistributeur = colco[colco.row, 1].Text 
+    Case "Clientcarte"
+      FClientcarte.Bsel = True
+      Try FClientcarte.codepostal = colco[colco.row, 0].Text
+      Try FClientcarte.Bureaudistributeur = colco[colco.row, 1].Text 
+    Case "Facture"
+      Facture.Bsel = True
+      Try Facture.codepostal = colco[colco.row, 0].Text
+      Try Facture.Bureaudistributeur = colco[colco.row, 1].Text 
+    Case "FactureMat"
+      FactureMat.Bsel = True
+      Try FactureMat.codepostal = colco[colco.row, 0].Text
+      Try FactureMat.Bureaudistributeur = colco[colco.row, 1].Text
+  End Select
+  Me.close
+  
+End
+
+Public Sub Colco_Data(Row As Integer, Column As Integer)
+  
+  With Utils
+    CoTable[0] = "cp"
+    CoTable[1] = "burdist"
+    .rs2.MoveTo(Row)
+    Try Colco.data.Text = Str(.rs2[CoTable[Column]])
+  End With
+  
+End
+
+Public Sub Tris()
+  
+  With Colco
+    .Columns.count = 2
+    .Columns[0].Width = CO.Width
+    .Columns[1].Width = Intit.Width
+  End With
+  
+End
+
+Public Sub Co_GotFocus()
+  
+  Try Utils.ObsGotf(Co)
+  Co_Click()
+  
+End
+
+Public Sub Co_LostFocus()
+  
+  Try Utils.ObsLstf(CO)
+  
+End
+
+Public Sub Intit_GotFocus()
+  
+  Try Utils.ObsGotf(intit)
+  Intit_Click()
+  
+End
+
+Public Sub Intit_LostFocus()
+  
+  Try Utils.ObsLstf(Intit)
+  
+End
+
+Public Sub Co_Click()
+  
+  Dbl = ""
+  Co.Text = ""
+  Intit.Text = "Intitulé"
+  Tri = "cp"
+  NbEnreg = 0
+  Dbl = ""
+  If IsNull(codecp) Then
+    Sel = ""
+    Deb2()
+  Else
+    Sel = Codecp
+    Deb2()
+  Endif
+  
+End
+
+Public Sub Co_Dblclick()
+  
+  Dbclk()
+  
+End
+
+Public Sub Co_KeyPress()
+  
+  If InStr("\"&'", Key.Text) = 0 Then
+    sel = utils.Obstch(sel)
+    Deb2()
+  Endif
+  If key.code = key.Esc Or Key.code = key.f2 Then
+    Me.close
+  Endif
+  If key.code = key.Down Then Colco.SetFocus
+  If key.code = key.Right Then Intit.SetFocus
+  
+End
+
+Public Sub Intit_Click()
+  
+  sel = ""
+  Dbl = ""
+  Co.Text = "Code"
+  Intit.Text = ""
+  Tri = "burdist"
+  NbEnreg = 0
+  Dbl = ""
+  Deb2()
+  
+End
+
+Public Sub Intit_Dblclick()
+  
+  Dbclk()
+  
+End
+
+Public Sub Intit_KeyPress()
+  
+  If InStr("\"&'", Key.Text) = 0 Then
+    sel = utils.Obstch(sel)
+    Deb2()
+  Endif
+  If key.code = key.Esc Or Key.code = key.f2 Then
+    Me.close
+  Endif
+  If key.Code = key.F1 Then Exec ["xdg-open", Application.Path &/ "Ecrans/Lettrage.html"]
+  If key.code = key.Down Then Colco.SetFocus
+  If key.code = key.Right Then Co.SetFocus
+  If key.code = key.Left Then Co.SetFocus
+Catch
+  
+End
+
+Public Sub Dbclk()
+  
+  If Not Dbl Then
+    Deb2()
+    Dbl = True
+  Else
+    Deb3()
+    Dbl = False
+  Endif
+  
+End
+
+Public Sub Deb2()
+  
+  Utils.Base2(Colco, "select * from " & Cbase.Table("TabCpostaux") & " where " & Tri & " like  \"" & sel & "%\" order by " & Tri & " limit " & NbEnreg & ", " & lg & "")
+  Colco.Refresh
+  
+End
+
+Public Sub Deb3()
+  
+  Utils.Base2(Colco, "select * from " & Cbase.Table("TabCpostaux") & " where " & Tri & " like  \"" & sel & "%\" order by " & Tri & " Desc limit " & NbEnreg & ", " & lg & " ")
+  Colco.Refresh
+  
+End

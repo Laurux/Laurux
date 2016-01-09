@@ -1,0 +1,167 @@
+' Gambas class file
+
+Private PosY As Integer = 6
+Private pdf As Cbordereaux
+
+Public Sub _new()
+  
+  Me.Center
+  
+End
+
+Public Sub Button1_Click()
+  
+  If Exist(User.home & "/Bordereaux.pdf") Then Kill User.home & "/Bordereaux.pdf"
+  Me.close
+  
+End
+
+Public Sub Button2_Click()
+  
+  Imp_Bordereaux()
+  
+End
+
+Public Sub Imp_Bordereaux()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  Dim Filename As String
+  Dim TxtB As String
+  Dim Type As String
+  Dim nbreg As Integer = 0
+  Dim Montant As String = "0"
+  Dim Nbtot As String
+  Dim lg As Integer
+  
+  Shell "cd " & User.Home & ""
+  Filename = User.home & "/Bordereau.pdf"
+  pdf = New Cbordereaux("Portrait", "mm", "A4")
+  pdf.Open()
+  pdf.AliasNbPages()
+  Tab = "Fiches_LigTicketz" 
+  If Tous.Value = True Then
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where numlig = &1 or numlig = &2 order by numlig", "U", "V")
+  Else
+    If Cheques.Value = True Then
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where numlig = &1 order by numlig", "V")
+    Else
+      If Cartes.Value = True Then
+        rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where numlig = &1 order by numlig", "U")
+      Endif
+    Endif
+  Endif
+  If rResult.Available Then
+    type = rResult!numlig
+    If rResult!numlig = "V" Then
+      Txtb = "Bordereaux de remise de chèques du " & Format$(Now, "dd.mm.yyyy")
+      lg = 8
+    Else
+      If rResult!numlig = "U" Then
+        Txtb = "Bordereaux de remise de cartes du " & Format$(Now, "dd.mm.yyyy")
+        lg = 7
+      Endif
+    Endif
+    Imp_Entete(TxtB)
+    posy = 80
+    Repeat
+      If rResult!numlig <> type Then
+        Nbtot = "Total " & Mid$(Txtb, 25, Len(Txtb) - 24) & Space$(90) & nbreg
+        Posy = Posy + 5
+        Pdf.Ligne(PosY)
+        Posy = Posy + 2
+        pdf.Level5(nbtot, Format$(Val(Utils.cpoint(Montant)), "0.00"), PosY)
+        Posy = Posy + 7
+        Pdf.Ligne(PosY)
+        If rResult!numlig = "V" Then
+          Txtb = "Bordereaux de remise de chèques du " & Format$(Now, "dd.mm.yyyy")
+          lg = 8
+        Else
+          If rResult!numlig = "U" Then
+            Txtb = "Bordereaux de remise de cartes du " & Format$(Now, "dd.mm.yyyy")
+            lg = 7
+          Endif
+        Endif
+        nbreg = 0
+        Montant = "0"
+        PosY = 6
+        Imp_Entete(TxtB)
+        PosY = 80
+      Endif
+      If Imptk.Value = True Then
+        Pdf.Level5(" Ticket N° " & rResult!numero & " " & Mid$(rResult!intitule, lg, Len(rResult!intitule)), rResult!montant, PosY)
+      Else
+        Pdf.Level5(Mid$(rResult!intitule, lg, Len(rResult!intitule)), rResult!montant, PosY)
+      Endif
+      PosY = PosY + 5
+      Type = rResult!numlig
+      Inc nbreg
+      Montant = Val(Utils.cpoint(Montant)) + Val(Utils.cpoint(rResult!montant))
+      If PosY >= 240 Then
+        PosY = 6
+        Imp_Entete(TxtB)
+        PosY = 80
+      Endif
+    Until rResult.MoveNext()
+    Nbtot = "Total " & Mid$(Txtb, 25, Len(Txtb) - 24) & Space$(50) & nbreg
+    Posy = Posy + 5
+    Pdf.Ligne(PosY)
+    Posy = Posy + 2
+    Pdf.Level5(nbtot, Format$(Val(Utils.cpoint(Montant)), "0.00"), PosY)
+    Posy = Posy + 7
+    Pdf.Ligne(PosY)
+    nbreg = 0
+    Montant = "0"
+    pdf.Output(Filename, False)
+    Visualiseur.Prog_Editeur(Filename)
+  Else
+    Music.Play
+    Message.Info("Il n'existe pas de donnée pour cette demande !")
+  Endif
+  
+End
+
+Public Sub Imp_Entete(Txtb As String)
+  
+  Dim Adr As String
+  Dim Siret As String
+  Dim Tel As String
+  Dim Logo As String
+  Dim eResult As Result
+  Dim Entet As String
+  Dim sline As String
+  
+  Pdf.Entete()
+  eResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabSoc") & " where cd_sc = &1", Start.Societe)
+  Adr = eResult!type_sc & " " & eResult!int_sc & "\n" & eResult!adr1_sc & "\n" & eResult!adr2_sc & "\n" & eResult!cp_sc & " " & eResult!burdis_sc
+  Siret = "Siret :" & Settings["/Soc" & Start.Societe & "/Siret"] & " : " & eResult!siret_sc
+  Tel = "Tel : " & eResult!tel_sc
+  Entet = Adr & "\n" & Siret & " \n" & Tel & "\n"
+  If Settings["/Soc" & Start.Societe & "/glogo"] Then
+    Try Logo = Settings["/Soc" & Start.Societe & "/Logo"]
+    If Not Error Then
+      If Not IsNull(Logo) Then
+        Pdf.Logo(Logo)
+      Endif
+    Endif
+  Endif
+  For Each sline In Split(Entet, "\n")
+    Pdf.Entete2(sLine, Posy)
+    Posy = Posy + 5
+  Next
+  Pdf.Ligne(PosY)
+  Posy = Posy + 2
+  Pdf.TitreB(TxtB, PosY)
+  Posy = Posy + 7
+  Pdf.Ligne(PosY)
+  
+End
+
+'**********************************
+'*    Appel de la doc html        *
+'**********************************
+Public Sub Button3_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Doc_Caisse/Bordereaux.html"]
+  
+End

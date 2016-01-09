@@ -1,0 +1,253 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'-------------------------------arr---------------------------------------------
+'################################################
+'# nom du fichier           : Facturefm.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 01/09/2007
+'# Facturation fin de mois
+'################################################
+'
+
+Tab As String
+Tab3 As String
+Tab4 As String
+Tab5 As String
+Param As Result
+rResult As Result
+Coulfond As New String[]
+
+'**********************************************************
+'*initialisation écrans et gestion onglet client          *
+'**********************************************************
+Public Sub Form_Open()
+  
+  Dim Frmt As New String[]
+  
+  Tab = "Fiches_Parametres" 
+  rResult = Utils.db.Exec("SELECT * FROM " & tab & "")
+  Coulfond = Utils.Coulfd()
+  Frmt = Utils.FColr(Settings["/Coul/Fnets"])
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Music.Load(Start.Musique)
+  Me.Center
+  
+  Colbl.Columns.count = 5
+  Colbl.Columns[0].Width = 80
+  Colbl.Columns[1].Width = 230
+  Colbl.Columns[2].Width = 60
+  Colbl.Columns[3].Width = 300
+  Colbl.Columns[0].Text = "Code"
+  Colbl.Columns[0].Alignment = 1
+  Colbl.Columns[1].Text = "Nom"
+  Colbl.Columns[1].Alignment = 1
+  Colbl.Columns[2].Text = "Cp"
+  Colbl.Columns[2].Alignment = 1
+  Colbl.Columns[3].Text = "Ville"
+  
+  Coldetail.Columns.count = 7
+  Coldetail.Columns[0].Width = 1
+  Coldetail.Columns[1].Width = 120
+  Coldetail.Columns[2].Width = 120
+  Coldetail.Columns[3].Width = 180
+  Coldetail.Columns[4].Width = 180
+  Coldetail.Columns[1].Text = "N° Document"
+  Coldetail.Columns[2].Text = "Date"
+  Coldetail.Columns[3].Text = "Mt facture"
+  Coldetail.Columns[3].Alignment = 2
+  Coldetail.Columns[4].Text = "Mt reglement"
+  Coldetail.Columns[4].Alignment = 2
+  Coldetail.Columns[5].Width = 1
+  Coldetail.Columns[6].Width = 40
+  Coldetail.Columns[6].Alignment = 3
+  Coldetail.Columns[6].Text = "Jnal"
+  recup_bl()
+  
+End
+
+'********************************
+'*  On récupère les factures    *
+'********************************
+Public Sub recup_bl()
+  
+  Dim Tab2 As String
+  Dim Tab3 As String
+  Dim Facture As Result
+  Dim Client As Result
+  Dim totf As Result
+  Dim Totald As String
+  Dim Totalc As String
+  
+  Tab = "Fiches_Mvt" 
+  Tab2 = "Fiches_Cli" 
+  Tab3 = "Facturefm" 
+  Tab4 = "Detail" 
+  Tab5 = "Fiches_Parametres" 
+  Totald = "0"
+  Totalc = "0"
+  Me.mouse = Mouse.Wait
+  Param = Utils.db.Exec("SELECT * FROM " & Tab5 & "")
+  Utils.db.Exec("drop Table IF exists " & Tab3 & "")
+  Utils.db.Exec("CREATE TABLE " & Tab3 & 
+    "(code Char(8) NOT NULL," &
+    "nom Char(35)," &
+    "cp Char(5)," &
+    "ville Char(35)," &
+    "totald Char(12)," &
+    "totalc Char(12)," &
+    "PRIMARY KEY (code))" & "ENGINE = MYISAM")
+  Utils.db.Exec("drop Table IF exists " & Tab4 & "")
+  Utils.db.Exec("CREATE TABLE " & Tab4 & 
+    "(num Char(12) NOT NULL," &
+    "code Char(10)," &
+    "date date," &
+    "mtd Char(12)," &
+    "mtc Char(12)," &
+    "numfac Char(12)," &
+    "jour Char(2)," &
+    "numlot Char(12)," &
+    "lind Char(10)," &
+    "PRIMARY KEY (num, numfac, code))" & "ENGINE = MYISAM")
+  Facture = Utils.db.Exec("SELECT * FROM " & tab & " where left(compte,3) = &1 and collectif is null and jour = &3 or left(compte,3) = &1 and collectif is null and jour = &4 order by numero", 411, 1, Param!jrnal2, Param!jrnal3, 0)
+  If Facture.Available Then
+    Repeat
+      Client = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE cli_code = &1", Facture!compte)
+      totf = Utils.db.Exec("SELECT * FROM " & Tab3 & " WHERE code = &1", Facture!compte)
+      If totf.Available Then
+        Totald = totf!totald + Facture!montantd
+        Totalc = totf!totalc + Facture!montantc
+        Utils.db.Exec("UPdate " & Tab3 & " SET totald = &1, totalc = &2 WHERE code = &3", Totald, Totalc, Facture!compte)
+      Else
+        Try Utils.db.Exec("INSERT INTO " & Tab3 & " (code, nom, cp, ville, totald, totalc) Values (&1, &2, &3, &4, &5, &6)", Facture!compte, Client!cli_nom, Client!cli_cd_ptl, Client!cli_ville, Facture!montantd, Facture!montantc)
+      Endif
+      Try Utils.db.Exec("INSERT INTO " & Tab4 & " (num, code, date, mtd, mtc, numfac, jour, numlot, lind) Values (&1, &2, &3, &4, &5, &6, &7, &8, &9)", Facture!numero, Facture!compte, Facture!dte, Facture!montantd, Facture!montantc, Facture!numdoc, Facture!jour, Facture!numlot, facture!lind)
+    Until Facture.MoveNext()
+  Endif
+  Client = Utils.db.Exec("SELECT * FROM " & Tab3 & " order by nom")
+  If Client.Available Then
+    Repeat
+      Colbl.Add(Client!code, Client!code)
+      Colbl.Item[0] = Client!code
+      Colbl.Item[1] = Client!nom
+      Colbl.Item[2] = Client!cp
+      Colbl.Item[3] = Client!ville
+    Until Client.MoveNext()
+  Endif
+  Me.mouse = Mouse.Default
+  
+End
+
+Public Sub Colbl_Click()
+  
+  Dim Client As Result
+  
+  Tab = "Detail" 
+  Coldetail.clear
+  With Utils
+    If Not Colbl.Available Then
+      Colbl.clear
+    Else
+      'Param = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabParam") & "")
+      Client = Utils.db.Exec("SELECT * FROM " & Tab & " where code = &1  order by num", Colbl.Item[0], Param!jrnal2, Param!jrnal3)
+      If Client.Available Then
+        Repeat
+          Coldetail.Add(Client!num & Client!numfac, Client!num & Client!numfac)
+          Coldetail.Item[0] = Client!num
+          Coldetail.Item[1] = Client!numfac
+          Coldetail.Item[2] = .Cdate_Aff(Client!date)
+          Coldetail.Item[3] = Format$(Client!mtd, "0.00")
+          Coldetail.Item[4] = Format$(Client!mtc, "0.00")
+          Coldetail.Item[5] = Client!numlot
+          Coldetail.Item[6] = Client!jour
+          Coldetail.Item[7] = Client!lind
+        Until Client.MoveNext()
+      Endif
+    Endif
+  End With
+  
+End
+
+Public Sub Coldetail_Keypress()
+  
+  Dim Client As Result
+  Dim Tab2 As String
+  
+  Tab2 = "Fiches_Comptes" 
+  Tab3 = "Facturefm" 
+  Tab4 = "Detail" 
+  Tab = "Fiches_Mvt" 
+  With Utils
+    If Key.code = Key.Delete And Coldetail.Count <> 0 Then
+      If Message.Question("Ce réglement va être supprimé !", "Oui", "Non") = 1 Then
+        Utils.db.Exec("delete from " & Tab4 & " WHERE numfac = &1 and numlot = &2", Coldetail.current[1], Coldetail.Item[5])
+        Utils.db.Exec("delete from " & Tab & " WHERE lind = &1", Coldetail.current[7])
+        Client = Utils.db.Exec("SELECT * FROM " & Tab & " where numlot = &1 order by numero", Coldetail.Item[5])
+        If Client.Available Then
+          Repeat
+            Utils.db.Exec("Update " & Tab & " set lettree = &1 where numlot = &2", 0, Coldetail.Item[5])
+          Until Client.MoveNext()
+        Endif
+        Calc_solde(Colbl.Item[0])
+        Colbl.Clear
+        Coldetail.Clear
+        recup_bl()
+      Endif
+    Endif
+  End With
+  
+End
+
+Public Sub Calc_solde(Nmcompte As String)
+  
+  Dim rResult As Result
+  Dim TotDeb As Float
+  Dim TotCred As Float
+  Dim TotSld As Float
+  
+  With Utils
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " WHERE compte = &1  and validee = &2  order by dte ", nmcompte, 1)
+    If rResult.Available Then
+      Repeat
+        totdeb = totdeb + rResult!montantd
+        totcred = totcred + rResult!montantc
+        totsld = totdeb - totcred
+      Until rResult.MoveNext()
+      Utils.db.Exec("UPdate " & Cbase.Table("TabComptes") & "  SET solde = &2 where compte_cc = &1", nmcompte, .PointBase(Totsld))
+    Else
+      totsld = 0
+      Utils.db.Exec("UPdate " & Cbase.Table("TabComptes") & "  SET solde = &2 where compte_cc = &1", nmcompte, .PointBase(Totsld))
+    Endif
+    totdeb = 0
+    totcred = 0
+    totsld = 0
+  End With
+  
+End
+
+Public Sub Button2_Click()
+  
+  Me.Close
+  
+End
+
+Public Sub Button1_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Visreglements.html"]
+  
+End

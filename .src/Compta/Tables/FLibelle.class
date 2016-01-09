@@ -1,0 +1,218 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Flibelle.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 01/11/2004
+'# Gestion de la table des libellés d'écritures en compta
+'################################################
+'
+
+Private son As Integer = Start.Son
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  Colcol.Columns.count = 2
+  Colcol.Columns[0].Width = 100
+  Colcol.Columns[1].Width = 220
+  Colcol.Columns[0].Text = "code"
+  Colcol.Columns[1].Text = "Intitulé"
+  num_GotFocus()
+  num.SetFocus
+  
+End
+
+Public Sub Form_Open()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  
+  Tab = "Fiches_Libelles" 
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by num")
+  If rResult.Available Then
+    Repeat
+      Colcol.add(rResult!num, rResult!num)
+      Colcol.Item[1] = rResult!intitule
+    Until rResult.MoveNext()
+  Endif
+  
+End
+
+Public Sub Maj_Zones()
+  
+  num.text = Colcol.Current[0]
+  intitule.text = Colcol.Current[1]
+  num_GotFocus()
+  num.SetFocus
+  
+End
+
+Public Sub CleanChamps()
+  
+  num.Clear
+  intitule.Clear
+  
+End
+
+Public Sub Refresh()
+  
+  Colcol.Clear
+  form_Open()
+  
+End
+
+Public Sub Lib_KeyPress()
+  
+  Select Case Last.tag
+      
+    Case 1
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        num_LostFocus()
+        intitule_GotFocus()
+        intitule.SetFocus
+        intitule.Select
+        Stop Event
+      Endif
+      
+    Case 2
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        intitule_LostFocus()
+        num_GotFocus()
+        num.SetFocus
+        num.Select
+        Stop Event
+      Endif
+  End Select
+  
+  If key.code = key.F1 Then
+    Button4_Click()
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Button4_Click()
+      
+    Case 2
+      Button1_Click()
+      
+    Case 3
+      Button2_Click()
+      
+    Case 4
+      Me.Close
+      
+  End Select
+  
+End
+
+Public Sub num_GotFocus()
+  
+  num.Background = &HAAFF7F&
+  
+End
+
+Public Sub num_LostFocus()
+  
+  num.Background = Color.TextBackground
+  
+End
+
+Public Sub intitule_GotFocus()
+  
+  intitule.Background = &HAAFF7F&
+  
+End
+
+Public Sub intitule_LostFocus()
+  
+  intitule.Text = Utils.Remplace(intitule.Text)
+  intitule.Background = Color.TextBackground
+  
+End
+
+Public Sub Button1_Click()
+  
+  Dim Tab As String
+  
+  Tab = "Fiches_Libelles" 
+  If num.Text <> "" Then
+    If son Then
+      Music.Play
+    Endif
+    If Message.Question("Etes vous sur de vouloir effacer cet enregistrement", "Oui", "Non") = 1 Then
+      Utils.db.Exec("DELETE FROM " & Tab & " WHERE num =&1", colcol.Current[0])
+      Refresh()
+      CleanChamps()
+    Endif
+    intitule.Background = Color.TextBackground
+    num_GotFocus()
+    num.SetFocus
+    num.Select
+  Else
+  Endif
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  
+  Tab = "Fiches_Libelles" 
+  intitule.Text = Utils.Remplace(intitule.Text)
+  If num.Text <> "" Then
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE num= &1", num.Text)
+    If Not rResult.Available Then
+      Utils.db.Exec("INSERT INTO " & Tab & "(num,intitule) VALUES ( &1, &2)", num.Text, intitule.Text)
+      Refresh()
+    Else
+      Utils.db.Exec("UPdate  " & Tab & "  SET  num = &1, intitule = &2 WHERE num = &1", num.Text, intitule.Text)
+    Endif
+    Refresh()
+    Cleanchamps()
+    intitule.Background = Color.TextBackground
+    num_GotFocus()
+    num.SetFocus
+    num.Select
+  Endif
+  
+End
+
+Public Sub Button4_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Libelles.html"]
+  
+End
+
+Public Sub colcol_Click()
+  
+  Maj_zones()
+  
+End

@@ -1,0 +1,298 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : CielcorspJ.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 05/12/2008
+'# saisie des tables de correspondances pour les journaux Ciel
+'################################################
+'
+Private rcpt As Result
+Private Intit As String
+Private B As Integer = 0
+
+Public Sub _New()
+  
+  Dim Tab As String
+  Dim params As Result
+  
+  Me.Center
+  Music.Load(Start.Musique)
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Me.Center
+  Tab = "Ciel_Lrx" 
+  Try Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (Cciel Char(10)," &
+    "Intitule Char(30), " &
+    "Clrx Char(10), " &
+    "PRIMARY KEY (Cciel))" & "ENGINE = MYISAM")
+  Tab = "Ciel_Lrx_Jo" 
+  Try Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (Cciel Char(10)," &
+    "Intitule Char(30), " &
+    "Clrx Char(2), " &
+    "PRIMARY KEY (Cciel))" & "ENGINE = MYISAM")
+  Tab = "Fiches_Parametres" 
+  Try params = Utils.db.Exec("SELECT imp_ciel FROM " & Tab & "")
+  If Error Then
+    Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (imp_ciel char(1))")
+    Try params = Utils.db.Exec("SELECT imp_ciel FROM " & Tab & "")
+  Endif
+  Tab = "Ciel_Lrx_Jo" 
+  ListeCompte.Columns.count = 3
+  ListeCompte.Columns[0].Width = 80
+  ListeCompte.Columns[1].Width = 80
+  ListeCompte.Columns[2].Width = 180
+  ListeCompte.Columns[0].Text = "Code Ciel"
+  ListeCompte.Columns[0].Alignment = 1
+  ListeCompte.Columns[1].Text = "Code Laurux"
+  ListeCompte.Columns[1].Alignment = 1
+  ListeCompte.Columns[2].Text = "Intitulé"
+  ListeCompte.Columns[2].Alignment = 1
+  Rcpt = Utils.db.Exec("SELECT * FROM " & Tab & "")
+  If Rcpt.Available Then
+    Repeat
+      Listecompte.Add(Rcpt!Cciel, Rcpt!Cciel)
+      Listecompte.Item[1] = Rcpt!Clrx
+      Listecompte.Item[2] = Rcpt!Intitule
+    Until Rcpt.MoveNext()
+  Endif
+  CptLrx.SetFocus
+  
+End
+
+'***********************************************************
+'* Gestion du columnview Colcpt lors d'un clic *
+'***********************************************************
+Public Sub Button1_Click()
+  
+  Dim Tab As String
+  
+  Tab = "Fiches_Journaux" 
+  With Utils
+    If Colcpt.visible Then
+      Colcpt.clear
+      Colcpt.visible = False
+    Else
+      Colcpt.visible = True
+      Colcpt.Columns.count = 2
+      Colcpt.Columns[0].Width = 65
+      Colcpt.Columns[1].Width = 280
+      Colcpt.Columns[0].Text = "code"
+      Colcpt.Columns[1].Text = "Intitulé"
+      Rcpt = Utils.db.Exec("SELECT * FROM " & Tab & " order by code_jo")
+      If Rcpt.Available Then
+        Repeat
+          Colcpt.Add(Rcpt!code_jo, Rcpt!code_jo)
+          '      Colcpt.Item[0] = Rcpt!compte_cc
+          Colcpt.Item[1] = Rcpt!libelle_jo
+        Until Rcpt.MoveNext()
+      Endif
+      If Colcpt.Count Then
+        Colcpt.MoveFirst
+        Colcpt.SetFocus
+        Colcpt.Item.Selected = True
+      Endif
+    Endif
+  End With
+  
+End
+
+'***********************************************************
+'* Gestion du columnview Colcpt lors d'une saisie manuelle *
+'***********************************************************
+Public Sub Colcpt_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Colcpt.MoveCurrent
+    Colcpt_Click()
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Colcpt.visible = False
+    Colcpt.clear
+    Cptlrx.SetFocus
+    Cptlrx.Select
+    Stop Event
+  Endif
+  
+End
+
+'******************************************
+'* Selection du compte  avec la souris    *
+'******************************************
+Public Sub Colcpt_Click()
+  
+  Cptlrx.Text = Colcpt.Item[0]
+  Colcpt.clear
+  Colcpt.visible = False
+  CptCiel.SetFocus
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Button1_Click()
+      
+    Case 2
+      Button2_Click()
+      
+    Case 3
+      Button3_Click()
+      
+    Case 4
+      Me.Close
+      
+  End Select
+  
+End
+
+'*******************************
+'* On mouvemente ListeCompte   *
+'*******************************
+Public Sub Button2_Click()
+  
+  Dim Cpt As Result
+  Dim Tcpt As String
+  
+  Tcpt = "Ciel_Lrx_Jo" 
+  Cpt_man()
+  If Not IsNull(CptCiel.Text) Then
+    If b = 0 Then
+      ListeCompte.MoveFirst()
+      Repeat
+        If Listecompte.Count <> 0 Then
+          If Listecompte.Item[1] = CptLrx.Text Or If Listecompte.Item[0] = CptCiel.Text Then
+            Message.Error("Veuillez verifier votre saisie SVP ! Un de ces comptes a déjà été saisi.")
+            b = 1
+            Break
+          Endif
+        Endif
+      Until ListeCompte.MoveNext()
+      If b = 0 Then
+        Cpt = Utils.db.Exec("SELECT * FROM " & Tcpt & " where Cciel = &1", Cptciel.Text)
+        If Cpt.Available Then
+          Message.Error("Veuillez verifier votre saisie SVP, ce compte Ciel a déjà été saisi !")
+        Else
+          Utils.db.Exec("INSERT INTO " & Tcpt & "(Cciel,Clrx,Intitule) VALUES (&1, &2, &3)", CptCiel.Text, CptLrx.Text, Intit)
+          ListeCompte.Add(CptCiel.text, CptLrx.text)
+          Listecompte.Item[0] = CptCiel.text
+          Listecompte.Item[1] = CptLrx.Text
+          Listecompte.Item[2] = Intit
+          CptLrx.clear
+          CptCiel.Clear
+          CptLrx.SetFocus
+        Endif
+      Endif
+    Endif
+  Else
+    Message.Error("Veuillez saisir un compte Ciel SVP !")
+    CptCiel.SetFocus
+  Endif
+  
+End
+
+'**************************************
+'* On Selectionne le journal saisi    *
+'**************************************
+Public Sub Cpt_man()
+  
+  Dim Tab As String
+  
+  Tab = "Fiches_Journaux" 
+  With utils
+    Rcpt = Utils.db.Exec("SELECT * FROM " & Tab & " where code_jo = &1", CptLrx.Text)
+    If Rcpt.Available Then
+      Intit = Rcpt!libelle_jo
+      Button2.SetFocus
+      b = 0
+    Else
+      If Start.son Then
+        Music.Play
+      Endif
+      If Not IsNull(CptLrx.Text) Then
+        message.Warning(" Ce journal n'existe pas dans les tables Laurux! ")
+      Else
+        message.Warning(" Veuillez saisir un code journal Laurux! ")
+      Endif
+      CptLrx.SetFocus
+      CptLrx.Select
+      B = 1
+    Endif
+  End With
+  
+End
+
+Public Sub ChkInput()
+  
+  If InStr("0123456789", Key.Text) = 0 Then
+    If key.code <> key.BackSpace And Key.Code <> Key.Delete And Key.code <> Key.enter And Key.code <> Key.return Then
+      Stop Event
+    Endif
+  Endif
+  
+End
+
+'***********************************************************
+'* Gestion du columnview Colcpt lors d'une saisie manuelle *
+'***********************************************************
+Public Sub Listecompte_KeyPress()
+  
+  If Key.code = Key.Delete Then
+    Compte_delete()
+    Listecompte.Current.Delete
+  Endif
+  
+End
+
+Public Sub Listecompte_Activate()
+  
+  CptLrx.text = Listecompte.Current[1]
+  CptCiel.Text = Listecompte.Current[0]
+  Compte_delete()
+  Listecompte.Current.Delete
+  
+End
+
+Public Sub Compte_delete()
+  
+  Dim Tcpt As String
+  
+  Tcpt = "Ciel_Lrx_Jo" 
+  Utils.db.Exec("DELETE FROM " & Tcpt & " WHERE Cciel = &1", Listecompte.Current[0])
+  
+End
+
+'***************************************
+'*      Appel de la documentation      *
+'***************************************
+Public Sub Button3_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Cielimport.html"]
+  
+End

@@ -1,0 +1,33 @@
+' Gambas module file
+
+Public Sub Init()
+  
+  Dim Envr As String
+  
+  Print Application.Env
+  If Application.Env["KDE_FULL_SESSION"] Then
+    Envr = "kdesu "
+  Else
+    If Application.Env["GNOME_DESKTOP_SESSION_ID"] Then
+      Envr = "gksu "
+    Endif
+  Endif
+  If IsNull(Envr) Then Envr = "gksu "
+  Shell Envr & "sudo -S /etc/init.d/mysql stop" Wait
+  Shell Envr & "sudo -S /etc/init.d/mysql start" Wait
+  
+End
+
+Public Function Process_List(lg As Integer) As Integer
+  
+  Dim sline As String
+  Dim txterror As String
+  
+  Shell "mysqladmin -h " & Settings["/dbase/Host"] & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " processlist >" & User.home & "/tmp/resultat 2>&1" Wait
+  If Exist(User.home & "/tmp/resultat") Then txterror = File.Load(User.home & "/tmp/resultat")
+  For Each sline In Split(txterror, "\n")
+    Inc lg
+  Next
+  Return lg
+  
+End

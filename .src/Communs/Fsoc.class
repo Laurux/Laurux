@@ -1,0 +1,2817 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à  " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Fsoc.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 01/11/2004
+'# Gestion de la table des societés
+'################################################
+'
+
+Private Tab As String
+Private Soc As String
+Private Soc1 As String
+Private s As Integer
+Private son As Integer = Start.Son
+Private testerTVA As Boolean = True
+Private cs As String
+Private Lig As String
+Private chkNbase As Boolean = False
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Music.Load(Start.Musique)
+  Label11.text = Settings["/Soc" & Start.Societe & "/Siret"]
+  s = 0
+  Me.Center
+  Soclist.Columns.count = 2
+  Soclist.Columns[0].Width = 65
+  Soclist.Columns[1].Width = 180
+  Soclist.Columns[0].Text = "Code"
+  Soclist.Columns[1].Text = "Intitule"
+  Init_base()
+  Init_Civilite()
+  chkNbase = False
+  Recup_Soc()
+  
+End
+
+Public Sub Recup_Soc()
+  
+  Soclist.MoveFirst()
+  Repeat
+    Soclist.Item.Selected = True
+    If Soclist.Item[0] = Settings["/Soc"] Then Break
+  Until soclist.MoveNext()
+  
+End
+
+Public Sub Form_Open()
+  
+  Maj_Zones()
+  Code.SetFocus()
+  
+Catch
+  message.Error(Error.Text & " " & Error.where)
+  
+End
+
+Public Sub Init_base()
+  
+  Dim rResult As Result
+  Dim Tab2 As String
+  Dim elements As Variant
+  
+  Soclist.Clear
+  For Each elements In Utils.db.Databases
+    Lig = elements.name
+    If Left$(Lig, 6) = "Laurux" Then 
+      If Len(lig) > 6 Then
+        Tab2 = Lig & "." & "Fiches_Societes"
+        Try rResult = Utils.db.Exec("Select * From  " & Tab2 & " where cd_sc = &1", Right$(Lig, Len(Lig) - 6))
+        If Not Error Then
+          If rResult.Available Then
+            Soclist.Add(rResult!cd_sc, rResult!cd_sc)
+            Soclist.Item[0] = rResult!cd_sc
+            Soclist.Item[1] = rResult!type_sc & " " & rResult!int_sc
+          Endif
+        Endif
+      Endif
+    Endif
+  Next
+Catch
+  Message.warning(Error.text) 
+  
+End
+
+Public Sub Init_Civilite()
+  
+  Dim rResult As Result
+  ' using Fiches_Identite for ComboBox
+  Tab = "Fiches_Identite"
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
+  If rResult.Available Then
+    Civilite.Clear()
+    ' first is an empty
+    Civilite.Add("  ", "00")
+    Repeat
+      Civilite.Add(rResult!libelle, rResult!code)
+    Until rResult.MoveNext()
+  Endif
+Catch 
+  
+End
+
+Public Function Nsoc(numero As String) As String[]
+  
+  Dim spl As New String[2]
+  
+  spl = Scan(numero, "*:*")
+  Return spl
+  
+End
+
+Public Sub Maj_Zones()
+  
+  Dim rResult As Result
+  
+  Tab = "Fiches_Societes"
+  Try Cs = Soclist.Item[0]
+  If Not IsNull(cs) Then
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where cd_sc = &1", Cs)
+    If rResult.Available Then
+      'Soclist.Add(rResult!cd_sc, rResult!cd_sc)
+      code.Text = rResult!cd_sc
+      Civilite.Text = rResult!type_sc
+      intitule.Text = rResult!int_sc
+      Libre.text = rResult!libre
+      adr1.Text = rResult!adr1_sc
+      adr2.Text = rResult!adr2_sc
+      cpostal.Text = rResult!cp_sc
+      Burdis.Text = rResult!burdis_sc
+      Email.Text = rResult!email_sc
+      Rcs.Text = rResult!rcs_sc
+      villercs.Text = rResult!villerc_sc
+      Siret.Text = rResult!siret_sc
+      Tvaintra.Text = rResult!tvaintra_sc
+      Capital.Text = rResult!cap_sc
+      Ape.Text = rResult!ape_sc
+      Tel.Text = rResult!tel_sc
+      Port.Text = rResult!port_sc
+      fax.Text = rResult!fax_sc
+      site.Text = rResult!site
+      Banque.Text = rResult!banq
+      Bic.Text = rResult!bic
+    Endif
+  Endif
+Catch
+  
+End
+
+Public Sub cleanChamps()
+  
+  code.Clear
+  Civilite.Text = ""
+  intitule.Clear
+  Libre.clear
+  adr1.Clear
+  adr2.Clear
+  cpostal.Clear
+  Burdis.Clear
+  Email.Clear
+  Rcs.Clear
+  villercs.Clear
+  Siret.Clear
+  Tvaintra.Clear
+  Capital.Clear
+  Ape.Clear
+  Tel.clear
+  Port.Clear
+  fax.clear
+  site.clear
+  Banque.Clear
+  Bic.clear
+  
+End
+
+Public Sub Refresh()
+  
+  Form_Open()
+  Maj_Zones
+  
+End
+
+Public Sub Soc_KeyPress()
+  
+  Dim siren As String
+  
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+        
+      Case 1
+        code_LostFocus()
+        If S <> 1 Then
+          Civilite.SetFocus
+          Civilite.Select
+        Else
+          S = 0
+          code.SetFocus
+          code.Select
+        Endif
+        Stop Event
+        
+      Case 2
+        intitule.SetFocus
+        intitule.Select
+        Stop Event
+        
+      Case 3
+        adr1.SetFocus
+        adr1.Select
+        Stop Event
+        
+      Case 4
+        adr2.SetFocus
+        adr2.Select
+        Stop Event
+        
+      Case 5
+        cpostal.SetFocus
+        cpostal.Select
+        Stop Event
+        
+      Case 6
+        Burdis.SetFocus
+        Burdis.Select
+        Stop Event
+        
+      Case 7
+        Email.SetFocus
+        Email.Select
+        Stop Event
+        
+      Case 8
+        Rcs.SetFocus
+        Rcs.Select
+        Stop Event
+        
+      Case 9
+        villercs.SetFocus
+        villercs.Select
+        Stop Event
+        
+      Case 10
+        Siret.SetFocus
+        Siret.Select
+        Stop Event
+        
+      Case 11
+        '##### Récupération du N° intraCommunautaire
+        '##### basé sur un calcul
+        If Siret.Text <> "" Then
+          siren = UCase(Replace(Siret.Text, " ", ""))
+          siren = Left$(siren, 9)
+          Try Tvaintra.Text = "FR" & CStr(CTestTVA.CleTVAIntra(siren)) & siren
+        End If
+        '######### FIN #################
+        Tvaintra.SetFocus
+        Tvaintra.Select
+        Stop Event
+        
+      Case 12
+        '##### Test du Numéro IntraCommunautaire
+        If Siret.Text <> "" Then
+          siren = UCase(Replace(Siret.Text, " ", ""))
+          siren = Left$(siren, 9)
+        End If
+        If Tvaintra.Text <> "" Then
+          testerTVA = CTestTVA.isintracomvalide(Tvaintra.Text, siren)
+          If Not testerTVA Then
+            Message.Warning("Ce numéro de TVA n'est pas correct pour une société française")
+            Stop Event
+            'Tvaintra.SetFocus
+            'ELSE
+            Capital.SetFocus
+            Capital.Select
+          End If
+        End If
+        '######### FIN #################
+        Stop Event
+        
+      Case 13
+        Ape.SetFocus
+        Ape.Select
+        Stop Event
+        
+      Case 14
+        Tel.SetFocus
+        Tel.Select
+        Stop Event
+        
+      Case 15
+        Port.SetFocus
+        Port.Select
+        Stop Event
+        
+      Case 16
+        Fax.SetFocus
+        fax.Select
+        Stop Event
+        
+      Case 17
+        Site.SetFocus
+        Site.Select
+        Stop Event
+        
+      Case 18
+        Banque.SetFocus
+        Banque.Select
+        Stop Event
+        
+      Case 19
+        Bic.SetFocus
+        Bic.Select
+        Stop Event
+        
+    End Select
+  Endif
+  
+  If key.code = key.F1 Then
+    Button5_Click()
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Button5_Click()
+      
+    Case 2
+      cleanChamps()
+      Code.SetFocus
+      
+    Case 3
+      Button3_Click()
+      
+    Case 4
+      Button1_Click()
+      
+    Case 5
+      Me.Close
+      
+    Case 6
+      If Settings["/Soc" & Start.Societe & "/Admin"] Then
+        MDP.showmodal()
+        If Start.Motdepasse = "OK" Then
+          Dup.showModal
+          Start.Motdepasse = ""
+        Endif
+      Else
+        Dup.showModal
+      Endif
+      
+  End Select
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Soc_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  
+End
+
+Public Sub Soc_LostFocus()
+  
+  Select Case Last.tag
+    Case 8
+      If Not IsNull(Email.Text) Then Utils.chkEmail(Email.Text)
+  End Select
+  
+End
+
+Public Sub code_LostFocus()
+  
+  If Len(code.text) = 2 Then
+    'code.Background = Color.TextBackground
+  Else
+    If son Then
+      Music.Play
+    Endif
+    Message.Warning("Le code société doit etre sur 2 caractères !", "OK")
+    s = 1
+  Endif
+  
+End
+
+Public Sub Button1_Click()
+  
+  Dim bUpdateOk As Boolean = False
+  Dim siren As String
+  Dim elements As Variant
+  
+  Tab = "Fiches_Societes"
+  If Siret.Text <> "" Then
+    siren = Left$(Siret.Text, 9)
+  Endif
+  If code.Text <> "" Then
+    For Each elements In Utils.db.Databases
+      Lig = elements.name
+      If Left$(Lig, 6) = "Laurux" Then 
+        If Len(lig) > 6 Then
+          If lig = "Laurux" & Code.Text Then 
+            bUpdateOk = True
+            Break
+          Else
+            bUpdateOk = False
+          Endif
+        Endif
+      Endif
+    Next
+    If bUpdateOk = False Then
+      If son Then Music.Play
+      If message.Question(" Attention ! Vous allez créer les tables pour cette nouvelle société.", "Oui", "Non") = 1 Then
+        Me.mouse = Mouse.wait
+        Utils.db.Databases.Add("Laurux" & code.Text)
+        Utils.db.Close
+        Utils.db.name = "Laurux" & code.Text
+        Utils.db.Open
+        Utils.db.exec("SET NAMES 'latin1'")
+        Create()
+        Me.mouse = Mouse.Default
+        bUpdateOk = True
+      Endif
+    Endif
+    If bUpdateOk Then
+      Tab = "Fiches_Societes"
+      Utils.db.Exec("UPdate " & Tab & "  SET cd_sc = &1, type_sc = &2, int_sc = &3, adr1_sc = &4, adr2_sc = &5, cp_sc = &6, burdis_sc = &7, email_sc = &8, rcs_sc = &9, villerc_sc = &{10}, siret_sc = &{11}, tvaintra_sc = &{12}, cap_sc = &{13}, ape_sc = &{14}, tel_sc = &{15}, port_sc = &{16}, fax_sc = &{17}, site = &{18}, banq = &{19}, bic = &{20}, libre = &{21} where cd_sc = &1", code.Text, Civilite.Text, intitule.Text, adr1.Text, adr2.Text, cpostal.Text, Burdis.Text, Email.Text, Rcs.Text, villercs.Text, Siret.Text, Tvaintra.Text, Capital.Text, Ape.Text, Tel.Text, Port.Text, Fax.Text, site.Text, Banque.text, Bic.text, Libre.Text)
+      bUpdateOk = False
+    End If
+    Init_base()
+    chkNbase = True
+    soc = code.Text
+    Settings["/Soc"] = soc
+    Settings["/intitule"] = intitule.Text
+    Settings["/dbase/Name"] = "Laurux" & Code.Text
+    Settings.Save
+    Settings.Reload
+    Start.Societe = soc
+    Fmenu.text = "Laurux : " & "Société " & Code.Text & " " & Civilite.text & " " & intitule.Text
+    If testerTVA Then
+      Form_Open()
+      code.SetFocus
+    Else
+      Tvaintra.SetFocus
+    Endif
+  Endif
+Catch
+  If son Then
+    Music.Play
+  Endif
+  message.Error(Error.Text & " " & Error.where)
+  s = 1
+  
+End
+
+Public Sub Button3_Click()
+  
+  Dim Tables As String
+  
+  Tab = "Fiches_Societes"
+  Syntheses.Message("Etes-vous sur de vouloir effacer cette société ?")
+  If Message.Question("Etes-vous sur de vouloir effacer cette société", "Oui", "Non") = 1 Then
+    Me.mouse = mouse.Wait
+    Utils.db.Exec("Drop database Laurux" & code.Text)
+    If Not Error Then
+      Me.mouse = mouse.Default
+      Message.Info("Société " & Tables & " supprimée !\nVeuillez sélectionner une autre société de travail SVP !")
+      Settings["Soc"] = ""
+      Settings["/Societes/Soc"] = ""
+      Settings["/Societes/intitule"] = ""
+      Settings.Save
+      Settings.reload
+      Init_base()
+      cleanChamps()
+      Fmenu.Text = ""
+      code.SetFocus
+    Else
+      Me.mouse = mouse.Default
+      Message.Info("Suppression impossible ! Il y a un problème sur votre base.")
+    Endif
+    ' On supprime les tables temporaires si elles existent
+    'Try Utils.db.Exec("DROP TABLE Fiches_Inv" & Tables & ",Fiches_InvT" & Tables & ", Fiches_Mats" & Tables & ", Fiches_Regltz" & Tables & ", Fiches_Relcomptes" & Tables & ", Fiches_RelFacture" & Tables & ", Fiches_Stat" & Tables & ", Report" & Tables & ", Detail" & Tables & ", Ecrs" & Tables & ", Ctrln" & Tables & ", Facturefm" & Tables & ", Fiches_Cpostaux" & Tables & " ")
+    Me.Raise
+  Endif
+Catch
+  If son Then
+    Music.Play
+  Endif
+  message.Error(Error.Text & " " & Error.where)
+  
+End
+
+Public Sub Button4_Click()
+  
+  Dim montitre As String
+  
+  montitre = "Laurux"
+  If code.Text Then
+    If Settings["/Soc" & Start.Societe & "/Compta"] Then
+      Fmenuc.Text = montitre & " ( Société  " " " & code.Text & " " & intitule.Text & ") "
+    Else
+      Fmenu.Text = montitre & " ( Société  " " " & code.Text & " " & intitule.Text & ") "
+    Endif
+    Syntheses.Message(" Vous venez de sélectionner la société " & Soc & " " & intitule.Text)
+    message.Warning(" Vous venez de sélectionner la société " & Soc & " " & intitule.Text & " ! \n Celle-ci sera donc votre société de travail par défaut.\n Laurux va être fermé.")
+    soc = code.Text
+    Settings["/Soc"] = soc
+    Settings["/intitule"] = intitule.Text
+    Settings["/dbase/Name"] = "Laurux" & Code.Text
+    Settings.Save
+    Settings.Reload
+    Utils.db.Close
+    Utils.db.name = "Laurux" & code.Text
+    Utils.db.Open
+    Utils.db.exec("SET NAMES 'latin1'")
+    Start.Societe = soc
+    Fmenu.text = "Laurux : " & "Société " & Code.Text & " " & Civilite.text & " " & intitule.Text
+    Try Kill User.home & "/Laurux.lock"
+    Me.Close
+    If Settings["/Soc" & Soc & "/Compta"] Then
+      Fmenuc.Close
+    Else
+      If Settings["/Soc" & Soc & "/Gestion"] Then
+        Fmenuf.Close
+      Else
+        Fmenu.Close
+      Endif
+    Endif
+  Else
+    If son Then
+      Music.Play
+    Endif
+    message.Warning(" Veuillez selectionner une société SVP")
+    code.Select
+  Endif
+  
+End
+
+Public Sub CREATE()
+  
+  Dim Hfile As File
+  Dim Lig2 As String
+  Dim rResult As Result
+  Dim Cv As Integer = 1
+  
+  Soc = code.text
+  Tab = "Fiches_Societes"
+  Utils.db.EXEC("CREATE TABLE " & Tab &
+    "(cd_sc Char(2) NOT NULL," &
+    "type_sc char(9) ," &
+    "int_sc char(35) ," &
+    "libre char(35) ," &
+    "adr1_sc char(35) ," &
+    "adr2_sc char(35) ," &
+    "cp_sc char(5) ," &
+    "burdis_sc char(35) ," &
+    "email_sc char(50) ," &
+    "rcs_sc char(12) ," &
+    "villerc_sc char(15) ," &
+    "siret_sc char(15) ," &
+    "tvaintra_sc char(15) ," &
+    "cap_sc char(10) ," &
+    "ape_sc char(5) ," &
+    "tel_sc char(16) ," &
+    "port_sc char(16) , " &
+    "fax_sc char(16) ," &
+    "site Char(40) ," &
+    "banq Char(30) ," &
+    "bic Char(11) ," &
+    "PRIMARY KEY (cd_sc))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Identite"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab &
+    " (code CHAR(2) NOT NULL ," &
+    "libelle CHAR(9) , " &
+    "PRIMARY KEY (code))" & "ENGINE = MYISAM")
+  If Not Error Then
+    HFile = Open "CV.txt" For Read
+    While Not Eof(hFile)
+      Line Input #hFile, Lig2
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE libelle= &1", lig2)
+      If Not rResult.Available Then
+        Try Utils.db.Exec("INSERT INTO " & Tab & "(code,libelle) VALUES (&1, &2)", Cv, lig2)
+      Endif
+      Inc Cv
+    Wend
+    Close #HFile
+  Endif
+  Tab = "Fiches_Parametres"
+  If Not Utils.db.Databases.Exist(Tab) Then
+    Try Utils.db.EXEC("CREATE TABLE " & Tab &
+      "(ind Tinyint NOT NULL ," &
+      "dteclec date ," &
+      "dteclec1 date ," &
+      "dteclec2 date ," &
+      "dteclec3 date ," &
+      "dteclec4 date ," &
+      "dteclec5 date ," &
+      "dtepp char(7) ," &
+      "dtepec char(7) ," &
+      "dtepc date ," &
+      "dtetdec date ," &
+      "dtefedec date ," &
+      "cptrplus CHAR(8) ," &
+      "cptrmoins CHAR(8) ," &
+      "jdr CHAR(2) ," &
+      "cptrsplus CHAR(8) ," &
+      "cptrsmoins CHAR(8) ," &
+      "numecriture INTEGER(11) ," &
+      "numecriture1 INTEGER(11) ," &
+      "numecriture2 INTEGER(11) ," &
+      "numecriture3 INTEGER(11) ," &
+      "dnc INTEGER(8) ," &
+      "dnbon CHAR(6) ," &
+      "dnfac CHAR(6) ," &
+      "dndevis varchar(8) ," &
+      "coretro CHAR(6) ," &
+      "jrnal CHAR(2) ," &
+      "jrnal2 CHAR(2) ," &
+      "jrnal3 CHAR(2) ," &
+      "jrnal4 CHAR(2) ," &
+      "son TINYINT NOT NULL ," &
+      "dnf INTEGER(8), " &
+      "dncom Char(5), " &
+      "devise Char(8), " &
+      "viremc Char(8), " &
+      "viremchq Char(8), " &
+      "virema Char(8), " &
+      "dteinv date ," &
+      "PRIMARY KEY (Ind))" & "ENGINE = MYISAM")
+    Try Utils.db.Exec("insert into " & Tab & " (numecriture, numecriture1, numecriture2, dnfac, son, dnc, dnf, dnbon ) values (&1, &2, &3, &4, &5, &6, &7, &8)", 0, 0, 0, "00000", 0, "411000", "401000", 0)
+    
+  Endif
+  
+  Tab = "Fiches_Txt_Relances"
+  Utils.db.Exec("CREATE TABLE " & Tab &
+    " (niveau INT(1) NOT NULL," &
+    "libell1 TEXT ," &
+    "libell2 TEXT ," &
+    "PRIMARY KEY (niveau))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_relances"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    "(compte Char(8) NOT NULL," &
+    "intitule Varchar(30) ," &
+    "dte char(10) ," &
+    "numdoc char(10) NOT NULL," &
+    "numlot char(10) ," &
+    "libelle Varchar(30) ," &
+    "montantd Decimal(12,2) ," &
+    "montantc Decimal(12,2) ," &
+    "PRIMARY KEY (compte,numdoc))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Comptes"
+  Utils.db.EXEC("CREATE TABLE " & Tab &
+    " (compte_cc integer(8) NOT NULL ," &
+    "intitule_cc VarCHAR(40) , " &
+    "type_cc CHAR(1) NOT NULL , " &
+    "coll Tinyint ," &
+    "coll_cc CHAR(8) ," &
+    "cent_cc TINYINT, " &
+    "comptr_cc TINYINT, " &
+    "code_tvente CHAR(1) , " &
+    "taux_tvente CHAR(5),  " &
+    "gen_tv TINYINT, " &
+    "code_tachat CHAR(1) , " &
+    "taux_tachat CHAR(5) , " &
+    "gen_ta TINYINT ," &
+    "solde Decimal(12,2) NOT NULL ," &
+    "soldep Decimal(12,2) NOT NULL ," &
+    "cprincipal TINYINT(1) ," &
+    "lettrable TINYINT(1) , " &
+    "PRIMARY KEY (compte_cc))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Four"
+  Utils.db.Exec("CREATE TABLE " & tab & 
+    " (fo_code int(8) NOT NULL  ," &
+    "fo_col CHAR(1)," &
+    "fo_rs_soc CHAR(9)," &
+    "fo_nom VARCHAR(35)," &
+    "fo_pnm VARCHAR(35)," &
+    "fo_adr1 VARCHAR(35)," &
+    "fo_adr2 VARCHAR(35)," &
+    "fo_cd_ptl CHAR(5)," &
+    "fo_ville VARCHAR(35)," &
+    "fo_email VARCHAR(150)," &
+    "fo_tel_std CHAR(16)," &
+    "fo_tel_bur CHAR(16)," &
+    "fo_tel_post CHAR(16)," &
+    "fo_pble CHAR(16)," &
+    "fo_fx1 CHAR(16)," &
+    "fo_fx2 CHAR(16)," &
+    "fo_plaf_ecrs CHAR(10)," &
+    "fo_obs Text," &
+    "fo_cd_bq CHAR(5)," &
+    "fo_cd_gch CHAR(5)," &
+    "fo_cle_rib CHAR(2)," &
+    "fo_num_cpt CHAR(11)," &
+    "fo_dom CHAR(25)," &
+    "fo_id_tva CHAR(13)," &
+    "fo_cd_soc CHAR(2)," &
+    "fo_site CHAR(40)," &
+    "fo_cdech Char(2)," &
+    "fo_cd_cli CHAR(16)," &
+    "fo_co_vtl VARCHAR(255)," &
+    "fo_collectif CHAR(8)," &
+    "fo_pays char(30)," &
+    "fo_franco Decimal(12,2)," &
+    "fo_mincom Decimal(12,2)," &
+    "fo_centrale TINYINT(1)," &
+    "fo_ccentrale Char(2)," &
+    "PRIMARY KEY (fo_code))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Cli"
+  Utils.db.Exec("CREATE TABLE " & Tab & 
+    " (cli_code int(8) NOT NULL ," &
+    "cli_col CHAR(1)," &
+    "cli_rs_soc CHAR(9)," &
+    "cli_nom VARCHAR(35)," &
+    "cli_pnm VARCHAR(35)," &
+    "cli_adr1 VARCHAR(35)," &
+    "cli_adr2 VARCHAR(35)," &
+    "cli_cd_ptl CHAR(5)," &
+    "cli_ville VARCHAR(35)," &
+    "cli_rs_soc2 CHAR(9)," &
+    "cli_nom2 VARCHAR(35)," &
+    "cli_pnm2 VARCHAR(35)," &
+    "cli_adr12 VARCHAR(35)," &
+    "cli_adr22 VARCHAR(35)," &
+    "cli_cd_ptl2 CHAR(5)," &
+    "cli_ville2 VARCHAR(35)," &
+    "cli_email VARCHAR(150)," &
+    "cli_tel_bur VARCHAR(16)," &
+    "cli_tel_dom VARCHAR(16)," &
+    "cli_tel_poste VARCHAR(16)," &
+    "cli_pble VARCHAR(16)," &
+    "cli_fx1 VARCHAR(16)," &
+    "cli_fx2 VARCHAR(16)," &
+    "cli_plaf_ecrs VARCHAR(10)," &
+    "cli_cd_bq CHAR(5)," &
+    "cli_cd_gch CHAR(5)," &
+    "cli_dmln VARCHAR(30)," &
+    "cli_cle_rib CHAR(2)," &
+    "cli_num_cpt CHAR(11)," &
+    "cli_dom VARCHAR(25)," &
+    "cli_cd_ent CHAR(1)," &
+    "cli_cd_acc CHAR(1)," &
+    "cli_ref_tir VARCHAR(10)," &
+    "cli_id_tva VARCHAR(13)," &
+    "cli_cd_soc CHAR(2)," &
+    "cli_cd_cli VARCHAR(16)," &
+    "cli_co_vtl VARCHAR(255)," &
+    "cli_rlvc TINYINT," &
+    "cli_rlvf TINYINT," &
+    "cli_dt_rlc date," &
+    "cli_nm_int VARCHAR(25)," &
+    "cli_obs Text," &
+    "cli_collectif CHAR(8)," &
+    "cli_rmo CHAR(6)," &
+    "cli_rart CHAR(6)," &
+    "cli_exo TINYINT," &
+    "cli_cdech Char(2)," &
+    "cli_typec Char(2)," &
+    "cli_expl Char(1)," &
+    "cli_pays VARCHAR(30)," &
+    "cli_statut char(2)," &
+    "PRIMARY KEY (cli_code))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Clid"
+  Try Utils.db.Exec("CREATE TABLE " & Tab & 
+    "(adr VARCHAR(200)," &
+    "ddate date," &
+    "lind INT NOT NULL AUTO_INCREMENT," &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Cli"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (cli_rs_soc2 CHAR(9))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (cli_nom2 VARCHAR(35))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (cli_pnm2 VARCHAR(35))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (cli_adr12 VARCHAR(35))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (cli_adr22 VARCHAR(35))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (cli_cd_ptl2 CHAR(5))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (cli_ville2 VARCHAR(35))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (cli_cnt1 VARCHAR(17))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (cli_cnt2 VARCHAR(40))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (cli_cnt3 VARCHAR(25))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (cli_cnt4 VARCHAR(17))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (cli_cnt5 VARCHAR(40))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (cli_cnt6 VARCHAR(25))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (cli_cnt7 VARCHAR(17))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (cli_cnt8 VARCHAR(40))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (cli_cnt9 VARCHAR(25))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (cli_cnt10 VARCHAR(17))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (cli_cnt11 VARCHAR(40))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (cli_cnt12 VARCHAR(25))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (cli_cnt13 VARCHAR(17))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (cli_cnt14 VARCHAR(40))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (cli_cnt15 VARCHAR(25))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (cli_reg VARCHAR(15))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (cli_copie TINYINT(1))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (cli_actif TINYINT(1))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (cli_div TINYINT(1))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " add (cli_iban char(30))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " add (cli_bic char(11))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " add cli_rum  Char(30)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " add cli_datab  char(2)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " add cli_aban  Varchar(15)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " add cli_sage char(10)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (cli_livraison TINYINT(1))")
+  
+  Tab = "Fiches_Four"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (fo_cnt1 VARCHAR(17))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (fo_cnt2 VARCHAR(40))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (fo_cnt3 VARCHAR(25))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (fo_cnt4 VARCHAR(17))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (fo_cnt5 VARCHAR(40))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (fo_cnt6 VARCHAR(25))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (fo_cnt7 VARCHAR(17))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (fo_cnt8 VARCHAR(40))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (fo_cnt9 VARCHAR(25))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (fo_cnt10 VARCHAR(17))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (fo_cnt11 VARCHAR(40))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (fo_cnt12 VARCHAR(25))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (fo_cnt13 VARCHAR(17))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (fo_cnt14 VARCHAR(40))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (fo_cnt15 VARCHAR(25))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (fo_copie TINYINT(1))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & "  add (fo_iban char(30))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & "  add (fo_bic char(11))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (fo_exo TINYINT(1))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " add (fo_fport Decimal(12,2))")
+  
+  Tab = "Fiches_Tvaav"
+  Utils.db.exec("CREATE TABLE " & Tab &
+    " (code_tva CHAR(1) NOT NULL ," &
+    "taux_tva CHAR(5) NOT NULL  , " &
+    "cc_tva CHAR(8) not null , " &
+    "PRIMARY KEY (code_tva))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Tvaac"
+  Utils.db.exec("CREATE TABLE " & Tab & 
+    " (code_tva CHAR(1) NOT NULL ," &
+    " taux_tva CHAR(5) NOT NULL  , " &
+    "cc_tva CHAR(8) not null , " &
+    "PRIMARY KEY (code_tva))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Journaux"
+  Utils.db.exec("CREATE TABLE " & Tab & 
+    " (code_jo CHAR(2) NOT NULL ," &
+    "libelle_jo VARCHAR(15) , " &
+    "type_jo CHAR(2) not null , " &
+    "cde_banque CHAR(8) ," &
+    "PRIMARY KEY (code_jo))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_SousComptes"
+  Utils.db.EXEC("CREATE TABLE " & Tab &
+    " (code Char(8) NOT NULL," &
+    "code_vtl char(8) NOT NULL," &
+    "intitule_vtl VARCHAR(40) ," &
+    "PRIMARY KEY (code, code_vtl))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Cli_Vtl"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (code Char(8) NOT NULL," &
+    "code_vtl char(8) NOT NULL," &
+    "intitule_vtl VARCHAR(40) ," &
+    "PRIMARY KEY (code, code_vtl))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Four_Vtl"
+  Utils.db.EXEC("CREATE TABLE " & Tab &
+    " (code Char(8) NOT NULL," &
+    "code_vtl char(8) NOT NULL," &
+    "intitule_vtl VARCHAR(40) ," &
+    "PRIMARY KEY (code, code_vtl))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Mvt"
+  Utils.db.Exec("CREATE TABLE " & Tab & 
+    " (jour Char(2)," &
+    "numero Integer(6) NOT NULL," &
+    "numerodef Integer(6)," &
+    "compte CHAR(8) NOT NULL," &
+    "collectif TINYINT," &
+    "intitule Char(30)," &
+    "dte date," &
+    "datee date, " &
+    "dateech date, " &
+    "numcol Char(3)," &
+    "numdoc CHAR(10) NOT NULL," &
+    "numlot CHAR(10) NOT NULL," &
+    "libelle CHAR(30)," &
+    "montantd Decimal(12,2)," &
+    "montantc Decimal(12,2)," &
+    "validee TINYINT(1)," &
+    "provisoire TINYINT(1)," &
+    "tresorerie  TINYINT(1)," &
+    "pointee TINYINT(1)," &
+    "nrlv INTEGER(8)," &
+    "lettree TINYINT(1)," &
+    "cloturee TINYINT(1)," &
+    "dteval date, " &
+    "relance INTEGER(1)," &
+    "numerop Integer(11) NOT NULL," &
+    "numeropdef Integer(11) NOT NULL," &
+    "export Char(1)," &
+    "lind INT NOT NULL AUTO_INCREMENT," &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX date (dte))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX numero2 (numero))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX compte2 (compte))")
+  
+  Tab = "Fiches_Mvt1"
+  Utils.db.Exec("CREATE TABLE " & Tab & 
+    " (jour Char(2)," &
+    "numero Integer(6) NOT NULL," &
+    "numerodef Integer(6) NOT NULL," &
+    "compte CHAR(8) NOT NULL," &
+    "collectif TINYINT," &
+    "intitule Char(30)," &
+    "dte date," &
+    "datee date, " &
+    "dateech date, " &
+    "numcol Char(3)," &
+    "numdoc CHAR(10) NOT NULL," &
+    "numlot CHAR(10) NOT NULL," &
+    "libelle CHAR(30)," &
+    "montantd Decimal(12,2)," &
+    "montantc Decimal(12,2)," &
+    "validee TINYINT(1)," &
+    "provisoire TINYINT(1)," &
+    "tresorerie  TINYINT(1)," &
+    "pointee TINYINT(1)," &
+    "nrlv INTEGER(8)," &
+    "lettree TINYINT(1)," &
+    "cloturee TINYINT(1)," &
+    "dteval date, " &
+    "relance INTEGER(1)," &
+    "numerop Integer(11) NOT NULL," &
+    "numeropdef Integer(11) NOT NULL," &
+    "export Char(1)," &
+    "lind INT NOT NULL AUTO_INCREMENT," &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX date (dte))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX numero2 (numero))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX compte2 (compte))")
+  
+  Tab = "Fiches_Mvt2"
+  Utils.db.Exec("CREATE TABLE " & Tab & 
+    " (jour Char(2)," &
+    "numero Integer(6) NOT NULL," &
+    "numerodef Integer(6) NOT NULL," &
+    "compte CHAR(8) NOT NULL," &
+    "collectif TINYINT," &
+    "intitule Char(30)," &
+    "dte date," &
+    "datee date, " &
+    "dateech date, " &
+    "numcol Char(3)," &
+    "numdoc CHAR(10) NOT NULL," &
+    "numlot CHAR(10) NOT NULL," &
+    "libelle CHAR(30)," &
+    "montantd Decimal(12,2)," &
+    "montantc Decimal(12,2)," &
+    "validee TINYINT(1)," &
+    "provisoire TINYINT(1)," &
+    "tresorerie  TINYINT(1)," &
+    "pointee TINYINT(1)," &
+    "nrlv INTEGER(8)," &
+    "lettree TINYINT(1)," &
+    "cloturee TINYINT(1)," &
+    "dteval date, " &
+    "relance INTEGER(1)," &
+    "numerop Integer(11) NOT NULL," &
+    "numeropdef Integer(11) NOT NULL," &
+    "export Char(1)," &
+    "lind INT NOT NULL AUTO_INCREMENT," &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX date (dte))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX numero2 (numero))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX compte2 (compte))")
+  
+  Tab = "Fiches_Mvt3"
+  Utils.db.Exec("CREATE TABLE " & Tab & 
+    " (jour Char(2)," &
+    "numero Integer(6) NOT NULL," &
+    "numerodef Integer(6) NOT NULL," &
+    "compte CHAR(8) NOT NULL," &
+    "collectif TINYINT," &
+    "intitule Char(30)," &
+    "dte date," &
+    "datee date, " &
+    "dateech date, " &
+    "numcol Char(3)," &
+    "numdoc CHAR(10) NOT NULL," &
+    "numlot CHAR(10) NOT NULL," &
+    "libelle CHAR(30)," &
+    "montantd Decimal(12,2)," &
+    "montantc Decimal(12,2)," &
+    "validee TINYINT(1)," &
+    "provisoire TINYINT(1)," &
+    "tresorerie  TINYINT(1)," &
+    "pointee TINYINT(1)," &
+    "nrlv INTEGER(8)," &
+    "lettree TINYINT(1)," &
+    "cloturee TINYINT(1)," &
+    "dteval date, " &
+    "relance INTEGER(1)," &
+    "numerop Integer(11) NOT NULL," &
+    "numeropdef Integer(11) NOT NULL," &
+    "export Char(1)," &
+    "lind INT NOT NULL AUTO_INCREMENT," &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX date (dte))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX numero2 (numero))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX compte2 (compte))")
+  
+  Tab = "Fiches_Mvt4"
+  Utils.db.Exec("CREATE TABLE " & Tab &
+    " (jour Char(2)," &
+    "numero Integer(6) NOT NULL," &
+    "numerodef Integer(6) NOT NULL," &
+    "compte CHAR(8) NOT NULL," &
+    "collectif TINYINT," &
+    "intitule Char(30)," &
+    "dte date," &
+    "datee date, " &
+    "dateech date, " &
+    "numcol Char(3)," &
+    "numdoc CHAR(10) NOT NULL," &
+    "numlot CHAR(10) NOT NULL," &
+    "libelle CHAR(30)," &
+    "montantd Decimal(12,2)," &
+    "montantc Decimal(12,2)," &
+    "validee TINYINT(1)," &
+    "provisoire TINYINT(1)," &
+    "tresorerie  TINYINT(1)," &
+    "pointee TINYINT(1)," &
+    "nrlv INTEGER(8)," &
+    "lettree TINYINT(1)," &
+    "cloturee TINYINT(1)," &
+    "dteval date, " &
+    "relance INTEGER(1)," &
+    "numerop Integer(11) NOT NULL," &
+    "numeropdef Integer(11) NOT NULL," &
+    "export Char(1)," &
+    "lind INT NOT NULL AUTO_INCREMENT," &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX date (dte))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX numero2 (numero))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX compte2 (compte))")
+  
+  Tab = "Fiches_Mvt5"
+  Utils.db.Exec("CREATE TABLE " & Tab & 
+    " (jour Char(2)," &
+    "numero Integer(6) NOT NULL," &
+    "numerodef Integer(6) NOT NULL," &
+    "compte CHAR(8) NOT NULL," &
+    "collectif TINYINT," &
+    "intitule Char(30)," &
+    "dte date," &
+    "datee date, " &
+    "dateech date, " &
+    "numcol Char(3)," &
+    "numdoc CHAR(10) NOT NULL," &
+    "numlot CHAR(10) NOT NULL," &
+    "libelle CHAR(30)," &
+    "montantd Decimal(12,2)," &
+    "montantc Decimal(12,2)," &
+    "validee TINYINT(1)," &
+    "provisoire TINYINT(1)," &
+    "tresorerie  TINYINT(1)," &
+    "pointee TINYINT(1)," &
+    "nrlv INTEGER(8)," &
+    "lettree TINYINT(1)," &
+    "cloturee TINYINT(1)," &
+    "dteval date, " &
+    "relance INTEGER(1)," &
+    "numerop Integer(11) NOT NULL," &
+    "numeropdef Integer(11) NOT NULL," &
+    "export Char(1)," &
+    "lind INT NOT NULL AUTO_INCREMENT," &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX date (dte))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX numero2 (numero))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX compte2 (compte))")
+  
+  Tab = "Fiches_Libelles"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (num char(2) NOT NULL," &
+    "intitule VARCHAR(30) ," &
+    "PRIMARY KEY (num))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Commentaires"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (numcom char(2) NOT NULL," &
+    "intitule text ," &
+    "PRIMARY KEY (numcom))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_TxtMail"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (numcom char(2) NOT NULL," &
+    "intitule text ," &
+    "PRIMARY KEY (numcom))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Art"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (art_code char(15) NOT NULL," &
+    "art_design VARCHAR(50) ," &
+    "art_design2 VARCHAR(50) ," &
+    "art_fam char(5) ," &
+    "art_four char(8) ," &
+    "art_cequ VARCHAR(15) ," &
+    "art_cbarre VARCHAR(15) ," &
+    "art_cfour VARCHAR(25) ," &
+    "art_pbht Decimal(12,3) ," &
+    "art_tr Decimal(5,2) ," &
+    "art_paht Decimal(12,3) ," &
+    "art_pauaht Decimal(12,3) ," &
+    "art_coef Decimal(7,4) ," &
+    "art_pvht Decimal(12,3) ," &
+    "art_tva Char(1) ," &
+    "art_pvttc Decimal(12,3) ," &
+    "art_cdarr Char(4), " &
+    "art_pvar Decimal(12,3), " &
+    "art_dec Char(1), " &
+    "art_nbd Char(1), " &
+    "art_stocke TINYINT(1), " &
+    "art_suspendu TINYINT(1), " &
+    "art_qte Decimal(12,3) , " &
+    "art_dpa Decimal(10,2) , " &
+    "art_dfour Char(8) , " &
+    "art_pmp Decimal(10,2) , " &
+    "art_ddate Char(10) , " &
+    "art_com Decimal(12,3) ," &
+    "art_stkdep Decimal(12,3) , " &
+    "art_stkmin Decimal(7, 3) , " &
+    "art_stkmax Decimal(7, 3) , " &
+    "art_ect Integer(1) ," &
+    "art_eco Decimal(5,2) ," &
+    "art_cpp TINYINT(1) ," &
+    "art_copp Decimal(5,2) ," &
+    "art_frais Decimal(7,3) , " &
+    "art_prvt Decimal(12,3) , " &
+    "art_txconv Decimal(7,4)," &
+    "qte1 decimal(11,2)," &
+    "qte2 decimal(11,2)," &
+    "rem1 decimal(6,3)," &
+    "qte3 decimal(11,2)," &
+    "qte4 decimal(11,2)," &
+    "rem2 decimal(6,3)," &
+    "qte5 decimal(11,2)," &
+    "qte6 decimal(11,2)," &
+    "rem3 decimal(6,3)," &
+    "qte7 decimal(11,2)," &
+    "qte8 decimal(11,2)," &
+    "rem4 decimal(6,3)," &
+    "qte9 decimal(11,2)," &
+    "qte10 decimal(11,2)," &
+    "rem5 decimal(6,3)," &
+    "qte11 decimal(11,2)," &
+    "qte12 decimal(11,2)," &
+    "rem6 decimal(6,3)," &
+    "art_etiq TINYINT(1)," &
+    "art_poids decimal(11, 3)," &
+    "art_poids2 decimal(11,3)," &
+    "PRIMARY KEY (art_code))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Art"
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_ect2 TINYINT(1))")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_eco2 Decimal(6,3))")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_mincom VARCHAR(12))")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_vol VARCHAR(5))")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_photo varchar(100))")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_crst text)")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_mat TINYINT(1))")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_marque VARCHAR(20))")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_impcar TINYINT(1))")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_casier VARCHAR(5))")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_pvcons Decimal(12,3))")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_prdcomp TINYINT(1))")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_impdetail TINYINT(1))")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_remcas1 Decimal(5,2))")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_remcas2 Decimal(5,2))")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_remcas3 Decimal(5,2))")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_datefbt Date)")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_pbfbt Decimal(12,3))")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_ddatefbt Date)")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_centrale Char(2))")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_refcentrale VARCHAR(13))")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_bonus Decimal(5,2))")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_colvte Decimal(12,3))")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_pvht2 Decimal(12,3))")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_cn8 Char(12))")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_crpl1 CHAR(15))")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_crpl2 CHAR(15))")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_depg TINYINT)")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_cnsg TINYINT)")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_ua char(5))")
+  Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_uv char(5))")
+  
+  Tab = "Fiches_Rpl1"
+  Try Utils.db.exec("CREATE TABLE " & Tab &
+    "(codep CHAR(15) NOT NULL ," &
+    "coderpl1 CHAR(15) NOT NULL ," &
+    "PRIMARY KEY (codep, coderpl1))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Rpl2"
+  Try Utils.db.exec("CREATE TABLE " & Tab & 
+    "(codep CHAR(15) NOT NULL ," &
+    "coderpl2 CHAR(15) NOT NULL ," &
+    "PRIMARY KEY (codep, coderpl2))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Cequ"
+  Try Utils.db.exec("CREATE TABLE " & Tab &
+    "(codep CHAR(15) NOT NULL ," &
+    "codequ CHAR(15) NOT NULL ," &
+    "PRIMARY KEY (codep, codequ))")
+  
+  Tab = "Fiches_Materiels"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (mat_serie VARCHAR(30) NOT NULL," &
+    "mat_code VARCHAR(15)NOT NULL," &
+    "mat_design VARCHAR(50) ," &
+    "mat_design2 VARCHAR(50) ," &
+    "mat_fam char(5) ," &
+    "mat_four char(8) ," &
+    "mat_cli Char(8) ," &
+    "mat_cequ VARCHAR(15) ," &
+    "mat_cbarre VARCHAR(15) ," &
+    "mat_cfour VARCHAR(25) ," &
+    "mat_paht Decimal(12,3) ," &
+    "mat_frais Decimal(7,3) , " &
+    "mat_prvt Decimal(7,3) , " &
+    "mat_coef Decimal(7,4) ," &
+    "mat_pvht Decimal(12,3) ," &
+    "mat_tva Decimal(10,3) ," &
+    "mat_pvttc Decimal(12,3) ," &
+    "mat_cdarr Char(4), " &
+    "mat_pvar Decimal(12,3), " &
+    "mat_dec Char(1), " &
+    "mat_nbd Char(1), " &
+    "mat_qte char(1) , " &
+    "mat_dpa Decimal(10,2) , " &
+    "mat_dfour Char(8) , " &
+    "mat_pmp Decimal(10,2) , " &
+    "mat_ddate Char(10) , " &
+    "mat_com Decimal(12,3) ," &
+    "mat_ect Integer(1) ," &
+    "mat_eco Decimal(5,2) ," &
+    "mat_poids decimal(11, 3)," &
+    "mat_poids2 decimal(11,3)," &
+    "mat_photo varchar(35)," &
+    "mat_crst text," &
+    "mat_vendu Integer(1) ," &
+    "mat_bl VARCHAR(15)," &
+    "mat_rcpt VARCHAR(15)," &
+    "mat_marque VARCHAR(20)," &
+    "mat_type VARCHAR(20)," &
+    "mat_matdiv Integer(1)," &
+    "mat_dtevte date ," &
+    "mat_dateg1 date," &
+    "mat_chkgarantie TINYINT(1)," &
+    "PRIMARY KEY (mat_serie, mat_code))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Marques"
+  Utils.db.EXEC("CREATE TABLE " & Tab &
+    " (lind Int NOT NULL AUTO_INCREMENT, " &
+    "code Char(5) NOT NULL," &
+    "intitule VarChar(20), " &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Fam"
+  Utils.db.EXEC("CREATE TABLE " & Tab &
+    " (code_fam char(5) NOT NULL," &
+    "libell_fam VARCHAR(30) ," &
+    "compt_fam char(8) ," &
+    "compt2_fam Char(8)," &
+    "compt3_fam Char(8)," &
+    "coef_fam Decimal(6,3) ," &
+    "cdtva_fam char(1) ," &
+    "txtva_fam Decimal(5,2) ," &
+    "cptrem_fam Char(10) ," &
+    "ect_fam Decimal(10,3)," &
+    "rem_fam Decimal(6,3) ," &
+    "qte1 decimal(11,2)," &
+    "qte2 decimal(11,2)," &
+    "rem1 decimal(6,3)," &
+    "qte3 decimal(11,2)," &
+    "qte4 decimal(11,2)," &
+    "rem2 decimal(6,3)," &
+    "qte5 decimal(11,2)," &
+    "qte6 decimal(11,2)," &
+    "rem3 decimal(6,3)," &
+    "qte7 decimal(11,2)," &
+    "qte8 decimal(11,2)," &
+    "rem4 decimal(6,3)," &
+    "qte9 decimal(11,2)," &
+    "qte10 decimal(11,2)," &
+    "rem5 decimal(6,3)," &
+    "qte11 decimal(11,2)," &
+    "qte12 decimal(11,2)," &
+    "rem6 decimal(6,3)," &
+    "PRIMARY KEY (code_fam))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Mo"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (mo_code char(15) NOT NULL," &
+    "mo_design VARCHAR(50) ," &
+    "mo_fam char(5) ," &
+    "mo_four Int(8) ," &
+    "mo_txcd char(2) ," &
+    "mo_txht Decimal(10,2) ," &
+    "mo_tva char(1) ," &
+    "mo_tempmont CHAR(1) ," &
+    "mo_montant Decimal(10,2) ," &
+    "mo_valeurht Decimal(10,2) ," &
+    "mo_cdarr Char(4) ," &
+    "mo_valeurttc Decimal(10,2) ," &
+    "mo_prvt Decimal(12,3) , " &
+    "mo_marge Decimal(12,3) , " &
+    "mo_impcar TINYINT(1) , " &
+    "mo_crst Text, " &
+    "PRIMARY KEY (mo_code))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Txtmo"
+  Utils.db.EXEC("CREATE TABLE " & Tab &
+    " (code_txtmo Char(5) NOT NULL," &
+    "tx_txtmo Char(10) ," &
+    "libell_txtmo VARCHAR(25) ," &
+    "compt_txtmo char(8) ," &
+    "prvt_txtmo Decimal(12,3) ," &
+    "PRIMARY KEY (code_txtmo))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Bl"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (numbl Char(6) NOT NULL," &
+    "type Char(1) ," &
+    "cdclibl Char(8) ," &
+    "cvclibl VARCHAR(9) ," &
+    "nmclibl VARCHAR(35) ," &
+    "pnmclibl VARCHAR(35) ," &
+    "adr1bl VARCHAR(35) ," &
+    "adr2bl VARCHAR(35) ," &
+    "cpbl char(5) ," &
+    "villebl VARCHAR(35) ," &
+    "tvar TINYINT," &
+    "datebl date ," &
+    "rmobl char(6) ," &
+    "rartbl char(5) ," &
+    "exobl TINYINT," &
+    "remmobl decimal(12,2) ," &
+    "remartbl decimal(12,2) ," &
+    "marge_art decimal(12,2)," &
+    "marge_mo decimal(12,2)," &
+    "totalht Decimal(12,2)," &
+    "imp Integer(1), " &
+    "acpt VARCHAR(12), " &
+    "mreg VARCHAR(10), " &
+    "reg VARCHAR(15), " &
+    "ech date, " &
+    "numfac Char(10), " &
+    "dtefac Date, " &
+    "retro TINYINT, " &
+    "numserie VARCHAR(15), " &
+    "codep VARCHAR(15), " &
+    "mtreg VARCHAR(12), " &
+    "totalttc Decimal(12,2)," &
+    "desg1 VARCHAR(50), " &
+    "desg2 VARCHAR(50), " &
+    "marque VARCHAR(15), " &
+    "typemat VARCHAR(15), " &
+    "htbl TINYINT, " &
+    "cdep Varchar(37), " &
+    "livraison TINYINT(1)," &
+    "PRIMARY KEY (numbl))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Ligbl"
+  Utils.db.EXEC("CREATE TABLE " & Tab &
+    " (num_ligbl Char(6) NOT NULL," &
+    "numlig_ligbl Char(6) NOT NULL," &
+    "code_ligbl VARCHAR(15) ," &
+    "libel_ligbl VARCHAR(50) ," &
+    "fam_ligbl char(5) ," &
+    "four_ligbl char(8) ," &
+    "pu_ligbl char(12) ," &
+    "dec_ligbl char(1) , " &
+    "qte_ligbl char(6) ," &
+    "brut_ligbl char(12) ," &
+    "rem_ligbl char(6) ," &
+    "netht_ligbl char(12) ," &
+    "tx_ligbl char(1) ," &
+    "mtx_ligfac char(5) , " &
+    "nettc_ligbl char(12) ," &
+    "typel_ligbl char(1) ," &
+    "tm_ligbl char(1) ," &
+    "com_ligbl Text ," &
+    "block_ligbl Varchar(30) ," &
+    "pdstotal_ligbl decimal(12,3) ," &
+    "mrgart_ligbl Decimal(12,3) , " &
+    "mrgmo_ligbl Decimal(12,3) , " &
+    "PRIMARY KEY (num_ligbl, numlig_ligbl))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_HistoFac"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (numfac Char(10) NOT NULL," &
+    "cdclifac Char(8) ," &
+    "cvclifac Char(9) ," &
+    "nmclifac VARCHAR(35) ," &
+    "pnmclifac VARCHAR(35) ," &
+    "adr1fac VARCHAR(35) ," &
+    "adr2fac VARCHAR(35) ," &
+    "cpfac char(5) ," &
+    "villefac VARCHAR(35) ," &
+    "datefac date ," &
+    "rmofac char(6) ," &
+    "rartfac char(5) ," &
+    "exofac TINYINT," &
+    "remmofac decimal(12,2) ," &
+    "remartfac decimal(12,2) ," &
+    "marge_art decimal(12,2)," &
+    "marge_mo decimal(12,2)," &
+    "totfac decimal(12,2), " &
+    "reg VARCHAR(15), " &
+    "numerobl Char(6), " &
+    "ech date, " &
+    "acpt VARCHAR(12), " &
+    "mreg VARCHAR(10), " &
+    "numserie VARCHAR(15), " &
+    "codep VARCHAR(15), " &
+    "totfacttc decimal(12,2), " &
+    "cdep Varchar(37), " &
+    "INDEX (cdclifac), " &
+    "INDEX (nmclifac), " &
+    "PRIMARY KEY (numfac))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_HistoLigfac"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (num_ligfac Char(10) NOT NULL," &
+    "numlig_ligfac Char(6) NOT NULL," &
+    "code_ligfac VARCHAR(15) ," &
+    "libel_ligfac VARCHAR(50) ," &
+    "fam_ligfac char(5) ," &
+    "pu_ligfac char(12) ," &
+    "qte_ligfac char(6) ," &
+    "brut_ligfac char(12) ," &
+    "rem_ligfac char(6) ," &
+    "netht_ligfac char(12) ," &
+    "tx_ligfac char(1) ," &
+    "mtx_ligfac char(5) ," &
+    "nettc_ligfac char(12) ," &
+    "typel_ligfac char(1) ," &
+    "tm_ligfac char(1) ," &
+    "com_ligfac Text ," &
+    "bloc Varchar(30) ," &
+    "PRIMARY KEY (num_ligfac, numlig_ligfac))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_BlM"
+  Utils.db.EXEC("CREATE TABLE " & Tab &
+    " (numbl Char(6) NOT NULL," &
+    "type Char(1) ," &
+    "cdclibl Char(8) ," &
+    "cvclibl Char(9) ," &
+    "nmclibl VARCHAR(35) ," &
+    "pnmclibl VARCHAR(35) ," &
+    "adr1bl VARCHAR(35) ," &
+    "adr2bl VARCHAR(35) ," &
+    "cpbl char(5) ," &
+    "villebl VARCHAR(35) ," &
+    "tvar TINYINT," &
+    "datebl date ," &
+    "rmobl char(6) ," &
+    "rartbl char(5) ," &
+    "exobl TINYINT," &
+    "remmobl decimal(12,2) ," &
+    "remartbl decimal(12,2) ," &
+    "marge_art decimal(12,2)," &
+    "marge_mo decimal(12,2)," &
+    "totalht Decimal(12,2)," &
+    "imp Integer(1), " &
+    "acpt VARCHAR(12), " &
+    "mreg VARCHAR(10), " &
+    "reg VARCHAR(15), " &
+    "ech date, " &
+    "numfac Char(10), " &
+    "dtefac Date, " &
+    "retro TINYINT, " &
+    "numserie VARCHAR(15), " &
+    "codep VARCHAR(15), " &
+    "mtreg VARCHAR(12), " &
+    "totalttc Decimal(12,2), " &
+    "desg1 VARCHAR(50), " &
+    "desg2 VARCHAR(50), " &
+    "marque VARCHAR(15), " &
+    "typemat VARCHAR(15), " &
+    "htbl TINYINT, " &
+    "cdep Varchar(37), " &
+    "PRIMARY KEY (numbl))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_LigblM"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (num_ligbl Char(6) NOT NULL," &
+    "numlig_ligbl Char(6) NOT NULL," &
+    "code_ligbl VARCHAR(15) ," &
+    "libel_ligbl VARCHAR(50) ," &
+    "fam_ligbl char(5) ," &
+    "pu_ligbl char(12) ," &
+    "dec_ligbl char(1) , " &
+    "qte_ligbl char(6) ," &
+    "brut_ligbl char(12) ," &
+    "rem_ligbl char(6) ," &
+    "netht_ligbl char(12) ," &
+    "tx_ligbl char(1) ," &
+    "mtx_ligfac char(5) , " &
+    "nettc_ligbl char(12) ," &
+    "typel_ligbl char(1) ," &
+    "tm_ligbl char(1) ," &
+    "com_ligbl Text ," &
+    "block_ligbl Varchar(30) ," &
+    "pdstotal_ligbl decimal(12,3) ," &
+    "mrgart_ligbl Decimal(12,3) , " &
+    "mrgmo_ligbl Decimal(12,3) , " &
+    "PRIMARY KEY (num_ligbl, numlig_ligbl))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_HistoFacM"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (numfac Char(10) NOT NULL," &
+    "cdclifac Char(8) ," &
+    "cvclifac Char(9) ," &
+    "nmclifac VARCHAR(35) ," &
+    "pnmclifac VARCHAR(35) ," &
+    "adr1fac VARCHAR(35) ," &
+    "adr2fac VARCHAR(35) ," &
+    "cpfac char(5) ," &
+    "villefac VARCHAR(35) ," &
+    "datefac date ," &
+    "rmofac char(6) ," &
+    "rartfac char(5) ," &
+    "exofac TINYINT," &
+    "remmofac decimal(12,2) ," &
+    "remartfac decimal(12,2) ," &
+    "marge_art decimal(12,2)," &
+    "marge_mo decimal(12,2)," &
+    "totfac decimal(12,2), " &
+    "reg Char(15), " &
+    "numerobl Char(6), " &
+    "ech date, " &
+    "acpt VARCHAR(12), " &
+    "mreg VARCHAR(10), " &
+    "numserie VARCHAR(15), " &
+    "codep VARCHAR(15), " &
+    "totfacttc decimal(12,2), " &
+    "cdep Varchar(37), " &
+    "INDEX (cdclifac), " &
+    "INDEX (nmclifac), " &
+    "PRIMARY KEY (numfac))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_HisentMat"
+  Utils.db.EXEC("CREATE TABLE " & Tab &
+    " (numserie Char(15) NOT NULL," &
+    "codep VARCHAR(15) NOT NULL," &
+    "marque VARCHAR(20)," &
+    "type VARCHAR(20)," &
+    "design VARCHAR(50)," &
+    "design2 VARCHAR(50)," &
+    "libelle Text," &
+    "bloc char(6)," &
+    "numfac Char(10) NOT NULL," &
+    "PRIMARY KEY (numserie, codep, numfac))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_HistoLigfacM"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (num_ligfac Char(10) NOT NULL," &
+    "numlig_ligfac Char(6) NOT NULL," &
+    "code_ligfac VARCHAR(15) ," &
+    "libel_ligfac VARCHAR(50) ," &
+    "fam_ligfac char(5) ," &
+    "pu_ligfac char(12) ," &
+    "qte_ligfac char(6) ," &
+    "brut_ligfac char(12) ," &
+    "rem_ligfac char(6) ," &
+    "netht_ligfac char(12) ," &
+    "tx_ligfac char(1) ," &
+    "mtx_ligfac char(5) ," &
+    "nettc_ligfac char(12) ," &
+    "typel_ligfac char(1) ," &
+    "tm_ligfac char(1) ," &
+    "com_ligfac Text ," &
+    "bloc Varchar(30) ," &
+    "PRIMARY KEY (num_ligfac, numlig_ligfac))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_EntMat"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (numserie VARCHAR(15) NOT NULL," &
+    "codep VARCHAR(15) NOT NULL," &
+    "marque VARCHAR(20)," &
+    "type VARCHAR(20)," &
+    "design VARCHAR(50)," &
+    "design2 VARCHAR(50)," &
+    "libelle Text ," &
+    "bloc char(6) ," &
+    "numbl Char(6) NOT NULL," &
+    "PRIMARY KEY (numserie, codep, numbl))" & "ENGINE = MYISAM")
+  
+  Tab = "Totalisation"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    "(compte Char(8) NOT NULL," &
+    "intitule VARCHAR(25)," &
+    "totalht VARCHAR(25)," &
+    "totaltva VARCHAR(25)," &
+    "codetva CHAR(1)," &
+    "PRIMARY KEY (compte))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Entrecpt"
+  Utils.db.EXEC("CREATE TABLE " & Tab &
+    "(four Char(8) NOT NULL," &
+    "numrecpt VARCHAR(15) NOT NULL," &
+    "ddate date," &
+    "montant Decimal(12,3)," &
+    "validee TINYINT(1)," &
+    "mttc Decimal(12,3)," &
+    "anomalie TINYINT(1), " &
+    "commentaire TEXT, " &
+    "PRIMARY KEY (four, numrecpt))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Ligrecpt"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    "(code Char(25) NOT NULL," &
+    "design VARCHAR(30)," &
+    "numrecpt VARCHAR(15) NOT NULL," &
+    "four Char(8) NOT NULL," &
+    "daterecpt date NOT NULL," &
+    "qte Char(6) ," &
+    "pbht char(12) ," &
+    "rm char(6) ," &
+    "paht char(12) ," &
+    "nligne char(4)," &
+    "frais Char(12)," &
+    "prvt Char(12)," &
+    "pattc varchar(12)," &
+    "PRIMARY KEY (nligne, numrecpt, four, daterecpt, code))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Mvtexp"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    "(mind Int NOT NULL AUTO_INCREMENT," &
+    "code Char(15) NOT NULL," &
+    "daterecpt date NOT NULL," &
+    "qtep Char(10) ," &
+    "qtem Char(10) ," &
+    "com VARCHAR(35) ," &
+    "PRIMARY KEY (mind))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Mvtexpdc"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    "(id Int NOT NULL AUTO_INCREMENT," &
+    "mind Int NOT NULL," &
+    "code Char(15) NOT NULL," &
+    "daterecpt date NOT NULL," &
+    "qtep Char(10) ," &
+    "qtem Char(10) ," &
+    "com VARCHAR(35) ," &
+    "type Char(1) ," &
+    "INDEX (mind), " &
+    "PRIMARY KEY (id))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Entcom"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    "(four Char(8) NOT NULL," &
+    "numcom Char(15) NOT NULL," &
+    "ddate date," &
+    "montant Decimal(12,2)," &
+    "reliquat TINYINT(1)," &
+    "montantttc varchar(12), " &
+    "anomalie TINYINT(1), " &
+    "PRIMARY KEY (four, numcom))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Ligcom"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    "(lind INT NOT NULL AUTO_INCREMENT," &
+    "code VARCHAR(25) NOT NULL," &
+    "design VARCHAR(50)," &
+    "numcom VARCHAR(15) NOT NULL," &
+    "four Char(8) NOT NULL," &
+    "qte Char(6) ," &
+    "pbht char(12) ," &
+    "rm char(6) ," &
+    "paht char(12) ," &
+    "nligne char(4)," &
+    "datecom date," &
+    "frais Char(12)," &
+    "prvt Char(12)," &
+    "coda char(15)," &
+    "pattc varchar(12)," &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Rappro"
+  Utils.db.EXEC("CREATE TABLE " & Tab &
+    "(cpt Char(8) NOT NULL," &
+    "nreleve Integer(8) NOT NULL," &
+    "date_releve date," &
+    "date_rappro date," &
+    "solde Decimal(12,2)," &
+    "PRIMARY KEY (cpt, nreleve))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_RubCompt"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    "(numrub Char(8) NOT NULL," &
+    "compte1 Char(8) NOT NULL," &
+    "compte2 Char(8)," &
+    "amortissement TINYINT(1)," &
+    "PRIMARY KEY (numrub, compte1))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Rubriques"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    "(numrub Char(8) NOT NULL," &
+    "intitule VARCHAR(70)," &
+    "type Char(2)," &
+    "detail Char(2)," &
+    "num Char(2)," &
+    "PRIMARY KEY (numrub))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_LibelFac"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    "(mind TINYINT NOT NULL AUTO_INCREMENT," &
+    "txtfac VarChar(250)," &
+    "PRIMARY KEY (mind))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Echeances"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    "(num Char(2) NOT NULL," &
+    "libell VARCHAR(20) NOT NULL," &
+    "duree Char(2)," &
+    "jours Char(2)," &
+    "finmois Integer(1)," &
+    "PRIMARY KEY (num))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Typec"
+  Utils.db.exec("CREATE TABLE " & Tab & 
+    " (code CHAR(2) NOT NULL ," &
+    "libelle VARCHAR(25) , " &
+    "PRIMARY KEY (code))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Statut"
+  Utils.db.exec("CREATE TABLE " & Tab &
+    " (code CHAR(2) NOT NULL ," &
+    "libelle VARCHAR(25) , " &
+    "PRIMARY KEY (code))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_RemTypec"
+  Utils.db.exec("CREATE TABLE " & Tab & 
+    " (lind Int NOT NULL AUTO_INCREMENT, " &
+    "coder CHAR(2) NOT NULL ," &
+    "codef CHAR(5) NOT NULL ," &
+    "remise decimal(6,3) , " &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_CoeffTypec"
+  Utils.db.exec("CREATE TABLE " & Tab & 
+    " (lind Int NOT NULL AUTO_INCREMENT, " &
+    "coder CHAR(2) NOT NULL ," &
+    "codef CHAR(5) NOT NULL ," &
+    "coeff decimal(6,3) , " &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_EtiProd"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (code VARCHAR(25) NOT NULL," &
+    "nombre Decimal(12), " &
+    "PRIMARY KEY (code))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_EtiGond"
+  Utils.db.EXEC("CREATE TABLE " & Tab &
+    " (code VARCHAR(25) NOT NULL," &
+    "nombre Decimal(12), " &
+    "PRIMARY KEY (code))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Etiquettes"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (code Char(1) NOT NULL," &
+    "libelle Char(25)," &
+    "nblargeur Decimal(2), " &
+    "nbhauteur Decimal(2), " &
+    "largeur Decimal(5), " &
+    "hauteur Decimal(5), " &
+    "mrghaut Decimal(5), " &
+    "mrgauche Decimal(5), " &
+    "esplargeur Decimal(5), " &
+    "esphauteur Decimal(5), " &
+    "PRIMARY KEY (code))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Numabon"
+  Utils.db.EXEC("CREATE TABLE " & Tab &
+    " (numero VARCHAR(15) NOT NULL," &
+    "intitule VARCHAR(30) NOT NULL," &
+    "type Char(1) NOT NULL," &
+    "typem Char(1) NOT NULL," &
+    "PRIMARY KEY (numero))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Ligabon"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (numero VARCHAR(15) NOT NULL," &
+    "compte VARCHAR(10) NOT NULL," &
+    "intitule VARCHAR(40) NOT NULL," &
+    "debit Char(10) NOT NULL," &
+    "credit Char(10) NOT NULL," &
+    "lig Integer(2)," &
+    "lind Int NOT NULL AUTO_INCREMENT, " &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Tleg"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (lind Int NOT NULL AUTO_INCREMENT, " &
+    "intitule Text," &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Agenda"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (lind Int NOT NULL AUTO_INCREMENT, " &
+    "daction VARCHAR(20)," &
+    "haction VARCHAR(20)," &
+    "iaction Text," &
+    "nuser VARCHAR(35)," &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Cpostaux"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (lind Int NOT NULL AUTO_INCREMENT, " &
+    "cp Char(5) NOT NULL," &
+    "burdist Char(35), " &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Vendeurs"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (lind Int NOT NULL AUTO_INCREMENT, " &
+    "code Char(2)," &
+    "nom VARCHAR(35)," &
+    "mdp VARCHAR(15)," &
+    "admin TINYINT," &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Caisses"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (lind Int NOT NULL AUTO_INCREMENT, " &
+    "code Char(2)," &
+    "intitule VARCHAR(30)," &
+    "dteov date ," &
+    "dtefm date ," &
+    "fndc decimal(12,2) ," &
+    "dntk Char(7)," &
+    "tkz integer(1)," &
+    "connecte integer(1)," &
+    "imp VARCHAR(15)," &
+    "typeimp char(10)," &
+    "type char(20)," &
+    "ecole TINYINT," &
+    "poste VarChar(30)," &
+    "sresto Char(1)," &
+    "mresto Char(12)," &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Avoirs"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (lind Int NOT NULL AUTO_INCREMENT, " &
+    "intitule VARCHAR(30)," &
+    "dte Char(17) ," &
+    "montant decimal(12,2) ," &
+    "montantdu decimal(12,2) ," &
+    "ntk Char(7)," &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_LibelTicket"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    "(lInd TINYINT NOT NULL AUTO_INCREMENT," &
+    "libeltk VarChar(250)," &
+    "PRIMARY KEY (lInd))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_LibelAvoirs"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    "(lInd TINYINT NOT NULL AUTO_INCREMENT," &
+    "libelav VARCHAR(250)," &
+    "PRIMARY KEY (lInd))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_ClientCaisse"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    "(lInd TINYINT NOT NULL AUTO_INCREMENT," &
+    "code VarChar(8)," &
+    "nom VarChar(30)," &
+    "PRIMARY KEY (lInd))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_HisEntTickets"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    "(lInd INT NOT NULL AUTO_INCREMENT," &
+    "caisse Char(2)," &
+    "vendeur VARCHAR(35)," &
+    "numero Char(7)," &
+    "date Date," &
+    "client VARCHAR(30)," &
+    "scheque Char(1)," &
+    "mcheque Char(12)," &
+    "nmcheque VARCHAR(30)," &
+    "scarte  Char(1)," &
+    "nmcarte VARCHAR(30)," &
+    "mcarte Char(12)," &
+    "sespeces Char(1)," &
+    "mespeces Char(12)," &
+    "scredit  Char(1)," &
+    "mcredit Char(12)," &
+    "nmcredit VARCHAR(30)," &
+    "sbachat  Char(1)," &
+    "mbachat Char(12)," &
+    "scavoir  Char(1)," &
+    "mavoir Char(12)," &
+    "nmavoir VARCHAR(30)," &
+    "mht Char(12)," &
+    "mtva Char(12)," &
+    "mttc Char(12)," &
+    "savoir Char(1) ," &
+    "sbonus Char(1)," &
+    "mbonus Char(12)," &
+    "carte Char(13)," &
+    "sresto Char(1)," &
+    "mresto Char(12)," &
+    "points Decimal(12,3)," &
+    "INDEX (numero), " &
+    "PRIMARY KEY (lInd))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_HisLigTickets"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    "(lInd INT NOT NULL AUTO_INCREMENT," &
+    "numero Char(7)," &
+    "numlig Char(3)," &
+    "code VARCHAR(15)," &
+    "intitule  VARCHAR(50)," &
+    "montant Char(12)," &
+    "qte Char(12)," &
+    "type Char(1)," &
+    "fam Char(5)," &
+    "mht Char(12)," &
+    "mrem Char(12)," &
+    "tva VarChar(10)," &
+    "INDEX (numero), " &
+    "PRIMARY KEY (lInd))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_EntTicketz"
+  Utils.db.EXEC("CREATE TABLE " & Tab &
+    "(lInd INT NOT NULL AUTO_INCREMENT," &
+    "caisse Char(2)," &
+    "vendeur VARCHAR(35)," &
+    "numero Char(7)," &
+    "date Char(17)," &
+    "client VARCHAR(30)," &
+    "scheque Char(1)," &
+    "mcheque Char(12)," &
+    "nmcheque VARCHAR(30)," &
+    "scarte  Char(1)," &
+    "nmcarte VARCHAR(30)," &
+    "mcarte Char(12)," &
+    "sespeces Char(1)," &
+    "mespeces Char(12)," &
+    "scredit  Char(1)," &
+    "mcredit Char(12)," &
+    "nmcredit VARCHAR(30)," &
+    "sbachat  Char(1)," &
+    "mbachat Char(12)," &
+    "scavoir  Char(1)," &
+    "mavoir Char(12)," &
+    "nmavoir VARCHAR(30)," &
+    "mht Char(12)," &
+    "mtva Char(12)," &
+    "mttc Char(12)," &
+    "statut Char(1)," &
+    "savoir Char(1) ," &
+    "type Char(1) ," &
+    "mrem Char(12)," &
+    "sbonus Char(1)," &
+    "mbonus Char(12)," &
+    "carte Char(13)," &
+    "points Decimal(12,3)," &
+    "sresto Char(1)," &
+    "mresto Char(12)," &
+    "PRIMARY KEY (lInd))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_LigTicketz"
+  Utils.db.EXEC("CREATE TABLE " & Tab &
+    "(lInd INT NOT NULL AUTO_INCREMENT," &
+    "numero Char(7)," &
+    "numlig Char(3)," &
+    "code VARCHAR(15)," &
+    "intitule  VARCHAR(50)," &
+    "montant Char(12)," &
+    "qte Char(12)," &
+    "type Char(1)," &
+    "fam Char(5)," &
+    "mht Char(12)," &
+    "mrem Char(12)," &
+    "mtva Char(12)," &
+    "block Char(4)," &
+    "tva VarChar(10)," &
+    "PRIMARY KEY (lInd))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Promo"
+  Utils.db.exec("CREATE TABLE " & Tab & 
+    " (code CHAR(6) NOT NULL ," &
+    "libelle VARCHAR(50) , " &
+    "datedeb date ," &
+    "datefin date ," &
+    "PRIMARY KEY (code))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_ArtPromo"
+  Utils.db.exec("CREATE TABLE " & Tab & 
+    " (code_promo CHAR(6) NOT NULL ," &
+    "code VARCHAR(15) NOT NULL ," &
+    "libelle VARCHAR(50) , " &
+    "pmp Decimal(12,3) ," &
+    "pht Decimal(12,3) ," &
+    "pttc Decimal(12,3) ," &
+    "qte Decimal(12,3) ," &
+    "PRIMARY KEY (code_promo, code))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_RemCliFam"
+  Utils.db.exec("CREATE TABLE " & Tab & 
+    "(codec CHAR(8) NOT NULL ," &
+    "codef CHAR(5) NOT NULL ," &
+    "remise decimal(6,3) , " &
+    "PRIMARY KEY (codec, codef))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_PrdComp"
+  Utils.db.exec("CREATE TABLE " & Tab & 
+    "(codep VARCHAR(15) NOT NULL ," &
+    "codec VARCHAR(50) NOT NULL ," &
+    "libelle VARCHAR(50) , " &
+    "qte VARCHAR(12) ," &
+    "PRIMARY KEY (codep, codec))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_CdBarre"
+  Utils.db.exec("CREATE TABLE " & Tab & 
+    "(codep VARCHAR(15) NOT NULL ," &
+    "codeb CHAR(13) NOT NULL ," &
+    "PRIMARY KEY (codep, codeb))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Centrales"
+  Utils.db.exec("CREATE TABLE " & Tab & 
+    " (code CHAR(2) NOT NULL ," &
+    "libelle VARCHAR(25) , " &
+    "PRIMARY KEY (code))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Carte"
+  Utils.db.Exec("CREATE TABLE " & Tab &
+    " (code int(13) NOT NULL ," &
+    "rs_soc CHAR(9)," &
+    "nom VARCHAR(35)," &
+    "pnm VARCHAR(35)," &
+    "adr1 VARCHAR(35)," &
+    "adr2 VARCHAR(35)," &
+    "cd_ptl CHAR(5)," &
+    "ville VARCHAR(35)," &
+    "email VARCHAR(150)," &
+    "tel_bur VARCHAR(16)," &
+    "tel_dom VARCHAR(16)," &
+    "tel_poste VARCHAR(16)," &
+    "pble VARCHAR(16)," &
+    "fx1 VARCHAR(16)," &
+    "fx2 VARCHAR(16)," &
+    "datec date ," &
+    "datef date ," &
+    "rem TINYINT," &
+    "promo TINYINT," &
+    "tp1 Decimal(12,3), " &
+    "tp2 Decimal(12,3), " &
+    "tg1 Decimal(12,3), " &
+    "tg2 Decimal(12,3), " &
+    "obs Text," &
+    "cb Char(13)," &
+    "PRIMARY KEY (code))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_AdrlivC"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (num Int NOT NULL AUTO_INCREMENT, " &
+    "code Int NOT NULL, " &
+    "rs_soc CHAR(9)," &
+    "nom VARCHAR(35)," &
+    "pnm VARCHAR(35)," &
+    "adr1 VARCHAR(35)," &
+    "adr2 VARCHAR(35)," &
+    "cd_ptl CHAR(5)," &
+    "ville VARCHAR(35)," &
+    "PRIMARY KEY (num))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_ContactC"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (num Int NOT NULL AUTO_INCREMENT, " &
+    "code Int NOT NULL, " &
+    "nom VARCHAR(35)," &
+    "pnm VARCHAR(35)," &
+    "fonction VARCHAR(35)," &
+    "tel VARCHAR(16)," &
+    "mail VARCHAR(150)," &
+    "PRIMARY KEY (num))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_ContactF"
+  Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (num Int NOT NULL AUTO_INCREMENT, " &
+    "code Int NOT NULL, " &
+    "nom VARCHAR(35)," &
+    "pnm VARCHAR(35)," &
+    "fonction VARCHAR(35)," &
+    "tel VARCHAR(16)," &
+    "mail VARCHAR(150)," &
+    "PRIMARY KEY (num))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Acomptes"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab & 
+    "(lind INT NOT NULL AUTO_INCREMENT," &
+    "intitule VARCHAR(30)," &
+    "type VARCHAR(15)," &
+    "montant Char(12)," &
+    "date date ," &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Traites"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab & 
+    "(lind INT NOT NULL AUTO_INCREMENT ," &
+    "code Char(8) ," &
+    "nom VarChar(35) ," &
+    "montant Char(12) ," &
+    "date date ," &
+    "datech date ," &
+    "numfac Char(12) ," &
+    "imp TINYINT," &
+    "acceptee Integer(1) ," &
+    "ecartee Integer(1) ," &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Suivis"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab &
+    "(lind INT NOT NULL AUTO_INCREMENT ," &
+    "code Char(8) ," &
+    "nom VARCHAR(70) ," &
+    "numdev Char(12) ," &
+    "datedev date ," &
+    "numfac Char(12) ," &
+    "datefac date ," &
+    "qte Decimal(12,2), " &
+    "pu Decimal(12,2), " &
+    "total Decimal(12,2), " &
+    "margemo Decimal(12,2), " &
+    "ach Decimal(12,2), " &
+    "vtes Decimal(12,2), " &
+    "qte2 Decimal(12,2), " &
+    "pu2 Decimal(12,2), " &
+    "total2 Decimal(12,2), " &
+    "margemo2 Decimal(12,2), " &
+    "ach2 Decimal(12,2), " &
+    "vtes2 Decimal(12,2), " &
+    "INDEX (code), " &
+    "INDEX (numdev), " &
+    "INDEX (numfac), " &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  
+  Tab = "Docs_Clients"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab & 
+    "(code VARCHAR(10), " &
+    "doc VARCHAR(100)," &
+    "doc2 VARCHAR(100)," &
+    "org char(4)," &
+    "PRIMARY KEY (code, doc))" & "ENGINE = MYISAM")
+  
+  Tab = "Docs_Fournisseurs"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab & 
+    "(code VARCHAR(10), " &
+    "doc VARCHAR(100)," &
+    "doc2 VARCHAR(100)," &
+    "org char(4)," &
+    "PRIMARY KEY (code, doc))" & "ENGINE = MYISAM")
+  
+  Tab = "Docs_Produits"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab & 
+    "(code VARCHAR(15), " &
+    "doc VARCHAR(100)," &
+    "doc2 VARCHAR(100)," &
+    "org char(4)," &
+    "PRIMARY KEY (code, doc))" & "ENGINE = MYISAM")
+  
+  Tab = "Docs_Autres"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab &
+    "(code VARCHAR(10), " &
+    "doc VARCHAR(100)," &
+    "doc2 VARCHAR(100)," &
+    "org char(4)," &
+    "PRIMARY KEY (code, doc))")
+  
+  Tab = "Docs_Compta"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab &
+    "(code VARCHAR(10), " &
+    "doc VARCHAR(100)," &
+    "doc2 VARCHAR(300)," &
+    "org char(4)," &
+    "PRIMARY KEY (code, doc))")
+  
+  Tab = "Mails_Four"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab &
+    "(code VARCHAR(8), " &
+    "mail VARCHAR(150)," &
+    "PRIMARY KEY (code, mail))")
+  
+  Tab = "Mails_Cli"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab &
+    "(code VARCHAR(8), " &
+    "mail VARCHAR(150)," &
+    "PRIMARY KEY (code, mail))")
+  
+  'On ajoute des index
+  Tab = "Fiches_Art"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (art_design))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (art_fam))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (art_four))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (art_cequ))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (art_cbarre))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (art_cfour))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (art_refcentrale))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (art_cn8))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX id_casier (art_casier))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX id_code_fam_four (art_code, art_fam, art_four))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX id_code_four_fam (art_code, art_four, art_fam))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX id_fam_code (art_fam, art_code))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX id_four_code (art_four, art_code))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX id_casier_fam (art_casier, art_fam))")
+  
+  Tab = "Fiches_Cli"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (cli_code))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (cli_nom))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (cli_adr1))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (cli_adr2))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (cli_cd_ptl))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (cli_ville))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (cli_statut))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (cli_actif))")
+  
+  Tab = "Fiches_Four"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (fo_code))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (fo_nom))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (fo_adr1))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (fo_adr2))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (fo_cd_ptl))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (fo_ville))")
+  
+  Tab = "Fiches_HisEntTickets"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (caisse))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (numero))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (date))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (vendeur))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (carte))")
+  
+  Tab = "Fiches_HisLigTickets"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (numero))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (numlig))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (code))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (type))")
+  
+  Tab = "Fiches_HisentMat"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (numserie))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (codep))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (marque))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (numfac))")
+  
+  Tab = "Fiches_HistoFac"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (numfac))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (cdclifac))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (totfac))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (datefac))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (numserie))")
+  
+  Tab = "Fiches_HistoLigfac"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (num_ligfac))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (numlig_ligfac))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (code_ligfac))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (fam_ligfac))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (typel_ligfac))")
+  
+  Tab = "Fiches_HistoFacM"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (numfac))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (cdclifac))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (totfac))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (datefac))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (numserie))")
+  
+  Tab = "Fiches_HistoLigfacM"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (num_ligfac))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (numlig_ligfac))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (code_ligfac))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (fam_ligfac))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (typel_ligfac))")
+  
+  Tab = "Fiches_Materiels"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (mat_serie))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (mat_code))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (mat_design))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (mat_fam))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (mat_four))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (mat_cequ))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (mat_cbarre))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (mat_cfour))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (mat_marque))")
+  
+  Tab = "Fiches_Banques"
+  Try Utils.db.Exec("CREATE TABLE " & Tab & 
+    " (banques_code int(2) NOT NULL ," &
+    "banques_nom VARCHAR(35)," &
+    "banques_dmln VARCHAR(35)," &
+    "banques_nume CHAR(6)," & ' Numéro émetteur attribué par la banque de france
+    "banques_codeb VARCHAR(5)," & ' Code banque
+    "banques_codeg VARCHAR(5)," & ' Code guichet
+    "banques_numcpt VARCHAR(11)," & ' Numéro compte
+    "banques_numsiren VARCHAR(15)," & ' Numéro risque-siren
+    "banques_adr CHAR(1)," & ' Adresse bordereau (1- s'imprimera sur bordereau, 0- Ne s'imprimera pas)
+    "banques_txt TEXT," & 'Texte d'entête du bordereau
+    "banques_fenrg CHAR(6)," & ' Fin d'enregistrement si demandé par la banque ($ODOA$)
+    "banques_mail VarChar(35)," &
+    "banques_ref VarChar(11)," &
+    "banques_entete VarChar(150)," &
+    "banques_corps Text," &
+    "banques_reftireur VarChar(10)," &
+    "PRIMARY KEY (banques_code))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Lcr"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab & 
+    "(lind INT NOT NULL AUTO_INCREMENT ," &
+    "code Char(8) ," &
+    "nom VarChar(35) ," &
+    "montant Char(12) ," &
+    "date date ," &
+    "datech date ," &
+    "numfac Char(12) ," &
+    "acceptee Integer(1)," &
+    "ecartee Integer(1)," &
+    "banque VarChar(35) ," &
+    "codeentree integer(1)," &
+    "bordereau VarChar(35)," &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Bordereaux"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab & 
+    "(lind INT NOT NULL AUTO_INCREMENT ," &
+    "banque integer(1) ," &
+    "codeentree integer(1) ," &
+    "dateremise date ," &
+    "refremise Char(11) ," &
+    "datevaleur date ," &
+    "ech1 date ," &
+    "ech2 date ," &
+    "bordereau Integer," &
+    "tot Decimal(12,2)," &
+    "etat TINYINT(1)," &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_ImpArtDef"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab &
+    "(num INT NOT NULL ," &
+    "nom VARCHAR(50) ," &
+    "cfour CHAR(8) ," &
+    "nfour VARCHAR(50) ," &
+    "cfam CHAR(5) ," &
+    "nfam VARCHAR(50) ," &
+    "adrfic VARCHAR(100) ," &
+    "typesep CHAR(1) ," &
+    "sep CHAR(1) ," &
+    "PRIMARY KEY (num))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_ImpArtDef2"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab & 
+    "(num INT NOT NULL ," &
+    "posorg_1 CHAR(4) ," &
+    "col_1 VARCHAR(50) ," &
+    "db_1 INT ," &
+    "lg_1 INT ," &
+    "pos_1 INT ," &
+    "posorg_2 CHAR(4) ," &
+    "col_2 VARCHAR(50) ," &
+    "db_2 INT ," &
+    "lg_2 INT ," &
+    "pos_2 INT ," &
+    "posorg_3 CHAR(4) ," &
+    "col_3 VARCHAR(50) ," &
+    "db_3 INT ," &
+    "lg_3 INT ," &
+    "pos_3 INT ," &
+    "posorg_4 CHAR(4) ," &
+    "col_4 VARCHAR(50) ," &
+    "db_4 INT ," &
+    "lg_4 INT ," &
+    "pos_4 INT ," &
+    "posorg_5 CHAR(4) ," &
+    "col_5 VARCHAR(50) ," &
+    "db_5 INT ," &
+    "lg_5 INT ," &
+    "pos_5 INT ," &
+    "posorg_6 CHAR(4) ," &
+    "col_6 VARCHAR(50) ," &
+    "db_6 INT ," &
+    "lg_6 INT ," &
+    "pos_6 INT ," &
+    "posorg_7 CHAR(4) ," &
+    "col_7 VARCHAR(50) ," &
+    "db_7 INT ," &
+    "lg_7 INT ," &
+    "pos_7 INT ," &
+    "posorg_8 CHAR(4) ," &
+    "col_8 VARCHAR(50) ," &
+    "db_8 INT ," &
+    "lg_8 INT ," &
+    "pos_8 INT ," &
+    "posorg_9 CHAR(4) ," &
+    "col_9 VARCHAR(50) ," &
+    "db_9 INT ," &
+    "lg_9 INT ," &
+    "pos_9 INT ," &
+    "posorg_10 CHAR(4) ," &
+    "col_10 VARCHAR(50) ," &
+    "db_10 INT ," &
+    "lg_10 INT ," &
+    "pos_10 INT ," &
+    "posorg_11 CHAR(4) ," &
+    "col_11 VARCHAR(50) ," &
+    "db_11 INT ," &
+    "lg_11 INT ," &
+    "pos_11 INT ," &
+    "PRIMARY KEY (num))" & "ENGINE = MYISAM")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (posorg_12 CHAR(4))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (col_12 VARCHAR(50))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (db_12 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (lg_12 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (pos_12 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (posorg_13 CHAR(4))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (col_13 VARCHAR(50))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (db_13 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (lg_13 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (pos_13 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (posorg_14 CHAR(4))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (col_14 VARCHAR(50))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (db_14 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (lg_14 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (pos_14 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (posorg_15 CHAR(4))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (col_15 VARCHAR(50))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (db_15 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (lg_15 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (pos_15 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (posorg_16 CHAR(4))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (col_16 VARCHAR(50))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (db_16 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (lg_16 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (pos_16 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (posorg_17 CHAR(4))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (col_17 VARCHAR(50))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (db_17 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (lg_17 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (pos_17 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (posorg_18 CHAR(4))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (col_18 VARCHAR(50))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (db_18 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (lg_18 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (pos_18 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (posorg_19 CHAR(4))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (col_19 VARCHAR(50))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (db_19 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (lg_19 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (pos_19 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (posorg_20 CHAR(4))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (col_20 VARCHAR(50))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (db_20 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (lg_20 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (pos_20 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (posorg_21 CHAR(4))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (col_21 VARCHAR(50))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (db_21 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (lg_21 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (pos_21 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (posorg_22 CHAR(4))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (col_22 VARCHAR(50))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (db_22 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (lg_22 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (pos_22 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (posorg_23 CHAR(4))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (col_23 VARCHAR(50))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (db_23 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (lg_23 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (pos_23 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (posorg_24 CHAR(4))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (col_24 VARCHAR(50))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (db_24 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (lg_24 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (pos_24 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (posorg_25 CHAR(4))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (col_25 VARCHAR(50))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (db_25 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (lg_25 INT)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (pos_25 INT)")
+  
+  Tab = "Fiches_TxtMailC"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (lind Int NOT NULL AUTO_INCREMENT, " &
+    "intitule Text," &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Depots"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab & 
+    "(code Char(8) ," &
+    "libelle VarChar(35) ," &
+    "adr1 VARCHAR(35)," &
+    "adr2 VARCHAR(35)," &
+    "cp CHAR(5)," &
+    "ville VARCHAR(35)," &
+    "PRIMARY KEY (code))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_StkDepots"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab & 
+    "(coded Char(8) ," &
+    "codea VarChar(15) ," &
+    "qte Decimal(12,3), " &
+    "PRIMARY KEY (coded, codea))" & "ENGINE = MYISAM")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (coded))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (codea))")
+  
+  Tab = "Fiches_TarFour"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab & 
+    "(codea Char(8) ," &
+    "codef VarChar(15) ," &
+    "paht Decimal(12,3), " &
+    "PRIMARY KEY (codea, codef))" & "ENGINE = MYISAM")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX id_coded (codef))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX id_codea (codea))")
+  
+  Tab = "Fiches_Sdepots"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab & 
+    "(mind Int NOT NULL AUTO_INCREMENT," &
+    "code Char(2) NOT NULL," &
+    "cart Char(15) NOT NULL," &
+    "date date NOT NULL," &
+    "type Char(1) ," &
+    "qte Char(10) ," &
+    "com VarChar(50) ," &
+    "PRIMARY KEY (mind))" & "ENGINE = MYISAM")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (coded))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (code))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (INDEX (date))")
+  
+  Tab = "Fiches_CdFour"
+  Try Utils.db.exec("CREATE TABLE " & Tab & 
+    "(codep CHAR(15) NOT NULL ," &
+    "codef CHAR(13) NOT NULL ," &
+    "PRIMARY KEY (codep, codef))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Tarcli"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (lind Int NOT NULL AUTO_INCREMENT, " &
+    "ccli VARCHAR(10) NOT NULL," &
+    "cart VARCHAR(15) NOT NULL," &
+    "coef Decimal(7,4) ," &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_TarTypcli"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab & 
+    " (lind Int NOT NULL AUTO_INCREMENT, " &
+    "type VARCHAR(10) NOT NULL," &
+    "cart VARCHAR(15) NOT NULL," &
+    "coef Decimal(7,4) ," &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  
+  Tab = "Corsage"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab &
+    " (acode Char(8) NOT NULL," &
+    "ncode char(8) NOT NULL," &
+    "PRIMARY KEY (acode))" & "ENGINE = MYISAM")
+  
+  Tab = "Corjxs"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab &
+    " (sage Char(3) NOT NULL," &
+    "laurux char(2) NOT NULL," &
+    "PRIMARY KEY (sage))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Analytiques"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab &
+    "(lind INT NOT NULL AUTO_INCREMENT," &
+    "code Char(3)," &
+    "compte Char(8)," &
+    "pourcent Int," &
+    "INDEX (code, compte), " &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Postes"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab &
+    "(lind INT NOT NULL AUTO_INCREMENT," &
+    "code Char(3)," &
+    "intitulep Char(35)," &
+    "INDEX (code), " &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_MvtA"
+  Try Utils.db.Exec("CREATE TABLE " & Tab & 
+    " (numero Integer(6) NOT NULL," &
+    "compte CHAR(8) NOT NULL," &
+    "intitule Char(30)," &
+    "dte date," &
+    "numdoc CHAR(10) NOT NULL," &
+    "libelle CHAR(30)," &
+    "pourcent CHAR(5)," &
+    "montantd Decimal(12,2)," &
+    "montantc Decimal(12,2)," &
+    "jour Char(2)," &
+    "poste Char(3)," &
+    "validee TINYINT(1)," &
+    "lind INT NOT NULL AUTO_INCREMENT," &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_MvtA1"
+  Try Utils.db.Exec("CREATE TABLE " & Tab & 
+    " (numero Integer(6) NOT NULL," &
+    "compte CHAR(8) NOT NULL," &
+    "intitule Char(30)," &
+    "dte date," &
+    "numdoc CHAR(10) NOT NULL," &
+    "libelle CHAR(30)," &
+    "pourcent CHAR(5)," &
+    "montantd Decimal(12,2)," &
+    "montantc Decimal(12,2)," &
+    "jour Char(2)," &
+    "poste Char(3)," &
+    "validee TINYINT(1)," &
+    "lind INT NOT NULL AUTO_INCREMENT," &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_MvtA2"
+  Try Utils.db.Exec("CREATE TABLE " & Tab & 
+    " (numero Integer(6) NOT NULL," &
+    "compte CHAR(8) NOT NULL," &
+    "intitule Char(30)," &
+    "dte date," &
+    "numdoc CHAR(10) NOT NULL," &
+    "libelle CHAR(30)," &
+    "pourcent CHAR(5)," &
+    "montantd Decimal(12,2)," &
+    "montantc Decimal(12,2)," &
+    "jour Char(2)," &
+    "poste Char(3)," &
+    "validee TINYINT(1)," &
+    "lind INT NOT NULL AUTO_INCREMENT," &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_MvtA3"
+  Try Utils.db.Exec("CREATE TABLE " & Tab & 
+    " (numero Integer(6) NOT NULL," &
+    "compte CHAR(8) NOT NULL," &
+    "intitule Char(30)," &
+    "dte date," &
+    "numdoc CHAR(10) NOT NULL," &
+    "libelle CHAR(30)," &
+    "pourcent CHAR(5)," &
+    "montantd Decimal(12,2)," &
+    "montantc Decimal(12,2)," &
+    "jour Char(2)," &
+    "poste Char(3)," &
+    "validee TINYINT(1)," &
+    "lind INT NOT NULL AUTO_INCREMENT," &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_MvtA4"
+  Try Utils.db.Exec("CREATE TABLE " & Tab & 
+    " (numero Integer(6) NOT NULL," &
+    "compte CHAR(8) NOT NULL," &
+    "intitule Char(30)," &
+    "dte date," &
+    "numdoc CHAR(10) NOT NULL," &
+    "libelle CHAR(30)," &
+    "pourcent CHAR(5)," &
+    "montantd Decimal(12,2)," &
+    "montantc Decimal(12,2)," &
+    "jour Char(2)," &
+    "poste Char(3)," &
+    "validee TINYINT(1)," &
+    "lind INT NOT NULL AUTO_INCREMENT," &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_MvtA5"
+  Try Utils.db.Exec("CREATE TABLE " & Tab & 
+    " (numero Integer(6) NOT NULL," &
+    "compte CHAR(8) NOT NULL," &
+    "intitule Char(30)," &
+    "dte date," &
+    "numdoc CHAR(10) NOT NULL," &
+    "libelle CHAR(30)," &
+    "pourcent CHAR(5)," &
+    "montantd Decimal(12,2)," &
+    "montantc Decimal(12,2)," &
+    "jour Char(2)," &
+    "poste Char(3)," &
+    "validee TINYINT(1)," &
+    "lind INT NOT NULL AUTO_INCREMENT," &
+    "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Touches"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab &
+    " (touche Char(4) NOT NULL," &
+    "libelle Char(30) , " &
+    "code Char(15) , " &
+    "tva Decimal(5,2) , " &
+    "coul INT , " &
+    "fond varchar(100) ," &
+    "touche_s TINYINT(1) ," &
+    "PRIMARY KEY (touche))" & "ENGINE = MYISAM")
+  
+  Tab = "Fiches_Docactif"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab &
+    "(numerobl CHAR(8), " &
+    "nom VARCHAR(50)," &
+    "PRIMARY KEY (numerobl, nom))")
+  
+  If son Then
+    Music.Play
+  Endif
+  Message.Info("La Nouvelle société est enregistrée", "OK!")
+  Tab = "Fiches_Societes"
+  Utils.db.Exec("INSERT INTO " & Tab & " (cd_sc) VALUES ('" & code.text & "')")
+  Settings["/Tips"] = 1
+  Settings["/Soc" & Soc & "/Entete"] = 1
+  Settings["/Soc" & Soc & "/Conditions"] = 1
+  Settings["/Soc" & Soc & "/Tva550"] = 0
+  Settings["/Soc" & Soc & "/Codetva"] = " "
+  Settings["/Soc" & Soc & "/Compta"] = 0
+  Settings["/Soc" & Soc & "/Qt1"] = 0
+  Settings["/Soc" & Soc & "/Font"] = "Serif,+1"
+  Settings["/Soc" & Soc & "/Copie"] = 0
+  Settings["/Soc" & Soc & "/Siret"] = "Siret"
+  Settings["/Soc" & Soc & "/Prxdec"] = 0
+  Settings["/Soc" & Soc & "/Taxe"] = "TVA"
+  Settings["/son"] = 0
+  Settings["/Tips"] = 1
+  Settings["/Soc" & Soc & "/Coul_fen"] = 0
+  Settings["/Soc" & Soc & "/Ctrlstk"] = 0
+  Settings["/Soc" & Soc & "/AutoEnt"] = 0
+  Settings.Save
+  Me.Raise
+Catch
+  If son Then
+    Music.Play
+  Endif
+  Message.Info("Les tables n'ont pas pu être créées ! \n car la connexion n'est pas valide ou la base n'existe pas !!! \n Veuillez vérifier votre base SVP .", "ok")
+  
+End
+
+Public Sub Button5_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Societes.html"]
+  
+End
+
+Public Sub Nbase_MouseDown()
+  
+  ChkNbase = True
+  If IsNull(Code.text) Then Soc1 = ""
+  
+End
+
+Public Sub Soclist_Click()
+  
+  If Soclist.Item[0] <> Settings["/Soc"] Then
+    Utils.db.Close
+    Utils.db.name = "Laurux" & Soclist.Item[0]
+    Utils.db.Open
+    Utils.db.exec("SET NAMES 'latin1'")
+    cs = Soclist.Item[0]
+    Maj_Zones()
+    soc = code.Text
+    Settings["/Soc"] = soc
+    Settings["/intitule"] = intitule.Text
+    Settings["/dbase/Name"] = "Laurux" & Code.Text
+    Settings.Save
+    Settings.Reload
+    Start.Societe = soc
+    Syntheses.Message(" Vous venez de sélectionner la société " & Soc & " , " & intitule.Text)
+    message.Warning(" Vous venez de sélectionner la société " & Soc & " " & intitule.Text & " ! \n Celle-ci sera donc votre société de travail par défaut...\nLaurux va redémarrer")
+    chkNbase = False
+    Utils.fermeTunnel()
+    Utils.db.Close
+    Try Me.close
+    Try Fmenu.delete
+    Try Fmenuc.delete
+    Try Fmenuf.delete
+    Start.Main()
+  Else
+    Maj_Zones()
+  Endif
+  
+End

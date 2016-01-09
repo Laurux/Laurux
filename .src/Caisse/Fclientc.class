@@ -1,0 +1,202 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Fclient.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 24/09/2009
+'# Gestion du client caisse
+'################################################
+'
+
+Private Tab As String
+Private son As Integer = Start.Son
+
+Public Sub _New()
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  Client.Columns.count = 2
+  Client.Columns[0].Width = 40
+  Client.Columns[1].Width = 80
+  Client.Columns[0].Text = "code"
+  Client.Columns[0].Alignment = 1
+  Client.Columns[1].Text = "Intitule"
+  Client.Columns[1].Alignment = 1
+  
+End
+
+Public Sub Form_Open()
+  
+  Dim rResult As Result
+  
+  Tab = "Fiches_ClientCaisse" 
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
+  If rResult.Available Then
+    code.Text = rResult!code
+    intitule.Text = rResult!nom
+  Endif
+  
+End
+
+Public Sub Refresh()
+  
+  client.clear
+  form_Open()
+  'Maj_Zones()
+  
+End
+
+Public Sub Maj_Zones()
+  
+  With Utils
+    'Code.Text = Tvalist.Current[0]
+    'Nom.text = Tvalist.current[1]
+  End With
+  
+End
+
+Public Sub Cleanchamps()
+  
+  code.Clear
+  intitule.Clear
+  
+End
+
+Public Sub Button1_Click()
+  
+  Dim rResult As Result
+  
+  Tab = "Fiches_ClientCaisse" 
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
+  If rResult.Available Then
+    Utils.db.Exec("UPdate  " & Tab & "  SET  code = &1, nom = &2 ", Code.Text, intitule.text)
+  Else
+    Utils.db.Exec("INSERT INTO " & Tab & "(code, nom) VALUES (&1, &2)", Code.text, intitule.text)
+  Endif
+  Music.Play
+  Message.Info("Enregistrement effectué !")
+  Me.Close
+  
+End
+
+Public Sub Button3_Click()
+  
+  Tab = "Fiches_ClientCaisse" 
+  If Code.Text <> "" Then
+    If son Then
+      Music.Play
+    Endif
+    If Message.Question("Etes vous sur de vouloir effacer cet enregistrement", "Oui", "Non") = 1 Then
+      Utils.db.Exec("DELETE FROM " & Tab & " WHERE code = &1", Code.Text)
+      Refresh()
+    Endif
+  Else
+  Endif
+  
+End
+
+Public Sub Button4_Click()
+  
+  Dim Rcompte As Result
+  
+  Tab = "Fiches_Cli" 
+  If Client.visible Then
+    Client.Clear
+    Client.visible = False
+  Else
+    Client.visible = True
+    Client.Columns.count = 2
+    Client.Columns[0].Width = 65
+    Client.Columns[1].Width = 180
+    Client.Columns[0].Text = "code"
+    Client.Columns[1].Text = "Intitulé"
+    Rcompte = Utils.db.Exec("SELECT * FROM " & Tab & " ")
+    If Rcompte.Available Then
+      Repeat
+        Try Client.Add(Rcompte!cli_code, Rcompte!cli_code)
+        Client.Item[0] = Rcompte!cli_code
+        Client.Item[1] = Rcompte!cli_nom
+      Until Rcompte.MoveNext()
+      Client.MoveFirst
+      Client.SetFocus
+      Client.Item.Selected = True
+    Endif
+  Endif
+  
+End
+
+Public Sub Client_Click()
+  
+  Code.text = Client.Item[0]
+  intitule.Text = Client.Item[1]
+  Client.visible = False
+  Client.clear
+  Button1.SetFocus
+  
+End
+
+'**********************************************************
+'* Gestion du columnview lors d'une saisie manuelle       *
+'**********************************************************
+Public Sub Client_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Client.MoveCurrent
+    Client_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Client.visible = False
+    Client.clear
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Compteman()
+  
+  Dim rResult As Result
+  
+  Tab = "Fiches_Comptes" 
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where compte_cc = &1", Code.Text)
+  If Not rResult.Available Then
+    If son Then
+      Music.Play
+    Endif
+    Message.Error("Attention ! Ce compte n'existe pas.")
+  Endif
+  
+End
+
+Public Sub Button2_Click()
+  
+  Me.close
+  
+End
+
+'**********************************
+'*    Appel de la doc html        *
+'**********************************
+Public Sub Button5_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Doc_Caisse/Client.Caisse.html"]
+  
+End

@@ -1,0 +1,46 @@
+' Gambas module file
+
+' 
+'Private hftp As FtpClient
+
+Public Sub Sauvegarde(Menu As Form)
+  
+  Dim cp As New Compress
+  Dim cs As String = Settings["/Soc"]
+  Dim SauveRep As String = Settings["/Rep_Sauv"]
+  Dim hftp As New FtpClient
+  
+  hftp.URL = Settings["/Soc" & Start.Societe & "/Adrbase"] & "/Laurux" & cs & WeekDay(Now) & ".sql.gz"
+  hftp.User = Settings["/Soc" & Start.Societe & "/Idftp"]
+  hftp.Password = hexdblKey.crypt("de", Settings["/Soc" & Start.Societe & "/MdpFTP"], "Laurux")
+  'hftp.Timeout = 4
+  'hftp.Debug = True
+  If IsNull(SauveRep) Then
+    Message.Warning("Aucun chemin n'est défini dans les préférences ! Sauvegarde impossible.")
+  Else
+    Menu.Mouse = Mouse.wait
+    cp.type = "zlib"
+    If Not Exist(SauveRep) Then Try Mkdir SauveRep
+    If Exist(SauveRep & "/Laurux" & cs & ".sql") Then Kill SauveRep & "/Laurux" & cs & ".sql"
+    Shell "mysqldump -h " & Settings["/dbase/Host"] & " " & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " " & "Laurux" & cs & " " & "--add-drop-table" & " " & ">" & " " & SauveRep & "/Laurux" & cs & ".sql" Wait
+    Try cp.File(SauveRep & "/Laurux" & cs & ".sql", SauveRep & "/Laurux" & cs & WeekDay(Now) & ".sql.gz", cp.Max)
+    If Error Then 
+      Message.Error(Error.text)
+    Else
+      If Settings["/Soc" & Start.Societe & "/Envoiftp"] Then 
+        If Not IsNull(hftp.URL) Then
+          hftp.Put(SauveRep & "/Laurux" & cs & WeekDay(Now) & ".sql.gz")
+        Else
+          Message.Warning("Envoi impossible ! L'URL du serveur FTP n'est pas renseignée.")
+        Endif
+        Menu.Mouse = Mouse.Default
+        If Error Then 
+          Message.Warning("Problème lors de la sauvegarde !")
+        Else
+          Message.Warning("Sauvegarde terminée !")
+        Endif
+      Endif
+    Endif
+  Endif  
+  
+End

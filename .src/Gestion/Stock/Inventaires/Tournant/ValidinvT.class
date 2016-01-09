@@ -1,0 +1,166 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : ValidinvT.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 14/02/2005
+'# Validation de l' inventaire tournant
+'################################################
+
+son As String
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Music.Load(Start.Musique)
+  Me.Center
+  
+End
+
+Public Sub Button2_click()
+  
+  Dim rarts As Result
+  Dim rartinv As Result
+  Dim Rdate As Result
+  Dim Tab As String
+  Dim Tab1 As String
+  Dim Tab2 As String
+  Dim Tab3, Tab4 As String
+  Dim qteC, Qtep, Qtem As Float ' Quantité comptée par l'inventaire
+  Dim qteSt As Float ' Quantité calculée le jour de la validation de l'inventaire
+  Dim qteAch As Float ' Quantité achetée depuis la date de l'inventaire jusqu'a la fin d'exercice
+  Dim qteVtes As Float ' Quantité vendue depuis la date de l'inventaire jusqu'a la fin d'exercice
+  Dim Tpe As String
+  Dim Valid, num As Integer
+  Dim chemin As String = "/Sauve"
+  Dim dte As String
+  
+  Tab = "Fiches_Art"
+  Tab1 = "Fiches_Parametres"
+  Tab2 = "Fiches_InvT"
+  Tab3 = "Fiches_HisInvT"
+  Tab4 = "Fiches_Mvtexp"
+  qtevtes = 0
+  qteAch = 0
+  Tpe = "A"
+  Utils.db.EXEC("CREATE TABLE if not exists " & Tab3 &
+    " (inv_num Int NOT NULL," &
+    "inv_code Char(15) , " &
+    "inv_qtestock Decimal(12,2) , " &
+    "inv_qtecomptee Decimal(12,2) , " &
+    "inv_date date , " &
+    "PRIMARY KEY (inv_num, inv_code))" & "ENGINE = MYISAM")
+  If Not Exist(User.home & chemin) Then Mkdir User.home & chemin
+  Shell "mysqldump -h " & Settings["/dbase/Host"] & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " " & "Laurux" & " " & "--add-drop-table" & " " & ">" & " " & User.home & "/Sauve/LauruxInvT.sql" & Format$(Now, "yyyymmdd") Wait
+  Try rartinv = Utils.db.Exec("SELECT * FROM " & tab2 & "")
+  If Not Error And rartinv.Available Then
+    If rartinv!inv_valid Then
+      Valid = rartinv!inv_valid
+    Endif
+    If Valid = 1 Then
+      If son Then
+        Music.Play
+      Endif
+      Message.Warning("L'inventaire à déjà été validé", "Ok") ' change
+    Else
+      If son Then
+        Music.Play
+      Endif
+      If Message.Question("Ok pour valider l'inventaire ? \n Après la validation vous ne pourrez plus le modifier", "Oui", "Non") = 1 Then
+        With Utils
+          Me.Mouse = Mouse.Wait
+          ' On récupère la date de fin d'exercice
+          Rdate = Utils.db.Exec("SELECT * FROM " & Tab1 & "")
+          ' On récupère les articles de l'inventaire
+          rartinv = Utils.db.Exec("SELECT * FROM " & tab2 & "")
+          If rartinv.Available Then
+            Repeat
+              qteC = rartinv!inv_qtecomptee
+              qteSt = rartinv!inv_qtestock
+              If qtec > qtest Then
+                qtem = 0
+                qtep = qtec - qtest
+              Else
+                qtep = 0
+                qtem = qtest - qtec
+              Endif
+              rarts = Utils.db.Exec("SELECT * FROM " & Tab & " where art_code = &1 ", rartinv!inv_code)
+              If rartinv!inv_comptee Then ' change
+                Utils.db.Exec("UPdate  " & Tab & "  SET  art_qte = &1 where art_code = &2", qtec, rartinv!inv_code)
+              Else
+                If Radiobutton1.Value Then ' change
+                  qtest = 0
+                  Utils.db.Exec("UPdate  " & Tab & "  SET  art_qte = &1 where art_code = &2", qtest, rartinv!inv_code)
+                Endif ' change
+              Endif
+              Utils.db.Exec("UPdate  " & Tab2 & "  SET  inv_valid = &1 where inv_code = &2", 1, rartinv!inv_code)
+              qtest = 0
+              ' On met à jour la table des mouvements exceptionnels
+              If qtep > 0 Or If qtem > 0 Then Utils.db.Exec("INSERT INTO " & Tab4 & "(code,daterecpt,qtep,qtem,Com) VALUES (&1, &2, &3, &4, &5)", rartinv!inv_code, Format$(rartinv!inv_date, "yyyymmdd"), qtep, qtem, "Inentaire tournant du " & Format$(rartinv!inv_date, "dd-mm-yyyy"))
+              'tant qu'on a des articles dans l'inventaire on la boucle Ok ?
+            Until rartinv.MoveNext()
+          Endif
+        End With
+        ' On copie l'inventaire dans les historiques
+        rartinv = Utils.db.Exec("SELECT * FROM " & tab2 & " where inv_comptee = &1", True)
+        rarts = Utils.db.Exec("SELECT inv_num, count(*) FROM " & tab3 & " group by inv_num order by inv_num desc")
+        If rarts.Available Then 
+          num = rarts!inv_num + 1
+        Else
+          num = 1
+        Endif
+        If rartinv.Available Then
+          dte = Format$(rartinv!inv_date, "yyyymmdd")
+          Repeat
+            Utils.db.Exec("INSERT INTO " & Tab3 & "(inv_num, inv_code, inv_qtestock, inv_qtecomptee, inv_date) VALUES (&1,&2,&3,&4,&5)", Num, rartinv!inv_code, rartinv!inv_qtestock, rartinv!inv_qtecomptee, Format$(rartinv!inv_date, "yyyymmdd"))
+          Until rartinv.MoveNext()
+        Endif
+        Utils.db.Exec("drop Table IF exists " & Tab2 & "")
+        Me.Mouse = Mouse.Pointing
+        'Ouf ! C'est fini
+        If son Then
+          Music.Play
+        Endif
+        Message.Warning("Traitement terminé", "Ok")
+        Me.Close
+      Endif
+    Endif
+  Else
+    If son Then
+      Music.Play
+    Endif
+    Message.Warning("Attention! Il n'existe aucun inventaire\n Veuillez passer par la procédure d'initialisation d'inventaire SVP")
+    Me.Close
+  Endif
+  
+End
+
+Public Sub Button3_Click()
+  
+  Me.Close
+  'yeahh ! On sort
+  
+End
+
+Public Sub Button1_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Vinv.html"]
+  
+End

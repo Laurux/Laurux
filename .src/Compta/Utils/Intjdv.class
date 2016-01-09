@@ -1,0 +1,431 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Intjdv.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 15/01/2007
+'# Intégration des écritures de ventes
+'################################################
+'
+Private son As Integer = Start.Son
+Private B As Integer
+Private type_jour As String
+Private jours As String
+
+'************************************************
+'*         On initialise notre écran            *
+'************************************************
+Public Sub _new()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  jours = Now
+  jours = Mid$(jours, 4, 2) & "." & Left$(jours, 2) & "." & Mid$(jours, 7, 4)
+  date1.Text = jours
+  date2.Text = jours
+  Try Jdv.Text = Settings["/Rep_Jdv"]
+  Try journal.Text = Left$(Settings["/Jdv"], 2)
+  Try libelle.Text = Mid$(Settings["/Jdv"], 3, Len(Settings["/Jdv"]) - 2)
+  'journal_Gotfocus()
+  journal.Select
+  journal.SetFocus
+  
+End
+
+Public Sub ToggleButton1_Click()
+  
+  journaux()
+  
+End
+
+'************************************************
+'*         On récupère le fichier texte         *
+'************************************************
+Public Sub Svs_Click()
+  
+  Dialog.Title = "Choisir un repertoire"
+  Dialog.Path = User.Home
+  Dialog.Filter = ["*.csv", "Fichiers csv", "*.txt", "Fichiers texte", "*", "Tous les fichiers"]
+  If Dialog.OpenFile() Then Return
+  Jdv.Text = Dialog.Path
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Cmpt_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  
+End
+
+'**************************
+'*  On gére les touches   *
+'**************************
+Public Sub Cmpt_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+        
+      Case 1
+        journal_LostFocus()
+        If journal.Text <> "" Then
+          journauxman()
+          If b = 1 Then
+            journal.SetFocus
+            journal.Select
+            Stop Event
+          Else
+            b = 0
+            date1.SetFocus
+            date1.Select
+          Endif
+        Endif
+        Stop Event
+        
+      Case 2
+        date1_LostFocus()
+        If B = 1 Then
+          date1.SetFocus
+          date1.Select
+          b = 0
+          Stop Event
+        Else
+          b = 0
+          date2.SetFocus
+          date2.Select
+        Endif
+        Stop Event
+        
+      Case 3
+        date2_LostFocus()
+        If B = 1 Then
+          date2.SetFocus
+          date2.Select
+          b = 0
+          Stop Event
+        Else
+          b = 0
+          Button2.SetFocus
+        Endif
+        Stop Event
+        
+    End Select
+  Endif
+  
+End
+
+'*************************************************************
+'*  Recherche d'un journal lors d'une saisie manuelle        *
+'*************************************************************
+Public Sub journauxman()
+  
+  Dim journ As String
+  Dim intitule As String
+  Dim Tab As String
+  Dim journs As Result
+  
+  Tab = "Fiches_Journaux"
+  journ = journal.text
+  journs = Utils.db.Exec("SELECT * FROM " & Tab & "  WHERE code_jo = &1", journ)
+  If journs.Available Then
+    If journs!type_jo <> "VE" Then
+      b = 1
+      If son Then
+        Music.Play
+      Endif
+      Balloon.Warning(("Ce journal n' est pas un journal de ventes !\n Veuillez saisir un autre code SVP !"), journs)
+      journal.Text = ""
+      date1.Text = ""
+      journal.SetFocus
+    Else
+      libelle.Text = journs!libelle_jo
+      type_jour = journs!type_jo
+      intitule = libelle.text
+      b = 0
+    Endif
+  Else
+    b = 1
+    If son Then
+      Music.Play
+    Endif
+    Balloon.Warning(("Ce journal n'existe pas !\n Veuillez saisir un autre code SVP !"), journs)
+    journal.Text = ""
+    date1.Text = ""
+    journal.SetFocus
+  Endif
+  
+End
+
+'************************************************
+'*  Recherche d'un journal avec le bouton       *
+'************************************************
+
+Public Sub journaux()
+  
+  Dim journs As Result
+  Dim tab As String
+  
+  Tab = "Fiches_Journaux"
+  jour.Visible = True
+  jour.clear
+  jour.Columns.count = 3
+  jour.Columns[0].Width = 40
+  jour.Columns[1].Width = 110
+  jour.Columns[2].Width = 50
+  jour.Columns[2].Alignment = 4
+  jour.Columns[0].Text = "code"
+  jour.Columns[1].Text = "libellé"
+  jour.Columns[2].Text = "type"
+  journs = Utils.db.Exec("SELECT * FROM " & Tab & "  WHERE type_jo = 'VE' order by code_jo")
+  If journs.Available Then
+    Repeat
+      jour.Add(journs!code_jo, journs!code_jo)
+      jour.Item[0] = journs!code_jo
+      jour.Item[1] = journs!libelle_jo
+      jour.Item[2] = journs!type_jo
+    Until journs.MoveNext()
+    jour.MoveFirst
+    jour.SetFocus
+    jour.Item.Selected = True
+  Else
+    If son Then
+      Music.Play
+    Endif
+    message.Info("Il n' existe aucun journal de type Vente !")
+    jour.Visible = False
+  Endif
+  
+End
+
+'********************************************************************
+'*      Gestion du columnview jour lors d'une saisie manuelle       *
+'********************************************************************
+Public Sub jour_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    jour.MoveCurrent
+    jour.Item.Selected = True
+    jour_Click()
+  Endif
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    jour.visible = False
+    jour.clear
+    journal.Select
+    journal.SetFocus
+    Stop Event
+  Endif
+  
+End
+
+'*********************************************
+'*   On selectionne un journal en cliquant   *
+'*********************************************
+Public Sub jour_Click()
+  
+  Dim intitule As String
+  
+  journal.Text = jour.Current[0]
+  intitule = jour.Current[1]
+  type_jour = jour.current[2]
+  jour.Visible = False
+  jour.clear
+  libelle.Text = intitule
+  journal_LostFocus()
+  date1.SetFocus
+  date1.Select
+  jour.Visible = False
+  
+End
+
+'****************************
+'*    On gère le focus      *
+'****************************
+Public Sub journal_LostFocus()
+  
+  journal.Background = Color.TextBackground
+  If journal.Text = "" Then
+    If son Then
+      Music.Play
+    Endif
+    Balloon.Warning((" Attention ! Veuillez saisir votre journal SVP !"), journal)
+    b = 1
+  Endif
+  
+End
+
+'***********************************
+'*   On verifie la premiere date   *
+'***********************************
+Public Sub date1_LostFocus()
+  
+  With utils
+    date1.text = .Cdate_calc(date1.Text)
+    date1.Text = .Cdate_aff(date1.Text)
+    If date1.Text = "00.00.0:00" Then
+      date1.Text = Format$(Now, "dd.mm.yyyy")
+      b = 1
+    Endif
+  End With
+  date1.Background = Color.TextBackground
+Catch
+  b = 1
+  
+End
+
+'***********************************
+'*   On verifie la seconde date    *
+'***********************************
+Public Sub date2_LostFocus()
+  
+  With utils
+    date2.text = .Cdate_calc(date2.Text)
+    date2.Text = .Cdate_aff(date2.Text)
+    If date2.Text = "00.00.0:00" Then
+      date2.Text = Format$(Now, "dd.mm.yyyy")
+      b = 1
+    Endif
+  End With
+  If Val(Right$(date2.text, 4) & Mid$(date2.text, 4, 2) & Left$(date2.text, 2)) < Val(Right$(date1.text, 4) & Mid$(date1.text, 4, 2) & Left$(date1.text, 2)) Then
+    If son Then
+      Music.Play
+    Endif
+    If Balloon.Warning(("Attention ! Votre selection n'est pas possible."), date2)
+      B = 1
+    Endif
+  Endif
+  date2.Background = Color.TextBackground
+Catch
+  date2.SetFocus
+  date2.Select
+  
+End
+
+'********************************************
+'* On importe les données du fichier texte  *
+'********************************************
+Public Sub Button2_Click()
+  
+  Dim hfil As File
+  Dim Lig As String
+  Dim rResult As Result
+  Dim Tab As String
+  Dim Tab1 As String
+  Dim dte As String
+  Dim dte2 As String
+  Dim numero As String
+  Dim type As String
+  Dim montant As String
+  Dim montantd As Float
+  Dim montantc As Float
+  Dim montantTD As Float
+  Dim montantTC As Float
+  Dim code As String
+  Dim Col As String
+  
+  Tab = "Fiches_Rubriques"
+  Tab1 = "centralisation"
+  montantd = 0
+  montantc = 0
+  montantTD = 0
+  montantTC = 0
+  HFil = Open Jdv.Text For Read
+  Me.Mouse = Mouse.Wait
+  Utils.db.Exec("DROP TABLE IF EXISTS centralisation")
+  Utils.db.Exec("CREATE TABLE " & Tab1 &
+    "(code Char(10) NOT NULL," &
+    "type Char(1)," &
+    "numero Char(7)," &
+    "dte Char(8)," &
+    "montant FLOAT," &
+    "njournal Char(2)," &
+    "PRIMARY KEY (dte, code))" & "ENGINE = MYISAM")
+  
+  With Utils
+    Line Input #hFil, Lig
+    If Left$(Lig, 2) = Start.Societe Then
+      If journal.text Then
+        While Not Eof(hFil)
+          Line Input #hFil, Lig
+          type = Mid$(lig, 106, 1)
+          dte = Mid$(Lig, 4, 6)
+          If dte <> dte2 Then
+            dte2 = dte
+            montantd = 0
+            montantc = 0
+          Endif
+          Col = Mid$(Lig, 13, 6)
+          If Col = "411000" Then
+            numero = Mid$(Lig, 46, 7)
+            code = Mid$(Lig, 30, 6)
+            Try montant = Mid$(Lig, 117, 10)
+            If Error Then montant = Right$(Lig, 160)
+            montant = Mid$(montant, 9, 10)
+          Else
+            code = Col
+            montant = Right$(Lig, 160)
+            montant = Mid$(montant, 9, 10)
+          Endif
+          If type <> "C" Then
+            montantd = montantd + Val(.cpoint(montant))
+            montantTD = montantTD + montantd
+          Else
+            montantc = montantc + Val(.cpoint(montant))
+            montantTC = montantTC + montantc
+          Endif
+          ' NEXT
+          
+          rResult = Utils.db.Exec("SELECT * FROM " & Tab1 & " WHERE dte = &1 and code = &2 ", dte, code)
+          If rResult.Available Then
+            'Utils.db.Exec("UPdate  " & Tab1 & "  SET  code = &1, type = &2, numero = &3, dte = &4, montant = &5 WHERE dte = &4 and code = &1", code, type, numero, dte, montant)
+          Else
+            ' Utils.db.Exec("INSERT INTO " & Tab1 & "(code,type, numero, dte, montant) VALUES ( &1, &2, &3, &4, &5)", code, type, numero, dte, montant)
+          Endif
+        Wend
+        Message.Info("Importation terminée.", "Ok")
+      Else
+        Message.Info("Veuillez saisir un journal de ventes SVP.", "Ok")
+        journal.SetFocus
+      Endif
+    Else
+      Message.Info("La société d' import est différente de votre société de travail ! \n Veuillez changer de société SVP.", "Ok")
+    Endif
+    Close #HFil
+    Me.Mouse = Mouse.Pointing
+  End With
+  
+End
+
+'****************************
+'*    Yeahh !  On ferme     *
+'****************************
+Public Sub Button3_Click()
+  
+  Settings["/Rep_Jdv"] = Jdv.text
+  Settings["/Jdv"] = journal.text & libelle.text
+  Settings.Save
+  Me.Close
+  
+End

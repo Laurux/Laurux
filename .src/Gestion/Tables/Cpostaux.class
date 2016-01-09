@@ -1,0 +1,437 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Cpostaux.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 07/01/2009
+'# Gestion de la table des codes postaux
+'################################################
+'
+
+Tab As String
+Dne As String 'texte recherché par F2 ou clic sur bouton
+Enr As Integer ' Flag utilisé pour le focus si larepeatnnée a recuperer existe ou non
+son As Integer = Start.Son
+CpTable[3] As String
+Tri As String
+sel As String
+Dbl As String
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  CP.Text = "CP"
+  BD.Text = "Bureau distributeur"
+  Cpostal_Gotfocus()
+  Cpostal.SetFocus
+  
+End
+
+Public Function cpoint(mtt As String) As String
+  
+  Return (Replace$(mtt, ".", ","))
+  
+End
+
+Public Sub Form_Open()
+  
+  Tab = "Fiches_Cpostaux"
+  Tri = "cp"
+  Tris()
+  'Utils.Base(Colcpost, "select * from " & Tab & " order by cp, burdist")
+  Deb2()
+  Cpostal.SetFocus
+  Cpostal.Select
+  
+End
+
+Public Sub Colcpost_Data(Row As Integer, Column As Integer)
+  
+  Dim Frmt As New String[]
+  
+  With Utils
+    CpTable[0] = "cp"
+    CpTable[1] = "burdist"
+    CpTable[2] = "lind"
+    Try .rs1.MoveTo(Row)
+    Try Colcpost.data.Text = Str(.rs1[CpTable[Column]])
+  End With
+  
+End
+
+Public Sub Tris()
+  
+  Dim rResult As Result
+  
+  With Colcpost
+    .Columns.count = 4
+    .Columns[0].Width = CP.Width
+    .Columns[1].Width = BD.Width
+    .Columns[2].Width = 1
+    .Columns[3].Width = 15
+  End With
+  
+End
+
+Public Sub Deb2()
+  
+  Utils.Base(Colcpost, "select * from " & Tab & " where " & Tri & " like  \"" & sel & "%\" order by " & Tri & "")
+  Colcpost.Refresh
+  
+End
+
+Public Sub Deb3()
+  
+  Utils.Base(Colcpost, "select * from " & Tab & " where " & Tri & " like  \"" & sel & "%\" order by " & Tri & " Desc")
+  Colcpost.Refresh
+  
+End
+
+Public Sub Refresh()
+  
+  form_Open()
+  Cpostal.Clear
+  Burdist.Clear
+  
+End
+
+Public Sub Maj_Zones()
+  
+  With Utils
+    Cpostal.Text = Colcpost[Colcpost.row, 0].Text
+    Burdist.Text = Colcpost[Colcpost.row, 1].Text
+    Cpostal.SetFocus
+    Cpostal.Select
+  End With
+Catch
+  
+End
+
+Public Sub Cleanchamps()
+  
+  Cpostal.Clear
+  Burdist.Clear
+  
+End
+
+Public Sub Cpost_GotFocus()
+  
+  Utils.SetEditColor(Me, Last)
+  
+End
+
+Public Sub Cpost_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+        
+      Case 1
+        Cpostal_LostFocus()
+        Burdist_GotFocus()
+        Burdist.SetFocus
+        Burdist.Select
+        Stop Event
+        
+      Case 2
+        Cpostal_GotFocus()
+        Cpostal.SetFocus
+        Cpostal.Select
+        Stop Event
+    End Select
+  Else
+    Select Case Last.tag
+      Case 1
+        ChkCp()
+    End Select
+  Endif
+  
+  If key.code = key.F1 Then
+    Button4_Click()
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Btn_KeyPress()
+  
+  Select Case Last.tag
+      
+    Case 2
+      Button1_Click()
+      
+  End Select
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Button3_Click()
+      
+    Case 2
+      Button1_Click()
+      
+    Case 3
+      Me.Close
+      
+  End Select
+  
+End
+
+Public Sub Cpostal_GotFocus()
+  
+  Cpostal.Background = &HAAFF7F&
+  
+End
+
+Public Sub Burdist_GotFocus()
+  
+  Burdist.Background = &HAAFF7F&
+  
+End
+
+Public Sub Cpostal_LostFocus()
+  
+  Cpman()
+  
+End
+
+Public Sub Button1_Click()
+  
+  Dim Rpost As Result
+  Dim Tabcp As String
+  
+  Tabcp = "Fiches_Cpostaux"
+  If Cpostal.Text <> "" Then
+    With utils
+      Rpost = Utils.db.Exec("SELECT * FROM " & Tabcp & " WHERE cp = &1 and burdist = &2", Cpostal.Text, Burdist.Text)
+      If Rpost.Available Then
+        Utils.db.Exec("UPdate  " & Tabcp & "  SET  cp = &1, burdist = &2 WHERE cp = &2", Cpostal.Text, Burdist.Text)
+      Else
+        Utils.db.Exec("INSERT INTO " & Tabcp & "(cp,burdist) VALUES (&1, &2)", Cpostal.Text, Burdist.Text)
+      Endif
+    End With
+    Refresh()
+  Else
+    Burdist.Select
+  Endif
+  
+End
+
+Public Sub Button3_Click()
+  
+  Dim Rpost As Result
+  Dim Tab As String
+  
+  Tab = "Fiches_Cpostaux"
+  If Cpostal.Text <> "" Then
+    If son Then
+      Music.Play
+    Endif
+    If Message.Question("Etes vous sur de vouloir effacer cet enregistrement", "Oui", "Non") = 1 Then
+      Utils.db.Exec("DELETE FROM " & Tab & " WHERE lind = &1", Colcpost[Colcpost.row, 2].Text)
+      Refresh()
+    Endif
+  Endif
+  
+End
+
+Public Sub Cpman()
+  
+  Dim Rcompte As Result
+  Dim Tab As String
+  
+  Tab = "Fiches_Cpostaux"
+  Rcompte = Utils.db.Exec("SELECT * FROM " & Tab & " where cp = &1", Cpostal.Text)
+  If Rcompte.count = 1 Then
+    Burdist.text = Rcompte!burdist
+    Burdist_GotFocus
+  Else
+    If Rcompte.count > 1 Then
+      aff_cp()
+    Else
+      Burdist.Clear
+      Burdist_Gotfocus()
+    Endif
+  Endif
+  
+End
+
+Public Sub aff_cp()
+  
+  Dim CpResult As Result
+  
+  Colcp.visible = True
+  Button5.Visible = True
+  Colcp.Columns.count = 2
+  Colcp.Columns[0].Width = 60
+  Colcp.Columns[1].Width = 280
+  Colcp.Columns[0].Text = "CP"
+  Colcp.Columns[1].Text = "Bureau distributeur"
+  CpResult = Utils.db.Exec("SELECT * FROM " & Tab & " where cp = &1 order by cp, burdist", cpostal.Text)
+  If CpResult.Available Then
+    Repeat
+      Colcp.Add(CpResult!cp & CpResult!burdist, CpResult!burdist)
+      Colcp.Item[0] = CpResult!cp
+      Colcp.Item[1] = CpResult!burdist
+    Until CpResult.MoveNext()
+  Endif
+  
+End
+
+Public Sub ChkCp()
+  
+  If InStr("0123456789", Key.Text) = 0 Then
+    If key.code <> key.BackSpace And Key.Code <> Key.tab And Key.Code <> Key.Delete And Key.code <> Key.enter And Key.code <> Key.return Then
+      Stop Event
+    Endif
+  Endif
+  
+End
+
+Public Sub CP_GotFocus()
+  
+  sel = ""
+  ref()
+  CP.Text = ""
+  BD.Text = "Bureau distributeur"
+  Tri = "cp"
+  Deb2()
+  
+End
+
+Public Sub CP_Dblclick()
+  
+  sel = ""
+  ref()
+  CP.Text = ""
+  BD.Text = "Bureau distributeur"
+  Tri = "cp"
+  Dbclk()
+  
+End
+
+Public Sub CP_KeyPress()
+  
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    Deb2()
+  Endif
+  
+End
+
+Public Sub BD_GotFocus()
+  
+  sel = ""
+  ref()
+  CP.Text = "CP"
+  BD.Text = ""
+  Tri = "burdist"
+  Deb2()
+  
+End
+
+Public Sub BD_DblClick()
+  
+  sel = ""
+  ref()
+  CP.Text = "CP"
+  BD.Text = ""
+  Tri = "burdist"
+  Dbclk()
+  
+End
+
+Public Sub BD_KeyPress()
+  
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    Deb2()
+  Endif
+  
+End
+
+Public Sub Ref()
+  
+  Tab = "Fiches_Cpostaux"
+  Tri = "cp"
+  CleanChamps()
+  Tris()
+  
+End
+
+Public Sub Dbclk()
+  
+  If Not Dbl Then
+    Deb3()
+    Dbl = "1"
+  Else
+    Deb2()
+    Dbl = ""
+  Endif
+  
+End
+
+Public Sub Colcpost_Click()
+  
+  CleanChamps()
+  Maj_Zones()
+  CP.Text = "CP"
+  BD.Text = "Bureau distributeur"
+  
+End
+
+Public Sub Button4_Click()
+  
+  Exec ["xdg-open", Application.Path & "/Ecrans/Cpostaux.html"]
+  
+End
+
+Public Sub Button5_Click()
+  
+  Colcp.Visible = False
+  Button5.Visible = False
+  
+End
+
+Public Sub Colcp_Click()
+  
+  Cpostal.Text = Colcp.Item[0]
+  Burdist.Text = Colcp.Item[1]
+  Colcp.clear
+  Colcp.visible = False
+  Button5.Visible = False
+  
+End

@@ -1,0 +1,191 @@
+' Gambas module file
+
+Private dte1 As Date
+Private dte2 As String
+Private dte3 As String
+
+'******************
+'*   On calcule   *
+'******************
+
+Public Sub Calc_stock(Art As String, art2 As String)
+  
+  Dim ArtResult As Result
+  Dim BlResult As Result
+  Dim LigblResult As Result
+  Dim HistResult As Result
+  Dim LigHistResult As Result
+  Dim MvtexpResult As Result
+  Dim RecptResult As Result
+  Dim LigrecptResult As Result
+  Dim qte_art As Float
+  Dim com_art As Float
+  Dim Tab3 As String = "Fiches_HisInvT"
+  
+  ' On initialise nos données
+  
+  qte_art = 0
+  date_ex()
+  ' On commence le travail
+  With Utils
+    Calc_date()
+    ' On selectionne les articles stockés
+    If Calcstock.Cbx.Value Then
+      ArtResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & "  where art_code = &1 and art_stocke = &2", Art, 1)
+    Else
+      If Calcstock.Cbx2.Value Then
+        ArtResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & "  where art_casier >= &1 and art_casier <= &2 and art_stocke = &3", Art, Art2, 1)
+      Else
+        If IsNull(Art) Then
+          ArtResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & "  where art_stocke = &1 order by CAST(art_code AS char)", 1) 
+        Endif
+      Endif
+    Endif
+    If ArtResult.Available Then
+      Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabArt") & " WRITE, " & Cbase.Table("TabBl") & " WRITE, " & Cbase.Table("TabLigbl") & " WRITE, " & Cbase.Table("TabBlM") & " Write, " & Cbase.Table("TabLigblM") & " WRITE, " & Cbase.Table("TabHisFac") & " WRITE, " & Cbase.Table("TabHisLigFac") & " WRITE, " & Cbase.Table("TabHisFacm") & " WRITE, " & Cbase.Table("TabHisLigFacm") & " WRITE, " & Cbase.Table("TabMvtexp") & " WRITE, " & Cbase.Table("TabEntrecpt") & " WRITE, " & Cbase.Table("TabLigrecpt") & " WRITE, " & Cbase.Table("TabHEntTck") & "  WRITE, " & Cbase.Table("TabHLigTck") & "  WRITE, " & Cbase.Table("TabSdepots") & " WRITE, " & tab3 & " write ")
+      Repeat
+        'On initialise la quantité avec le stock de départ
+        If qte_art = 0 Then Try qte_art = ArtResult!art_stkdep
+        If Error Then qte_Art = 0
+        ' Puis on sélectionne tous les BL et les factures
+        BlResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBl") & " WHERE datebl >= &3 and type = &1 or datebl > &3 and type = &2", "B", "F", dte2)
+        If BlResult.Available Then
+          Repeat
+            ' Ensuite on récupère les lignes de produits utilisés
+            LigblResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigbl") & " WHERE num_ligbl = &1 and code_ligbl = &2  and typel_ligbl = &3", BlResult!numbl, ArtResult!art_code, "A")
+            If LigblResult.Available Then
+              Repeat
+                qte_art = qte_art - Val(LigblResult!qte_ligbl)
+              Until LigblResult.MoveNext()
+            Endif
+          Until BlResult.MoveNext()
+        Endif
+        ' Puis on sélectionne tous les BL et les factures d'entretien
+        If Settings["/Soc" & Start.Societe & "/Materiel"] = True Then
+          BlResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBlM") & " WHERE datebl >= &3 and type = &1 or datebl > &3 and type = &2", "B", "F", dte2)
+          If BlResult.Available Then
+            Repeat
+              ' Ensuite on récupère les lignes de produits utilisés
+              LigblResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigblM") & " WHERE num_ligbl = &1 and code_ligbl = &2  and typel_ligbl = &3", BlResult!numbl, ArtResult!art_code, "A")
+              If LigblResult.Available Then
+                Repeat
+                  qte_art = qte_art - Val(LigblResult!qte_ligbl)
+                Until LigblResult.MoveNext()
+              Endif
+            Until BlResult.MoveNext()
+          Endif
+        Endif
+        ' On refait la meme chose avec les historiques de factures
+        HistResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisFac") & " WHERE datefac >= &1", dte2)
+        If HistResult.Available Then
+          Repeat
+            LigHistResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisLigFac") & " WHERE num_ligfac = &1 and code_ligfac = &2 and typel_ligfac = &3", HistResult!numfac, ArtResult!art_code, "A")
+            If LigHistResult.Available Then
+              Repeat
+                qte_art = qte_art - Val(LigHistresult!qte_ligfac)
+              Until LigHistResult.MoveNext()
+            Endif
+          Until HistResult.MoveNext()
+        Endif
+        ' On refait la meme chose avec les historiques de factures entretien
+        If Settings["/Soc" & Start.Societe & "/Materiel"] = True Then
+          HistResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisFacm") & " WHERE datefac >= &1", dte2)
+          If HistResult.Available Then
+            Repeat
+              LigHistResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisLigFacm") & " WHERE num_ligfac = &1 and code_ligfac = &2 and typel_ligfac = &3", HistResult!numfac, ArtResult!art_code, "A")
+              If LigHistResult.Available Then
+                Repeat
+                  qte_art = qte_art - Val(LigHistresult!qte_ligfac)
+                Until LigHistResult.MoveNext()
+              Endif
+            Until HistResult.MoveNext()
+          Endif
+        Endif
+        ' On refait la meme chose avec les historiques de caisse
+        HistResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHEntTck") & " WHERE date >= &1", dte2)
+        If HistResult.Available Then
+          Repeat
+            LigHistResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHLigTck") & " WHERE numero = &1 and code = &2 and type = &3", HistResult!numero, ArtResult!art_code, "A")
+            If LigHistResult.Available Then
+              Repeat
+                qte_art = qte_art - Val(LigHistresult!qte)
+              Until LigHistResult.MoveNext()
+            Endif
+          Until HistResult.MoveNext()
+        Endif
+        ' Idem avec les mouvements de stock exceptionnels
+        MvtexpResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvtexp") & " WHERE code = &1 and daterecpt >= &2", ArtResult!art_code, dte2)
+        If MvtexpResult.Available Then
+          Repeat
+            If MvtexpResult!qtep <> "" Then qte_art = qte_art + Val(MvtexpResult!qtep)
+            If MvtexpResult!qtem <> "" Then qte_art = qte_art - Val(MvtexpResult!qtem)
+          Until MvtexpResult.MoveNext()
+        Endif
+        ' Idem avec les achats
+        RecptResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntrecpt") & " WHERE ddate >= &1 order by numrecpt", dte2)
+        If RecptResult.Available Then
+          Repeat
+            LigrecptResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigrecpt") & " WHERE code = &1 and numrecpt = &2 and four = &3 or code = &4 and numrecpt = &2 and four = &3 ", ArtResult!art_code, RecptResult!numrecpt, RecptResult!four, ArtResult!art_cfour)
+            If LigrecptResult.Available Then
+              Repeat
+                qte_art = qte_art + (Val(Ligrecptresult!qte) * ArtResult!art_txconv)
+              Until LigrecptResult.MoveNext()
+            Endif
+          Until RecptResult.MoveNext()
+        Endif
+        ' Idem avec les mouvements de stock inter-dépots
+        MvtexpResult = Utils.db.Exec("SELECT * From " & Cbase.Table("TabSdepots") & " where code = &1 and cart = &2 and date >= &3", "01", ArtResult!art_code, dte2)
+        If MvtexpResult.Available Then
+          Repeat
+            If MvtexpResult!type = "S" Then
+              qte_art = qte_art - Val(MvtexpResult!qte)
+            Else
+              qte_art = qte_art + Val(MvtexpResult!qte)
+            Endif
+          Until MvtexpResult.MoveNext()
+        Endif
+        ' On met à jour la base
+        Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET  art_qte = &2, art_com = &3 where art_code = &1", ArtResult!art_code, qte_art, com_art)
+        qte_Art = 0
+        com_art = 0
+        
+        ' Et on passe à l'article suivant
+      Until ArtResult.MoveNext()
+      Utils.db.Exec("UNLOCK TABLES")
+    Endif
+  End With
+  
+End
+
+'*******************************************
+'* On récupère la date de début d'exercice *
+'*******************************************
+Public Sub date_ex()
+  
+  Dim rResult As Result
+  Dim finexo As Date
+  Dim Tab As String
+  
+  Tab = "Fiches_Parametres"  
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
+  finexo = rResult!dteclec
+  finexo = finexo + 1
+  dte1 = rResult!dteinv
+  If IsNull(dte1) Then dte1 = rResult!dteclec
+  dte3 = Format(dte1, "yyyy") & Format(finexo, "mmdd")
+  dte1 = Date(Val(Left(dte3, 4)), Val(Mid(dte3, 5, 2)), Val(Right(dte3, 2)))
+  dte2 = Format$(dte1, "yyyymmdd")
+  Calc_date()
+Catch
+  message.Error(Error.Text & " " & Error.where)
+  
+End
+
+Public Sub Calc_date()
+  
+  Dim dtepc As Integer
+  
+  dtepc = Val(Mid$(dte2, 6, 2))
+  If dtepc = 12 Then dte2 = (Left$(dte2, 4) + 1) & "0101"
+  
+End

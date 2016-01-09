@@ -1,0 +1,239 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : VisHit.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 23/04/2006
+'# Edition du hit parade
+'################################################
+'
+total As Integer
+value As Float[]
+Dtn0 As String
+Dtn1 As String
+Filename As String
+son As Integer = Start.Son
+Totl As Float
+PosY As Integer
+Coulfond As New String[]
+
+Public Sub _New(Hitniv As HitCarte, Tot As Integer, Sn As Integer, tri As String, dte1 As String, dte2 As String)
+  
+  Dim Tab3 As String
+  Dim N As Float
+  Dim rResult As Result
+  Dim Frmt As New String[]
+  
+  Coulfond = Utils.Coulfd()
+  Frmt = Utils.FColr(Settings["/Coul/Fnets"])
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  filename = User.home & "/Edhit.kud"
+  Tab3 = "Total"
+  son = sn
+  Total = Tot
+  Dtn0 = dte1
+  Dtn1 = dte2
+  value = New Float[]
+  Me.center
+  With Liste
+    .Columns.count = 6
+    .Columns[0].Alignment = 2
+    .Columns[0].Width = 30
+    .Columns[1].Alignment = 5
+    .Columns[1].Width = 140
+    .Columns[2].Width = 180
+    .Columns[3].Width = 120
+    .Columns[4].Width = 100
+    .Columns[5].Width = 80
+    .Columns[0].Text = "N°"
+    .Columns[1].Text = "Carte"
+    .Columns[2].Text = "Nom"
+    .Columns[3].Text = "Points"
+    .Columns[3].Alignment = 2
+    .Columns[4].Text = "Visites"
+    .Columns[4].Alignment = 2
+    .Columns[5].Text = "% Ratio"
+    .Columns[5].Alignment = 2
+    Label1.Text = "Hit parade des cartes de fidélité"
+    If Tri = "P" Then
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " order by points deSC LIMIT " & Total & "")
+    Else
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " order by visite deSC LIMIT " & Total & "")
+    Endif
+    value.Resize(Total + 1)
+    If rResult.Available Then
+      Repeat
+        Totl = Totl + rResult!points
+      Until rResult.MoveNext()
+      rResult.MoveFirst()
+      Repeat
+        n = n + 1
+        value.Resize(n + 1)
+        .Add(rResult!carte, rResult!carte)
+        .Item[0] = n
+        .Item[1] = rResult!carte
+        .Item[2] = rResult!nom
+        .Item[3] = Format$(rResult!points, "0.00")
+        .Item[4] = rResult!visite
+        .Item[5] = Format$(rResult!points / Totl * 100, "0.00")
+        value[n] = Val(.Item[3])
+      Until rResult.MoveNext()
+      value.Resize(total + 1)
+      If Total > 20 Then Total = 20
+      Draw_Chart
+    Endif
+  End With
+  
+End
+
+'************************************************************
+'*      Gestion de l'histogramme. Routine de Yudi Astira    *
+'************************************************************
+Public Sub Draw_Chart()
+  
+  Dim i As Integer
+  
+  Dim skala_1 As Integer
+  Dim skala_2 As Integer
+  
+  Dim distance_x As Float
+  Dim distance_y As Float
+  
+  Dim width_draw As Integer
+  Dim tot As Integer
+  Dim colors As Integer[]
+  Dim bottom As Integer
+  Dim sumdata As Integer
+  
+  colors = New Integer[]
+  colors.Resize(total + 1)
+  
+  For i = 1 To total
+    sumdata = sumdata + value[i]
+  Next
+  
+  If sumdata = 0 Then sumdata = 1
+  
+  For i = 1 To total
+    value[i] = (value[i] / sumdata) * 10
+  Next
+  
+  drwchart.Clear
+  
+  draw.Begin(drwchart)
+  
+  skala_1 = drwchart.ClientH / 11
+  distance_y = drwchart.ClientH - skala_1
+  bottom = distance_y - 10
+  For i = 0 To 100 Step 10
+    draw.ForeGround = color.black
+    draw.Text(i, 0, distance_y)
+    draw.Line(20, distance_y, drwchart.ClientWidth, distance_y + 8)
+    distance_y = distance_y - skala_1
+  Next
+  
+  'draw.Line(30, 0, 30, drwchart.ClientH)
+  Wait 0.01
+  skala_2 = (drwchart.ClientW - 30) \ Total
+  distance_x = skala_2 + 30
+  width_draw = skala_2 / 2
+  skala_1 = drwchart.ClientH / 12
+  For i = 1 To Total
+    draw.LineWidth = 1
+    draw.ForeGround = color.Black
+    draw.Text(i, distance_x - (width_draw / 2) - 4, drwchart.ClientH - 14)
+    draw.Line(distance_x - (width_draw / 2), 0, distance_x - (width_draw / 2), drwchart.ClientH - skala_1 + 8)
+    If value[i] > 0 Then
+      draw.LineWidth = width_draw
+      draw.ForeGround = color.RGB(i * 100, i * 10, i * 50)
+      colors[i] = draw.ForeGround
+    Endif
+    tot = skala_1 * value[i] + 16
+    draw.Line(distance_x - (width_draw / 2), bottom, distance_x - (width_draw / 2), bottom - tot + 14)
+    distance_x = distance_x + skala_2
+    Wait 0.01
+  Next
+  
+  DRAW.End
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim code As String
+  Dim intitule As String
+  Dim Pvht As String
+  Dim dte As String
+  Dim pdf As Chistoriques
+  
+  dte = Format$(Now, "dd.mm.yyyy")
+  Shell "cd " & User.Home & ""
+  pdf = New Chistoriques("Portrait", "mm", "A4")
+  pdf.Open()
+  pdf.AliasNbPages()
+  pdf.Entete("Impression du hit parades des ventes cartes fidélité")
+  pdf.Level0F(dtn0, dtn1)
+  pdf.Level1H()
+  posy = 32
+  Me.Mouse = Mouse.Wait
+  If Liste.Count Then
+    Liste.MoveFirst
+    Do
+      Liste.Item.Selected = True
+      code = Liste.Current[1]
+      intitule = Liste.Current[2]
+      Pvht = Liste.Current[3]
+      pdf.level2H(code, intitule, pvht, posY)
+      posy += 5
+      If PosY >= 283 Then
+        pdf.Footer()
+        pdf.Entete("Impression du hit parade des ventes cartes fidélité")
+        pdf.Level0F(dtn0, dtn1)
+        pdf.Level1H()
+        posy = 32
+      Endif
+    Loop Until Liste.MoveNext()
+    pdf.Lines(PosY)
+    pdf.Footer()
+    pdf.Output(Filename, False)
+    Visualiseur.Prog_Editeur(Filename)
+  Endif
+  Me.Mouse = Mouse.Pointing
+  
+End
+
+Public Sub Observers(hLabel As Label)
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+End
+
+Public Sub Observers2(hBtn As Button)
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+End
+
+Public Sub Button1_Click()
+  
+  If Exist(filename) Then Try Kill filename
+  Me.close
+  
+End

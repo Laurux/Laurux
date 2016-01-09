@@ -1,0 +1,451 @@
+' Gambas class file
+
+'################################################
+'# nom du fichier           : EdCli.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 23/03/2006
+'# Edition des Clients
+'################################################
+'
+
+Filename As String
+Tab As String
+son As Integer = Start.Son
+PosY As Integer
+Org As String
+
+Public Sub _New()
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Me.Center
+  Cli.Text = "00000"
+  Cli2.Text = "4199999"
+  Cli.Select
+  Cli.SetFocus
+  
+End
+
+'************************************On affiche les clients**********************************
+Public Sub ToggleButton1_Click()
+  
+  Org = "Cli1"
+  Aff_Clients()
+  
+End
+
+Public Sub ToggleButton2_Click()
+  
+  Org = "Cli2"
+  Aff_Clients()
+  
+End
+
+Public Sub Aff_Clients()
+  
+  Dim rResult As Result
+  
+  Tab = "Fiches_Cli" 
+  With Utils
+    If Colcli.visible Then
+      Colcli.clear
+      Colcli.visible = False
+    Else
+      If Org = "Cli1" Then Colcli.Move(ToggleButton1.X - Colcli.Width, ToggleButton1.Y)
+      If Org = "Cli2" Then Colcli.Move(ToggleButton2.X - Colcli.Width, ToggleButton1.Y)
+      Colcli.visible = True
+      Colcli.Columns.count = 2
+      Colcli.Columns[0].Alignment = 2
+      Colcli.Columns[0].Width = 100
+      Colcli.Columns[1].Width = 280
+      Colcli.Columns[0].Text = "Code"
+      Colcli.Columns[1].Text = "Intitulé"
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by cli_code ")
+      If rResult.Available Then
+        Repeat
+          Colcli.Add(rResult!cli_code, rResult!cli_code)
+          Colcli.Item[0] = rResult!cli_code
+          Colcli.Item[1] = rResult!cli_nom
+        Until rResult.MoveNext()
+      Endif
+      If Colcli.Count Then
+        Colcli.MoveFirst
+        Colcli.SetFocus
+        Colcli.Item.Selected = True
+      Endif
+    Endif
+  End With
+  
+End
+
+'*************************** On affiche les statuts **********************************
+Public Sub ToggleButton3_Click()
+  
+  Org = "Stat1"
+  Aff_Statuts()
+  
+End
+
+Public Sub ToggleButton4_Click()
+  
+  Org = "Stat2"
+  Aff_Statuts()
+  
+End
+
+Public Sub Aff_Statuts()
+  
+  Dim Rtypec As Result
+  
+  With Utils
+    If Colcli.visible Then
+      Colcli.clear
+      Colcli.visible = False
+    Else
+      If Org = "Stat1" Then Colcli.Move(ToggleButton3.X - Colcli.Width, ToggleButton1.Y)
+      If Org = "Stat2" Then Colcli.Move(ToggleButton4.X - Colcli.Width, ToggleButton1.Y)
+      Colcli.visible = True
+      Colcli.Columns[0].Alignment = 2
+      Colcli.Columns.count = 2
+      Colcli.Columns[0].Width = 75
+      Colcli.Columns[1].Width = 280
+      Colcli.Columns[0].Text = "Code"
+      Colcli.Columns[1].Text = "Intitulé"
+      Rtypec = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabStatut") & "")
+      If Rtypec.Available Then
+        Repeat
+          Colcli.Add(Rtypec!code, Rtypec!code)
+          Colcli.Item[0] = Rtypec!code
+          Colcli.Item[1] = Rtypec!libelle
+        Until Rtypec.MoveNext()
+      Endif
+      If Colcli.Count Then
+        Colcli.MoveFirst
+        Colcli.SetFocus
+        Colcli.Item.Selected = True
+      Endif
+    Endif
+  End With
+  
+End
+
+'*************************** On affiche les Types clients **********************************
+Public Sub ToggleButton5_Click()
+  
+  Org = "Type1"
+  Aff_Types()
+  
+End
+
+Public Sub ToggleButton6_Click()
+  
+  Org = "Type2"
+  Aff_Types()
+  
+End
+
+Public Sub Aff_Types()
+  
+  Dim Rtypec As Result
+  
+  With Utils
+    If Colcli.visible Then
+      Colcli.clear
+      Colcli.visible = False
+    Else
+      If Org = "Type1" Then Colcli.Move(ToggleButton5.X - Colcli.Width, ToggleButton1.Y)
+      If Org = "Type2" Then Colcli.Move(ToggleButton6.X - Colcli.Width, ToggleButton1.Y)
+      Colcli.visible = True
+      Colcli.Columns.count = 2
+      Colcli.Columns[0].Alignment = 2
+      Colcli.Columns[0].Width = 75
+      Colcli.Columns[1].Width = 280
+      Colcli.Columns[0].Text = "Code"
+      Colcli.Columns[1].Text = "Intitulé"
+      Tab = "Fiches_Typec" 
+      Rtypec = Utils.db.Exec("SELECT * FROM " & Tab & "")
+      If Rtypec.Available Then
+        Repeat
+          Colcli.Add(Rtypec!code, Rtypec!code)
+          Colcli.Item[0] = Rtypec!code
+          Colcli.Item[1] = Rtypec!libelle
+        Until Rtypec.MoveNext()
+      Endif
+      If Colcli.Count Then
+        Colcli.MoveFirst
+        Colcli.SetFocus
+        Colcli.Item.Selected = True
+      Endif
+    Endif
+  End With
+  
+End
+
+'***********************************************************
+'* Gestion du columnview Colcli lors d'une saisie manuelle *
+'***********************************************************
+
+Public Sub Colcli_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Colcli.MoveCurrent
+    Colcli_Click()
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Colcli.visible = False
+    Colcli.clear
+    Cli.SetFocus
+    Cli.Select
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Button1_Click()
+      
+    Case 2
+      Button2_Click()
+      
+    Case 3
+      If Exist(Filename) Then Try Kill Filename
+      Me.Close
+      
+  End Select
+  
+End
+
+Public Sub Cmpt_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+      Case 1
+        Cli2.SetFocus
+        Cli2.Select
+        Stop Event
+        
+      Case 2
+        Stat1.SetFocus
+        Stat1.Select
+        Stop Event
+        
+      Case 3
+        Stat2.SetFocus
+        Stat2.Select
+        Stop Event
+        
+      Case 4
+        Type1.SetFocus
+        Type1.Select
+        Stop Event
+        
+      Case 5
+        Type2.SetFocus
+        Type2.Select
+        Stop Event
+        
+      Case 6
+        Cli.SetFocus
+        Cli.Select
+        Stop Event
+    End Select
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+  If key.code = key.F2 Then
+    Select Case Last.tag
+      Case 1
+        ToggleButton1_Click()
+        Stop Event
+        
+      Case 2
+        ToggleButton2_Click()
+        Stop Event
+    End Select
+  Endif
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Cmpt_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  
+End
+
+Public Sub Colcli_Click()
+  
+  Select Case Org
+    Case "Cli1"  
+      Cli.Text = Colcli.Item[0]
+      Colcli.clear
+      Colcli.visible = False
+      Cli2.Select
+      Cli2.SetFocus
+      
+    Case "Cli2" 
+      Cli2.Text = Colcli.Item[0]
+      Colcli.clear
+      Colcli.visible = False
+      Stat1.Select
+      Stat1.SetFocus
+      
+    Case "Stat1" 
+      Stat1.Text = Colcli.Item[0]
+      Colcli.clear
+      Colcli.visible = False
+      Stat2.Select
+      Stat2.SetFocus
+      
+    Case "Stat2" 
+      Stat2.Text = Colcli.Item[0]
+      Colcli.clear
+      Colcli.visible = False
+      Type1.Select
+      Type1.SetFocus
+      
+    Case "Type1" 
+      Type1.Text = Colcli.Item[0]
+      Colcli.clear
+      Colcli.visible = False
+      Type2.Select
+      Type2.SetFocus
+      
+    Case "Type2" 
+      Type2.Text = Colcli.Item[0]
+      Colcli.clear
+      Colcli.visible = False
+      cli.Select
+      cli.SetFocus
+  End Select
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim rResult As Result
+  Dim code As String
+  Dim intitule As String
+  Dim Prenom As String
+  Dim adr1 As String
+  Dim adr2 As String
+  Dim cp As String
+  Dim ville As String
+  Dim TelBur As String
+  Dim TelPble As String
+  Dim rmo As String
+  Dim rart As String
+  Dim dte As String
+  Dim Nbpage As Integer
+  Dim pdf As Cclients
+  Dim Tri As String
+  
+  dte = Format$(Now, "dd.mm.yyyy")
+  Tab = "Fiches_Cli" 
+  Nbpage = 1
+  Shell "cd " & User.Home & ""
+  Filename = User.home & "/Clients.pdf"
+  pdf = New Cclients("Portrait", "mm", "A4")
+  pdf.Open()
+  pdf.AliasNbPages()
+  pdf.Entete("Liste des clients")
+  pdf.Level1()
+  Posy = 30
+  Me.Mouse = Mouse.Wait
+  If Radiobutton1.Value Then
+    Tri = "cli_code"
+  Else
+    Tri = "cli_nom"
+  Endif
+  If IsNull(Stat1.Text) And If IsNull(Stat2.Text) And If IsNull(Type1.Text) And If IsNull(Type2.Text) Then
+    If Not IsNull(Mreg.Text) Then
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE cli_code >= &1  and cli_code <= &2 and cli_reg = &3 order by " & Tri & "", Cli.text, Cli2.text, Mreg.Text)
+    Else
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE cli_code >= &1  and cli_code <= &2 order by " & Tri & "", Cli.text, Cli2.text)
+    Endif
+  Else
+    If IsNull(Stat1.Text) And If IsNull(Stat2.Text) Then
+      If Not IsNull(Mreg.Text) Then
+        rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE cli_code >= &1  and cli_code <= &2 and cli_typec >= &5  and cli_typec <= &6  and cli_reg = &7 order by " & Tri & ", cli_typec", Cli.text, Cli2.text, Stat1.Text, Stat2.text, Type1.Text, Type2.Text, Mreg.Text)
+      Else
+        rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE cli_code >= &1  and cli_code <= &2 and cli_typec >= &5  and cli_typec <= &6 order by " & Tri & ", cli_typec", Cli.text, Cli2.text, Stat1.Text, Stat2.text, Type1.Text, Type2.Text)
+      Endif
+    Else
+      If IsNull(Type1.Text) And If IsNull(Type2.Text) Then
+        If Not IsNull(Mreg.Text) Then
+          rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE cli_code >= &1  and cli_code <= &2 and cli_statut >= &3  and cli_statut <= &4  and cli_reg = &7 order by " & Tri & ", cli_statut", Cli.text, Cli2.text, Stat1.Text, Stat2.text, Type1.Text, Type2.Text, Mreg.Text)
+        Else
+          rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE cli_code >= &1  and cli_code <= &2 and cli_statut >= &3  and cli_statut <= &4  order by " & Tri & ", cli_statut", Cli.text, Cli2.text, Stat1.Text, Stat2.text, Type1.Text, Type2.Text)
+        Endif
+      Else
+        If Not IsNull(Mreg.Text) Then
+          rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE cli_code >= &1  and cli_code <= &2 and cli_statut >= &3  and cli_statut <= &4  and cli_typec >= &5  and cli_typec <= &6  and cli_reg = &7 order by " & Tri & ", cli_statut, cli_typec", Cli.text, Cli2.text, Stat1.Text, Stat2.text, Type1.Text, Type2.Text, Mreg.Text)
+        Else
+          rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE cli_code >= &1  and cli_code <= &2 and cli_statut >= &3  and cli_statut <= &4  and cli_typec >= &5  and cli_typec <= &6  order by " & Tri & ", cli_statut, cli_typec", Cli.text, Cli2.text, Stat1.Text, Stat2.text, Type1.Text, Type2.Text) 
+        Endif
+      Endif
+    Endif
+  Endif
+  If rResult.Available Then
+    Repeat
+      code = rResult!cli_code
+      intitule = rResult!cli_nom
+      Prenom = rResult!cli_pnm
+      adr1 = rResult!cli_adr1
+      adr2 = rResult!cli_adr2
+      cp = rResult!cli_cd_ptl
+      ville = rResult!cli_ville
+      Telbur = rResult!cli_tel_bur
+      TelPble = rResult!cli_pble
+      rmo = rResult!cli_rmo
+      'rmo = Format$(rmo, "0.00")
+      rart = rResult!cli_rart
+      pdf.Level2(code, intitule, prenom, adr1, adr2, cp, ville, TelBur, TelPble, rmo, rart, PosY)
+      Posy = Posy + 10
+      pdf.Lines(PosY)
+      Posy = Posy + 2
+      If PosY >= 280 Then
+        pdf.Baspage()
+        pdf.Entete("Liste des clients")
+        pdf.Level1()
+        Posy = 30
+      Endif
+    Until rResult.MoveNext()
+    Posy = Posy + 4
+    pdf.Baspage()
+    pdf.Output(Filename, False)
+    Visualiseur.Prog_Editeur(Filename)
+  Else
+    If son Then
+      Music.Play
+    Endif
+    message(" Aucun client pour cette demande", "OK")
+  Endif
+  Me.Mouse = Mouse.Pointing
+  
+End
+
+Public Sub Button1_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Edclient.html"]
+  
+End

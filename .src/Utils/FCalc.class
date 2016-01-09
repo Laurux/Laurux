@@ -1,0 +1,147 @@
+' Gambas class file
+
+'################################################
+'# nom du fichier           : FCalc.class
+'# Auteur                   : Gambix. 
+'# Calculatrice légérement modifiée par mes soins pour une utilisation avec laurux. Les sources sont sur le site Gambasforge 
+'################################################
+'
+Private $sFormula As String
+Private $sResult As String = "0"
+Private $iBracketCount As Integer
+Property Read Value As Float
+Static Public Resultat As String
+Private $Export As Boolean = False
+
+Public Sub DrawingArea1_Draw()
+  
+  Draw.Style.Box(0, 0, Draw.Width, Draw.Height)
+  Draw.Font = Last.Font
+  'Draw.Foreground = Color.Gray
+  Draw.Text($sFormula, 6, 6, Draw.Width - 15, Draw.Font.TextHeight($sFormula), Align.Right)
+  Draw.Font.Grade = 2
+  Draw.Font.Bold = True
+  Draw.Foreground = Color.TextForeground
+  Draw.Text(CStr($sResult), 6, Draw.Font.Height + 6, Draw.Width - 15, Draw.Font.Height, Align.Right)
+  Me.SetFocus
+  
+End
+
+Public Sub buttons_Click()
+  
+  ManageKeys(Replace(Last.text, "X", "*"))
+  DrawingArea1.Refresh
+  
+End
+
+Public Sub form_keypress()
+  
+  Select Case Key.code
+      
+    Case Key.BackSpace
+      ManageKeys("B")
+    Case Key.Return
+      If $Export = True Then 
+        Export_Click()
+        $Export = True
+      Else
+        ManageKeys("=")
+        $Export = False
+      Endif
+      If $export = False Then $Export = True
+    Case Key.Enter
+      If $Export = True Then 
+        Export_Click()
+        $Export = True
+      Else
+        ManageKeys("=")
+        $Export = False
+      Endif
+      If $export = False Then $Export = True
+    Case Else
+      ManageKeys(Key.Text)
+      
+  End Select
+  
+  DrawingArea1.Refresh
+  
+End
+
+Public Sub GetParent() As Calc
+  
+  Return Me.Parent
+  
+End
+
+Private Sub ManageKeys(sKey As String)
+  
+  Select Case sKey
+      
+    Case "="
+      Try $sResult = Eval(Replace($sFormula, "%", "/100"))
+      If Error Then
+        $sResult = ("1")
+      Else
+        $sFormula = ""
+      Endif
+      
+    Case "B"
+      If $sFormula Then $sFormula = Left($sFormula, Len($sFormula) - 1)
+    Case "C"
+      $sResult = "0."
+      $sFormula = ""
+      $export = False
+    Case Else
+      If InStr("1234567890.,", sKey) Then
+        If skey <> ")" Then $sFormula &= sKey
+      Else
+        If InStr("*/+-%()", sKey) Then
+          If skey = "(" Then
+            If Not InStr("1234567890.,)", Right($sFormula)) Then
+              $sFormula &= skey
+              Inc $iBracketCount
+            Endif
+          Endif
+          If skey = ")" Then
+            If InStr("1234567890.,)", Right($sFormula)) Then
+              If $iBracketCount > 0 Then
+                $sFormula &= skey
+                Dec $iBracketCount
+              Endif
+            Endif
+          Endif
+          
+          If skey = "%" Then
+            If InStr("1234567890.,)", Right($sFormula)) Then
+              
+              $sFormula &= skey
+            Endif
+          Endif
+          
+          If InStr("*/+-", skey) And If InStr("1234567890.,)", Right($sFormula)) Then $sFormula &= skey
+        Endif
+      Endif
+  End Select
+  
+End
+
+Private Function Value_Read() As Float
+  
+  Return $sResult
+  
+End
+
+Public Sub Export_Click()
+  
+  $sResult = Format$(Val(Utils.cpoint($sResult)), "0.00000")
+  If $sResult <> "0" Then
+    Resultat = CStr($sResult)
+    Me.close
+  Else
+    ManageKeys(Replace("=", "X", "*"))
+    DrawingArea1.Refresh
+    Resultat = CStr($sResult)
+    Me.close
+  Endif
+  
+End

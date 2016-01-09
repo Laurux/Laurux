@@ -1,0 +1,489 @@
+' Gambas module file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus des.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à  " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Imp_Sig.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 01/08/2012
+'# Edition des SIG
+'################################################
+
+Private dtes1 As String
+Private dtes2 As String
+Private Det As String
+Private Filename As String
+Private PosY As Integer
+Private PosYdeb As Integer
+Private Nbpage As Integer = 1
+Private Ste As String
+Private dateedition As String
+Private exo As String
+Private pdf As Csig
+
+Public Sub Lancement(Detail As Boolean, dteN0 As String, dteN1 As String, dte1 As String, dte2 As String, exercice As String)
+  
+  Dim Tab As String
+  Dim Tab1 As String
+  Dim Tab2 As String
+  Dim Tab3 As String
+  Dim Tab4 As String
+  Dim Tab5 As String
+  Dim Tab6 As String
+  Dim Tab7 As String
+  Dim prefix As String
+  Dim Rub As String
+  Dim RubE As String
+  Dim RubO As String
+  Dim intitrub As String
+  Dim intitrubE As String
+  Dim intitcpt As String
+  Dim compte As String
+  Dim DetE As String
+  Dim cpt As String
+  Dim cpt1 As String
+  Dim cpt2 As String
+  Dim cpt3 As String
+  Dim type As String
+  Dim periode As String
+  Dim ETot1 As Float ' Total de l'entete
+  Dim ETot2 As Float ' Total de l'entete
+  Dim ETot3 As Float ' Total de l'entete
+  Dim ETot4 As Float ' Total de l'entete
+  Dim Ltot1 As Float ' Total de la ligne
+  Dim Ltot2 As Float ' Total de la ligne
+  Dim Ltot3 As Float ' Total de la ligne
+  Dim Ltot4 As Float ' Total de la ligne
+  Dim Ltot5 As Float ' variable d'écriture pour total ligne période
+  Dim STot1 As Float ' Sous-Total
+  Dim STot2 As Float ' Sous-Total
+  Dim STot3 As Float ' Sous-Total
+  Dim STot4 As Float ' Sous-Total
+  Dim Otot1 As Float
+  Dim Otot3 As Float
+  Dim Otot4 As Float
+  Dim Ttot1 As Float
+  Dim Imp1 As String = "0" ' variable pour l'impression des produits
+  Dim Imp2 As String = "0" ' variable pour l'impression des charges
+  Dim Imp3 As String = "0" ' variable pour l'impression des produits si plusieurs lignes
+  Dim Imp4 As String = "0" '  variable pour l'impression des charges si plusieurs lignes
+  Dim TotP As String = "0" '  variable pour le total des produits
+  Dim TotA As String = "0" '  variable pour le total des charges
+  Dim rResult As Result
+  Dim Tab1Rslt As Result
+  Dim Tab3Rslt As Result
+  Dim Tab5Rslt As Result
+  Dim steresult As Result
+  Dim IntResult As Result
+  Dim p, Ep, Ep2 As Integer 'compteur de lignes
+  Dim p1 As Integer
+  Dim p5 As String
+  Dim Brub As Boolean = False
+  Dim titre As String
+  Dim sens As String
+  Dim marge, prodexo, valajout, excexpl, resexpl, rescour, resexcept, resexo, plusmoins, resultat, rubrique As String
+  
+  dtes1 = dte1
+  dtes2 = dte2
+  Tab = "centralisation"
+  Tab1 = "Fiches_Rubriques" 
+  Tab2 = "Fiches_Parametres" 
+  Tab3 = "Fiches_RubCompt" 
+  Tab4 = "Fiches_Comptes" 
+  Exo = exercice
+  If Exo = "E1" Then
+    Tab5 = "Fiches_Mvt" 
+    Tab6 = "Fiches_Mvt1" 
+  Endif
+  If Exo = "N1" Then
+    Tab5 = "Fiches_Mvt1" 
+    Tab6 = "Fiches_Mvt2" 
+  Endif
+  If Exo = "N2" Then
+    Tab5 = "Fiches_Mvt2" 
+    Tab6 = "Fiches_Mvt3" 
+  Endif
+  If Exo = "N3" Then
+    Tab5 = "Fiches_Mvt3" 
+    Tab6 = "Fiches_Mvt4" 
+  Endif
+  If Exo = "N4" Then
+    Tab5 = "Fiches_Mvt4" 
+    Tab6 = "Fiches_Mvt5" 
+  Endif
+  If Exo = "N5" Then
+    Tab5 = "Fiches_Mvt5" 
+  Endif
+  Tab7 = "Fiches_Societes"
+  SteResult = Utils.db.Exec("SELECT * FROM " & Tab7 & " Where cd_sc = &1", Start.Societe)
+  Ste = "Societe " & " " & SteResult!int_sc
+  Etot1 = 0
+  Etot2 = 0
+  Etot3 = 0
+  Etot4 = 0
+  Ltot3 = 0
+  Ltot4 = 0
+  Etot2 = 0
+  Otot1 = 0
+  Ttot1 = 0
+  P1 = 0
+  RubE = "0"
+  RubO = "0"
+  With utils
+    'On supprime la table Centralisation si elle existe
+    Utils.db.Exec("DROP TABLE IF EXISTS centralisation")
+    
+    'Puis on la crée
+    Utils.db.Exec("CREATE TABLE " & Tab & 
+      "(numrub Char(5) NOT NULL," &
+      "intitrub Char(70)," &
+      "type Char(1)," &
+      "detail Char(1)," &
+      "compte Char(8)," &
+      "intitcpt Char(50)," &
+      "col1 Char(12)," &
+      "prod Char(1)," &
+      "PRIMARY KEY (numrub, compte))" & "ENGINE = MYISAM")
+    
+    ' On récupère le type d'impression
+    Prefix = "S"
+    Periode = "Période du " & dteN0 & " au " & dteN1 & ""
+    
+    '******************************************************************
+    '* On centralise les lignes et les entetes de la période demandée *
+    '******************************************************************
+    ' On sélectionne nos rubriques
+    RubE = "0"
+    Tab1Rslt = Utils.db.Exec("SELECT * FROM " & Tab1 & " WHERE left(numrub,1) = &1 order by numrub", Prefix)
+    If Tab1Rslt.Count Then
+      Repeat
+        Rub = Tab1Rslt!numrub
+        intitrub = Tab1Rslt!intitule
+        type = Tab1Rslt!type
+        Det = Tab1Rslt!detail
+        'If type = "L" Then Det = "N"
+        rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE numrub = &1", Rub)
+        If Not rResult.Available And intitrub Then
+          Utils.db.Exec("INSERT INTO " & Tab & "(numrub, intitrub, type, detail, col1, prod) VALUES ( &1, &2, &3, &4, &5, &6)", Rub, intitrub, type, det, 0, Tab1Rslt!num)
+        Else
+          Utils.db.Exec("UPdate  " & Tab & "  SET  numrub = &1, intitrub = &2, type = &3, detail = &4, col1 = &5, prod = &6 WHERE numrub = &1", Rub, intitrub, type, det, 0, Tab1Rslt!num)
+        Endif
+        
+        If type = "L" Then
+          Tab3Rslt = Utils.db.Exec("SELECT * FROM " & Tab3 & " WHERE numrub = &1 order by numrub", Rub)
+          If Tab3Rslt.Count Then
+            Repeat
+              cpt1 = Tab3Rslt!compte1
+              cpt2 = Tab3Rslt!compte2
+              Tab5Rslt = Utils.db.Exec("SELECT * FROM " & Tab5 & " WHERE compte >= &1 and compte <= &2 and dte >= &3 and dte <= &4 order by compte", cpt1, cpt2, .Cdate_Dbase(dten0), .Cdate_Dbase(dten1))
+              If Tab5Rslt.Count Then
+                Repeat
+                  cpt = Tab5Rslt!compte
+                  intitcpt = Tab5Rslt!intitule
+                  Ltot2 = Tab5Rslt!montantc - Tab5Rslt!montantd 
+                  Ltot3 = Ltot3 + Ltot2
+                  Ltot4 = Ltot4 + Ltot2
+                  Ltot5 = Ltot3
+                  cpt3 = cpt
+                  det = "O"
+                  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE numrub = &1", Rub, cpt)
+                  If Ltot5 <> "" Then
+                    If Not rResult.Available Then
+                      Utils.db.Exec("INSERT INTO " & Tab & "(numrub, intitrub, compte, intitcpt, type, detail, col1, prod) VALUES ( &1, &2, &3, &4, &5, &6, &7, &8)", Rub, intitrub, cpt, intitcpt, type, det, Ltot2, Tab1Rslt!num)
+                    Else
+                      Ltot2 = Ltot2 + Val(.cpoint(rResult!col1))
+                      Utils.db.Exec("UPdate  " & Tab & "  SET  numrub = &1, intitrub = &2, compte = &3, intitcpt = &4, type = &5, detail = &6, col1 = &7, prod = &8 WHERE numrub = &1", Rub, intitrub, cpt, intitcpt, type, det, Ltot2, Tab1Rslt!num)
+                    Endif
+                    Ltot2 = 0
+                  Endif
+                Until Tab5Rslt.MoveNext()
+                Etot3 = Etot3 + Ltot3
+                Ltot3 = 0
+              Endif
+            Until Tab3Rslt.MoveNext()
+          Endif
+        Endif
+        Etot1 = Etot1 + Etot3
+        Etot3 = 0
+        Ltot4 = 0
+        If type = "T" Then
+          Etot1 = 0
+          Stot1 = 0
+          Ltot1 = 0
+          Ltot3 = 0
+        Endif
+        If type = "O" Then
+          If RubE <> "0" Then
+            rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE numrub = &1", RubE)
+            If Not rResult.Available Then
+              Utils.db.Exec("INSERT INTO " & Tab & "(numrub, intitrub, type, detail, col1) VALUES ( &1, &2, &3, &4, &5)", RubE, intitrubE, type, detE, Etot1)
+            Else
+              Utils.db.Exec("UPdate  " & Tab & "  SET  numrub = &1, intitrub = &2, type = &3, detail = &4, col1 = &5 WHERE numrub = &1", RubE, intitrubE, type, detE, Etot1)
+            Endif
+          Endif
+          Etot1 = 0
+        Endif
+        
+      Until Tab1Rslt.MoveNext()
+    Endif
+    
+    '**************************************
+    '*               On imprime           *
+    '**************************************
+    Tab1Rslt = Utils.db.Exec("SELECT * FROM " & Tab & " Order by numrub, detail, compte")
+    P5 = ""
+    p1 = 0
+    sens = 0
+    If Tab1Rslt.Count Then
+      dateedition = "du " & dteN0 & " au " & dteN1
+      Nbpage = 1
+      Shell "cd " & User.Home & ""
+      Filename = User.home & "/SIG.pdf"
+      pdf = New Csig("l", "mm", "A4")
+      pdf.Open()
+      pdf.AliasNbPages()
+      posy = 32
+      cpt = Tab1Rslt!numrub
+      cpt2 = rub
+      Repeat
+        Rub = Tab1Rslt!numrub
+        compte = Tab1Rslt!compte
+        type = Tab1Rslt!type
+        Det = Tab1Rslt!detail
+        If Not IsNull(compte) Then
+          IntResult = Utils.db.Exec("SELECT intitule_cc FROM " & Cbase.Table("TabComptes") & " where compte_cc = &1 ", compte)
+          Try Intitcpt = IntResult!intitule_cc
+        Endif
+        If Tab1Rslt!numrub = "S0400" And type = "L" And det = "N" Then
+          Imp3 = 0
+          Imp4 = 0
+        Endif
+        If type = "T" Then
+          Titre = Tab1Rslt!intitrub
+          Etot1 = 0
+          Etot2 = 0
+          Etot4 = 0
+          Stot1 = 0
+          Stot2 = 0
+          Stot3 = 0
+          Stot4 = 0
+        Endif
+        If Tab1Rslt!type = "L" And det = "O" Then
+          If Tab1Rslt!col1 <> "" Then
+            If Tab1Rslt!numrub = "S0150" Then 
+              pdf.level1("Valeur ajoutée", Valajout, "", "0", Posy)
+              Posy += 6
+              Inc Ep
+              Totp = Valajout
+            Endif
+            If Tab1Rslt!numrub = "S0200" Then 
+              pdf.level1("Excédent brut d'exploitation", excexpl, "", "0", Posy)
+              Posy += 6
+              Inc Ep
+              Totp = excexpl
+            Endif
+            If Tab1Rslt!numrub = "S0270" Then 
+              pdf.level1("Résultat d'exploitation", resexpl, "", "0", Posy)
+              Posy += 6
+              Inc Ep
+              Totp = Resexpl
+            Endif
+            If Tab1Rslt!numrub = "S0360" Then 
+              pdf.level1("Résultat courant avant impots", rescour, "", "0", Posy)
+              Posy += 6
+              Inc Ep
+              If Val(.cpoint(resexcept)) >= 0 Then
+                pdf.level1("Résultat exceptionnel", resexcept, "", "0", Posy)
+              Else
+                'pdf.level1("", "0", "Résultat exceptionnel", resexcept, Posy)
+                'PosY += 6
+                'PosYdeb += 6
+              Endif
+              Totp = Rescour + resexcept
+              Posy += 6
+              Inc Ep
+            Endif
+            
+            If Tab1Rslt!prod = "P" Then 
+              'If Left$(compte, 3) = "713" Then
+              'If Val(.cpoint(Tab1Rslt!col1)) > 0 Then 
+              'cptM = "-" & Val(.cpoint(Tab1Rslt!col1))
+              'Else
+              'cptM = Val(.cpoint(Tab1Rslt!col1))
+              'Endif
+              'Otot3 = cptM
+              'Else
+              Otot3 = Val(.cpoint(Tab1Rslt!col1))
+              'Endif
+              If Left$(compte, 3) = "709" Then Otot3 = "-" & otot3
+              imp1 = Format$(Otot3, "0")
+              pdf.level1(Tab1Rslt!intitrub, Imp1, "", "0", Posy)
+              Posy += 6
+              Inc Ep
+              Totp = TotP + Val(.cpoint(Imp1))
+              p = 1
+            Else
+              imp1 = "0"
+              'If Left$(compte, 3) = "713" And Left$(Tab1Rslt!col1, 1) <> "-" Then
+              Otot4 = Val(.cpoint(Tab1Rslt!col1))
+              'Else
+              'Otot4 = Val(.cpoint(Tab1Rslt!col1))
+              'Endif
+              If Left$(compte, 3) = "609" Then Otot4 = "-" & otot4
+              imp2 = Format$(Otot4, "0")
+              'Posy -= 11
+              'Else
+              'Ep = 0
+              'Endif
+              'If p = 1 Then 
+              'PosY = posydeb
+              'p = 0
+              'Endif
+              TotA = TotA + Val(.cpoint(Imp2))
+              pdf.level1("", "0", Tab1Rslt!intitrub, Imp2, posydeb)
+              posydeb += 6
+              Inc ep2
+            Endif
+          Endif
+        Endif
+        If Tab1Rslt!type = "E" 
+          If Tab1Rslt!numrub = "S0060" Then marge = Val(.cpoint(TotA)) - Val(.cpoint(Totp))
+          If Tab1Rslt!numrub = "S0105" Then 
+            Prodexo = Val(utils.cpoint(TotA)) + Val(utils.cpoint(Totp))
+            Brub = True
+          Endif
+          If Tab1Rslt!numrub = "S0130" Then 
+            Valajout = Prodexo + marge
+            Brub = True
+          Endif
+          If Tab1Rslt!numrub = "S0180" Then 
+            excexpl = Val(.cpoint(TotA)) + Val(.cpoint(Totp))
+            brub = True
+          Endif
+          'If Tab1Rslt!numrub = "S0250" Then 
+          'resexpl = Val(.cpoint(TotA)) + Val(.cpoint(Totp))
+          'brub = True
+          'Endif
+          If Tab1Rslt!numrub = "S0310" Then 
+            If Resultat = "Bénéfice" Then
+              rescour = Val(.cpoint(TotA)) - Val(.cpoint(Totp))
+            Else
+              rescour = Val(.cpoint(Totp)) + Val(.cpoint(TotA))
+            Endif
+            brub = True
+          Endif
+          If Tab1Rslt!numrub = "S0350" Then 
+            resexcept = Val(.cpoint(TotA)) + Val(.cpoint(Totp))
+            brub = True
+          Endif
+          If Tab1Rslt!numrub = "S0380" Then 
+            resexo = Val(.cpoint(TotA)) + Val(.cpoint(Totp))
+            brub = True
+          Endif
+          If Tab1Rslt!numrub = "S0410" Then 
+            plusmoins = Val(.cpoint(TotA)) + Val(.cpoint(Totp))
+            brub = True
+          Endif
+          Rubrique = Tab1Rslt!intitrub
+          If ep > Ep2 Then
+            Posy = Posydeb + (ep - ep2) * 6
+          Else
+            Posy = Posydeb
+          Endif
+          Select Case Tab1Rslt!numrub
+              
+            Case "S0130" 
+              pdf.level2("Total ", Valajout, "Total ", Format$(TotA, "0"), Rubrique, Valajout + Val(.cpoint(Tota)), Posy)
+              Valajout = Valajout + Val(.cpoint(Tota))
+            Case "S0250" 
+              pdf.level2("Total ", Totp, "Total ", Format$(TotA, "0"), Rubrique, Totp + Val(.cpoint(Tota)), Posy)
+              Resexpl = Totp + Val(.cpoint(Tota))
+            Case "S0310" 
+              pdf.level2("Total ", rescour, "Total ", Format$(TotA, "0"), Rubrique, Rescour + Val(.cpoint(Tota)), Posy)
+              'rescour = Resexpl + Val(.cpoint(Tota))
+            Case Else
+              pdf.level2("Total ", Format$(Totp, "0"), "Total ", Format$(TotA, "0"), Rubrique, Val(.cpoint(Totp)) + Val(.cpoint(Tota)), Posy)
+          End Select
+          Posy += 6
+          pdf.Lines(Posy)
+          Posydeb = posy
+          If Posy >= 162 Then 
+            pdf.Lines3(Posy)
+            Posy = 186
+          Endif
+          ep = 0
+          ep2 = 0
+          Totp = 0
+          TotA = 0
+          If Tab1Rslt!numrub = "S0105" Then
+            pdf.Lines2(Posy)
+            Posydeb = Posy
+            pdf.level1("Production de l'exercice", prodexo, "", "0", Posy)
+            Posy += 6
+            pdf.level1("Marge commerciale", Marge, "", "0", Posy)
+            Posy += 6
+            Valajout = Format$(Val(.cpoint(Prodexo)) + Val(.cpoint(Marge)), "0")
+            'Valajout = totpt - Tota
+            'pdf.level2("Total ", Format$(Valajout, "0"), "Total ", Format$(TotA, "0"), Rubrique, Val(.cpoint(Totp)) + Val(.cpoint(Tota)), Posy)
+            Ep = 2
+            Ep2 = 0
+          Endif
+        Endif
+        If type = "T" Then
+          If p1 = 1 Then pdf.Baspage()
+          pdf.Level0(Tab1Rslt!intitrub, periode, detail, ste)
+          posy = 32
+          pdf.level3(Posy)
+          Posy += 10
+          Posydeb = posy
+          p = 8
+          p1 = 0
+        Endif
+        If Posy >= 186 Then
+          p = 8
+          pdf.Baspage()
+          Posy = 0
+          pdf.Level0(Titre, periode, detail, ste)
+          posy = 32
+          pdf.level3(Posy)
+          Posy += 10
+          Posydeb = posy
+          p = 8
+          p1 = 0
+        Endif
+      Until Tab1Rslt.MoveNext()
+      pdf.Lines3(Posy)
+      posy += 6
+      pdf.Baspage()
+      pdf.Output(Filename, False)
+      Visualiseur.Prog_Editeur(Filename)
+    Else
+      Message.Info("Rien a imprimer pour cette période !")
+    Endif
+  End With
+  
+End
+
+'********************
+'* On lance la doc  *
+'********************
+Public Sub Button1_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Bcrimp.html"]
+  
+End
