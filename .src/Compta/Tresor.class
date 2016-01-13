@@ -2508,6 +2508,8 @@ Public Sub Button5_Click()
     Select Case Message.Question("Que voulez-vous faire ?\n1- Joindre un fichier existant\n2- Scanner un document\n3 -Sortir", "1", "2", "3")
       Case 1
         Panel2.Visible = True
+        TextBox1.text = Settings["/Soc" & Start.Societe & "/FactcheminC"] & "/"
+        Etiquette.SetFocus
         
       Case 2
         ecrit1.MoveFirst()
@@ -2540,7 +2542,64 @@ Public Sub Button5_Click()
   
 End
 
+Public Sub P5_MouseDown()
+  
+  Dim lig As String[]
+  Dim x As Integer
+  Dim Rep As String
+  
+  Dialog.Title = "Choisir un repertoire"
+  Dialog.Path = User.Home
+  If Not Dialog.SelectDirectory() Then
+    TextBox1.Text = Dialog.Path
+  Else
+    TextBox1.Text = User.Home
+  Endif
+  TextBox1.Text &= "/"
+  
+End
+
 Public Sub Button8_Click()
+  
+  Dim rDoc As Result
+  Dim Fic, Fichier As String
+  Dim NmFic As String[]
+  Dim $NmFic As String = TextBox1.Text
+  Dim ific As Integer
+  Dim $cpt As String
+  
+  Dialog.Filter = FileFilter(True)
+  Dialog.Path = User.home
+  Dialog.Title = "Choix d'un fichier"
+  If Dialog.OpenFile() Then Return
+  Fic = Dialog.Path
+  NmFic = Split(Fic, "/")
+  For ific = 0 To NmFic.Count - 1
+    Fichier = NmFic[ific]
+  Next
+  ecrit1.MoveFirst()
+  ecrit1.Item.Selected = True
+  $cpt = ecrit1.Current[0]
+  If Not Exist($NmFic) Then Mkdir $NmFic
+  $NmFic &= Format$(Now, "yyyy")
+  If Not Exist($NmFic) Then Mkdir $NmFic
+  $Nmfic &= "/" & $cpt
+  If Not Exist($NmFic) Then Mkdir $NmFic
+  Shell "cp " & Fic & " " & $NmFic Wait
+  Fichier = $NmFic & "/" & Fichier
+  rDoc = Utils.db.Exec("SELECT * from " & Cbase.Table("TabCPTdocs") & " where code = &1 AND doc = &2 ", Numecrit.Text, Fichier)
+  If rDoc.Available Then
+    Utils.db.Exec("Update " & Cbase.Table("TabCPTdocs") & " set doc = &2, doc2 = &3, org = &4 where code = &1 AND doc = &2 ", Numecrit.Text, Fichier, Numecrit.text & "," & $cpt & "," & Etiquette.text, "Docs")
+  Else
+    Try Utils.db.Exec("insert into " & Cbase.Table("TabCPTdocs") & " (code,doc, doc2, org) values ( &1, &2, &3, &4)", Numecrit.Text, Fichier, Numecrit.text & "," & $cpt & "," & Etiquette.text, "Docs")
+  Endif
+  Panel2.visible = False
+Catch
+  Message.Warning(ERROR.Text)
+  
+End
+
+Public Sub Button88_Click()
   
   Dim rDoc As Result
   Dim $NmFic As String = Settings["/Soc" & Start.Societe & "/FactcheminC"]
@@ -2592,5 +2651,19 @@ End
 Public Sub Etiquette_KeyPress()
   
   If Key.code = Key.Esc Or If Key.code = Key.Escape Then Panel1.Visible = False
+  
+End
+
+Public Sub Button7_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Ged.html"]
+  
+End
+
+Public Sub Button6_Click()
+  
+  TextBox1.Clear
+  Etiquette.Clear
+  Panel2.visible = False
   
 End
