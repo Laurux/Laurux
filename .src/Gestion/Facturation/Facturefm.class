@@ -100,6 +100,7 @@ Private Vichq As String
 Private Viautre As String
 Private Cptreglt As String
 Private Reglmt As String
+Private Prxdec As Boolean = Settings["/Soc" & Start.Societe & "/Prxdec"]
 
 '**********************************************************
 '*initialisation écrans et gestion onglet client          *
@@ -899,20 +900,20 @@ Public Sub Impression()
                       Txtva = Ligbl!tx_ligbl
                       Pu = Ligbl!pu_ligbl
                       If Len(pu) - InStr(pu, ",") = 2 Then pu = pu & " "
-                      If Settings["/Soc" & Start.Societe & "/Prxdec"] Then Try Pu = Round(Val(pu))
+                      If Prxdec Then Try Pu = Round(Val(pu))
                       qte = Ligbl!qte_ligbl
                       Brutht = Ligbl!brut_ligbl
                       If Len(Brutht) - InStr(Brutht, ",") = 2 Then Brutht = Brutht & " "
-                      If Settings["/Soc" & Start.Societe & "/Prxdec"] Then Try Brutht = Round(Val(Brutht))
+                      If Prxdec Then Try Brutht = Round(Val(Brutht))
                       Rem = Ligbl!rem_ligbl
                       totalht = Ligbl!netht_ligbl
                       If Len(totalht) - InStr(totalht, ",") = 2 Then totalht = totalht & " "
-                      If Settings["/Soc" & Start.Societe & "/Prxdec"] Then Try Totalht = Round(Val(Totalht))
+                      If Prxdec Then Try Totalht = Round(Val(Totalht))
                       typeL = Ligbl!typel_ligbl
                       If typeL = "C" Or If typeL = "R" Then intitule = Ligbl!com_ligbl
                       Totttc = Ligbl!nettc_ligbl
                       If Len(Totttc) - InStr(Totttc, ",") = 2 Then Totttc = Totttc & " "
-                      If Settings["/Soc" & Start.Societe & "/Prxdec"] Then Try Totttc = Round(Val(Totttc))
+                      If Prxdec Then Try Totttc = Round(Val(Totttc))
                       Fam = Ligbl!fam_ligbl
                       If Totttc = "" Then Totttc = "0"
                       If totalht = "" Then totalht = "0"
@@ -936,7 +937,7 @@ Public Sub Impression()
                       Endif
                       If typeL <> "C" And typeL <> "T" And typeL <> "E" And typeL <> "P" And typeL <> "R" And typeL <> "O" Then
                         totht = Format$(Val(totht) + Val(totalht), "0.00")
-                        If Settings["/Soc" & Start.Societe & "/Prxdec"] Then
+                        If Prxdec Then
                           pu = Format$(Val(pu), "0")
                           Totalht = Format$(Val(totalht), "0")
                           Brutht = Format$(Val(Brutht), "0")
@@ -1045,16 +1046,16 @@ Public Sub Impression()
               ' On imprime l'acompte
               If TotAcpt > 0 Then
                 Mtdut = Mfacttc - Acpt
-                If Settings["/Soc" & Start.Societe & "/Prxdec"] Then
+                If Prxdec Then
                   Mtdut = Round(Mtdut)
                   Mtdut = Format$(Mtdut, "###########")
                 Endif
-                If Settings["/Soc" & Start.Societe & "/Prxdec"] Then
+                If Prxdec Then
                   Mfacttc = Round(Val(Mfacttc))
                   Mfacttc = Format$(Val(Mfacttc), "###########")
                 Endif
                 Mrgt = "Total acomptes : "
-                If Settings["/Soc" & Start.Societe & "/Prxdec"] Then
+                If Prxdec Then
                   Totacpt = Round(Val(Totacpt))
                   Totacpt = Format$(Val(Totacpt), "###########")
                 Endif
@@ -1277,6 +1278,10 @@ Public Sub Maj_Totalisation()
     If rrResult.Available Then
       Totht = Format$(Val(.cpoint(rrResult!totalht)) + Val(.cpoint(totalht)), "0.00")
       TotTva = Format$(Val(.cpoint(rrResult!totaltva)) + Val(.cpoint(Mtva)), "0.00")
+      If Prxdec Then
+        Totht = Round(Val(Totht))
+        TotTva = Round(Val(TotTva))
+      Endif
       'Si ce n'est pas un compte TVA on met a jour sans le code TVA
       If Left$(cpt, 4) <> "4457" Then
         Utils.db.Exec("UPdate " & Tab5 & " set compte = &1, intitule = &2, totalht = &3, totaltva =&4 Where compte = &1 and codetva = &5", cpt, Intit, Totht, TotTva, 0)
@@ -1287,6 +1292,7 @@ Public Sub Maj_Totalisation()
     Else
       'Si le compte n'existe pas dans la table temporaire
       Totht = Format$(Val(.cpoint(totalht)), "0.00")
+      If Prxdec Then Totht = Round(Val(Totht))
       'Si ce n'est pas un compte TVA on crée avec un code TVA a zéro
       If Left$(cpt, 4) <> "4457" Then
         Utils.db.Exec("INSERT INTO " & Tab5 & "(compte, intitule, totalht, totaltva, codetva) VALUES (&1, &2, &3, &4, &5)", cpt, Intit, Totht, Mtva, 0)
@@ -1298,6 +1304,9 @@ Public Sub Maj_Totalisation()
     rrResult = Utils.db.Exec("SELECT * FROM " & Tab5 & " Where compte = &1 and codetva = &2", cpttva, Ctva)
     If rrResult.Available Then
       TotTva = Format$(Val(.cpoint(rrResult!totaltva)) + Val(.cpoint(Mtva)), "0.00")
+      If Prxdec Then 
+        TotTva = Round(Val(TotTva))
+      Endif
       Utils.db.Exec("UPdate " & Tab5 & " set compte = &1, intitule =&2, totaltva =&3, codetva = &4 Where compte = &1 and codeTva = &4", cpttva, Intittva, Tottva, Ctva)
     Else
       Utils.db.Exec("INSERT INTO " & Tab5 & "(compte, intitule, totaltva, codetva) VALUES (&1, &2, &3, &4)", cpttva, Intittva, Mtva, Ctva)
@@ -1489,6 +1498,10 @@ Public Sub Maj_Compta()
         Endif
         Mtd = Abs(mtd)
         Mtc = Abs(Mtc)
+        If Prxdec Then
+          Mtd = Round(Mtd)
+          Mtc = Round(Mtc)
+        Endif
         'Utils.db.Exec("INSERT INTO " & Tmvt & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnl, numr, cpt, Intit, .Cdate_Dbase(dtef.Text), Right$(Dtef.text, 2) & Mid$(Dtef.text, 4, 2) & Nfac, Libel, Mtd, Mtc, Valid, Prov, Tresor, pointee, lettree, cloturee, relance, numr2)
         Utils.db.Exec("INSERT INTO " & Tmvt & "(jour, numero, compte, intitule, dte, dateech, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18})", Jnl, numr, Cpt, Intit, .Cdate_Dbase(dtef.Text), .Cdate_Dbase(dateech2), Nfac, Libel, Mtd, Mtc, Valid, Prov, Tresor, Pointee, lettree, Cloturee, Relance, numr2)
         rrResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " Where compte_cc = &1", cpt)
@@ -1734,8 +1747,12 @@ Public Sub Calc_tva()
             If Left$(cpt, 3) = "445" Then
               Mtva2 = Format$(Val(CResult!totaltva), "0.00")
               If Mtva2 = "" Then Mtva2 = "0,00"
+              If Prxdec Then
+                Mtva2 = Round(Val(Mtva2))
+                Mtva2 = Format$(Val(Mtva2), ",0")
+              Endif
               If Val(Mtva2) <> 0 Then
-                If Settings["/Soc" & Start.Societe & "/Prxdec"] Then
+                If Prxdec Then
                   Mtva = Format$(Val(Mtva2), "0" & " " & devises)
                   ctx = Format$(Val(ctx), "0")
                   Mtva2 = Format$(Val(Mtva2), "0")
@@ -1762,12 +1779,12 @@ Public Sub Calc_tva()
     Mttc = Format$(Val(.cpoint(Toteuros)) + Val(.cpoint(Tva)), "0.00")
     'Level7(CStr(Toteuros), CStr(Format$(Tva, "0.00")), CStr(Mttc), CStr(Txtleg))
     'Level7()
-    If Settings["/Soc" & Start.Societe & "/Prxdec"] Then
+    If Prxdec Then
       Tva = Format$(Val(Tva), "0")
     Else
       Tva = Format$(Tva, "0.00")
     Endif
-    If Settings["/Soc" & Start.Societe & "/Prxdec"] Then
+    If Prxdec Then
       Mttc2 = Format$(Val(Mttc), "0" & " " & devises)
       Toteuros = Format$(Toteuros, "0")
     Else
