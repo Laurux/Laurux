@@ -1,0 +1,265 @@
+' Gambas class file
+
+Private NmFic As String
+Private Numecrite As String
+Private Type As String
+Private compte As String
+Private comptet As String
+Private direct As Boolean = False
+Private TableB As String
+
+Public Sub _New(Nfic As String, Tp As String, cpt As String, cpt2 As String)
+  
+  Me.center
+  Type = Tp
+  Compte = cpt
+  Comptet = cpt2 ' compte de trésorerie
+  Numecrite = Nfic
+  If IsNull(Nfic) Then 
+    P5.visible = True
+    direct = True
+    Bcli_Click()
+    TextLabel1.Text = "Saisir le chemin puis le nom du document a scaner.< BR >(Ne pas saisir l'extension)<BR> Ex : /home/laurux/FacClients/Docs/411007/12365"
+  Endif
+  If Not direct Then
+    Select Case Type
+      Case "F"
+        Bfour.value = True
+        Bcli.enabled = False
+        Bart.enabled = False
+        Bautre.Enabled = False
+        Bcompta.Enabled = False
+        If Not IsNull(Nfic) Then
+          If Nfic <> "Fournisseur" Then
+            NmFic = Settings["/Soc" & Start.Societe & "/FactcheminF"] & "/BR"
+          Else
+            NmFic = Settings["/Soc" & Start.Societe & "/FactcheminF"] & "/Docs"
+          Endif
+        Else
+          NmFic = Settings["/Soc" & Start.Societe & "/FactcheminF"] & "/Docs"
+        Endif
+        If Not Exist(NmFic) Then Try Mkdir NmFic
+        NmFic &= "/" & cpt
+        If Not Exist(NmFic) Then Try Mkdir NmFic
+        Textbox1.Text = NmFic & "/"
+        TableB = "TabFdocs"
+        
+      Case "Fac"
+        Bfour.value = True
+        Bcli.enabled = False
+        Bart.enabled = False
+        Bautre.Enabled = False
+        Bcompta.Enabled = False
+        NmFic = Settings["/Soc" & Start.Societe & "/FactcheminF"] & "/Fac"
+        If Not Exist(NmFic) Then Try Mkdir NmFic
+        NmFic &= "/" & cpt
+        If Not Exist(NmFic) Then Try Mkdir NmFic
+        NmFic = NmFic & "/" & Format$(Now, "yyyy")
+        If Not Exist(NmFic) Then Try Mkdir NmFic
+        NmFic = NmFic & "/" & Format$(Now, "mm")
+        If Not Exist(NmFic) Then Try Mkdir NmFic
+        Textbox1.Text = NmFic
+        TableB = "TabFdocs"
+        
+      Case "C"
+        Bcli.value = True
+        Bfour.enabled = False
+        Bart.enabled = False
+        Bautre.Enabled = False
+        Bcompta.Enabled = False
+        If Not IsNull(Nfic) Then
+          If Nfic <> "Client" Then
+            NmFic = Settings["/Soc" & Start.Societe & "/Factchemin"] & "/BR"
+          Else
+            NmFic = Settings["/Soc" & Start.Societe & "/Factchemin"] & "/Docs"
+          Endif
+        Else
+          NmFic = Settings["/Soc" & Start.Societe & "/Factchemin"] & "/Docs"
+        Endif
+        If Not Exist(NmFic) Then Try Mkdir NmFic
+        NmFic &= "/" & cpt
+        If Not Exist(NmFic) Then Try Mkdir NmFic
+        Textbox1.Text = NmFic & "/"
+        TableB = "TabCdocs"
+        
+      Case "P"
+        Bart.value = True
+        Bcli.enabled = False
+        Bfour.enabled = False
+        Bautre.Enabled = False
+        Bcompta.Enabled = False
+        NmFic = Settings["/Soc" & Start.Societe & "/FactcheminP"]
+        If Not Exist(NmFic) Then Try Mkdir NmFic
+        Textbox1.Text = NmFic & "/"
+        TableB = "TabPdocs"
+        
+      Case "CPT"
+        Bart.enabled = False
+        Bcli.enabled = False
+        Bfour.enabled = False
+        Bautre.Enabled = False
+        Bcompta.Value = True
+        NmFic = Settings["/Soc" & Start.Societe & "/FactcheminC"]
+        If Not Exist(NmFic) Then Try Mkdir NmFic
+        NmFic &= "/" & Format$(Now, "yyyy")
+        If Not Exist(NmFic) Then Try Mkdir NmFic
+        NmFic &= "/" & compte & "/"
+        If Not Exist(NmFic) Then Try Mkdir NmFic
+        Textbox1.Text = NmFic
+        TableB = "TabCPTdocs"
+        
+    End Select
+  Endif
+  
+End
+
+Public Sub Button2_Click()
+  
+  Me.Close
+  
+End
+
+Public Sub P5_MouseDown()
+  
+  Dim lig As String[]
+  Dim x As Integer
+  Dim Rep As String
+  
+  Dialog.Title = "Choisir un repertoire"
+  Dialog.Path = User.Home
+  If Not Dialog.SelectDirectory() Then
+    TextBox1.Text = Dialog.Path
+  Else
+    TextBox1.Text = User.Home
+  Endif
+  TextBox1.Text &= "/"
+  
+End
+
+Public Sub Button8_Click()
+  
+  Dim rDoc As Result
+  Dim Fic, Fichier, Fico As String
+  Dim NmFic As String[]
+  Dim $NmFic As String = Textbox1.text
+  Dim ific As Integer
+  
+  Fico = Textbox1.text
+  NmFic = Split(Fico, "/")
+  For ific = 0 To NmFic.Count - 1
+    Fichier = NmFic[ific]
+  Next
+  Fico = Fichier
+  $NmFic = Left$($NmFic, Len($NmFic) - Len(Fico))
+  Dialog.Title = "Choix d'un fichier"
+  Dialog.Path = User.home
+  If Not Dialog.OpenFile() Then
+    Fic = Dialog.Path
+    NmFic = Split(Fic, "/")
+    For ific = 0 To NmFic.Count - 1
+      Fichier = NmFic[ific]
+    Next
+    If Not Exist($NmFic) Then Mkdir $NmFic
+    If Not IsNull(Fico) Then
+      If Fico <> Fichier Then Fichier = Fico
+    Endif
+    If InStr($Nmfic, ".") = 0 Then 
+      Fichier = $NmFic & Fichier
+    Else
+      Fichier = $NmFic
+    Endif
+    Shell "cp " & Fic & " " & Fichier Wait
+    If type = "CPT" Then
+      rDoc = Utils.db.Exec("SELECT * from " & Cbase.Table(TableB) & " where code = &1", Numecrite)
+      If rDoc.Available Then
+        Utils.db.Exec("Update " & Cbase.Table(TableB) & " set doc = &2, doc2 = &3, org = &4 where code = &1", Numecrite, Fichier, Numecrite & "," & compte & "," & Etiquette.text, "Docs")
+      Else
+        Utils.db.Exec("insert into " & Cbase.Table(TableB) & " (code,doc, doc2, org) values ( &1, &2, &3, &4)", Numecrite, Fichier, Numecrite & "," & compte & "," & Etiquette.text, "Docs")
+      Endif
+    Else
+      Utils.db.Exec("insert into " & Cbase.Table(TableB) & " (code,doc, doc2, org) values ( &1, &2, &3, &4)", compte, Fichier, compte & "," & Etiquette.text, "Docs")
+    Endif
+    Message.Info("Fichier copié.")
+    Me.close
+  Endif
+Catch
+  Message.Warning(ERROR.Text)
+  
+End
+
+Private Function FileFilter(Optional All As Boolean = False) As String[]
+  
+  Dim filter As New String[]
+  
+  filter.Add("*.*")
+  Return filter
+  
+End
+
+Public Sub Etiquette_KeyPress()
+  
+  If Key.code = Key.Esc Or If Key.code = Key.Escape Then Me.Close
+  
+End
+
+Public Sub Bcli_Click()
+  
+  Type = "C"
+  NmFic = Settings["/Soc" & Start.Societe & "/Factchemin"] & "/Docs" & "/"
+  If Not Exist(NmFic) Then Try Mkdir NmFic
+  TextBox1.Text = NmFic
+  'NmFic = ""
+  
+End
+
+Public Sub Bfour_Click()
+  
+  Type = "F"
+  NmFic = Settings["/Soc" & Start.Societe & "/FactcheminF"] & "/Docs" & "/"
+  If Not Exist(NmFic) Then Try Mkdir NmFic
+  TextBox1.Text = NmFic
+  'NmFic = ""
+  
+End
+
+Public Sub Bart_Click()
+  
+  Type = "P"
+  NmFic = Settings["/Soc" & Start.Societe & "/FactcheminP"] & "/Docs" & "/"
+  If Not Exist(NmFic) Then Try Mkdir NmFic
+  TextBox1.Text = NmFic
+  'NmFic = ""
+  
+End
+
+Public Sub Bcompta_Click()
+  
+  Type = "CPT"
+  NmFic = Settings["/Soc" & Start.Societe & "/FactcheminC"] & "/" & Format$(Now, "yyyy") & "/"
+  If Not Exist(NmFic) Then Try Mkdir NmFic
+  TextBox1.Text = NmFic
+  'NmFic = ""
+  
+End
+
+Public Sub Bautre_Click()
+  
+  Type = "A"
+  NmFic = Settings["/Soc" & Start.Societe & "/FactcheminA"] & "/Docs" & "/"
+  If Not Exist(NmFic) Then Try Mkdir NmFic
+  TextBox1.Text = NmFic
+  'NmFic = ""
+  
+End
+
+Public Sub Button7_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Ged.html"]
+  
+End
+
+Public Sub Button6_Click()
+  
+  Me.close
+  
+End
