@@ -479,6 +479,7 @@ Public Sub Button2_Click()
   Dim Ttot1 As Float
   Dim Ttot5 As Float
   Dim Ttot6 As Float
+  Dim Tproduit1, Tproduit2, Tcharge1, Tcharge2 As Float = 0
   Dim Imp1 As String ' variable pour l'impression des lignes période
   Dim Imp2 As String ' variable pour l'impression des lignes période précédente
   Dim rResult As Result
@@ -833,7 +834,7 @@ Public Sub Button2_Click()
               Stot6 = Stot2
               Utils.db.Exec("UPdate  " & Tab & "  SET col3 = &2, col4 = &3 WHERE numrub = &1", Rub, Stot5, Stot6)
             Endif
-            If type = "O" And Left(Rub, 1) <> "S" Then
+            If type = "O" And Left(Rub, 1) = "R" Then
               Etot1 = 0
               Etot2 = 0
               Otot5 = Stot1
@@ -860,13 +861,22 @@ Public Sub Button2_Click()
         Ttot6 = "0"
         '------------------------------------------------------------------------
         'On calcule les totaux des produits ou des charges.
-        rResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
+        'rResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
+        rResult = Utils.db.Exec("SELECT * FROM " & Tab & " as e inner join " & Tab1 & " as a on a.numrub = e.numrub")
         If rResult.Count Then
           Repeat
             Rub = rResult!numrub
             intitrub = rResult["intitrub"]
             type = rResult!type
             det = rResult!detail
+            If rResult!num = "P" Then
+              Tproduit1 = Tproduit1 + Abs(Val(.cpoint(rResult!col3)))
+              Tproduit2 = Tproduit2 + Abs(Val(.cpoint(rResult!col4)))
+            Endif
+            If rResult!num = "C" Then
+              Tcharge1 = Tcharge1 + Abs(Val(.cpoint(rResult!col3)))
+              Tcharge2 = Tcharge2 + Abs(Val(.cpoint(rResult!col4)))
+            Endif
             If type = "S" Then
               Etot5 = rResult!col3
               Etot6 = rResult!col4
@@ -884,7 +894,7 @@ Public Sub Button2_Click()
         
         rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where type = &1", "O")
         If rResult.Count Then
-          If Left(rResult!numrub, 1) <> "S" Then
+          If Left(rResult!numrub, 1) = "R" Then
             Repeat
               Rub = rResult!numrub
               intitrub = rResult["intitrub"]
@@ -941,41 +951,38 @@ Public Sub Button2_Click()
             intitrub = rResult["intitrub"]
             type = rResult!type
             det = rResult!detail
-            If Left(Rub, 1) <> "S" Then
-              If type = "O" Then
-                Otot5 = rResult!col3
-                Otot6 = rResult!col4
-              Endif
-              If type = "C" Then
-                Stot5 = rResult!col3
-                Stot6 = rResult!col4
-              Endif
-              If type = "D" Then
-                Stot5 = rResult!col3
-                Stot6 = rResult!col4
-              Endif
-              If type = "R" And types = "C" Then
-                Stot5 = Otot5 + Abs(Stot5)
-                Stot6 = Abs(Otot6) + Abs(Stot6)
-                Utils.db.Exec("UPdate  " & Tab & "  SET col3 = &2, col4 = &3 WHERE numrub = &1", Rub, Stot5, Stot6)
-              Endif
-              If type = "G" And types = "C" Then
-                Stot5 = Abs(Otot5)
-                Stot6 = Abs(Otot6)
-                Utils.db.Exec("UPdate  " & Tab & "  SET col3 = &2, col4 = &3 WHERE numrub = &1", Rub, Stot5, Stot6)
-              Endif
-              If type = "R" And types = "D" Then
-                Stot5 = Otot5 + Abs(Stot5)
-                Stot6 = Abs(Otot6) + Abs(Stot6)
-                Utils.db.Exec("UPdate  " & Tab & "  SET col3 = &2, col4 = &3 WHERE numrub = &1", Rub, Stot5, Stot6)
-              Endif
-              If type = "G" And types = "D" Then
-                Stot5 = Abs(Otot5) + Abs(Stot5)
-                Stot6 = Abs(Otot6) + Abs(Stot6)
-                Utils.db.Exec("UPdate  " & Tab & "  SET col3 = &2, col4 = &3 WHERE numrub = &1", Rub, Stot5, Stot6)
-              Endif
+            If type = "O" Then
+              Otot5 = rResult!col3
+              Otot6 = rResult!col4
             Endif
-            
+            If type = "C" Then
+              Stot5 = rResult!col3
+              Stot6 = rResult!col4
+            Endif
+            If type = "D" Then
+              Stot5 = rResult!col3
+              Stot6 = rResult!col4
+            Endif
+            If type = "R" Then
+              Stot5 = Otot5 + Abs(Stot5)
+              Stot6 = Abs(Otot6) + Abs(Stot6)
+              Utils.db.Exec("UPdate  " & Tab & "  SET col3 = &2, col4 = &3 WHERE numrub = &1", Rub, Tproduit1, Tproduit2)
+            Endif
+            If type = "G" And types = "C" Then
+              Stot5 = Abs(Otot5)
+              Stot6 = Abs(Otot6)
+              Utils.db.Exec("UPdate  " & Tab & "  SET col3 = &2, col4 = &3 WHERE numrub = &1", Rub, Tcharge1, Tcharge2)
+            Endif
+            'If type = "R" And types = "D" Then
+            'Stot5 = Otot5 + Abs(Stot5)
+            'Stot6 = Abs(Otot6) + Abs(Stot6)
+            'Utils.db.Exec("UPdate  " & Tab & "  SET col3 = &2, col4 = &3 WHERE numrub = &1", Rub, Stot5, Stot6)
+            'Endif
+            If type = "G" And types = "D" Then
+              Stot5 = Abs(Otot5) + Abs(Stot5)
+              Stot6 = Abs(Otot6) + Abs(Stot6)
+              Utils.db.Exec("UPdate  " & Tab & "  SET col3 = &2, col4 = &3 WHERE numrub = &1", Rub, Stot5, Stot6)
+            Endif
           Until rResult.MoveNext()
         Endif
         
@@ -1084,13 +1091,16 @@ Public Sub Button2_Click()
               Posy += 6
               p = p + 1
             Endif
-            If type = "R" Or type = "G" Then
-              pdf.level1(intitrub, p5, imp1, imp2, Posy)
+            If type = "R" Then
+              pdf.level1(intitrub, p5, Tproduit1, Tproduit2, Posy)
               Posy += 6
               p = p + 2
-              If type = "R" Then
-                sens = 1
-              Endif
+              sens = 1
+            Endif
+            If type = "G" Then
+              pdf.level1(intitrub, p5, Tcharge1, Tcharge2, Posy)
+              Posy += 6
+              p = p + 2
             Endif
             If p = 45 Then
               p = 8
