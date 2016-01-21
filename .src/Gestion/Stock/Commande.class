@@ -66,6 +66,7 @@ sCentrale As String 'Reference centrale du produit
 sCentraleF As String 'code centrale du fournisseur
 Email As String
 Piece As String
+Private ComCli As Float
 Private Posy As Integer
 Private Org As String = ""
 Private Cpt As Integer = 0
@@ -74,7 +75,7 @@ Private idate As Integer = Val(Format$(Now, "mm"))
 Private icpt As String
 Private hfil As File
 Private Hnew As File
-pdf As Cdocuments
+Private pdf As Cdocuments
 Private Pttc As String = "0"
 Private son As Integer = Start.Son
 
@@ -231,6 +232,9 @@ Public Sub CleanChamps()
   Choix1.Clear
   Pdprod.Clear
   Colhisto.Clear
+  Artcom.Background = &H00FFFFFF&
+  Artstock.Background = &H00FFFFFF&
+  Comcli = 0
   
 End
 
@@ -1270,6 +1274,7 @@ Public Sub Gencom()
     fourn = rarts!four
     Repeat
       qtecom = 0
+      stocke = rarts!art_stocke
       Nlgn = Format$(Colrcp.count + 1, "000")
       If Not IsNull(rarts!qtecom) Then 
         Qtecom = rarts!qtecom
@@ -1456,6 +1461,12 @@ End
 ' On recherche le nombre de produits dans les commandes clients.
 Public Sub Artcom_MouseDown()
   
+  Artcomm("")
+  
+End
+
+Public Sub Artcomm(Org As String)
+  
   Dim rblResult As Result
   Dim qtecli As Float = 0
   
@@ -1466,12 +1477,15 @@ Public Sub Artcom_MouseDown()
         Qtecli = Qtecli + Val(Utils.cpoint(rblResult!qte_ligbl))
       Endif
     Until rblResult.MoveNext()
-    If Qtecli > 0 Then
-      Message.Info("Il y a " & Qtecli & " produit(s) dans les commandes clients.")
-    Else
-      Message.Info("Il n'y a aucun produit dans les commandes clients.") 
+    If Not Org Then
+      If Qtecli > 0 Then
+        Message.Info("Il y a " & Qtecli & " produit(s) dans les commandes clients.")
+      Else
+        Message.Info("Il n'y a aucun produit dans les commandes clients.") 
+      Endif
     Endif
   Endif
+  ComCli = Qtecli
   
 End
 
@@ -2003,6 +2017,14 @@ Public Sub art_man()
           Nmfour.Text = Rfours!fo_nom
           b = 0
           Calc_Histo()
+          If stocke Then Artcomm("Artman")
+          If ComCli > 0 Then
+            Frmt = Utils.FColr(BStockes)
+            Try CoulB = Val(Frmt[0])
+            If Not Error Then ArtCom.Background = CoulB
+          Else
+            Artcom.Background = &H00FFFFFF&
+          Endif
         Else
           If Start.son Then
             Music.Play
