@@ -101,6 +101,12 @@ Private Viautre As String
 Private Cptreglt As String
 Private Reglmt As String
 Private Prxdec As Boolean = Settings["/Soc" & Start.Societe & "/Prxdec"]
+Private Codecli As String
+Private NomCli As String
+Private adr1 As String
+Private adr2 As String
+Private cpcli As String
+Private villecli As String
 
 '**********************************************************
 '*initialisation écrans et gestion onglet client          *
@@ -140,10 +146,12 @@ Public Sub _New()
   Colbl.Columns[5].Alignment = 2
   
   Coldetail.Columns.count = 4
-  Coldetail.Columns[0].Width = 120
+  Coldetail.Columns[0].Width = 130
+  Coldetail.Columns[1].Alignment = 3
   Coldetail.Columns[2].Alignment = Align.Left
-  Coldetail.Columns[1].Width = 120
+  Coldetail.Columns[1].Width = 150
   Coldetail.Columns[2].Width = 120
+  Coldetail.Columns[3].Width = 120
   Coldetail.Columns[0].Text = "N° BL"
   Coldetail.Columns[1].Text = "Date BL"
   Coldetail.Columns[2].Text = "montant HT"
@@ -187,14 +195,17 @@ Public Sub recup_bl()
     "(code Char(8) NOT NULL," &
     "nom Char(35)," &
     "cp Char(5)," &
+    "adr1 Char(35)," &
+    "adr2 Char(35)," &
     "ville Char(35)," &
     "totf Char(12)," &
     "tottc Char(12)," &
-    "PRIMARY KEY (code))" & "ENGINE = MYISAM")
+    "PRIMARY KEY (code, nom))" & "ENGINE = MYISAM")
   Utils.db.Exec("drop Table IF exists " & Tab4 & "")
   Utils.db.Exec("CREATE TABLE " & Tab4 &
     "(num Char(12) NOT NULL," &
     "code Char(10)," &
+    "nom Char(35)," &
     "date date," &
     "ht Char(12)," &
     "ttc Char(12)," &
@@ -202,35 +213,58 @@ Public Sub recup_bl()
   dteN = Right$(datej.Text, 4) & Mid$(datej.Text, 4, 2) & Left$(datej.Text, 2)
   If Radiobutton1.Value = True Then
     codeclient.Background = &HD4D0C8& '&HF9F9BD&
-    Client = Utils.db.Exec("SELECT * FROM " & Tab & " Left join " & Cbase.Table("TabCli") & " on cli_code = cdclibl where type = &1 and totalht <> &3 and datebl <= &4 or type = &2 and totalht <> &3 and datebl <= &4 and imp <> &5  order by cdclibl", "B", "F", 0, dteN, 1)
+    Client = Utils.db.Exec("SELECT * FROM " & Tab & " Left join " & Cbase.Table("TabCli") & " on cli_code = cdclibl where type = &1 and totalht <> &3 and datebl <= &4  and cli_div = &6 or type = &2 and totalht <> &3 and datebl <= &4 and imp <> &5 and cli_div = &6 order by cdclibl, numbl", "B", "F", 0, dteN, 1, Divers.value)
   Else
-    Client = Utils.db.Exec("SELECT * FROM " & Tab & " Left join " & Cbase.Table("TabCli") & " on cli_code = cdclibl where cdclibl = &1 and type = &2 and totalht <> &4 and datebl <= &5 or cdclibl = &1 and type = &3 and totalht <> &4 and datebl <= &5  and imp <> &6 order by cdclibl", codeclient.Text, "B", "F", 0, dteN, 1)
+    Client = Utils.db.Exec("SELECT * FROM " & Tab & " Left join " & Cbase.Table("TabCli") & " on cli_code = cdclibl where cdclibl = &1 and type = &2 and totalht <> &4 and datebl <= &5 and cli_div = &7  or cdclibl = &1 and type = &3 and totalht <> &4 and datebl <= &5 and imp <> &6 and cli_div = &7  order by cdclibl, numbl", codeclient.Text, "B", "F", 0, dteN, 1, Divers.value)
   Endif
   If Client.Available Then
+    Codecli = Client!cdclibl
+    Nomcli = Client!nmclibl
+    adr1 = Client!adr1bl
+    adr2 = Client!adr2bl
+    cpcli = Client!cpbl
+    villecli = Client!villebl
     Repeat
-      If Not Client!cli_div Then
+      If Divers.value And Codecli <> Client!cdclibl Or If Divers.value And Nomcli <> Client!nmclibl Then
+        Nomcli = Client!nmclibl
+        adr1 = Client!adr1bl
+        adr2 = Client!adr2bl
+        cpcli = Client!cpbl
+        villecli = Client!villebl
+      Endif
+      If Not Divers.value Then
         totf = Utils.db.Exec("SELECT * FROM " & Tab3 & " WHERE code = &1", Client!cdclibl)
-        If totf.Available Then
-          Total = Format$(Val(totf!totf) + Val(Utils.cpoint(Client!totalht)), "0.00")
-          Totalttc = Format$(Val(totf!tottc) + Val(Utils.cpoint(Client!totalttc)), "0.00")
+      Else
+        totf = Utils.db.Exec("SELECT * FROM " & Tab3 & " WHERE code = &1 and nom = &2", Client!cdclibl, Nomcli)
+      Endif
+      If totf.Available Then
+        Total = Format$(Val(totf!totf) + Val(Utils.cpoint(Client!totalht)), "0.00")
+        Totalttc = Format$(Val(totf!tottc) + Val(Utils.cpoint(Client!totalttc)), "0.00")
+        If Not Divers.value Then
           Utils.db.Exec("UPdate " & Tab3 & " SET totf = &1, tottc = &2 WHERE code = &3", Total, Totalttc, Client!cdclibl)
         Else
-          Try Total = Format$(Client!totalht, "0.00")
-          Try Totalttc = Format$(Client!totalttc, "0.00")
+          Utils.db.Exec("UPdate " & Tab3 & " SET totf = &1, tottc = &2 WHERE code = &3 and nom = &4", Total, Totalttc, Client!cdclibl, Nomcli) 
+        Endif 
+      Else
+        Try Total = Format$(Client!totalht, "0.00")
+        Try Totalttc = Format$(Client!totalttc, "0.00")
+        If Not Divers.value Then
           Utils.db.Exec("INSERT INTO " & Tab3 & " (code, nom, cp, ville, totf, tottc) Values (&1, &2, &3,&4,&5, &6)", Client!cdclibl, Client!nmclibl, Client!cpbl, Client!villebl, Total, totalttc)
+        Else
+          Utils.db.Exec("INSERT INTO " & Tab3 & " (code, nom, adr1, adr2, cp, ville, totf, tottc) Values (&1, &2, &3,&4,&5, &6, &7, &8)", Client!cdclibl, Nomcli, adr1, adr2, cpcli, villecli, Total, totalttc)
         Endif
-        Total = 0
-        Bl = Utils.db.Exec("SELECT * FROM " & Tab1 & " where num_ligbl = &1 order by num_ligbl", Client!numbl)
-        If Bl.Available Then
-          Utils.db.Exec("INSERT INTO " & Tab4 & " (num, code, date, ht, ttc) Values (&1, &2, &3, &4, &5)", Client!numbl, Client!cdclibl, Client!datebl, Client!totalht, Client!totalttc)
-        Endif
+      Endif
+      Total = 0
+      Bl = Utils.db.Exec("SELECT * FROM " & Tab1 & " where num_ligbl = &1 order by num_ligbl", Client!numbl)
+      If Bl.Available Then
+        Utils.db.Exec("INSERT INTO " & Tab4 & " (num, code, nom, date, ht, ttc) Values (&1, &2, &3, &4, &5, &6)", Client!numbl, Client!cdclibl, Nomcli, Client!datebl, Client!totalht, Client!totalttc)
       Endif
     Until Client.MoveNext()
   Endif
   Client = Utils.db.Exec("SELECT * FROM " & Tab3 & " order by nom")
   If Client.Available Then
     Repeat
-      Colbl.Add(Client!code, Client!code)
+      Colbl.Add(Client!code & Client!nom, Client!code & Client!nom)
       Colbl.Item[0] = Client!code
       Colbl.Item[1] = Client!nom
       Colbl.Item[2] = Client!cp
@@ -252,12 +286,20 @@ Public Sub Colbl_Click()
     If Not Colbl.Available Then
       Colbl.clear
     Else
-      Client = Utils.db.Exec("SELECT * FROM " & Tab4 & " where code = &1 order by num", Colbl.Item[0], "B", "F", 0)
+      If Divers.value Then
+        Client = Utils.db.Exec("SELECT * FROM " & Tab4 & " where code = &1 and nom = &5 order by num", Colbl.Item[0], "B", "F", 0, Colbl.Item[1])
+      Else
+        Client = Utils.db.Exec("SELECT * FROM " & Tab4 & " where code = &1 order by num", Colbl.Item[0], "B", "F", 0)
+      Endif
       sclient = Colbl.Item[0]
       nmclient = Colbl.Item[1]
       If Client.Available Then
         Repeat
-          Coldetail.Add(Client!num, Client!num)
+          If Divers.value Then
+            Coldetail.Add(Client!num & Client!nom, Client!num & Client!nom)
+          Else
+            Coldetail.Add(Client!num, Client!num)
+          Endif
           Coldetail.Item[0] = Client!num
           Coldetail.Item[1] = .Cdate_Aff(Client!date)
           Coldetail.Item[2] = Format$(Val(.cpoint(Client!ht)), "0.00")
@@ -738,6 +780,8 @@ Public Sub Impression()
       Parametres()
       If Jnl Then
         Colbl.MoveFirst()
+        Colbl.Item.Selected = True
+        NomCli = Colbl.Item[1]
         Repeat
           Variables.bRemise = False
           pdf = New Cdocuments("Portrait", "mm", "A4")
@@ -792,19 +836,37 @@ Public Sub Impression()
             Syntheses.Message(" Veuillez saisir une date d'édition s'il vous plait.")
             Message.Warning(" Veuillez saisir une date d'édition Svp !", "Ok")
           Else
-            CblRslt = Utils.db.Exec("SELECT * FROM " & tab5 & " where cli_code = &1", Colbl.Item[0])
-            CCli = CblRslt!cli_code
-            nom = CblRslt!cli_nom
-            ech = CblRslt!cli_cdech
-            Rs2 = CblRslt!cli_rs_soc & " " & CblRslt!cli_nom & " " & CblRslt!cli_pnm
-            adr211 = CblRslt!cli_adr1
-            adr222 = CblRslt!cli_adr2
-            ville2 = CblRslt!cli_cd_ptl & " " & CblRslt!cli_ville
-            Nbexpl = CblRslt!cli_expl
-            Pays = CblRslt!cli_pays
-            Cfac = CblRslt!cli_copie
-            Reglmt = CblRslt!cli_reg
-            scourriel = CblRslt!cli_email
+            If Not Divers.value Then
+              CblRslt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " left join " & Tab8 & " on cli_code = code where cli_code = &1", Colbl.Item[0])
+            Else
+              CblRslt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " left join " & Tab8 & " on cli_code = code where cli_code = &1 and nom = &2 order by cli_code, nom", Colbl.Item[0], Colbl.Item[1])
+            Endif
+            If Not Divers.value Then
+              CCli = CblRslt!cli_code
+              nom = CblRslt!cli_nom
+              ech = CblRslt!cli_cdech
+              Rs2 = CblRslt!cli_rs_soc & " " & CblRslt!cli_nom & " " & CblRslt!cli_pnm
+              adr211 = CblRslt!cli_adr1
+              adr222 = CblRslt!cli_adr2
+              ville2 = CblRslt!cli_cd_ptl & " " & CblRslt!cli_ville
+              Nbexpl = CblRslt!cli_expl
+              Pays = CblRslt!cli_pays
+              Cfac = CblRslt!cli_copie
+              Reglmt = CblRslt!cli_reg
+              scourriel = CblRslt!cli_email
+            Else
+              CCli = CblRslt!cli_code
+              nom = CblRslt!nom
+              Rs2 = nom
+              adr211 = CblRslt!adr1
+              adr222 = CblRslt!adr2
+              ville2 = CblRslt!cp & " " & CblRslt!ville
+              adr1 = adr211
+              adr2 = adr222
+              ville = ville2
+              Nbexpl = CblRslt!cli_expl
+              Cfac = CblRslt!cli_copie
+            Endif
             If Pays = "France" Then Pays = ""
             If Not IsNull(CblRslt!cli_id_tva) Then
               TvaCli = "Tva intracommunautaire " & CblRslt!cli_id_tva
@@ -875,7 +937,11 @@ Public Sub Impression()
             Trem = "0"
             Tmo = "0"
             Teco = 0
-            numbl = Utils.db.Exec("SELECT * FROM " & tab0 & " where cdclibl = &1 order by numbl", Colbl.Item[0])
+            If Not Divers.value Then
+              numbl = Utils.db.Exec("SELECT * FROM " & tab0 & " where cdclibl = &1 order by numbl", Colbl.Item[0])
+            Else
+              numbl = Utils.db.Exec("SELECT * FROM " & tab0 & " where cdclibl = &1 and nmclibl = &2order by numbl", Colbl.Item[0], Colbl.Item[1])
+            Endif
             If numbl.Count <> 0 Then
               Repeat
                 numbonl = numbl!numbl
@@ -1797,7 +1863,11 @@ Public Sub Calc_tva()
     PosY = PosY + 8
     pdf.Level11F(Txtleg2, PosY)
     efac = Utils.db.Exec("SELECT * FROM " & efacs & " where cli_code = &1", Colbl.Item[0])
-    Utils.db.Exec("INSERT INTO " & Entf & "(numfac,datefac,cdclifac,cvclifac, nmclifac, rmofac, rartfac, pnmclifac, adr1fac, adr2fac, cpfac, villefac, Exofac, remmofac, remartfac, totfac, reg, ech, numerobl, acpt, mreg, marge_art, marge_mo, totfacttc) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13},&{14},&{15},&{16},&{17},&{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24})", Right$(dtef.Text, 4) & nfac, .Cdate_Dbase(datej.Text), Colbl.Item[0], efac!cli_rs_soc, efac!cli_nom, 0, 0, efac!cli_pnm, efac!cli_adr1, efac!cli_adr2, efac!cli_cd_ptl, efac!cli_ville, "", .cpoint(Remmo), .cpoint(Remart), Val(Totht), "", .Cdate_Dbase(dateech), "", 0, "", mgart, mgmo, Val(Mttc))
+    If Not Divers.value Then
+      Utils.db.Exec("INSERT INTO " & Entf & "(numfac,datefac,cdclifac,cvclifac, nmclifac, rmofac, rartfac, pnmclifac, adr1fac, adr2fac, cpfac, villefac, Exofac, remmofac, remartfac, totfac, reg, ech, numerobl, acpt, mreg, marge_art, marge_mo, totfacttc) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13},&{14},&{15},&{16},&{17},&{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24})", Right$(dtef.Text, 4) & nfac, .Cdate_Dbase(datej.Text), Colbl.Item[0], efac!cli_rs_soc, efac!cli_nom, 0, 0, efac!cli_pnm, efac!cli_adr1, efac!cli_adr2, efac!cli_cd_ptl, efac!cli_ville, "", .cpoint(Remmo), .cpoint(Remart), Val(Totht), "", .Cdate_Dbase(dateech), "", 0, "", mgart, mgmo, Val(Mttc))
+    Else
+      Utils.db.Exec("INSERT INTO " & Entf & "(numfac,datefac,cdclifac,cvclifac, nmclifac, rmofac, rartfac, pnmclifac, adr1fac, adr2fac, cpfac, villefac, Exofac, remmofac, remartfac, totfac, reg, ech, numerobl, acpt, mreg, marge_art, marge_mo, totfacttc) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13},&{14},&{15},&{16},&{17},&{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24})", Right$(dtef.Text, 4) & nfac, .Cdate_Dbase(datej.Text), Colbl.Item[0], "", Nom, 0, 0, "", adr1, adr2, cpcli, villecli, "", .cpoint(Remmo), .cpoint(Remart), Val(Totht), "", .Cdate_Dbase(dateech), "", 0, "", mgart, mgmo, Val(Mttc))
+    Endif
     Nlgn = "0000"
     Totht = "0"
     mgart = "0"
@@ -1845,7 +1915,11 @@ Public Sub Ent_Archives()
   Ligbon = "Fiches_Ligbl" 
   Bn = "Bl" 
   With Utils
-    Bonl = Utils.db.Exec("SELECT * FROM " & Bn & " where code = &1 order by num", Colbl.Item[0])
+    If Not Divers.value Then
+      Bonl = Utils.db.Exec("SELECT * FROM " & Bn & " where code = &1 order by num", Colbl.Item[0])
+    Else
+      Bonl = Utils.db.Exec("SELECT * FROM " & Bn & " where code = &1 and nom = &2 order by num", Colbl.Item[0], Colbl.Item[1])
+    Endif
     If Bonl.Available Then
       Repeat
         Entbonl = Utils.db.Exec("SELECT * FROM " & Entbon & " where numbl = &1", Bonl!num)
@@ -2057,5 +2131,11 @@ End
 Public Sub Button7_Click()
   
   Exec ["xdg-open", Application.Path &/ "Ecrans/FacturesFinMois.html"]
+  
+End
+
+Public Sub Divers_Click()
+  
+  Button1_Click()
   
 End
