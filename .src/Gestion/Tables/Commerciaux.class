@@ -1,0 +1,203 @@
+' Gambas class file
+
+Public Sub Form_Open()
+  
+  Dim rResult As Result
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Me.Center
+  Vendeur.Columns.count = 4
+  Vendeur.Columns[0].Width = 30
+  Vendeur.Columns[1].Width = 140
+  Vendeur.Columns[2].Width = 1
+  Vendeur.Columns[3].Width = 140
+  Vendeur.Columns[0].Text = "code"
+  Vendeur.Columns[0].Alignment = 1
+  Vendeur.Columns[1].Text = "  Nom "
+  Vendeur.Columns[1].Alignment = 1
+  Vendeur.Columns[3].Text = "  Prénom "
+  Vendeur.Columns[3].Alignment = 1
+  
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCommerciaux") & " order by code")
+  If rResult.Available Then
+    Repeat
+      Vendeur.Add(rResult!code, rResult!code)
+      Vendeur.Item[0] = rResult!code
+      Vendeur.Item[1] = rResult!nom
+      Vendeur.Item[2] = rResult!comm
+      Vendeur.Item[3] = rResult!prenom
+    Until rResult.MoveNext()
+  Endif
+  
+  Code.SetFocus
+  
+End
+
+Public Sub Ven_GotFocus()
+  
+  Utils.ObsGotf(Last)
+  
+End
+
+Public Sub Ven_LostFocus()
+  
+  Select Case Last.tag
+    Case 1
+      Try Code.text = Format$(Val(Code.Text), "00")
+      
+    Case 4
+      Comm.Text = Utils.cpoint(Comm.Text)
+      If Val(Comm.Text) = Null Then
+        If start.son Then
+          Music.Play
+        Endif
+        Try message.Warning("Veuillez verifier votre saisie SVP !")
+        Comm.SetFocus
+      Else
+        Comm.Text = Format$(Val(Comm.Text), "0.00")
+      Endif
+  End Select
+  Utils.ObsLstf(Last)
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Button3_Click()
+      
+    Case 2
+      Button1_Click()
+      
+    Case 3
+      Me.Close
+      
+  End Select
+  
+End
+
+Public Sub Btn_KeyPress()
+  
+  Select Case Last.tag
+    Case 2
+      Button1_Click()
+  End Select
+  
+End
+
+Public Sub Button1_Click()
+  
+  Dim Rcai As Result
+  Dim $mdp As String
+  
+  If Code.Text <> "" Then
+    With utils
+      Rcai = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCommerciaux") & " WHERE code = &1", Code.text)
+      If Rcai.Available Then
+        Utils.db.Exec("UPdate  " & Cbase.Table("TabCommerciaux") & "  SET nom = &2, prenom = &3, comm = &4 WHERE code = &1", Code.text, Nom.Text, Prenom.Text, Val(Utils.cpoint(Comm.Text)))
+      Else
+        Utils.db.Exec("INSERT INTO " & Cbase.Table("TabCommerciaux") & " (code,nom, prenom, comm) VALUES (&1, &2, &3, &4)", Code.text, Nom.Text, Prenom.text, Val(Utils.cpoint(Comm.Text)))
+      Endif
+    End With
+    Refresh()
+    Cleanchamps()
+  Else
+    Code.Select
+  Endif
+  
+End
+
+Public Sub Button3_Click()
+  
+  If Code.Text <> "" Then
+    Music.Play
+    If Message.Question("Etes vous sur de vouloir effacer cet enregistrement", "Oui", "Non") = 1 Then
+      Utils.db.Exec("DELETE FROM  " & Cbase.Table("TabCommerciaux") & " WHERE code = '" & Vendeur.Current[0] & "'")
+      Refresh()
+      Cleanchamps()
+    Endif
+  Else
+  Endif
+  
+End
+
+Public Sub Refresh()
+  
+  Vendeur.clear
+  form_Open()
+  Maj_Zones()
+  
+End
+
+Public Sub Maj_Zones()
+  
+  With Utils
+    If Vendeur.Count <> 0 Then
+      Code.Text = Vendeur.Item[0]
+      Nom.text = Vendeur.Item[1]
+      Comm.Text = Vendeur.Item[2]
+      Prenom.text = Vendeur.Item[3]
+    Endif
+  End With
+  Code.SetFocus
+  
+End
+
+Public Sub Cleanchamps()
+  
+  Code.Clear
+  Nom.Clear
+  Prenom.Clear
+  Comm.Clear
+  
+End
+
+Public Sub Ven_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.RETURN Or Key.code = Key.Tab Then
+    Select Case Last.tag
+        
+      Case 1
+        Nom.SetFocus
+        Nom.Select
+        Stop Event
+        
+      Case 2
+        Prenom.SetFocus
+        Prenom.Select
+        Stop Event
+        
+      Case 3
+        Comm.SetFocus
+        Comm.Select
+        Stop Event
+        
+      Case 4
+        Button1.SetFocus
+        Stop Event
+    End Select
+  Endif
+  
+  If key.code = key.F1 Then
+    Button4_Click()
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Vendeur_Click()
+  
+  Maj_Zones()
+  
+End
+
+'**********************************
+'*    Appel de la doc html        *
+'**********************************
+Public Sub Button4_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Doc_Caisse/Table.Commerciaux.html"]
+  
+End
