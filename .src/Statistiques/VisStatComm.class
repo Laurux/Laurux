@@ -30,15 +30,15 @@ Public Dtn0 As String
 Public Dtn1 As String
 Public Tri As String
 Public sens As String
-CoulZns As Integer ' Variable pour la couleur du background des zones de saisie et des columnviews
-CoulZnaf As Integer ' Variable pour la couleur du background des columnviews
-CoulFc As Integer ' Variable pour la couleur du focus
-PosY As Integer
-Page As Integer
-Filename As String
+Private CoulZns As Integer ' Variable pour la couleur du background des zones de saisie et des columnviews
+Private CoulZnaf As Integer ' Variable pour la couleur du background des columnviews
+Private CoulFc As Integer ' Variable pour la couleur du focus
+Private PosY As Integer
+Private Page As Integer
+Private Filename As String
 Private detail As Boolean
-son As Integer = Start.Son
-Coulfond As New String[]
+Private son As Integer = Start.Son
+Private Coulfond As New String[]
 
 Public Sub _New(Hitniv As StatComm, Soc As String, Sn As Integer, dte1 As String, dte2 As String, det As Boolean)
   
@@ -225,24 +225,11 @@ End
 
 Public Sub Button2_Click()
   
-  Dim code As String
-  Dim intitule As String
-  Dim Pvht As String
-  Dim Pvhtt As Float
-  Dim Rm As String
-  Dim rmt As Float
-  Dim Net As String
-  Dim nett As Float
-  Dim htn1 As String
-  Dim nn1 As String
-  Dim Totn1 As Float
-  Dim Totnn1 As String
+  Dim code, intitule, commercial As String
+  Dim Puht, rm, net, pourcent, commission As String
   Dim pdf As Chistoriques
+  Dim rmT, netT, htn As Float = 0
   
-  rmt = 0
-  NetT = 0
-  Totn1 = 0
-  totnn1 = 0
   page = 1
   Shell "cd " & User.Home & ""
   Filename = User.home & "/Statcli.pdf"
@@ -251,43 +238,40 @@ Public Sub Button2_Click()
     pdf = New Chistoriques("Portrait", "mm", "A4")
     pdf.Open()
     pdf.AliasNbPages()
-    pdf.Entete("Impression du CA clients")
+    pdf.Entete("Impression du CA client par commercial")
     pdf.Level0F(dtn0, dtn1)
-    pdf.Level1C()
+    pdf.Level1AC()
     posy = 32
     Liste.MoveFirst
     Repeat
+      
       Liste.Item.Selected = True
       code = Liste.Current[0]
-      intitule = Liste.Current[1]
-      Pvht = Liste.Current[3]
+      intitule = Liste.Current[1] & " " & Liste.Current[2]
+      Puht = Liste.Current[3]
       Rm = Liste.Current[4]
       Net = Liste.Current[5]
-      htn1 = Liste.Current[6]
-      nn1 = Liste.Current[7]
-      Try Totn1 = Totn1 + Val(htn1)
-      If IsNull(nn1) Or If IsNull(Val(nn1)) Then nn1 = "0"
-      'Totnn1 = Totnn1 + Val(nn1)
-      Pvhtt = Pvhtt + Val(Pvht)
+      pourcent = Liste.Current[6]
+      commission = Liste.Current[7]
+      commercial = Liste.Current[8]
+      Try htn = htn + Val(net)
       rmt = rmt + Val(Rm)
       NetT = NetT + Val(Net)
-      pdf.level2C(code, intitule, pvht, rm, net, htn1, nn1, PosY)
+      pdf.level2AC(code, intitule, puht, rm, net, pourcent, commission, commercial, PosY)
       posy += 5
       If PosY >= 283 Then
         pdf.Footer()
-        pdf.Entete("Impression du CA clients")
+        pdf.Entete("Impression du CA clients par commercial")
         pdf.Level0F(dtn0, dtn1)
-        pdf.Level1C()
+        pdf.Level1AC()
         posy = 32
       Endif
     Until Liste.MoveNext()
     pdf.Lines(PosY)
     posy += 5
-    pdf.Level4C(PosY)
-    posy += 8
-    Try Totnn1 = Format$(((Val(Utils.cpoint(nett)) - Val(Utils.cpoint(totn1))) * 100) / Val(Utils.cpoint(totn1)), "00.00")
-    If Error Then Totnn1 = "0,00"
-    pdf.Level5c(Format$(pvhtt, "0.00"), Format$(rmt, "0.00"), Format$(nett, "0.00"), Format$(Totn1, "0.00"), Totnn1, PosY)
+    'pdf.Level4C(PosY)
+    'posy += 8
+    'pdf.Level5c(Format$(pvhtt, "0.00"), Format$(rmt, "0.00"), Format$(nett, "0.00"), Format$(Totn1, "0.00"), Totnn1, PosY)
     pdf.Footer()
     pdf.Output(Filename, False)
     Visualiseur.Prog_Editeur(Filename)

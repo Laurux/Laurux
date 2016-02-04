@@ -318,15 +318,24 @@ Public Sub Colbl_Keypress()
   Dim Tab4 As String = "Bl"
   
   If Key.code = Key.Delete And Colbl.Count <> 0 Then
-    Utils.db.Exec("delete from " & Tab3 & " WHERE code = &1 ", sclient)
-    Utils.db.Exec("delete from " & Tab4 & " WHERE code = &1 ", sclient)
+    If Divers.value Then
+      Utils.db.Exec("delete from " & Tab3 & " WHERE code = &1 and nom = &2", sclient, nmclient)
+      Utils.db.Exec("delete from " & Tab4 & " WHERE code = &1 and nom = &2", sclient, nmclient)
+    Else
+      Utils.db.Exec("delete from " & Tab3 & " WHERE code = &1 ", sclient)
+      Utils.db.Exec("delete from " & Tab4 & " WHERE code = &1 ", sclient) 
+    Endif
   Endif
   Colbl.Clear
   Coldetail.Clear
   Client = Utils.db.Exec("SELECT * FROM " & Tab3 & " order by nom")
   If Client.Available Then
     Repeat
-      Colbl.Add(Client!code, Client!code)
+      If Divers.value Then
+        Colbl.Add(Client!code & Client!nom, Client!code & Client!nom)
+      Else
+        Colbl.Add(Client!code, Client!code)
+      Endif
       Colbl.Item[0] = Client!code
       Colbl.Item[1] = Client!nom
       Colbl.Item[2] = Client!cp
@@ -358,12 +367,17 @@ Public Sub Coldetail_Keypress()
   Dim Client As Result
   Dim Totalht, totalttc As String = "0"
   Dim Tab4 As String = "Bl"
+  Dim cle As String = Colbl.Key
   
   With Utils
     If Key.code = Key.Delete And Coldetail.Count <> 0 Then
       Utils.db.Exec("delete from " & Tab4 & " WHERE num = &1 ", sclient2)
     Endif
-    Client = Utils.db.Exec("SELECT * FROM " & Tab4 & " where code = &1 order by num", sclient)
+    If Divers.value Then
+      Client = Utils.db.Exec("SELECT * FROM " & Tab4 & " where code = &1 and nom = &2 order by num", sclient, nmclient)
+    Else
+      Client = Utils.db.Exec("SELECT * FROM " & Tab4 & " where code = &1 order by num", sclient)
+    Endif
     Coldetail.Clear
     If Client.Available Then
       Repeat
@@ -379,9 +393,11 @@ Public Sub Coldetail_Keypress()
     Colbl.MoveFirst()
     Repeat
       Colbl.Item.Selected = True
-      If Colbl.Item[0] = sclient Then
+      If Colbl.key = cle Then
+        'If Colbl.Item[0] = sclient Then
         Colbl.Item[4] = Totalht
         Colbl.Item[5] = Totalttc
+        Colbl_Click()
         Break
       Endif
     Until Colbl.MoveNext()
@@ -549,7 +565,8 @@ Public Sub Bl_Edit()
   dtef.ReadOnly = False
   Try Rcp.Value = Settings["/Soc" & Start.Societe & "/Recap"]
   'Try ChxImp.value = Settings["/Soc" & Start.Societe & "/ChxImp"]
-  If radiobutton2.value Then Rgmt.Visible = True
+  If radiobutton2.value Or If divers.value And Colbl.count = 1 Then Rgmt.Visible = True
+  If divers.value And Colbl.count = 1 Then Codeclient.text = Colbl.Item[0]
   rParam = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabParam") & "")
   If rParam.Available Then
     Jnal = rParam!jrnal2
@@ -564,10 +581,6 @@ Public Sub Bl_Edit()
     Message.Error("Vous devez completer, dans les parametres, les données relatives au journal de caisse \net aux comptes de virements internes avant d'imprimer vos documents !")
   Else
     Edit.Visible = True
-    'Rglt.text = Replace$(Tottc.Text, "-", "")
-    'Rglt.ReadOnly = False
-    'Regmt.Enabled = True
-    'Rgmt.Enabled = True
   Endif
   
 End
