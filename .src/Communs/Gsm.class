@@ -1,0 +1,158 @@
+' Gambas class file
+
+Private son As Integer = Start.Son
+Private $Tel As String
+
+Public Sub _New(Tel As String)
+  
+  Me.Center
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Colcol.Columns.count = 2
+  Colcol.Columns[0].Width = 60
+  Colcol.Columns[1].Alignment = Align.TopLeft
+  Colcol.Columns[1].Width = 560
+  Colcol.Columns[0].Text = "code"
+  Colcol.Columns[1].Text = "Intitulé"
+  Comcode.SetFocus
+  Comcode.Select
+  TextBox1.text = Tel
+  
+End
+
+Public Sub Form_Open()
+  
+  Dim sline As String
+  Dim rResult As Result
+  
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabSms") & " order by numcom")
+  If rResult.Available Then
+    Repeat
+      Try Colcol.add(rResult!numcom, rResult!numcom)
+      If Not Error Then
+        For Each sline In Split(rResult!intitule, "\n")
+          Colcol.Item[1] = sline
+          Break
+        Next
+      Endif
+    Until rResult.MoveNext()
+  Endif
+  
+End
+
+'**********************************************************
+'*           Gestion onglet Saisie Commentaires           *
+'**********************************************************
+Public Sub ToggleButton4_Click()
+  
+  Dim rResult As Result
+  Dim sline As String
+  
+  With Colcol
+    Colcol.Clear
+    Colcol.Visible = True
+    .Columns.count = 2
+    .Columns[0].Width = 70
+    .Columns[1].Alignment = Align.TopLeft
+    .Columns[1].Width = 350
+    
+    .Columns[0].Text = "Code"
+    .Columns[1].Text = "Intitulé"
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabSms") & " order by numcom")
+    
+    If rResult.Available Then
+      Repeat
+        Try .Add(rResult!numcom, rResult!numcom)
+        If Not Error Then
+          If Not Error Then
+            For Each sline In Split(rResult!intitule, "\n")
+              Colcol.Item[1] = sline
+              Break
+            Next
+          Endif
+        Endif
+      Until rResult.MoveNext()
+    Else
+      If Son Then
+        Music.Play
+      Endif
+      Try Message.Warning("Il n'existe aucun Texte sms\n veuillez d'abord créer vos Textes SVP ! ")
+      Colcol.Clear
+      Colcol.visible = False
+      
+    Endif
+    If Colcol.Count Then
+      Colcol.MoveFirst
+      Colcol.SetFocus
+      Colcol.Item.Selected = True
+    Endif
+    
+  End With
+  
+End
+
+'**********************************************
+'* Selection d'un commentaire a la souris     *
+'**********************************************
+Public Sub Colcol_Click()
+  
+  Dim rResult As Result
+  
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabSms") & " where numcom = &1", Colcol.Current[0])
+  Comcode.Text = Colcol.Current[0]
+  intitule.Text = rResult!intitule
+  Colcol.Visible = False
+  intitule.setfocus
+  intitule.select
+  
+End
+
+'***********************************************
+'* Saisie d'un commentaire manuellement        *
+'***********************************************
+Public Sub Colcol_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Colcol_click()
+    Stop Event
+  Endif
+  
+  If Key.Code = Key.Escape Or Key.Code = Key.F2 Then
+    Colcol.visible = False
+    Colcol.clear
+    Comcode.Select
+    Comcode.SetFocus
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Btn_Click()
+  
+  Me.Close
+  
+End
+
+Public Sub Button19_Click()
+  
+  Dim Tel As String = Replace$(TextBox1.Text, " ", "")
+  Dim mesg As String = Quote(Intitule.Text)
+  Dim $Txt As String
+  
+  mesg = Replace$(mesg, "\\n", " ")
+  mesg &= "."
+  If Not IsNull(TextBox1.text) And Not IsNull(TextLabel1.Text) Then
+    Me.Mouse = Mouse.Wait
+    Shell "gammu sendsms TEXT " & Tel & " -text " & mesg & " >" & User.home & "/tmp/sms.txt 2>&1" Wait
+    Me.mouse = Mouse.Default
+    If Exist(User.Home & "/tmp/sms.txt") Then
+      $txt = Trim$(File.Load(User.Home & "/tmp/sms.txt"))
+      If InStr($txt, "OK") = 0 Then
+        Message.Error("Problème ! Le message n'a pas pu être envoyé.")
+      Else
+        Message.Info("Le message a été envoyé.")
+      Endif
+    Endif
+    
+  Endif
+  
+End
