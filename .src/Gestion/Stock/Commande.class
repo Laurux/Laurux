@@ -1261,6 +1261,7 @@ Public Sub Gencom()
   Dim nbdec As String
   Dim Fourn As String
   Dim Stocke As Boolean = False
+  Dim ob As Object
   
   Tab2 = "Rupture"
   b = 0
@@ -1326,6 +1327,14 @@ Public Sub Gencom()
         Colrcp.Item[8] = Format$(rarts!art_prvt, Nbdec)
         Colrcp.Item[9] = Format$(rarts!art_frais, Nbdec)
         If Len(Colrcp.Item[7]) - InStr(Colrcp.Item[7], ",") = 2 Then Colrcp.Item[7] = Colrcp.Item[7] & " "
+        Cart.text = rarts!art_code
+        Artcomm("Artman")
+        If ComCli > 0 Then
+          Colrcp.Item.Selected = True
+          ob = Colrcp.Children[0]
+          ob[ob.Row, 0].Background = &00B4F1B4
+        Endif
+        Cart.Clear
         Colrcp.MoveFirst
         Totalrcpt.Text = "0,00"
         Tfrais.text = "0,00"
@@ -1341,120 +1350,6 @@ Public Sub Gencom()
     message(" Aucun article pour cette demande", "OK")
   Endif
   Me.Mouse = Mouse.Pointing
-  
-End
-
-Public Sub Gencom2()
-  
-  Dim rarts, art As Result
-  Dim Qtecom As Float
-  Dim Qtcom As String
-  
-  Tab = "Fiches_Art" 
-  b = 0
-  Totalrcpt.Text = "0,00"
-  Tfrais.text = "0,00"
-  frais.Text = "0,00"
-  Pcom.text = "0,000"
-  With Utils
-    If Refcentrale.value = False Then
-      rarts = Utils.db.Exec("SELECT * FROM " & Tab & " where art_stocke = &1 and art_qte < art_stkmin and art_four = &2 and art_suspendu <> &3 or left(art_code,1) = &4  and art_four = &2 order by art_code", 1, Four.Text, 1, ".")
-    Else
-      If Message.Question("Attention ! Vous allez générer une commande pour la centrale " & fournom.Text & " OK ?\n", " Oui ", "Non") = "1" Then
-        rarts = Utils.db.Exec("SELECT * FROM " & Tab & " where art_stocke = &1 and art_qte < art_stkmin and art_centrale = &2 and art_suspendu <> &3 order by CAST(art_code AS char)", 1, scentraleF, 1)
-      Else
-        Return
-      Endif
-    Endif
-    If rarts.Available Then
-      Do
-        Nlgn = Format$(Colrcp.count + 1, "000")
-        If IsNull(Totalrcpt.Text) Then Totalrcpt.Text = "0,00"
-        If IsNull(Tfrais.Text) Then Tfrais.Text = "0,00"
-        If IsNull(Pcom.Text) Then Pcom.text = "0,000"
-        Qtcom = .Commande(rarts!art_code, Decm, 1, "Four")
-        art = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigbl") & " left join " & Cbase.Table("TabBl") & "  on numbl = num_ligbl where type = &1 and code_ligbl = &2 order by cdclibl", "C", rarts!art_code)
-        If art.Available Then
-          Repeat
-            Qtcom = Qtcom - (art!qte_ligbl / rarts!art_txconv)
-          Until art.MoveNext()
-        Endif
-        Try Qtecom = (rarts!art_stkmax / rarts!art_txconv) - (rarts!art_qte / rarts!art_txconv) - Val(.cpoint(Qtcom))
-        If Error Then qtecom = 1
-        If Not rarts!art_stocke And Qtecom < 0 Then
-          Qtecom = 1
-        Else
-          If rarts!art_stocke And Qtecom < 0 Then 
-            qtecom = 0
-          Endif
-        Endif
-        If Not IsNull(rarts!art_mincom) Then
-          If Val(.cpoint(rarts!art_mincom)) <> 0 And qtecom < Val(.cpoint(rarts!art_mincom)) Then Qtecom = Val(rarts!art_mincom)
-        Endif
-        If qtecom > 0 Then
-          Try Colrcp.Add(rarts!art_code & Nlgn, rarts!art_code & Nlgn)
-          If Nlg = 1 Then
-            Colrcp.Item[0] = Nlgn
-          Else
-            Colrcp.Item[0] = "*" & Nl
-          Endif
-          If Refart.value = True Then
-            Colrcp.Item[1] = rarts!art_code
-            Colrcp.Item[14] = rarts!art_code
-          Else
-            If Reffour.Value = True Then
-              If Not IsNull(rarts!art_cfour) Then
-                Colrcp.Item[1] = rarts!art_cfour
-              Else
-                Colrcp.Item[1] = rarts!art_code
-              Endif
-              Colrcp.Item[14] = rarts!art_code
-            Else
-              If Refcentrale.Value = True Then
-                If Not IsNull(rarts!art_refcentrale) Then
-                  Colrcp.Item[1] = rarts!art_refcentrale
-                Else
-                  Colrcp.Item[1] = rarts!art_refcentrale
-                Endif
-                Colrcp.Item[14] = rarts!art_code
-              Endif
-            Endif
-          Endif
-          Colrcp.Item[2] = rarts!art_design
-          If Len(Colrcp.Item[2]) - InStr(Colrcp.Item[2], ",") = 2 Then Colrcp.Item[2] = Colrcp.Item[2] & " "
-          Colrcp.Item[3] = Format$(rarts!art_pbht, Nbdec)
-          Colrcp.Item[4] = Format$(rarts!art_tr, "0.00")
-          If Len(Colrcp.Item[3]) - InStr(Colrcp.Item[3], ",") = 2 Then Colrcp.Item[3] = Colrcp.Item[3] & " "
-          Colrcp.Item[5] = Format$(rarts!art_pauaht, Nbdec)
-          Colrcp.Item[6] = .Cdec(Decm, Qtecom)
-          Colrcp.Item[6] = .cpoint(Colrcp.Item[6])
-          Colrcp.Item[7] = Format$(Qtecom * rarts!art_pauaht, Nbdec)
-          Colrcp.Item[8] = Format$(rarts!art_prvt, Nbdec)
-          Colrcp.Item[9] = Format$(rarts!art_frais, Nbdec)
-          If Len(Colrcp.Item[7]) - InStr(Colrcp.Item[7], ",") = 2 Then Colrcp.Item[7] = Colrcp.Item[7] & " "
-          Colrcp.MoveFirst
-          Totalrcpt.Text = "0,00"
-          Tfrais.text = "0,00"
-          Pcom.text = "0,000"
-        Endif
-      Loop Until rarts.MoveNext()
-      If Colrcp.count > 0 Then
-        Do
-          Colrcp.Item.Selected = True
-          Try Totalrcpt.Text = Format$(Val(Totalrcpt.Text) + (Val(.cpoint(Colrcp.Item[6])) * Val(.cpoint(Colrcp.Item[5]))), "0.00")
-          Tfrais.Text = Format$(Val(Tfrais.Text) + (Val(Frais.Text) * Qtecom), "0.00")
-        Loop Until Colrcp.MoveNext()
-      Else
-        Message.Warning("Aucune ligne de commande n'est a génerer !")
-      Endif
-    Else
-      If Start.son Then
-        Music.Play
-      Endif
-      Message.Warning("Aucune ligne de commande n'est a génerer")
-    Endif
-    
-  End With
   
 End
 
@@ -1568,6 +1463,7 @@ Public Sub Gen_Comfac(Ligbl As String)
   Dim rfact As Result
   Dim rarts As Result
   Dim Qtecom As Float
+  Dim ob As Object
   
   With Utils
     rfact = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigbl") & " where num_ligbl = &1 and typel_ligbl = &2 order by num_ligbl", Ligbl, "A")
@@ -1620,6 +1516,14 @@ Public Sub Gen_Comfac(Ligbl As String)
             Colrcp.Item[8] = Format$(rarts!art_prvt, Nbdec)
             Colrcp.Item[9] = Format$(rarts!art_frais, Nbdec)
             If Len(Colrcp.Item[7]) - InStr(Colrcp.Item[7], ",") = 2 Then Colrcp.Item[7] = Colrcp.Item[7] & " "
+            Cart.text = rarts!art_code
+            Artcomm("Artman")
+            If ComCli > 0 Then
+              Colrcp.Item.Selected = True
+              ob = Colrcp.Children[0]
+              ob[ob.Row, 0].Background = &00B4F1B4
+            Endif
+            Cart.Clear
           Endif
         Endif
       Until rfact.MoveNext()
@@ -1651,6 +1555,7 @@ Public Sub GencomRlq()
   Dim rfact As Result
   Dim ArtResult As Result
   Dim LigResult As Result
+  Dim ob As Object
   
   With Utils
     rfact = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntcom") & " where four = &1 and reliquat = &2 order by ddate", four.Text, 1)
@@ -1694,6 +1599,14 @@ Public Sub GencomRlq()
             Colrcp.Item[9] = LigResult!frais
             If IsNull(Colrcp.Item[8]) Then Colrcp.Item[8] = "0"
             If IsNull(Colrcp.Item[9]) Then Colrcp.Item[9] = "0"
+            Cart.text = LigResult!code
+            Artcomm("Artman")
+            If ComCli > 0 Then
+              Colrcp.Item.Selected = True
+              ob = Colrcp.Children[0]
+              ob[ob.Row, 0].Background = &00B4F1B4
+            Endif
+            Cart.Clear
           Loop Until LigResult.MoveNext()
           bas_doc()
         Endif
