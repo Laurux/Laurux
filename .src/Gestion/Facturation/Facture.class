@@ -198,6 +198,7 @@ Private Tcoeff As Float = 0
 Private ComboCom As Boolean = False
 Private TvaCli As String
 Private Equ As Boolean = False
+Private Chkbtn As Boolean = True
 Private encours As String
 Private bencours As Boolean
 Private soldecompte As Float
@@ -220,6 +221,7 @@ Private date1doc As Date
 Private dt As String[] = Scan(Format$(Now, "yyyy/mm/dd"), "*/*/*")
 Private $numbl As String
 Private Nmuser As String
+Private Ecran As String
 
 '**********************************************************
 '*initialisation écrans et gestion onglet client          *
@@ -973,7 +975,7 @@ Public Sub Lignes_Bon()
             TextLabel64.Visible = True
             Poids.Visible = True
           Endif
-          If Tp = "B" Or Tp = "F" And ImpFac <> "1" Then
+          If Tp = "B" Or If Tp = "F" And ImpFac <> "1" Then
             If Panel8.visible = False Then
               Maj_Quantite2()
             Else
@@ -1632,14 +1634,22 @@ Public Sub NumUtil() As Boolean
   Dim Bok As String
   
   Tactive = "Fiches_Docactif"
-  Try Utils.db.Exec("DELETE FROM " & Tactive & " where numerobl = &1 and nom = &2", colbl[colbl.row, 2].Text, User.name)
+  'Try Utils.db.Exec("DELETE FROM " & Tactive & " where numerobl = &1 and nom = &2", colbl[colbl.row, 2].Text, User.name)
   rParam = Utils.db.Exec("SELECT * FROM " & Tactive & " where numerobl = &1 and nom <> &2", colbl[colbl.row, 2].Text, User.name)
   If rParam.Available Then
     bok = False
     Nmuser = rParam!nom
+    Ecran = ""
   Else
-    bok = True
-    Utils.db.Exec("INSERT INTO " & Tactive & "(numerobl, nom) VALUES (&1, &2)", colbl[colbl.row, 2].Text, User.name)
+    rParam = Utils.db.Exec("SELECT * FROM " & Tactive & " where numerobl = &1 and nom = &2 and ecran <> &3", colbl[colbl.row, 2].Text, User.name, Desktop.Current)
+    If rParam.Available Then
+      bok = False
+      Nmuser = rParam!nom
+      Ecran = rParam!ecran
+    Else
+      bok = True
+      Utils.db.Exec("INSERT INTO " & Tactive & "(numerobl, nom, ecran) VALUES (&1, &2, &3)", colbl[colbl.row, 2].Text, User.name, Desktop.Current)
+    Endif
   Endif
   Return bok
   
@@ -1651,7 +1661,7 @@ End
 Public Sub Colbl_Click()
   
   Dim bok As Boolean = False
-  Dim Tactive As String
+  Dim Tactive, bureau As String
   
   Tactive = "Fiches_Docactif"
   Utils.db.Exec("DELETE FROM " & Tactive & " where numerobl = &1 and nom = &2", $numbl, User.name)
@@ -1859,7 +1869,21 @@ Public Sub Colbl_Click()
         code.SetFocus
       Endif
     Else
-      Message.Warning("Sélection impossible ! Ce document est utilisé par " & Nmuser)  
+      If IsNull(ecran) Then
+        Message.Warning("Sélection impossible ! Ce document est utilisé par " & Nmuser)  
+      Else
+        Select Case Ecran
+          Case 0 
+            bureau = "premier"
+          Case 1
+            bureau = "deuxième"
+          Case 2 
+            bureau = "troisième"
+          Case 3 
+            bureau = "quatrième"
+        End Select
+        Message.Warning("Sélection impossible ! Ce document est utilisé sur le " & bureau & " bureau virtuel") 
+      Endif
     Endif
   End With
   
