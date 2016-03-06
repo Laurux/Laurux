@@ -1648,7 +1648,7 @@ Public Sub NumUtil() As Boolean
       Ecran = rParam!ecran
     Else
       bok = True
-      Utils.db.Exec("INSERT INTO " & Tactive & "(numerobl, nom, ecran) VALUES (&1, &2, &3)", colbl[colbl.row, 2].Text, User.name, Desktop.Current)
+      Try Utils.db.Exec("INSERT INTO " & Tactive & "(numerobl, nom, ecran) VALUES (&1, &2, &3)", colbl[colbl.row, 2].Text, User.name, Desktop.Current)
     Endif
   Endif
   Return bok
@@ -7165,214 +7165,214 @@ Public Sub Coldetail_Activate()
   chkfocus = 1
   Frame4.visible = False
   With utils
-    If key.Code <> "4100" And If key.code <> "4101" Then
-    Finally
-      If Not Coldetail.Available Then
-        Coldetail.clear
-      Else
-        Nlgapp = Coldetail.current[0]
-        typeL = Coldetail.current[9]
-        Bloc = Coldetail.current[16]
-        Blocnum = bloc
-        Nlgc = Coldetail.current[0]
-        NlgModif = Coldetail.current[0]
-        Nlgn = Nlgcom.text
-        Txhr.ReadOnly = False
-        Tmont.ReadOnly = False
-        Tmont.Background = Color.TextBackground
-        Txhr.Background = Color.TextBackground
-        l = Left$(Coldetail.Key, 4)
-        
-        '* On rappelle les lignes de main d'oeuvre
-        If typel = "M" Then
-          If Impfac <> "1" Then
-            Motm.Value = True
-            Panel2.visible = True
-            Panel3.Visible = False
-            Panel4.visible = False
-            Nlg.text = Coldetail.current[0]
-            Cmo.text = Coldetail.current[1]
-            libelle.text = Coldetail.current[2]
-            Txhr.text = Coldetail.current[3]
-            Tmont.text = Coldetail.current[4]
-            Brutht.text = Coldetail.current[5]
-            rem.text = Coldetail.current[6]
-            Netht.text = Coldetail.current[7]
-            Tm.text = Coldetail.current[10]
-            Nettc.Text = Coldetail.current[8]
-            Tmo.Text = Coldetail.current[12]
-            Cdfam.Text = Coldetail.current[13]
-            rem.Text = Format$(Val(.CPoint(rem.Text)), "0.00")
-            Nlgn = Nlg.text
-            Arttc.Text = Val(Utils.CPoint(Artnet.Text)) + (Val(Utils.CPoint(Artnet.Text)) * Ttva / 100)
-            Brutht.Text = Format(Val(.CPoint(Tmont.Text)) * Val(.CPoint(Txhr.Text)), "0.00")
-            hresult = Utils.db.Exec("select * from " & Tab3 & " where mo_code = &1", Cmo.text)
-            If hresult.Available Then
-              Arr = hresult!mo_cdarr
-            Endif
-            Calc_Net()
-            Calc_Tc()
-            libelle.Select
-            libelle.SetFocus
-            If Not tvar.Value Then
-              Tmo.readonly = True
-            Else
-              Tmo.readonly = False
-            Endif
-            Calc_MargeMo()
-          Else
-            If start.son Then
-              Music.Play
-            Endif
-            Try Message.Warning("Modification impossible, la facture a été imprimée ?")
-          Endif
-        Endif
-        
-        '* On rappelle les lignes de produits
-        If typel = "A" Then
-          If Impfac <> "1" Then
-            sTTC.value = False
-            Panel2.visible = False
-            Panel3.Visible = True
-            Panel4.visible = False
-            BArt.Value = True
-            Nlgart.text = Coldetail.current[0]
-            Cart.text = Coldetail.current[1]
-            Artdsg.text = Coldetail.current[2]
-            Artpu.text = Coldetail.current[3]
-            Dec.Text = Coldetail.current[14]
-            Artqte.text = Coldetail.current[4]
-            Artbrut.text = Coldetail.current[5]
-            If Coldetail.current[6] = "Net" Then
-              Artrm.Text = "0,00"
-              bNet = True
-            Else
-              Artrm.text = Coldetail.current[6]
-              bNet = False
-            Endif
-            Artnet.text = Coldetail.current[7]
-            Arttc.Text = Coldetail.current[8]
-            Arttx.Text = Coldetail.current[12]
-            Artfam.Text = Coldetail.current[13]
-            ArtFour.Text = Coldetail.current[20]
-            PdxArt.Text = Coldetail.current[17]
-            Nlgn = Nlgart.text
-            Artdsg.Select
-            Artdsg.SetFocus
-            hresult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & "  left join " & Cbase.Table("TabFour") & " on art_code = fo_cdech where art_code = &1", Cart.Text)
-            If hresult.Available Then
-              If Len(ArtFam.Text) > 5 Then
-                $Fam = hResult!art_fam
-                $Four = Artfam.Text
-              Endif
-              If Len(ArtFam.Text) < 6 Then
-                $Four = hResult!art_four
-                $Fam = Artfam.Text
-              Endif
-              If IsNull(ArtFour.text) Or If ArtFour.text = hresult!art_four Then
-                TextLabel41.Text = "Famille" 
-                ArtFour.Visible = False
-                Frame4.Visible = False
-              Else
-                TextLabel41.Text = "Fournisseur"
-                ArtFour.Visible = True 
-                Frm12()
-              Endif
-              Nbdec = .Find_Nbdec(hresult!art_nbd)
-              If Prxdec Then 
-                ar$ = "0"
-              Else
-                ar$ = Nbdec
-              Endif
-              Arr = hresult!art_cdarr
-              Paht = hresult!art_paht
-              Pmp = hresult!art_pmp
-              Pdx = hresult!art_poids
-              If hresult!art_stocke Then Quantite()
-              If IsNull(Pdx) Then Pdx = "0,000"
-              If IsNull(Pdxart.Text) Then Pdxart.Text = Format$((Val(Utils.cpoint(Artqte.Text)) * Val(Utils.cpoint(Pdx))), "0.000")
-              Try Ecotaxe = hresult!art_ect
-              Taxepv = hresult!art_cpp
-              Try Valeur_Copp = hresult!art_copp
-              Materiel = hresult!art_mat
-              If Materiel Then
-                Repeat
-                  Coldetail.item.Selected = True
-                  Artqte.ReadOnly = True
-                  If Coldetail.current[9] = "T" And Left$(Coldetail.current[2], 17) = "Numéro de série" Then
-                    MatR = Utils.db.Exec("SELECT * FROM " & tabMat & " WHERE mat_serie = &1", Coldetail.current[1])
-                    If MatR.Available Then Utils.db.Exec("Update " & tabMat & " set mat_vendu = &1, mat_cli = &3 where mat_serie = &2", 0, Coldetail.current[1], "")
-                    'Coldetail.current.Delete
-                    'Ren_ligbl()
-                    Maj_Base()
-                    Break
-                  Endif
-                Until Coldetail.MoveNext()
-              Endif
-              If TextLabel41.Text = "Fournisseur" Then 
-                Frm12()
-              Endif
-            Endif
-            Calc_Marge()
-            If Not tvar.Value Then
-              Arttx.ReadOnly = True
-            Else
-              Arttx.ReadOnly = False
-            Endif
-            If Promo Then Apromo = ArtPromo.art_Promo(Cart.text, Cpromo)
-            chkfocus = 0
-            If sTTC.Value Then
-              Textlabel30.text = "Prix TTC"
-              Recup_Tva()
-              Artpu.Text = Val(Utils.CPoint(Artpu.Text)) + (Val(Utils.CPoint(Artpu.Text)) * Ttva / 100)
-              Artpu.text = Format$(Val(Utils.cpoint(Artpu.text)), ar$)
-            Else
-              Textlabel30.text = "Prix HT" 
-            Endif
-          Else
-            If start.son Then
-              Music.Play
-            Endif
-            Try Message.Warning("Modification impossible, la facture a été imprimée ?")
-          Endif
-        Endif
-        '* On rappelle les lignes de commentaires
-        If typel = "C" Then
-          Nlgcom.Text = Format$(Coldetail.count + 1, "0000")
-          Panel2.visible = False
+    'If key.Code <> "4100" And If key.code <> "4101" Then
+    'Finally
+    If Not Coldetail.Available Then
+      Coldetail.clear
+    Else
+      Nlgapp = Coldetail.current[0]
+      typeL = Coldetail.current[9]
+      Bloc = Coldetail.current[16]
+      Blocnum = bloc
+      Nlgc = Coldetail.current[0]
+      NlgModif = Coldetail.current[0]
+      Nlgn = Nlgcom.text
+      Txhr.ReadOnly = False
+      Tmont.ReadOnly = False
+      Tmont.Background = Color.TextBackground
+      Txhr.Background = Color.TextBackground
+      l = Left$(Coldetail.Key, 4)
+      
+      '* On rappelle les lignes de main d'oeuvre
+      If typel = "M" Then
+        If Impfac <> "1" Then
+          Motm.Value = True
+          Panel2.visible = True
           Panel3.Visible = False
-          Panel4.Visible = True
-          Nlgcom.Text = Nlgc
-          Com.Value = True
-          Nlgart.text = Coldetail.current[0]
-          Comcode.Text = Coldetail.current[1]
-          Nlgcom.Text = Coldetail.current[0]
-          Intitule.Clear
-          Coldetail.MoveFirst()
-          Repeat
-            Try Coldetail.item.Selected = True
-            If Coldetail.current[16] = Bloc Then
-              If lg = 1 Then intitule.Insert("\n")
-              intitule.Insert(Coldetail.current[2])
-              lg = 1
-            Endif
-          Until Coldetail.MoveNext()
-          Coldetail.MoveFirst()
-          Coldetail.item.Selected = True
-          While Left$(Coldetail.Key, 4) <> (Format$(Val(l), "0000"))
-            Coldetail.MoveNext()
-            Try Coldetail.item.Selected = True
-            If (Format$(Val(Left$(Coldetail.key, 4)), "0000")) = (Format$(Val(l), "0000")) Then Break
-          Wend
-          Comcode.Text = Coldetail.current[1]
-          Nlgcom.Text = Coldetail.current[0]
+          Panel4.visible = False
+          Nlg.text = Coldetail.current[0]
+          Cmo.text = Coldetail.current[1]
+          libelle.text = Coldetail.current[2]
+          Txhr.text = Coldetail.current[3]
+          Tmont.text = Coldetail.current[4]
+          Brutht.text = Coldetail.current[5]
+          rem.text = Coldetail.current[6]
+          Netht.text = Coldetail.current[7]
+          Tm.text = Coldetail.current[10]
+          Nettc.Text = Coldetail.current[8]
+          Tmo.Text = Coldetail.current[12]
+          Cdfam.Text = Coldetail.current[13]
+          rem.Text = Format$(Val(.CPoint(rem.Text)), "0.00")
+          Nlgn = Nlg.text
+          Arttc.Text = Val(Utils.CPoint(Artnet.Text)) + (Val(Utils.CPoint(Artnet.Text)) * Ttva / 100)
+          Brutht.Text = Format(Val(.CPoint(Tmont.Text)) * Val(.CPoint(Txhr.Text)), "0.00")
+          hresult = Utils.db.Exec("select * from " & Tab3 & " where mo_code = &1", Cmo.text)
+          If hresult.Available Then
+            Arr = hresult!mo_cdarr
+          Endif
+          Calc_Net()
+          Calc_Tc()
+          libelle.Select
+          libelle.SetFocus
+          If Not tvar.Value Then
+            Tmo.readonly = True
+          Else
+            Tmo.readonly = False
+          Endif
+          Calc_MargeMo()
+        Else
+          If start.son Then
+            Music.Play
+          Endif
+          Try Message.Warning("Modification impossible, la facture a été imprimée ?")
         Endif
       Endif
-      N = 0
-      t = 0
-      Modif = "1"
-      'IF typel <> "C" THEN NlgModif = Coldetail.current[0]
+      
+      '* On rappelle les lignes de produits
+      If typel = "A" Then
+        If Impfac <> "1" Then
+          sTTC.value = False
+          Panel2.visible = False
+          Panel3.Visible = True
+          Panel4.visible = False
+          BArt.Value = True
+          Nlgart.text = Coldetail.current[0]
+          Cart.text = Coldetail.current[1]
+          Artdsg.text = Coldetail.current[2]
+          Artpu.text = Coldetail.current[3]
+          Dec.Text = Coldetail.current[14]
+          Artqte.text = Coldetail.current[4]
+          Artbrut.text = Coldetail.current[5]
+          If Coldetail.current[6] = "Net" Then
+            Artrm.Text = "0,00"
+            bNet = True
+          Else
+            Artrm.text = Coldetail.current[6]
+            bNet = False
+          Endif
+          Artnet.text = Coldetail.current[7]
+          Arttc.Text = Coldetail.current[8]
+          Arttx.Text = Coldetail.current[12]
+          Artfam.Text = Coldetail.current[13]
+          ArtFour.Text = Coldetail.current[20]
+          PdxArt.Text = Coldetail.current[17]
+          Nlgn = Nlgart.text
+          Artdsg.Select
+          Artdsg.SetFocus
+          hresult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & "  left join " & Cbase.Table("TabFour") & " on art_code = fo_cdech where art_code = &1", Cart.Text)
+          If hresult.Available Then
+            If Len(ArtFam.Text) > 5 Then
+              $Fam = hResult!art_fam
+              $Four = Artfam.Text
+            Endif
+            If Len(ArtFam.Text) < 6 Then
+              $Four = hResult!art_four
+              $Fam = Artfam.Text
+            Endif
+            If IsNull(ArtFour.text) Or If ArtFour.text = hresult!art_four Then
+              TextLabel41.Text = "Famille" 
+              ArtFour.Visible = False
+              Frame4.Visible = False
+            Else
+              TextLabel41.Text = "Fournisseur"
+              ArtFour.Visible = True 
+              Frm12()
+            Endif
+            Nbdec = .Find_Nbdec(hresult!art_nbd)
+            If Prxdec Then 
+              ar$ = "0"
+            Else
+              ar$ = Nbdec
+            Endif
+            Arr = hresult!art_cdarr
+            Paht = hresult!art_paht
+            Pmp = hresult!art_pmp
+            Pdx = hresult!art_poids
+            If hresult!art_stocke Then Quantite()
+            If IsNull(Pdx) Then Pdx = "0,000"
+            If IsNull(Pdxart.Text) Then Pdxart.Text = Format$((Val(Utils.cpoint(Artqte.Text)) * Val(Utils.cpoint(Pdx))), "0.000")
+            Try Ecotaxe = hresult!art_ect
+            Taxepv = hresult!art_cpp
+            Try Valeur_Copp = hresult!art_copp
+            Materiel = hresult!art_mat
+            If Materiel Then
+              Repeat
+                Coldetail.item.Selected = True
+                Artqte.ReadOnly = True
+                If Coldetail.current[9] = "T" And Left$(Coldetail.current[2], 17) = "Numéro de série" Then
+                  MatR = Utils.db.Exec("SELECT * FROM " & tabMat & " WHERE mat_serie = &1", Coldetail.current[1])
+                  If MatR.Available Then Utils.db.Exec("Update " & tabMat & " set mat_vendu = &1, mat_cli = &3 where mat_serie = &2", 0, Coldetail.current[1], "")
+                  'Coldetail.current.Delete
+                  'Ren_ligbl()
+                  Maj_Base()
+                  Break
+                Endif
+              Until Coldetail.MoveNext()
+            Endif
+            If TextLabel41.Text = "Fournisseur" Then 
+              Frm12()
+            Endif
+          Endif
+          Calc_Marge()
+          If Not tvar.Value Then
+            Arttx.ReadOnly = True
+          Else
+            Arttx.ReadOnly = False
+          Endif
+          If Promo Then Apromo = ArtPromo.art_Promo(Cart.text, Cpromo)
+          chkfocus = 0
+          If sTTC.Value Then
+            Textlabel30.text = "Prix TTC"
+            Recup_Tva()
+            Artpu.Text = Val(Utils.CPoint(Artpu.Text)) + (Val(Utils.CPoint(Artpu.Text)) * Ttva / 100)
+            Artpu.text = Format$(Val(Utils.cpoint(Artpu.text)), ar$)
+          Else
+            Textlabel30.text = "Prix HT" 
+          Endif
+        Else
+          If start.son Then
+            Music.Play
+          Endif
+          Try Message.Warning("Modification impossible, la facture a été imprimée ?")
+        Endif
+      Endif
+      '* On rappelle les lignes de commentaires
+      If typel = "C" Then
+        Nlgcom.Text = Format$(Coldetail.count + 1, "0000")
+        Panel2.visible = False
+        Panel3.Visible = False
+        Panel4.Visible = True
+        Nlgcom.Text = Nlgc
+        Com.Value = True
+        Nlgart.text = Coldetail.current[0]
+        Comcode.Text = Coldetail.current[1]
+        Nlgcom.Text = Coldetail.current[0]
+        Intitule.Clear
+        Coldetail.MoveFirst()
+        Repeat
+          Try Coldetail.item.Selected = True
+          If Coldetail.current[16] = Bloc Then
+            If lg = 1 Then intitule.Insert("\n")
+            intitule.Insert(Coldetail.current[2])
+            lg = 1
+          Endif
+        Until Coldetail.MoveNext()
+        Coldetail.MoveFirst()
+        Coldetail.item.Selected = True
+        While Left$(Coldetail.Key, 4) <> (Format$(Val(l), "0000"))
+          Coldetail.MoveNext()
+          Try Coldetail.item.Selected = True
+          If (Format$(Val(Left$(Coldetail.key, 4)), "0000")) = (Format$(Val(l), "0000")) Then Break
+        Wend
+        Comcode.Text = Coldetail.current[1]
+        Nlgcom.Text = Coldetail.current[0]
+      Endif
     Endif
+    N = 0
+    t = 0
+    Modif = "1"
+    'IF typel <> "C" THEN NlgModif = Coldetail.current[0]
+    'Endif
   End With
   
 End
@@ -8833,7 +8833,6 @@ Public Sub Button16_Click()
   Settings["/Soc" & Start.Societe & "/ChxImp"] = ChxImp.Value
   Settings["/Soc" & Start.Societe & "/BlA5"] = BlA5.Value
   Settings["/Soc" & Start.Societe & "/Impstocke"] = Impstock.Value
-  '  Settings["/Soc" & Start.Societe & "/Impdpc"] = Impdpc.Value
   Settings.Save
   Settings.Reload
   Edit.Visible = False
@@ -10738,7 +10737,7 @@ Public Sub Calc_tva(Org As String)
             Cpt = CResult!compte
             If Left$(Cpt, 3) = "445" Then
               Mtva2 = Format$(Val(CResult!totaltva), ",0.00")
-              If IsNull(Mtva2) Then Mtva2 = ",0,00"
+              If IsNull(Mtva2) Then Mtva2 = "0,00"
               Mht = Format$(Val(CResult!totalht), ",0.00")
               If IsNull(Mht) Then Mht = "0,00"
               If Prxdec Then

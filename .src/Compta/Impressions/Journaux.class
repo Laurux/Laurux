@@ -29,6 +29,8 @@ Private CredhP As Float
 Private TotSldhP As Float
 Private TotDeb As Float
 Private TotCred As Float
+Private TotDeb2 As Float
+Private TotCred2 As Float
 Private TotSld As Float
 Private debit As Float
 Private credit As Float
@@ -734,6 +736,8 @@ Public Sub Button1_click()
             Else
               debitcol = rResult!montantd
               creditcol = rResult!montantc
+              totdeb = totdeb + rResult!montantd
+              totcred = totcred + rResult!montantc
             Endif
             If Settings["/Soc" & Start.Societe & "/Gestion"] Then
               If rResult!numero <> copt Then
@@ -788,6 +792,8 @@ Public Sub Button1_click()
               Endif
               posy += 5
               Inc p1
+              totdeb2 = totdeb2 + rResult!montantd
+              totcred2 = totcred2 + rResult!montantc
             Endif
             If Left$(rResult!compte, 3) <> "401" And type_jour <> "OD" And Not Bcol And If Left$(rResult!compte, 3) <> "411" And type_jour <> "OD" And Not Bcol And If Left$(rResult!compte, 3) <> "453" And type_jour <> "OD" And Not Bcol Then
               Nm = Utils.db.Exec("SELECT * FROM " & Tab5 & " WHERE compte_cc = &1", rResult!compte)
@@ -795,12 +801,12 @@ Public Sub Button1_click()
               If r3Result.Available Then
                 Db_Ction = r3Result!db_cent
                 Cd_Ction = r3Result!crd_cent
-                Db_Ction = Db_Ction + debit
-                Cd_Ction = Cd_Ction + credit
+                Db_Ction = Db_Ction + rResult!montantd
+                Cd_Ction = Cd_Ction + rResult!montantc
                 Utils.db.Exec("UPDATE " & Tab & " SET cd_cent = &1, intitule = &2, db_cent = &3, crd_cent = &4, njournal = &5 WHERE cd_cent = &1 and njournal = &5", rResult!compte, nm!intitule_cc, Db_Ction, Cd_Ction, Compt)
               Else
-                Db_Ction = Db_Ction + debit
-                Cd_Ction = Cd_Ction + credit
+                Db_Ction = rResult!montantd
+                Cd_Ction = rResult!montantc
                 Utils.db.Exec("INSERT INTO " & Tab & " (cd_cent, intitule, db_cent, crd_cent, njournal) Values (&1, &2, &3, &4, &5)", rResult!compte, nm!intitule_cc, Debit, Credit, Compt)
               Endif
               Db_Ction = 0
@@ -831,7 +837,6 @@ Public Sub Button1_click()
               Db_Ction = 0
               Cd_Ction = 0
             Endif
-            'Endif
             i = i + 1
             If posy > 283 Then
               pdf.Baspage2(ipage)
@@ -843,7 +848,6 @@ Public Sub Button1_click()
               copt = ""
               Inc iPage
             Endif
-            'solde = 0
             rResult.MoveNext
           Wend
           totdeb = totdeb + debhp
@@ -852,7 +856,11 @@ Public Sub Button1_click()
           If p1 <= 40 Then
             pdf.Lines(posY)
           Endif
+          posy += 2
+          pdf.level2J("", "", "", "", "Total journal", Totdeb2, Totcred2, Totdeb2 - totcred2, posy)
           posy += 4
+          Totdeb2 = 0
+          Totcred2 = 0
           If type_jour <> "OD" Then
             pdf.Baspage2(ipage)
             Inc iPage
