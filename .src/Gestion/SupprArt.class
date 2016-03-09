@@ -464,6 +464,7 @@ Public Sub Suppression()
   Dim i, s As Integer = 0
   
   filename = User.Home & "/Artsuppr.txt"
+  hFil = Open filename For Read Write
   hFile = Open fic.Text For Read
   Me.Mouse = Mouse.Wait
   While Not Eof(hFile)
@@ -472,12 +473,18 @@ Public Sub Suppression()
     If Not blResult.Available Then
       cmResult = Utils.db.Exec("SELECT code FROM " & Cbase.Table("TabLigcom") & " where code = &1", lig)
       If Not blResult.Available Then
-        Inc i
-        Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabArt") & " WHERE art_code = &1", lig)
-        Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabCdBarre") & " WHERE codep = &1", lig)
-        Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabCequ") & " WHERE codep = &1", lig)
-        Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabRpl1") & " WHERE codep = &1", lig)
-        Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabRpl2") & " WHERE codep = &1", lig)
+        cmResult = Utils.db.Exec("SELECT art_code FROM " & Cbase.Table("TabArt") & " where art_code = &1", lig)
+        If blResult.Available Then
+          Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabArt") & " WHERE art_code = &1", lig)
+          Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabCdBarre") & " WHERE codep = &1", lig)
+          Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabCequ") & " WHERE codep = &1", lig)
+          Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabRpl1") & " WHERE codep = &1", lig)
+          Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabRpl2") & " WHERE codep = &1", lig)
+          Inc i
+        Else
+          Inc s
+          Try Print #Hfil, "La réfèrence " & lig & " n'existe pas !"
+        Endif
       Else
         Inc s
         Try Print #Hfil, "Impossible de supprimer le produit " & lig & " car il est présent dans une commande !"
