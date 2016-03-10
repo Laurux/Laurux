@@ -103,12 +103,12 @@ Public Sub Button2_Click()
   
   Dim i As Integer
   Dim p As Integer
-  Dim Intit, Tintit As String
+  Dim Numlot, Intit, Tintit As String
   Dim dte, ech, typec As String
   Dim dateedition As String
   Dim Tab3 As String
   Dim Ste As String
-  Dim SteResult As Result
+  Dim SteResult, r2Result As Result
   Dim Nbpage As Integer
   Dim Montant As Float
   
@@ -137,14 +137,12 @@ Public Sub Button2_Click()
       typec = "401"
     Endif
     If Dtech.value Then
-      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " left join  " & Cbase.Table("TabComptes") & " on compte_cc = compte WHERE dateech >= &5 and dateech <= &1 and validee = &2  and lettree = &3 and left(compte,3) = &4 and collectif is null order by dateech ", Utils.Cdate_Dbase(DteN0.Text), 1, 0, Typec, Utils.Cdate_Dbase(DteN1.Text))
+      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " left join  " & Cbase.Table("TabComptes") & " on compte_cc = compte WHERE dateech >= &5 and dateech <= &1 and validee = &2  and lettree = &3 and left(compte,3) = &4 and collectif is null order by dateech, compte, jour desc, numlot ", Utils.Cdate_Dbase(DteN0.Text), 1, 0, Typec, Utils.Cdate_Dbase(DteN1.Text), 1)
     Else
-      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " left join  " & Cbase.Table("TabComptes") & " on compte_cc = compte WHERE dateech >= &5 and dateech <= &1 and validee = &2  and lettree = &3 and left(compte,3) = &4 and collectif is null order by compte", Utils.Cdate_Dbase(DteN0.Text), 1, 0, Typec, Utils.Cdate_Dbase(DteN1.Text))
+      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " left join  " & Cbase.Table("TabComptes") & " on compte_cc = compte WHERE dateech >= &5 and dateech <= &1 and validee = &2  and lettree = &3 and left(compte,3) = &4 and collectif is null order by compte, jour desc, dateech, numlot", Utils.Cdate_Dbase(DteN0.Text), 1, 0, Typec, Utils.Cdate_Dbase(DteN1.Text), 1)
     Endif
     If rResult.count <> 0 Then
       i = 0
-      'pdf.level3(Compt, Intit, posy)
-      'posy += 5
       Inc p
       ech = rResult!dateech
       compt = rResult!compte
@@ -173,6 +171,7 @@ Public Sub Button2_Click()
         compt = rResult!compte
         Intit = rResult!intitule_cc
         Montant = rResult!montantd
+        Numlot = rResult!numlot
         If montant <> 0 Then
           totdeb = totdeb + Montant
           If Rfour.value Then montant = "-" & montant
@@ -195,7 +194,8 @@ Public Sub Button2_Click()
           pdf.Level1E()
           posy += 5
         Endif
-        pdf.level2E(compt, intit, rResult!jour, Format$(rResult!dte, "dd.mm.yyyy"), rResult!numdoc, Format$(rResult!dateech, "dd.mm.yyyy"), Montant, posy)
+        If rResult!tresorerie Then intit = "Règlement " & intit
+        pdf.level2E(compt, intit, rResult!jour, Format$(rResult!dte, "dd.mm.yyyy"), Numlot, Format$(rResult!dateech, "dd.mm.yyyy"), Montant, posy)
         posy += 5
         Inc p
         If p >= 42 Then
@@ -212,7 +212,6 @@ Public Sub Button2_Click()
         posy += 5
       Endif
       pdf.level4E(Tintit, Totsld, posy)
-      'Sldtot = Sldtot + Totsld
       Totdeb = 0
       Totcred = 0
       Totsld = 0

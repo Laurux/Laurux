@@ -115,7 +115,8 @@ Public Function monteTunnel() As Boolean
   Dim $ligne_ps As String ' retour de la commande ps
   Dim $tunnel_ok As Boolean ' flag de réussite du montage du tunnel
   Dim $array_pid As New String[] ' tableau pour les résultats de la recherche regex, ne devrait contenir qu'un résultat
-  Dim $reponse As Integer ' réponse à l'éventuel message de pid existant
+  Dim $reponse, i As Integer ' réponse à l'éventuel message de pid existant
+  Dim Port As String = db.Port
   
   '# -- On tente d'établir un tunnel ssh, on vérifie d'abord qu'il n'en existe pas un
   '# -- si il en existe un on demande quoi faire
@@ -125,8 +126,7 @@ Public Function monteTunnel() As Boolean
     '# -- Lancement du tunnel ssh sur le modèle : ssh -f -N -L 13306:serveur.tld:3306 -p 222 user@serveur.tld
     Print Now & " - " & "Pas de tunnel en place, on lance un tunnel ssh "
     'Exec ["ssh", "-N", "-f", sshuser & "@" & sshhost, "-p", sshport, "-L", db.Port & ":" & MysqlServeur & ":" & RemotePort] Wait
-    Shell "sshpass -p" & SshPassw & " " & "ssh -N -f " & sshuser & "@" & sshhost & " -p " & sshport & " -L " & db.Port & ":" & MysqlServeur & ":" & RemotePort
-    Wait 1
+    Shell "sshpass -p" & SshPassw & " " & "ssh -N -f " & sshuser & "@" & sshhost & " -p " & sshport & " -L " & db.Port & ":" & MysqlServeur & ":" & RemotePort Wait
     Shell "ps u -C ssh | grep " & db.Port & ":" & MysqlServeur & ":" & RemotePort Wait To $ligne_ps
     If Not $ligne_ps Then
       Print Now & " - " & "Erreur dans le lancement du tunnel ssh"
@@ -135,9 +135,13 @@ Public Function monteTunnel() As Boolean
       Print Now & " - " & "Lancement du tunnel ssh réussi"
       ' le numéro de processus est modifié par l'ordonnanceur à cause du montage en arrière plan
       ' on le recherche avec ps (pour l'instant je scinde la commande à cause d'un problème grep -> sed)
-      Shell "ps u -C ssh | grep " & db.Port & ":" & MysqlServeur & ":" & RemotePort Wait To $ligne_ps
-      $array_pid = do_pcre_extract(Trim$($ligne_ps), "([0-9]+)")
-      TunnelPid = $array_pid[0]
+      Shell "ps u -C ssh | grep " & Port & ":" & MysqlServeur & ":" & RemotePort Wait To $ligne_ps
+      '$array_pid = do_pcre_extract(Trim$($ligne_ps), "([0-9]+)")
+      $array_pid = Split($ligne_ps, " ")
+      For i = 1 To $array_pid.Count
+        TunnelPid = $array_pid[i]
+        If Not IsNull(TunnelPid) Then Break
+      Next
       Print Now & " - " & "Le PID du processus tunnel est " & TunnelPid
       $tunnel_ok = True
     Endif
@@ -145,8 +149,13 @@ Public Function monteTunnel() As Boolean
     ' on demande si il faut conserver le tunnel existant à la clôture de l'application
     $reponse = Message.Question("Un tunnnel SSH avec le serveur est déjà en place.\nIl est possible qu'il n'aie pas été fermé suite à un arrêt brutal de Laurux. \nIl est également possible que vous l'ayez monté vous même et veuillez le conserver actif.\nSi vous ne savez pas quoi répondre alors demandez sa fermeture en fin d'utilisation de Laurux.", "Fermer le tunnel lors de l'arrêt de l'application", "Conserver le tunnel")
     If $reponse = 1 Then
-      $array_pid = do_pcre_extract(Trim$($ligne_ps), "([0-9]+)")
-      TunnelPid = $array_pid[0]
+      '$array_pid = do_pcre_extract(Trim$($ligne_ps), "([0-9]+)")
+      'TunnelPid = $array_pid[0]
+      $array_pid = Split($ligne_ps, " ")
+      For i = 1 To $array_pid.Count
+        TunnelPid = $array_pid[i]
+        If Not IsNull(TunnelPid) Then Break
+      Next
     Endif
     Print Now & " - " & "Un tunnel ssh, de pid " & TunnelPid & " est déjà en place, on l'utilise"
     $tunnel_ok = True
