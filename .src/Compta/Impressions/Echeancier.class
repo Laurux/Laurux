@@ -194,10 +194,33 @@ Public Sub Button2_Click()
           pdf.Level1E()
           posy += 5
         Endif
-        If rResult!tresorerie Then intit = "Règlement " & intit
         pdf.level2E(compt, intit, rResult!jour, Format$(rResult!dte, "dd.mm.yyyy"), Numlot, Format$(rResult!dateech, "dd.mm.yyyy"), Montant, posy)
         posy += 5
-        Inc p
+        r2Result = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " WHERE numlot = &1 and tresorerie = &2 and compte = &3 order by numero", Numlot, 1, compt)
+        If r2Result.Available Then
+          Repeat
+            Montant = r2Result!montantd
+            If montant <> 0 Then
+              If Rfour.value Then 
+                totdeb = totdeb + Montant
+                montant = "-" & montant
+              Endif
+            Else
+              Montant = r2Result!montantc
+              If Rcli.value Then 
+                totcred = totcred + Montant
+                montant = "-" & montant
+              Endif
+            Endif
+            If Rfour.value Then
+              totsld = totcred - totdeb
+            Else
+              totsld = totdeb - totcred
+            Endif
+            pdf.level2E(compt, "Règlement " & r2Result!intitule, r2Result!jour, Format$(r2Result!dte, "dd.mm.yyyy"), Numlot, "", Montant, posy) 
+            posy += 5
+          Until r2Result.MoveNext()
+        Endif
         If p >= 42 Then
           p = 2
         Endif
@@ -212,6 +235,7 @@ Public Sub Button2_Click()
         posy += 5
       Endif
       pdf.level4E(Tintit, Totsld, posy)
+      Sldtot = Sldtot + Totsld
       Totdeb = 0
       Totcred = 0
       Totsld = 0
