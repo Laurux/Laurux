@@ -27,6 +27,8 @@ Private Epuises As String = Start.Epuises
 Private Stockes As String = Start.Stockes
 Private Nstockes As String = start.Nstockes
 Private Suspendus As String = start.Suspendus
+Private bModif As Boolean = False
+Private Checkcmpt As Boolean = False
 
 Public Sub _new()
   
@@ -84,6 +86,15 @@ Public Sub Cmpt_GotFocus()
       Stop Event
   End Select
   b = 0
+  
+End
+
+Public Sub Cmpt_Change()
+  
+  Select Case Last.tag
+    Case 16
+      If Checkcmpt Then bModif = True
+  End Select
   
 End
 
@@ -887,15 +898,18 @@ Public Sub CleanChamps()
   PvTTc2.Text = "0,00"
   Txconv2.Text = "1"
   nbdec = Utils.Find_nbdec(2)
+  bModif = False
   
 End
 
 Public Sub colarts_Click()
   
   Reaf = 0
+  Checkcmpt = False
   Try Maj_Zones(colarts[colarts.row, 0].Text, Reaf)
   pbht2.SetFocus
   pbht2.Select
+  Checkcmpt = True
   
 End
 
@@ -1441,9 +1455,11 @@ End
 
 Public Sub Button2_Click()
   
-  If Val(Utils.cpoint(qte)) > 0 And If etiq Then Maj_Etiqp(Code, qte)
-  Maj_Etiqg(Code, qte)
-  Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET  art_pbht = &1, art_tr = &2, art_pauaht =&3, art_pvht = &4, art_pvttc = &5, art_prvt = &6, art_paht = &7, art_coef = &8, art_remcas1 = &{10}, art_remcas2 = &{11}, art_remcas3 = &{12} WHERE art_code = &9", Val(pbht2.Text), Val(Tr2.text), Val(Paua2.Text), Val(Pvht2.Text), Val(Pvttc2.text), Val(Prvt2.text), Val(paht2.text), Val(Coef2.text), Code, Val(Rem4.Text), Val(Rem5.Text), Val(Rem6.Text))
+  If bModif Then
+    If Val(Utils.cpoint(qte)) > 0 And If etiq Then Maj_Etiqp(Code, qte)
+    Maj_Etiqg(Code, qte)
+    Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET  art_pbht = &1, art_tr = &2, art_pauaht =&3, art_pvht = &4, art_pvttc = &5, art_prvt = &6, art_paht = &7, art_coef = &8, art_remcas1 = &{10}, art_remcas2 = &{11}, art_remcas3 = &{12}, art_ddatefbt = &{13} WHERE art_code = &9", Val(pbht2.Text), Val(Tr2.text), Val(Paua2.Text), Val(Pvht2.Text), Val(Pvttc2.text), Val(Prvt2.text), Val(paht2.text), Val(Coef2.text), Code, Val(Rem4.Text), Val(Rem5.Text), Val(Rem6.Text), Format$(Now, "yyyymmdd"))
+  Endif
   CleanChamps()
   
 End
