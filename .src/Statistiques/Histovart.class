@@ -560,7 +560,7 @@ Public Sub Report(Org As String)
   Dim Bht, codea As String
   Dim Bflag As Boolean = False
   Dim pdf As Chistoriques
-  Dim Stocke As Boolean = True
+  Dim Stocke, Stocka As Boolean = False
   
   Nbpage = 1
   dte = Format$(Now, "dd.mm.yyyy")
@@ -588,7 +588,7 @@ Public Sub Report(Org As String)
     pdf = New Chistoriques("Portrait", "mm", "A4")
     pdf.Open()
     pdf.AliasNbPages()
-    If bl.value Then
+    If Not Devis.value Then
       pdf.Entete("Impression des historiques des ventes de produits" & $stocke & "du " & Dten0.text & " au " & dten1.text)
     Else
       pdf.Entete("Impression des produits" & $stocke & "présents dans les devis")
@@ -695,7 +695,7 @@ Public Sub Report(Org As String)
             Bflag = False
             'On récupère les données en cours.
             
-            If Facn.value = True Then
+            If Facn.value = True And bl.value Then
               HResult = Utils.db.Exec("SELECT * FROM " & Tab8 & " as e inner join " & Tab6 & " as a on a.numbl = e.num_ligbl WHERE code_ligbl = &1 and typel_ligbl = &2", code, "A")
               If HResult.Available Then
                 Repeat
@@ -738,8 +738,8 @@ Public Sub Report(Org As String)
               Endif
             Endif
           Else
-            HResult = Utils.db.Exec("SELECT * FROM " & Tab8 & " as e inner join " & Tab6 & " as a on a.numbl = e.num_ligbl WHERE code_ligbl = &1 and typel_ligbl = &2", code, "A")
-            If Hresult.Available And Hresult!type = "D" Then
+            HResult = Utils.db.Exec("SELECT * FROM " & Tab8 & " as e inner join " & Tab6 & " as a on a.numbl = e.num_ligbl WHERE code_ligbl = &1 and typel_ligbl = &2 and type = &3", code, "A", "D")
+            If Hresult.Available Then
               Bflag = True
             Else
               Bflag = False
@@ -754,11 +754,7 @@ Public Sub Report(Org As String)
             If PosY >= 283 Then
               pdf.Footer()
               PosY = 22
-              If bl.value Then
-                pdf.Entete("Impression des historiques des ventes de produits" & $stocke & " du " & Dten0.text & " au " & dten1.text)
-              Else
-                pdf.Entete("Impression des produits & $stocke" & "présents dans les devis")
-              Endif
+              pdf.Entete("Impression des historiques des ventes de produits" & $stocke & " du " & Dten0.text & " au " & dten1.text)
               pdf.Level1()
             Endif
           Else
@@ -774,45 +770,43 @@ Public Sub Report(Org As String)
       If HResult.Available Then
         code = Hresult!code_ligbl
         Repeat
-          rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE art_code = &1", Hresult!code_ligbl)
-          If rResult.Available Then
-            If rResult!art_stocke = stocke And rResult!art_four >= four.Text And rResult!art_four <= four2.Text Then
-              If rResult!art_code <> code Then
-                If Org = "Button2" Then
-                  If Val(.cpoint(qte)) <> 0 Then
-                    pdf.level2(code, intitule, fami, four3, qte, Format$(pvht, "0.00"), PosY)
-                    PosY += 5
-                    ligne = 1
-                  Endif
-                  If PosY >= 283 Then
-                    pdf.Footer()
-                    PosY = 22
-                    If bl.value Then
-                      pdf.Entete("Impression des historiques des ventes de produits" & $stocke & " du " & Dten0.text & " au " & dten1.text)
-                    Else
-                      pdf.Entete("Impression des produits" & $stocke & "présents dans les devis")
-                    Endif
-                    pdf.Level1()
-                  Endif
-                Else
-                  If Val(.cpoint(qte)) <> 0 Then
-                    Donnees2(code, intitule, fami, four3, qte, Format$(pvht, "0.00"))
-                    ligne = 1
-                  Endif
+          If Hresult!code_ligbl <> code Then
+            If stocka = stocke And four3 >= four.Text And four3 <= four2.Text Then 
+              If Org = "Button2" Then
+                If Val(.cpoint(qte)) <> 0 Then
+                  pdf.level2(code, intitule, fami, four3, qte, Format$(pvht, "0.00"), PosY)
+                  PosY += 5
+                  ligne = 1
                 Endif
-                code = rResult!art_code
-                intitule = rResult!art_design
-                fami = rResult!art_fam
-                four3 = rResult!art_four
+                If PosY >= 283 Then
+                  pdf.Footer()
+                  PosY = 22
+                  pdf.Entete("Impression des produits" & $stocke & "présents dans les devis")
+                  pdf.Level1()
+                Endif
               Else
-                Qte = 0
-                Pvht = 0
-                codea = code
-                If Not IsNull(Hresult!qte_ligbl) Then
-                  qte = qte + Val(.cpoint(Hresult!qte_ligbl))
-                  pvht = pvht + Val(.cpoint(Hresult!netht_ligbl))
+                If Val(.cpoint(qte)) <> 0 Then
+                  Donnees2(code, intitule, fami, four3, qte, Format$(pvht, "0.00"))
+                  ligne = 1
                 Endif
               Endif
+            Endif
+            rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE art_code = &1", Hresult!code_ligbl)
+            If rResult.Available Then
+              Qte = 0
+              Pvht = 0
+              code = rResult!art_code
+              intitule = rResult!art_design
+              fami = rResult!art_fam
+              four3 = rResult!art_four
+              qte = qte + Val(.cpoint(Hresult!qte_ligbl))
+              Stocka = rResult!art_stocke
+            Endif
+          Else
+            codea = code
+            If Not IsNull(Hresult!qte_ligbl) Then
+              qte = qte + Val(.cpoint(Hresult!qte_ligbl))
+              pvht = pvht + Val(.cpoint(Hresult!netht_ligbl))
             Endif
           Endif
         Until HResult.MoveNext()
@@ -826,11 +820,7 @@ Public Sub Report(Org As String)
         If PosY >= 283 Then
           pdf.Footer()
           PosY = 22
-          If bl.value Then
-            pdf.Entete("Impression des historiques des ventes des produits & $stocke &  du " & Dten0.text & " au " & dten1.text)
-          Else
-            pdf.Entete("Impression des produits & $stocke &  présents dans les devis")
-          Endif
+          pdf.Entete("Impression des produits & $stocke &  présents dans les devis")
           pdf.Level1()
         Endif
       Else
@@ -874,7 +864,7 @@ Public Sub donnees2(p1 As String, p2 As String, p3 As String, p4 As String, p5 A
   
 End
 
-Public Sub Button2_Click2()
+Public Sub Button2_Click()
   
   Dim rResult As Result
   Dim ArtResult As Result
@@ -1085,6 +1075,7 @@ Public Sub Button2_Click2()
                 If Face.value = True Then HFResult = Utils.db.Exec("SELECT * FROM " & Tab7 & " WHERE numbl = &1 and type = &2", Hresult!num_ligbl, "F")
                 If Fact.value = True Then HFResult = Utils.db.Exec("SELECT * FROM " & Tab6 & " WHERE numbl = &1 and type = &2 union SELECT * FROM " & Tab7 & " WHERE numbl = &1 and type = &2", Hresult!num_ligbl, "F")
               Endif
+              Print HFResult.count
               If HFResult.Available Then
                 If .Cdate_Comp(HFresult!datebl) >= .Cdate_dbase(dten0.Text) And .Cdate_Comp(HFresult!datebl) <= .Cdate_dbase(dten1.Text) Then
                   If IsNull(Hresult!qte_ligbl) Then
