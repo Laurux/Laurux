@@ -621,25 +621,14 @@ Public Sub Email_KeyPress()
   Dim rmail As Result
   
   If Key.code = Key.Enter Or Key.code = Key.Return Then
-    If Not IsNull(Email.Text) Then
-      Try Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMailCli") & " (code, mail) VALUES (&1, &2)", Cd.text, Email.text)
-      Utils.db.Exec("update " & Cbase.Table("TabCli") & " set cli_email = &2 where cli_code = &1", Cd.Text, Email.Text)
-      Rmail = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMailCli") & " where code = &1 order by mail", Cd.text)
-      If Rmail.Available Then
-        Email.clear
-        Repeat
-          Email.Add(Rmail!mail)
-        Until Rmail.MoveNext()
-      Endif
-    Endif
+    Maj_Email()
     fax2.SetFocus
     fax2.Select
     Stop Event
-  Endif  
+  Endif 
   
   If key.code = key.Delete Then
     If Not IsNull(Email.text) Then
-      'Rmail = Utils.db.Exec("Update " & Cbase.Table("TabCli") & "  set cli_email = &2 where cli_code = &1", Cd.Text, "")
       Utils.db.Exec("DELETE FROM " & Cbase.Table("TabMailCli") & " WHERE code = &1 and mail = &2", cd.Text, Email.Text)
       Rmail = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMailCli") & " where code = &1 order by mail", Cd.text)
       If Rmail.Available Then
@@ -651,6 +640,31 @@ Public Sub Email_KeyPress()
       Utils.db.Exec("update " & Cbase.Table("TabCli") & " set cli_email = &2 where cli_code = &1", Cd.Text, Email.Text)
     Endif
   Endif  
+  
+End
+
+Public Sub Email_LostFocus()
+  
+  Maj_Email()
+  
+End
+
+Public Sub Maj_Email()
+  
+  Dim rmail As Result
+  Dim $Mail As String = Email.Text
+  
+  If Not IsNull(Email.Text) Then
+    Try Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMailCli") & " (code, mail) VALUES (&1, &2)", Cd.text, Email.text)
+    Rmail = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMailCli") & " where code = &1 order by mail", Cd.text)
+    If Rmail.Available Then
+      Email.clear
+      Repeat
+        Email.Add(Rmail!mail)
+      Until Rmail.MoveNext()
+    Endif
+    Email.Text = $Mail
+  Endif
   
 End
 
