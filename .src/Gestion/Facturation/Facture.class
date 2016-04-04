@@ -8508,6 +8508,7 @@ Public Sub Bl_Edit()
     Try ChxImp.value = Settings["/Soc" & Start.Societe & "/ChxImp"]
     Try BlA5.Value = Settings["/Soc" & Start.Societe & "/BlA5"]
     Try Impstock.Value = Settings["/Soc" & Start.Societe & "/Impstocke"]
+    Try ImpPDF.Value = Settings["/Soc" & Start.Societe & "/ImpPDF"]
     If Settings["/Soc" & Start.Societe & "/TxtF"] Then
       RegDef.Visible = True
       RegDef.value = True
@@ -8827,6 +8828,7 @@ Public Sub Button16_Click()
   Settings["/Soc" & Start.Societe & "/ChxImp"] = ChxImp.Value
   Settings["/Soc" & Start.Societe & "/BlA5"] = BlA5.Value
   Settings["/Soc" & Start.Societe & "/Impstocke"] = Impstock.Value
+  Settings["/Soc" & Start.Societe & "/ImpPDF"] = ImpPDF.Value
   Settings.Save
   Settings.Reload
   Edit.Visible = False
@@ -11922,19 +11924,21 @@ End
 Public Sub Recup_type()
   
   Dim Tarif As Boolean = False
-  
+
   rResult = Utils.db.Exec("select * from " & Cbase.Table("TabCli") & " C " & ", " & Cbase.Table("TabTcli") & " T " & " where C.cli_code = &1 and T.type = C.cli_typec", Code.text)
   If rResult.Available Then
-    Tcli = True
-    Tcoeff = rResult!coef
-    Tarif = True
+    Try Tcoeff = rResult!coef
+    If Not Error Then
+      Tcli = True
+      Tarif = True
+    Endif
   Else
     Tcli = False
   Endif
   rResult = Utils.db.Exec("select * from " & Cbase.Table("TabCli") & " C " & ", " & Cbase.Table("TabTarcli") & " T " & " where C.cli_code = &1 and T.ccli = C.cli_code", Code.text)
   If rResult.Available Then
-    Tcli = True
-    Tcoeff = rResult!coef
+    Try Tcoeff = rResult!coef
+    If Not Error Then Tcli = True
   Else
     If Tarif = False Then Tcli = False
   Endif
@@ -12186,11 +12190,17 @@ Public Sub Button31_Click()
       If Not IsNull(Courriel.text) Then
         scourriel = Courriel.Text
         Impression("Mail")
-        Edit.Visible = False
         Me.mouse = Mouse.Wait
         Wait 1
-        'Exec ["xdg-email", "--attach", sPiece, "--subject", sText, "--body", sText2, sCourriel]
-        EnvMail.Envoi2(scourriel, stext, sText2, spiece)
+        If ImpPDF.Value Then
+          If IsNull(Settings["/Soc" & Start.Societe & "/Pdfchemin"]) Then
+            EnvMail.Envoi2(scourriel, stext, sText2, spiece)
+          Else
+            EnvMail.Envoi3(scourriel, stext, sText2, spiece)
+          Endif
+        Else
+          EnvMail.Envoi2(scourriel, stext, sText2, spiece)
+        Endif
         Wait 1
         Me.mouse = Mouse.Default
         Courriel.Text = sCourriel
