@@ -415,45 +415,47 @@ Public Sub Moulinage()
                     Endif
                     If rlTck!type <> "L" And If rlTck!type <> "M" Then
                       rcpt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " where code_fam = &1", rlTck!fam)
-                      vente = rcpt!compt_fam
-                      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", vente)
-                      If rResult.Available Then
-                        ivente = rResult!intitule_cc
-                      Endif
-                      montant = Val(.cpoint(rlTck!mht))
-                      If rTck!type = "0" Then
-                        If rTck!savoir = "1" Then
-                          Maj_Totalisation(vente, ivente, "-" & montant)
-                        Else
-                          Maj_Totalisation(vente, ivente, montant)
+                      If rcpt.Available Then
+                        vente = rcpt!compt_fam
+                        rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", vente)
+                        If rResult.Available Then
+                          ivente = rResult!intitule_cc
                         Endif
-                      Endif
-                      tva = rcpt!cdtva_fam
-                      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTvav") & " Where code_tva = &1", tva)
-                      If rResult.Available Then
-                        tva = rResult!cc_tva
-                      Endif
-                      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", tva)
-                      If rResult.Available Then
-                        itva = rResult!intitule_cc
-                      Endif
-                      rlTck2 = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigTck") & " where numero = &1 and type = &2 and numlig = &3", rTck!numero, "T", rlTck!numlig, rlTck!code, rlTck!block)
-                      If rlTck2.Available Then
-                        montant = Val(.cpoint(rlTck2!mtva))
-                      Else
-                        rlTck2 = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigTck") & " where numero = &1 and type = &2 and numlig = &3", rTck!numero, "M", rlTck!numlig, rlTck!code, rlTck!block)
+                        montant = Val(.cpoint(rlTck!mht))
+                        If rTck!type = "0" Then
+                          If rTck!savoir = "1" Then
+                            Maj_Totalisation(vente, ivente, "-" & montant)
+                          Else
+                            Maj_Totalisation(vente, ivente, montant)
+                          Endif
+                        Endif
+                        tva = rcpt!cdtva_fam
+                        rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTvav") & " Where code_tva = &1", tva)
+                        If rResult.Available Then
+                          tva = rResult!cc_tva
+                        Endif
+                        rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", tva)
+                        If rResult.Available Then
+                          itva = rResult!intitule_cc
+                        Endif
+                        rlTck2 = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigTck") & " where numero = &1 and type = &2 and numlig = &3", rTck!numero, "T", rlTck!numlig, rlTck!code, rlTck!block)
                         If rlTck2.Available Then
                           montant = Val(.cpoint(rlTck2!mtva))
                         Else
-                          montant = Val(.cpoint(rlTck!mtva))
+                          rlTck2 = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigTck") & " where numero = &1 and type = &2 and numlig = &3", rTck!numero, "M", rlTck!numlig, rlTck!code, rlTck!block)
+                          If rlTck2.Available Then
+                            montant = Val(.cpoint(rlTck2!mtva))
+                          Else
+                            montant = Val(.cpoint(rlTck!mtva))
+                          Endif
                         Endif
                       Endif
-                    Endif
-                    Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, rltck!numlig, rltck!code, $intit, rltck!montant, rltck!qte, rltck!type, rltck!fam, rltck!mht, rltck!mrem, rltck!tva)
-                    If rTck!savoir = "1" Then
-                      If rlTck!type <> "L" And If rlTck!type <> "M" Then Maj_Totalisation(Tva, iTva, "-" & montant)
-                    Else
-                      If rlTck!type <> "L" And If rlTck!type <> "M" Then Maj_Totalisation(Tva, iTva, montant)
+                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, rltck!numlig, rltck!code, $intit, rltck!montant, rltck!qte, rltck!type, rltck!fam, rltck!mht, rltck!mrem, rltck!tva)
+                      If rTck!savoir = "1" Then
+                        If rlTck!type <> "L" And If rlTck!type <> "M" Then Maj_Totalisation(Tva, iTva, "-" & montant)
+                      Else
+                        If rlTck!type <> "L" And If rlTck!type <> "M" Then Maj_Totalisation(Tva, iTva, montant)
+                      Endif
                     Endif
                   Endif
                 Until rlTck.MoveNext()
