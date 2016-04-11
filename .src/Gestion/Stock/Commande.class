@@ -844,12 +844,16 @@ Public Sub Btn_Click()
       
     Case 10
       Panel7.Visible = False
-      If Org = "" Then
-        Impcom("")
-        four.SetFocus
-        four.Select
+      If Not CheckBox1.value Then
+        If Org = "" Then
+          Impcom("")
+          four.SetFocus
+          four.Select
+        Else
+          Mail()
+        Endif
       Else
-        Mail()
+        GenFic() 
       Endif
       Stop Event
   End Select
@@ -3548,6 +3552,48 @@ Public Sub SelectionArt()
     Qtecom.SetFocus
     Qtecom.Select
   Endif
+  
+End
+
+'***********************************
+'*   on génère un fichier texte    *
+'***********************************
+Public Sub GenFic()
+  
+  Dim code, filetxt As String
+  Dim tab1 As String = "Fiches_Art" 
+  Dim hFile As File
+  Dim RefResult As Result
+  
+  If Colrcp.Count <> 0 Then
+    Shell "cd " & User.Home & ""
+    filetxt = User.home & "/commande.txt"
+    If Exist(filetxt) Then Kill filetxt
+    hFile = Open filetxt For Write Create
+    'Print #hFile, four.text & " " & fournom.text & " Commande N° " & Ncom.Text & " du " & datej.text 
+    Colrcp.MoveFirst
+    Repeat
+      Colrcp.Item.Selected = True
+      RefResult = Utils.db.Exec("SELECT * FROM " & Tab1 & " WHERE art_code = &1 ", Colrcp.Item[1])
+      If RefResult.Available Then
+        code = Colrcp.Item[1]
+      Else
+        RefResult = Utils.db.Exec("SELECT * FROM " & Tab1 & " WHERE art_cfour = &1 ", Colrcp.Item[1])
+        If RefResult.Available Then
+          code = RefResult!art_cfour
+        Else
+          RefResult = Utils.db.Exec("SELECT * FROM " & Tab1 & " WHERE art_refcentrale = &1 ", Colrcp.Item[1])
+          If RefResult.Available Then
+            code = RefResult!art_refcentrale
+          Endif
+        Endif
+      Endif
+      Print #hFile, code & ";" & Colrcp.Item[6]
+    Until Colrcp.Movenext()
+    Message.Info("Traitement terminé!\n Le fichier commande .txt a été généré sous votre repertoire.")
+  Else
+    Message.Info("Ce traitement doit se faire après la saisie de la commande!")
+  Endif 
   
 End
 
