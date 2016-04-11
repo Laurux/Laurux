@@ -11996,49 +11996,62 @@ End
 '***********************************************
 '*   Génération du columnview des écritures    *
 '***********************************************
-Public Sub ToggleButton7_Click()
+Public Sub ToggleButton7_MouseDown()
   
   Dim TabEcr As String
   Dim ecrlet As Result
+  Dim TotBl As Float = 0
   
   If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
   Me.Center
-  TabEcr = "Fiches_Mvt"
-  Coldetail2.Columns.count = 7
-  Coldetail2.Columns[0].Width = 100
-  Coldetail2.Columns[1].Width = 260
-  Coldetail2.Columns[2].Width = 100
-  Coldetail2.Columns[3].Width = 100
-  Coldetail2.Columns[4].Width = 95
-  Coldetail2.Columns[5].Width = 95
-  Coldetail2.Columns[0].Text = "Date"
-  Coldetail2.Columns[1].Text = "Nom"
-  Coldetail2.Columns[2].Text = "Document"
-  Coldetail2.Columns[3].Text = "Lot"
-  Coldetail2.Columns[4].Alignment = 2
-  Coldetail2.Columns[4].Text = "Débit"
-  Coldetail2.Columns[5].Alignment = 2
-  Coldetail2.Columns[5].Text = "Crédit"
-  If Coldetail2.Visible = True Then
-    Coldetail2.Clear
-    Coldetail2.Visible = False
+  If Me.mouse = Mouse.Left Then
+    TabEcr = "Fiches_Mvt"
+    Coldetail2.Columns.count = 7
+    Coldetail2.Columns[0].Width = 100
+    Coldetail2.Columns[1].Width = 260
+    Coldetail2.Columns[2].Width = 100
+    Coldetail2.Columns[3].Width = 100
+    Coldetail2.Columns[4].Width = 95
+    Coldetail2.Columns[5].Width = 95
+    Coldetail2.Columns[0].Text = "Date"
+    Coldetail2.Columns[1].Text = "Nom"
+    Coldetail2.Columns[2].Text = "Document"
+    Coldetail2.Columns[3].Text = "Lot"
+    Coldetail2.Columns[4].Alignment = 2
+    Coldetail2.Columns[4].Text = "Débit"
+    Coldetail2.Columns[5].Alignment = 2
+    Coldetail2.Columns[5].Text = "Crédit"
+    If Coldetail2.Visible = True Then
+      Coldetail2.Clear
+      Coldetail2.Visible = False
+    Else
+      Coldetail2.Clear
+      Coldetail2.Visible = True
+    Endif
+    ecrlet = Utils.db.Exec("SELECT * FROM " & TabEcr & " WHERE compte = &1 and lettree = &2  and validee = &3 order by dte", code.text, 0, 1)
+    If ecrlet.Available Then
+      Repeat
+        Coldetail2.Add(ecrlet!numdoc & ecrlet!lind, ecrlet!numdoc)
+        Coldetail2.item[0] = Utils.Cdate_Aff(ecrlet!dte)
+        Coldetail2.item[1] = ecrlet!intitule
+        Coldetail2.item[2] = ecrlet!numdoc
+        Coldetail2.item[3] = ecrlet!numlot
+        Coldetail2.item[4] = Format$(ecrlet!montantd, "0.00")
+        Coldetail2.item[5] = Format$(ecrlet!montantc, "0.00")
+      Until ecrlet.MoveNext()
+    Endif
   Else
-    Coldetail2.Clear
-    Coldetail2.Visible = True
-  Endif
-  ecrlet = Utils.db.Exec("SELECT * FROM " & TabEcr & " WHERE compte = &1 and lettree = &2  and validee = &3 order by dte", code.text, 0, 1)
-  If ecrlet.Available Then
-    Repeat
-      Coldetail2.Add(ecrlet!numdoc & ecrlet!lind, ecrlet!numdoc)
-      Coldetail2.item[0] = Utils.Cdate_Aff(ecrlet!dte)
-      Coldetail2.item[1] = ecrlet!intitule
-      Coldetail2.item[2] = ecrlet!numdoc
-      Coldetail2.item[3] = ecrlet!numlot
-      Coldetail2.item[4] = Format$(ecrlet!montantd, "0.00")
-      Coldetail2.item[5] = Format$(ecrlet!montantc, "0.00")
-    Until ecrlet.MoveNext()
-  Else
-  Endif
+    TabEcr = "Fiches_Bl"
+    ecrlet = Utils.db.Exec("SELECT * FROM " & TabEcr & " WHERE cdclibl = &1 and type = &2 order by numbl", code.text, "B")
+    If ecrlet.Available Then
+      Repeat
+        TotBl = TotBl + ecrlet!totalttc
+      Until ecrlet.MoveNext()
+      Message.Info("Total BL en cours = " & Format$(Totbl, "0.00"))
+    Else
+      Message.Info("Aucun BL en cours pour ce client !")
+    Endif
+  Endif   
   
 End
 
