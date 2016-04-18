@@ -269,6 +269,7 @@ Public Sub Cmpt_LF()
   
   If IsNull(nbdec) Then nbdec = "0"
   Qte.text = Format$(Val(Utils.cpoint(Qte.text)), Nbdec)
+  Calc_Pmp()
   
 End
 
@@ -300,6 +301,7 @@ Public Sub Button3_Click()
   
   Dim prArt As Result
   Dim nb As Integer
+  Dim Art2 As String = Code.Text
   
   If Not IsNull(Code.Text) And Not IsNull(Cart.text) And Not IsNull(Qte.text) Then
     Cmpt_LF()
@@ -324,6 +326,8 @@ Public Sub Button3_Click()
       Pmp.Text = Val(Pmp.Text) + Val(PmpA.Text)
     Endif
     CleanChamps()
+    Code.Text = Art2
+    Cprdcomp()
     Cart.SetFocus
     
   Else
@@ -545,7 +549,11 @@ Public Sub Calc_Pmp()
       prArt2 = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", prArt!codec)
       iPmp = prArt2!art_pmp
       'Colartprdc.MoveTo(i, 2)
-      TotPmp = TotPmp + iPmp * Val(Utils.cpoint(prArt!qte))
+      If Qte.Text = "0" Then
+        TotPmp = TotPmp + iPmp * Val(Utils.cpoint(prArt!qte))
+      Else
+        TotPmp = TotPmp + iPmp * Val(Utils.cpoint(Qte.text))
+      Endif
     Until prArt.MoveNext()
     Pmp.Text = Format$(TotPmp, "0.00")
     'Calc_Marge()
@@ -607,8 +615,8 @@ Public Sub Calc_Prvt()
   If prArt.Available Then
     Repeat
       prArt2 = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", prArt!codec)
-      iPmp = prArt2!art_pmp
-      TotPrvt = TotPrvt + Val(Utils.cpoint(prArt2!art_prvt))
+      'iPmp = prArt2!art_pmp * Val(Utils.cpoint(prArt!qte))
+      TotPrvt = TotPrvt + Val(Utils.cpoint(prArt2!art_prvt)) * Val(Utils.cpoint(prArt!qte))
     Until prArt.MoveNext()
     Pxrvt.Text = Format$(TotPrvt, "0.00")
   Endif
