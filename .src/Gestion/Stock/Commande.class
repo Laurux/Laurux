@@ -1289,6 +1289,7 @@ Public Sub Gencom()
       If stocke And If Not IsNull(rarts!art_mincom) Then
         If Val(Utils.cpoint(rarts!art_mincom)) > 0 And If qtecom < Val(Utils.cpoint(rarts!art_mincom)) Then Qtecom = Val(Utils.cpoint(rarts!art_mincom))
       Endif
+      'Try Qtecom = Qtecom / rarts!art_txconv
       If Len(paht) - InStr(paht, ",") = 2 Then paht = paht & " "
       If qtecom > 0 Then 
         Try Colrcp.Add(rarts!art_code & Nlgn, rarts!art_code & Nlgn)
@@ -1363,7 +1364,11 @@ Public Sub Artcomm(Org As String)
   Dim rblResult As Result
   Dim qtecli As Float = 0
   
-  rblResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigbl") & " left join " & Cbase.Table("TabBl") & "  on numbl = num_ligbl where code_ligbl = &1 and typel_ligbl = &2", Cart.Text, "A")
+  If Org <> "Reaff" Then
+    rblResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigbl") & " left join " & Cbase.Table("TabBl") & "  on numbl = num_ligbl where code_ligbl = &1 and typel_ligbl = &2", Cart.Text, "A")
+  Else
+    rblResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigbl") & " left join " & Cbase.Table("TabBl") & "  on numbl = num_ligbl where code_ligbl = &1 and typel_ligbl = &2", Colrcp.Current[1], "A")
+  Endif
   If rblResult.Available Then
     Repeat
       If Val(Utils.cpoint(rblResult!qte_ligbl)) > 0 And rblResult!type = "C" Then
@@ -2672,10 +2677,11 @@ Public Sub Maj_colrcp()
     Colrcp.Item[14] = Cart.text
     Colrcp.Item[16] = Pattc.text
     Colrcp.Item.Selected = True
-    ob = Colrcp.Children[0]
-    ob[ob.Row, 0].Background = ArtCom.Background
+    'ob = Colrcp.Children[0]
+    'ob[ob.Row, 0].Background = ArtCom.Background
     Colrcp.MoveFirst
     b = 0
+    Coulfond()
     bas_doc()
     Colrcp.MoveFirst
     Do
@@ -2741,7 +2747,8 @@ Public Sub Maj_colrcp()
       Endif
     Loop Until Colrcp.MoveNext()
   End With
-  Try ob[ob.Row, 0].Background = ArtCom.Background
+  'Try ob[ob.Row, 0].Background = ArtCom.Background
+  Coulfond()
   bas_doc()
   
 End
@@ -2870,6 +2877,7 @@ Public Sub Colrcp_Keypress()
             Colrcp.Item[0] = Nlgn
           Loop Until Colrcp.MoveNext()
         Endif
+        Coulfond()
         bas_doc()
       Else
         Totalrcpt.Text = "0,00"
@@ -3664,6 +3672,27 @@ Public Sub Mail()
     Else
       Message.Warning("Ce fournisseur n'a pas de d'adresse mail ! Envoi impossible")
     Endif
+  Endif
+  
+End
+
+Public Sub Coulfond()
+  
+  Dim ob As Object
+  Dim bcomcli As Boolean
+  
+  If Colrcp.count > 0 Then
+    Colrcp.MoveFirst
+    Repeat
+      Colrcp.Item.Selected = True
+      ob = Colrcp.Children[0]
+      Artcomm("Reaff")
+      If ComCli > 0 Then
+        ob[ob.Row, 0].Background = &00B4F1B4
+      Else
+        ob[ob.Row, 0].Background = &00FFFFFF
+      Endif
+    Until Colrcp.MoveNext()
   Endif
   
 End

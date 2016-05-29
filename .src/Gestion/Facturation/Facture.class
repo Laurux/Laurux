@@ -222,6 +222,7 @@ Private dt As String[] = Scan(Format$(Now, "yyyy/mm/dd"), "*/*/*")
 Private $numbl As String
 Private Nmuser As String
 Private Ecran As String
+Private $photo As String
 
 '**********************************************************
 '*initialisation écrans et gestion onglet client          *
@@ -4113,6 +4114,8 @@ Public Sub Art_man(Prod As String)
     If Rarts.Available Then
       Stk = Rarts!art_stocke
       Qte.Text = Utils.CPoint(Rarts!art_qte)
+      $photo = Rarts!art_photo
+      If Not IsNull($photo) Then Artdsg.Background = &h00CAE8CA&
       Art_Rpl()
       Art_Equ(Cart.Text)
       If Equ = False Then
@@ -4588,12 +4591,38 @@ Public Sub ComArt()
   
 End
 
+Public Sub aff_photo()
+  
+  Dim hform3 As Fcaras
+  
+  If Not IsNull($photo) Or If Not IsNull($crst) Then
+    ChkFocus = 2
+    hForm3 = New Fcaras($photo, $crst)
+    hForm3.Showmodal()
+    ChkFocus = 0
+  Endif 
+  
+End
+
 Public Sub Art_KeyPress()
   
   Dim Rep As Boolean = False
   Dim hform2 As Form
   
   T = 0
+  'On affiche la photo
+  If key.Control Then
+    If Key.code = 80 Then
+      Select Case Last.tag
+        Case 2
+          aff_photo()
+          
+        Case 4
+          aff_photo()
+      End Select
+    Endif
+  Endif
+  
   If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
     Select Case Last.tag
         
@@ -5476,6 +5505,9 @@ Public Sub Art_GotFocus()
       'Else
       'Textlabel30.text = "Prix HT" 
       'Endif
+    Case 2
+      If Not IsNull($photo) Or If Not IsNull($crst) Then Artdsg.Background = &h00CAE8CA&
+      
     Case 3
       ChgArt()
     Case 4
@@ -5897,6 +5929,7 @@ Public Sub Enrg_Art()
     ArtFour.Visible = False
     Frame4.Visible = False
   Endif
+  Artdsg.Background = Color.TextBackground
   
 End
 
@@ -7288,6 +7321,8 @@ Public Sub Coldetail_Activate()
             Try Ecotaxe = hresult!art_ect
             Taxepv = hresult!art_cpp
             Try Valeur_Copp = hresult!art_copp
+            $photo = hresult!art_photo
+            $crst = hresult!art_crst
             Materiel = hresult!art_mat
             If Materiel Then
               Repeat
