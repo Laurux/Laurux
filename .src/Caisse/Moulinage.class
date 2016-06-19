@@ -331,7 +331,7 @@ Public Sub Moulinage()
   Dim rlTck2 As Result
   Dim rcpt As Result
   Dim rResult As Result
-  Dim rFam As Result
+  Dim rFam, rDep As Result
   Dim vente As String
   Dim ivente As String
   Dim tva As String
@@ -354,7 +354,7 @@ Public Sub Moulinage()
   Dim sDate As String
   Dim origine As String
   Dim scli As String
-  Dim $intit, resto, Fam As String
+  Dim $intit, resto, Fam, $depot As String
   
   Virements()
   numecr = "numecriture"
@@ -381,7 +381,7 @@ Public Sub Moulinage()
         rTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where left(date,10) = &1 order by numero", Format$(DateChooser1.Value, "dd-mm-yyyy"))
         If rTck.Available Then
           ' On gère d'abord les clients caisse
-          Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabParam") & " WRITE, " & Cbase.Table("TabEntTck") & " WRITE, " & Cbase.Table("TabLigTck") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("Totalisation") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabArt") & " WRITE, " & Cbase.Table("TabHisEntTck") & " WRITE, " & Cbase.Table("TabHisLigTck") & " WRITE, " & Cbase.Table("TabJour") & " WRITE,  " & Cbase.Table("TabCli") & " WRITE, " & Cbase.Table("TabBl") & " WRITE, " & Cbase.Table("TabLigbl") & " WRITE, " & Tab & " WRITE ")
+          Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabParam") & " WRITE, " & Cbase.Table("TabEntTck") & " WRITE, " & Cbase.Table("TabLigTck") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("Totalisation") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabArt") & " WRITE, " & Cbase.Table("TabHisEntTck") & " WRITE, " & Cbase.Table("TabHisLigTck") & " WRITE, " & Cbase.Table("TabJour") & " WRITE,  " & Cbase.Table("TabCli") & " WRITE, " & Cbase.Table("TabBl") & " WRITE, " & Cbase.Table("TabLigbl") & " WRITE, " & Tab & " WRITE, Fiches_Caisses WRITE, Fiches_FamDep WRITE ")
           Repeat
             If rtck!sresto = "1" Then 
               resto = "R"
@@ -411,6 +411,7 @@ Public Sub Moulinage()
                       rFam = Utils.db.Exec(" select * from " & Cbase.Table("TabArt") & " where art_code = &1", rltck!code)
                       Fam = rFam!art_fam
                     Endif
+                    If IsNull(Fam) Then Fam = rlTck!fam
                     If rlTck.index < rlTck.count - 1 Then 
                       $intit = rlTck!intitule
                       rlTck.MoveNext()
@@ -419,9 +420,15 @@ Public Sub Moulinage()
                       Endif
                     Endif
                     If rlTck!type <> "L" And If rlTck!type <> "M" Then
+                      rDep = Utils.db.Exec("SELECT * FROM Fiches_Caisses where code = &1", rtck!caisse)
+                      If rDep.Available Then $depot = rdep!depot
                       rcpt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " where code_fam = &1", Fam)
                       If rcpt.Available Then
                         vente = rcpt!compt_fam
+                        If Not IsNull($depot) Then
+                          rDep = Utils.db.Exec("SELECT * FROM Fiches_FamDep where fam = &1 and depot = &2", Fam, $depot)
+                          If rDep.Available Then vente = rDep!compte
+                        Endif
                         rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", vente)
                         If rResult.Available Then
                           ivente = rResult!intitule_cc

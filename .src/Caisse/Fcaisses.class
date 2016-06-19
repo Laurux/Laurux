@@ -44,7 +44,7 @@ End
 
 Public Sub Form_Open()
   
-  Dim rResult As Result
+  Dim rResult, Rdep As Result
   
   rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCaisses") & " ")
   If rResult.Available Then
@@ -57,7 +57,21 @@ Public Sub Form_Open()
       Try Caisse.Item[4] = rResult!ecole
       Try Caisse.Item[5] = rResult!poste
       Try Caisse.Item[6] = rResult!typeimp
+      Try Caisse.Item[7] = rResult!depot
     Until rResult.MoveNext()
+  Endif
+  Dep.clear
+  If Settings["/Soc" & Start.Societe & "/Depots"] Then
+    Panel2.visible = True
+    Rdep = Utils.db.Exec("select * from " & Cbase.Table("TabDepots") & " order by code")
+    If Rdep.Available Then
+      Dep.Add("")
+      Repeat
+        If Left$(Rdep!code, 2) <> "01" Then Dep.Add(Rdep!code & "-" & Rdep!libelle)
+      Until Rdep.MoveNext()
+    Endif
+  Else
+    Panel2.visible = False
   Endif
   
 End
@@ -71,6 +85,8 @@ Public Sub Refresh()
 End
 
 Public Sub Maj_Zones()
+  
+  Dim Rdep As Result
   
   With Utils
     If Caisse.Count <> 0 Then
@@ -89,6 +105,10 @@ Public Sub Maj_Zones()
         Label6.Visible = False
         ComboBox3.Visible = False
       Endif
+      If Panel2.visible Then
+        Rdep = Utils.db.Exec("select * from Fiches_Depots where code = &1", Caisse.Item[7])
+        If Rdep.Available Then Try Dep.text = Rdep!code & "-" & Rdep!libelle
+      Endif
     Endif
   End With
   Code.SetFocus
@@ -105,6 +125,7 @@ Public Sub Cleanchamps()
   Poste.clear
   Label6.Visible = False
   ComboBox3.Visible = False
+  Dep.Text = ""
   
 End
 
@@ -223,14 +244,14 @@ Public Sub Button1_Click()
     With utils
       Rcai = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCaisses") & " WHERE code = &1", Code.text)
       If Rcai.Available Then
-        Utils.db.Exec("UPdate  " & Cbase.Table("TabCaisses") & "  SET intitule = &2, imp = &3, type = &4, ecole = &5, poste = &6, typeimp = &7 WHERE code = &1", Code.text, Libelle.Text, Combobox1.text, ComboBox2.text, ecole.value, Poste.text, ComboBox3.Text)
+        Utils.db.Exec("UPdate  " & Cbase.Table("TabCaisses") & "  SET intitule = &2, imp = &3, type = &4, ecole = &5, poste = &6, typeimp = &7, depot = &8 WHERE code = &1", Code.text, Libelle.Text, Combobox1.text, ComboBox2.text, ecole.value, Poste.text, ComboBox3.Text, Left$(Dep.Text, 2))
         Tab = "Fiches_Reglts" & Code.text 
         Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (date Char(17))")
         Tab = "Fiches_Regltz"
         Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (date Char(17))")
         Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (caisse Char(2))")
       Else
-        Utils.db.Exec("INSERT INTO " & Cbase.Table("TabCaisses") & " (code,intitule, imp, type, ecole, poste, typeimp) VALUES (&1, &2, &3, &4, &5, &6, &7)", Code.text, Libelle.Text, Combobox1.text, Combobox2.text, ecole.value, Poste.Text, ComboBox3.Text)
+        Utils.db.Exec("INSERT INTO " & Cbase.Table("TabCaisses") & " (code,intitule, imp, type, ecole, poste, typeimp, depot) VALUES (&1, &2, &3, &4, &5, &6, &7, &8)", Code.text, Libelle.Text, Combobox1.text, Combobox2.text, ecole.value, Poste.Text, ComboBox3.Text, Left$(Dep.Text, 2))
         Tab = "Fiches_EntTickets" & Code.text 
         Try Utils.db.EXEC("CREATE TABLE " & Tab &
           "(lInd INT NOT NULL AUTO_INCREMENT," &
