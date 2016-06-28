@@ -223,6 +223,8 @@ Private $numbl As String
 Private Nmuser As String 'nom user
 Private Ecran As String
 Private $photo As String
+Private Refliee As String
+Private QteRefliee As String
 
 '**********************************************************
 '*initialisation écrans et gestion onglet client          *
@@ -1779,7 +1781,7 @@ Public Sub Colbl_Click()
           Endif
           Dep.Text = rResult!cdep
           If Not IsNull(Dep.text) Then Dep.Enabled = False
-          Telport.Text = rResult!tel
+          Try Telport.Text = rResult!tel
         Endif
         rResult = Utils.db.Exec("select * from " & Cbase.Table("TabCli") & " where cli_code = &1", Code.text)
         If rResult.Available Then
@@ -4327,6 +4329,7 @@ Public Sub Maj_zonesArt()
             Impcar = Rarts!art_impcar
             Intit = Rarts!art_crst
             Pdc = Rarts!art_prdcomp
+            Refliee = Rarts!art_refliee
             Try Colvente = Rarts!art_colvte
             Try PVHT2 = Rarts!art_pvht2
             If Rarts!art_stocke Then 
@@ -5213,6 +5216,14 @@ Public Sub Remises_quantitatives()
   
 End
 
+Public Sub Cart_LF()
+  
+  If Not IsNull(Refliee) Then
+    ArtQte.setfocus
+  Endif
+  
+End
+
 Public Sub Artbrut_LF()
   
   With utils
@@ -5746,6 +5757,13 @@ Public Sub Button11_Click()
       If Panel7.Visible = False Then
         Cart.SetFocus
         Cart.Select
+        'Si il y a une référence liée on l'affiche
+        If Not IsNull(Refliee) Then
+          Maj_zonesArt()
+          Artqte.Text = QteRefliee
+          Refliee = ""
+          Artqte.SetFocus
+        Endif
       Endif
     Else
       If typeL = "E" Or typeL = "P" Then
@@ -5920,6 +5938,7 @@ Public Sub Enrg_Art()
       Endif
     Endif
   Endif
+  QteRefliee = ArtQte.Text
   If ecotaxe Then Ecot()
   If ecotaxe2 And Pays = "France" Then Ecot2()
   If Taxepv Then Txpp()
@@ -5934,6 +5953,9 @@ Public Sub Enrg_Art()
     Frame4.Visible = False
   Endif
   Artdsg.Background = Color.TextBackground
+  Cart.Text = Refliee
+  Cart_LF()
+  ArtQte.Text = QteRefliee
   
 End
 
