@@ -40,24 +40,25 @@ Public Sub Imp_Bordereaux()
   pdf.Open()
   pdf.AliasNbPages()
   Tab = "Fiches_LigTicketz" 
+  posy = 0
   If Tous.Value = True Then
-    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where numlig = &1 or numlig = &2 order by numlig", "U", "V")
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where type = &1 or type = &2 order by numlig", "U", "V")
   Else
     If Cheques.Value = True Then
-      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where numlig = &1 order by numlig", "V")
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where type = &1 order by numlig", "V")
     Else
       If Cartes.Value = True Then
-        rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where numlig = &1 order by numlig", "U")
+        rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where type = &1 order by numlig", "U")
       Endif
     Endif
   Endif
   If rResult.Available Then
-    type = rResult!numlig
-    If rResult!numlig = "V" Then
+    type = rResult!type
+    If rResult!type = "V" Then
       Txtb = "Bordereaux de remise de chèques du " & Format$(Now, "dd.mm.yyyy")
       lg = 8
     Else
-      If rResult!numlig = "U" Then
+      If rResult!type = "U" Then
         Txtb = "Bordereaux de remise de cartes du " & Format$(Now, "dd.mm.yyyy")
         lg = 7
       Endif
@@ -65,7 +66,7 @@ Public Sub Imp_Bordereaux()
     Imp_Entete(TxtB)
     posy = 80
     Repeat
-      If rResult!numlig <> type Then
+      If rResult!type <> type Then
         Nbtot = "Total " & Mid$(Txtb, 25, Len(Txtb) - 24) & Space$(90) & nbreg
         Posy = Posy + 5
         Pdf.Ligne(PosY)
@@ -73,7 +74,7 @@ Public Sub Imp_Bordereaux()
         pdf.Level5(nbtot, Format$(Val(Utils.cpoint(Montant)), "0.00"), PosY)
         Posy = Posy + 7
         Pdf.Ligne(PosY)
-        If rResult!numlig = "V" Then
+        If rResult!type = "V" Then
           Txtb = "Bordereaux de remise de chèques du " & Format$(Now, "dd.mm.yyyy")
           lg = 8
         Else
@@ -94,7 +95,7 @@ Public Sub Imp_Bordereaux()
         Pdf.Level5(Mid$(rResult!intitule, lg, Len(rResult!intitule)), rResult!montant, PosY)
       Endif
       PosY = PosY + 5
-      Type = rResult!numlig
+      Type = rResult!type
       Inc nbreg
       Montant = Val(Utils.cpoint(Montant)) + Val(Utils.cpoint(rResult!montant))
       If PosY >= 240 Then
