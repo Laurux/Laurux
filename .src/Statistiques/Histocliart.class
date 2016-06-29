@@ -1,0 +1,640 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Histovart.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 23/08/2007
+'# Impression de l'historique des ventes par article
+'################################################
+'
+
+Filename As String
+Filetxt As String
+Tab As String
+hfile As File
+son As Integer = Start.Son
+dte4 As String
+ye As String
+mois As String
+da As String
+Coulfond As New String[]
+PosY As Integer
+PosX As Integer
+Public Cclient As String
+Public Bsel As Boolean = False
+Private Origine As String = ""
+Private b As Integer = 0
+Private Tri As String = ""
+
+Public Sub _New()
+  
+  Dim rResult As Result
+  Dim Tab As String
+  Dim jour As String
+  Dim Frmt As New String[]
+  
+  Coulfond = Utils.Coulfd()
+  Frmt = Utils.FColr(Settings["/Coul/Fnets"])
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  Music.Load(Start.Musique)
+  Tab = "Fiches_Parametres" 
+  Me.Center
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
+  dteN0.Text = rResult!dteclec1
+  dteN0.Text = Utils.Calc_mois(dteN0.Text)
+  dteN1.Text = Format$(Now, "dd.mm.yyyy")
+  Cli.Text = "41100001"
+  Cli2.Text = "41199999"
+  Cli.SetFocus
+  If Settings["/Soc" & Start.Societe & "/Materiel"] Then
+    Facn.visible = False
+    Face.Visible = False
+  Endif
+  
+End
+
+Public Sub dte_KeyPress()
+  
+  Select Case Last.tag
+      
+    Case 1
+      If Key.code = Key.enter Or Key.code = Key.Return Or Key.code = Key.Tab Then
+        dteN0_LF()
+        dteN1.SetFocus
+        dteN1.Select
+        Stop Event
+      Endif
+      
+    Case 2
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        dteN1_LF()
+        Cli.SetFocus
+        Cli.Select
+        Stop Event
+      Endif
+  End Select
+  
+End
+
+'****************************************************
+'*          Gestion de la premiere date             *
+'****************************************************
+Public Sub dteN0_LF()
+  
+  Dim Dtn As String
+  
+  With utils
+    dteN0.text = .Cdate_calc(dteN0.text)
+    dteN0.Text = .Cdate_aff(dteN0.Text)
+    If dteN0.Text = "00.00.0:00" Then dteN0.Text = Format$(Now, "dd.mm.yyyy")
+  End With
+  dteN1.setfocus
+  dteN1.Select
+Catch
+  dteN0.setfocus
+  dteN0.Select
+  
+End
+
+'****************************************************
+'*           Gestion de la seconde date             *
+'****************************************************
+Public Sub dteN1_LF()
+  
+  Dim Dtn As String
+  
+  With utils
+    dteN1.text = .Cdate_calc(dteN1.text)
+    dteN1.Text = .Cdate_aff(dteN1.Text)
+    If dteN1.Text = "00.00.0:00" Then dteN1.Text = Format$(Now, "dd.mm.yyyy")
+  End With
+  If Val(Right$(dteN1.text, 4) & Mid$(dteN1.text, 4, 2) & Left$(dteN1.text, 2)) < Val(Right$(dteN0.text, 4) & Mid$(dteN0.text, 4, 2) & Left$(dteN0.text, 2)) Then
+    If son Then
+      Music.Play
+    Endif
+    If Message.Warning("Attention ! Votre selection n'est pas possible.", "Ok") = 1 Then
+      dteN1.setfocus
+      dteN1.Select
+    Endif
+  Endif
+Catch
+  dteN1.setfocus
+  dteN1.Select
+  
+End
+
+'********************************************
+'* Saisie d'un client manuellement     *
+'********************************************
+Public Sub Cli_man(Org As String)
+  
+  Dim rResult As Result
+  
+  rResult = Utils.db.Exec("SELECT * FROM Fiches_Cli where cli_code = &1", Cli.Text)
+  With Utils
+    If rResult.available Then
+      If Org = "Cli" Then
+        Cli2.SetFocus
+      Else
+        Cli.SetFocus
+      Endif
+    Else
+      If Son Then
+        Music.Play
+      Endif
+      Message.Warning("Attention ! Veuillez saisir un compte existant SVP.", "Ok")
+      If Org = "Cli" Then
+        Cli.Clear
+        Cli.SetFocus
+      Else
+        Cli2.Clear
+        Cli2.SetFocus
+      Endif
+    Endif
+  End With
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Button1_Click()
+      
+    Case 2
+      Button2_Click()
+      
+    Case 3
+      If Exist(filename) Then Try Kill filename
+      Me.Close
+      
+    Case 4
+      Report("Button4")  
+  End Select
+  
+End
+
+Public Sub Btn_KeyPress()
+  
+  Select Case Last.tag
+    Case 2
+      Report("Button2")
+  End Select
+  
+End
+
+Public Sub Cmpt_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+        
+      Case 1
+        Cli2.SetFocus
+        Cli2.Select
+        Stop Event
+        
+      Case 2
+        Button2.SetFocus
+        Stop Event
+    End Select
+  Endif
+  
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+  
+  If key.code = key.F2 Then
+    Select Case Last.tag
+      Case 1
+        ToggleButton1_Click()
+        Stop Event
+      Case 2
+        ToggleButton2_Click()
+        Stop Event
+    End Select
+  Endif
+  
+End
+
+Public Sub ToggleButton1_Click()
+  
+  Dim MyForm As Triclients
+  
+  bsel = False
+  MyForm = New Triclients("Histocliart")
+  MyForm.Showmodal()
+  If Bsel = True Then
+    Cli.text = Cclient
+    Cli_Man("Cli")
+  Else
+    Cli.SetFocus
+  Endif
+  
+End
+
+Public Sub ToggleButton2_Click()
+  
+  Dim MyForm As Triclients
+  
+  bsel = False
+  MyForm = New Triclients("Histocliart")
+  MyForm.Showmodal()
+  If Bsel = True Then
+    Cli2.text = Cclient
+    Cli_Man("Cli2")
+  Else
+    Cli2.SetFocus
+  Endif
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Cmpt_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  
+End
+
+'****************************************************
+'*      Gestion du focus. Routine de Charlie Reinl  *
+'****************************************************
+Public Sub Dte_GotFocus()
+  
+  With Utils
+    .SetEditColor(Me, Last)
+  End With
+  
+End
+
+Public Sub Report(Org As String)
+  
+  Dim rResult As Result
+  Dim ArtResult As Result
+  Dim HResult As Result
+  Dim HFResult As Result
+  Dim EntkResult As Result
+  Dim Tab As String
+  Dim code As String
+  Dim intitule As String
+  Dim Fami As String
+  Dim four3 As String
+  Dim Pvht As Float
+  Dim i As Integer
+  Dim dte As String
+  Dim nbdec As String
+  Dim nbd As String
+  Dim qte As Float
+  Dim Tab2 As String
+  Dim Tab3 As String
+  Dim Tab4 As String
+  Dim Tab5 As String
+  Dim Tab6 As String
+  Dim Tab7 As String
+  Dim Tab8 As String
+  Dim Tab9 As String
+  Dim tva As String
+  Dim $stocke As String
+  Dim Nbpage As Integer
+  Dim Ligne As Integer = 0
+  Dim Bht, codea As String
+  Dim Bflag As Boolean = False
+  Dim pdf As Chistoriques
+  Dim Stocke, Stocka As Boolean = False
+  
+  Nbpage = 1
+  dte = Format$(Now, "dd.mm.yyyy")
+  Tab = "Fiches_Art" 
+  Tab2 = "Fiches_HistoLigfac" 
+  Tab3 = "Fiches_HistoLigfacM" 
+  Tab4 = "Fiches_HistoFac" 
+  Tab5 = "Fiches_HistoFacM" 
+  Tab6 = "Fiches_Bl" 
+  Tab7 = "Fiches_BlM" 
+  Tab8 = "Fiches_Ligbl" 
+  Tab9 = "Fiches_LigblM" 
+  qte = 0
+  Pvht = 0
+  If RadioButton5.value Then
+    Stocke = True
+    $stocke = " stockés "
+  Else
+    Stocke = False
+    $Stocke = " non stockés "
+  Endif
+  Shell "cd " & User.Home & ""
+  If Org = "Button2" Then
+    Filename = User.home & "/HistoArt.pdf"
+    pdf = New Chistoriques("Portrait", "mm", "A4")
+    pdf.Open()
+    pdf.AliasNbPages()
+    pdf.Entete("Impression des historiques des ventes de produits" & $stocke & "du " & Dten0.text & " au " & dten1.text)
+    pdf.Level1()
+  Else
+    Filename = User.home & "/HistoArt.csv"
+    If Exist(Filename) Then Kill Filename
+    hFile = Open Filename For Write Create
+    Donnees1("Impression des historiques des ventes de produits" & $stocke & " du " & Dten0.text & " au " & dten1.text)
+  Endif
+  posx = 2
+  posy = 22
+  Me.Mouse = Mouse.Wait
+  With Utils
+    If Radiobutton1.Value Then
+      'rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE art_code >= &1  and art_code <= &2 and art_fam >= &3 and art_fam <= &4 and art_four >= &5 and art_four <= &6 and art_stocke = &7 order by CAST(art_code AS char)", Art.Text, Art2.Text, Fam.Text, Fam2.Text, Cli.Text, Cli2.Text, stocke)
+    Endif
+    'If Radiobutton2.Value Then
+    'Result = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE art_code >= &1  and art_code <= &2 and art_fam >= &3 and art_fam <= &4  and art_four >= &5 and art_four <= &6 and art_stocke = &7 order by art_fam, CAST(art_code AS char)", Art.Text, Art2.Text, Fam.Text, Fam2.Text, Cli.Text, Cli2.Text, stocke)
+    'Endif
+    'If Radiobutton3.Value Then
+    'rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE art_code >= &1  and art_code <= &2 and art_fam >= &3 and art_fam <= &4  and art_four >= &5 and art_four <= &6 and art_stocke = &7 order by art_four, CAST(art_code AS char)", Art.Text, Art2.Text, Fam.Text, Fam2.Text, Cli.Text, Cli2.Text, stocke)
+    'endif
+    'If Radiobutton4.Value Then
+    'rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE art_code >= &1  and art_code <= &2 and art_fam >= &3 and art_fam <= &4  and art_four >= &5 and art_four <= &6 and art_stocke = &7 order by art_design", Art.Text, Art2.Text, Fam.Text, Fam2.Text, Cli.Text, Cli2.Text, stocke)
+    ' Endif
+    If rResult.Available Then
+      Repeat
+        qte = 0
+        Pvht = 0
+        code = rResult!art_code
+        intitule = rResult!art_design
+        fami = rResult!art_fam
+        four3 = rResult!art_four
+        'On récupère les données archivées.
+        If Facn.value = True Then
+          HResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " as e inner join " & Tab4 & " as a on a.numfac = e.num_ligfac WHERE code_ligfac = &1 and typel_ligfac = &2 and datefac >= &3 and datefac <= &4", code, "A", Utils.Cdate_Dbase(dteN0.Text), Utils.Cdate_Dbase(dteN1.Text))
+          If Hresult.Available Then
+            Repeat
+              If Not IsNull(Hresult!qte_ligfac) Then
+                Try qte = qte + Val(.cpoint(Hresult!qte_ligfac))
+                Try pvht = pvht + Val(.cpoint(Hresult!netht_ligfac))
+              Endif
+            Until HResult.MoveNext()
+          Endif
+        Endif
+        If Face.value = True Then
+          HResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " as e inner join " & Tab5 & " as a on a.numfac = e.num_ligfac WHERE code_ligfac = &1 and typel_ligfac = &2 and datefac >= &3 and datefac <= &4", code, "A", Utils.Cdate_Dbase(dteN0.Text), Utils.Cdate_Dbase(dteN1.Text))
+          If Hresult.Available Then
+            Repeat
+              If Not IsNull(Hresult!qte_ligfac) Then
+                Try qte = qte + Val(.cpoint(Hresult!qte_ligfac))
+                Try pvht = pvht + Val(.cpoint(Hresult!netht_ligfac))
+              Endif
+            Until HResult.MoveNext()
+          Endif
+        Endif
+        If Fact.value = True Then
+          HResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " as e inner join " & Tab4 & " as a on a.numfac = e.num_ligfac WHERE code_ligfac = &1 and typel_ligfac <> &2 and datefac >= &3 and datefac <= &4", code, "A", Utils.Cdate_Dbase(dteN0.Text), Utils.Cdate_Dbase(dteN1.Text))
+          If Hresult.Available Then
+            Repeat
+              If Not IsNull(Hresult!qte_ligfac) Then
+                qte = qte + Val(.cpoint(Hresult!qte_ligfac))
+                Try pvht = pvht + Val(.cpoint(Hresult!netht_ligfac))
+              Endif
+            Until HResult.MoveNext()
+          Endif
+        Endif
+        Bflag = False
+        'On récupère les données en cours.
+        
+        If Facn.value = True Then
+          HResult = Utils.db.Exec("SELECT * FROM " & Tab8 & " as e inner join " & Tab6 & " as a on a.numbl = e.num_ligbl WHERE code_ligbl = &1 and typel_ligbl = &2", code, "A")
+          If HResult.Available Then
+            Repeat
+              'On travaille avec les BL
+              If Hresult!type = "B" Or If Hresult!type = "F" Then
+                If Not IsNull(Hresult!qte_ligbl) Then
+                  qte = qte + Val(.cpoint(Hresult!qte_ligbl))
+                  pvht = pvht + Val(.cpoint(Hresult!netht_ligbl))
+                Endif
+              Endif
+            Until HResult.MoveNext()
+          Endif
+        Endif
+        If Face.value = True Then
+          HResult = Utils.db.Exec("SELECT * FROM " & Tab9 & " as e inner join " & Tab7 & " as a on a.numbl = e.num_ligbl WHERE code_ligbl = &1 and typel_ligbl = &2", code, "A")
+          If HResult.Available Then
+            Repeat
+              'On travaille avec les BL
+              If Hresult!type = "B" Or If Hresult!type = "F" Then
+                If Not IsNull(Hresult!qte_ligbl) Then
+                  qte = qte + Val(.cpoint(Hresult!qte_ligbl))
+                  pvht = pvht + Val(.cpoint(Hresult!netht_ligbl))
+                Endif
+              Endif
+            Until HResult.MoveNext()
+          Endif
+        Endif
+        If Fact.value = True Then
+          HResult = Utils.db.Exec("SELECT * FROM " & Tab8 & " as e inner join " & Tab6 & " as a on a.numbl = e.num_ligbl WHERE code_ligbl = &1 and typel_ligbl <> &2 union SELECT * FROM " & Tab9 & " as e inner join " & Tab7 & " as a on a.numfac = e.num_ligbl  WHERE code_ligbl = &1 and typel_ligbl <> &2", code, "A")
+          If HResult.Available Then
+            Repeat
+              'On travaille avec les BL
+              If Hresult!type = "B" Or If Hresult!type = "F" Then
+                If Not IsNull(Hresult!qte_ligbl) Then
+                  qte = qte + Val(.cpoint(Hresult!qte_ligbl))
+                  pvht = pvht + Val(.cpoint(Hresult!netht_ligbl))
+                Endif
+              Endif
+            Until HResult.MoveNext()
+          Endif
+        Endif
+        If Org = "Button2" Then
+          If Val(.cpoint(qte)) <> 0 Then
+            pdf.level2(code, intitule, fami, four3, qte, Format$(pvht, "0.00"), PosY)
+            PosY += 5
+            ligne = 1
+          Endif
+          If PosY >= 283 Then
+            pdf.Footer()
+            PosY = 22
+            pdf.Entete("Impression des historiques des ventes de produits" & $stocke & " du " & Dten0.text & " au " & dten1.text)
+            pdf.Level1()
+          Endif
+        Else
+          If Val(.cpoint(qte)) <> 0 Then
+            Donnees2(code, intitule, fami, four3, qte, Format$(pvht, "0.00"))
+            ligne = 1
+          Endif
+        Endif
+      Until rResult.MoveNext()
+    Endif
+    If ligne = 1 Then
+      If Org = "Button2" Then
+        pdf.Footer()
+        pdf.Output(Filename, False)
+        Visualiseur.Prog_Editeur(Filename)
+      Else
+        Close #hFile
+        If Message.Question("Le fichier csv a été généré. Voulez-vous l'ouvrir ?", "Oui", "Non") = 1 Then
+          Editeur.Prog_Editeur(Filename)
+        Endif
+      Endif
+    Else
+      If son Then
+        Music.Play
+      Endif
+      message(" Aucun article pour cette demande", "OK")
+    Endif
+    Me.Mouse = Mouse.Pointing
+  End With
+  
+End
+
+Public Sub donnees1(p1 As String)
+  
+  Print #hFile, p1
+  
+End
+
+Public Sub donnees2(p1 As String, p2 As String, p3 As String, p4 As String, p5 As String, p6 As String)
+  
+  Print #hFile, p1 & ";" & p2 & ";" & p3 & ";" & p4 & ";" & p5 & ";" & p6
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim rResult As Result
+  Dim ArtResult As Result
+  Dim HResult As Result
+  Dim HFResult As Result
+  Dim EntkResult As Result
+  Dim Tab As String
+  Dim code As String
+  Dim intitule As String
+  Dim Fami As String
+  Dim codeclient, nomclient As String
+  Dim Pvht As Float
+  Dim i As Integer
+  Dim dte As String
+  Dim nbdec As String
+  Dim nbd As String
+  Dim qte As Float
+  Dim tva As String
+  Dim Nbpage As Integer
+  Dim Ligne As Integer = 0
+  Dim Bht As String
+  Dim Bflag As Boolean = False
+  Dim pdf As Chistoriques
+  Dim Stocke As Boolean = True
+  
+  Nbpage = 1
+  dte = Format$(Now, "dd.mm.yyyy")
+  qte = 0
+  Pvht = 0
+  If RadioButton5.value Then
+    Stocke = True
+  Else
+    Stocke = False
+  Endif
+  Shell "cd " & User.Home & ""
+  Filename = User.home & "/HistoArt.pdf"
+  pdf = New Chistoriques("Portrait", "mm", "A4")
+  pdf.Open()
+  pdf.AliasNbPages()
+  pdf.Entete("Historiques des ventes de produits par client du " & Dten0.text & " au " & dten1.text)
+  pdf.Level1()
+  posx = 2
+  posy = 22
+  Me.Mouse = Mouse.Wait
+  With Utils
+    rResult = Utils.db.Exec("SELECT * FROM Fiches_HistoFac  WHERE cdclifac between &1 and &2 and datefac between &3 and &4 union SELECT * from Fiches_HistoFacM WHERE cdclifac between &1 and &2 and datefac between &3 and &4 order by cdclifac, datefac", Cli.Text, Cli2.Text, Utils.Cdate_Dbase(dteN0.Text), Utils.Cdate_Dbase(dteN1.Text))
+    If rResult.Available Then
+      Repeat
+        codeclient = rResult!cdclifac
+        nomclient = rResult!cvclifac & " " & rResult!nmclifac & " " & rResult!pnmclifac
+        'On récupère les données archivées.
+        If Facn.value = True Then
+          HResult = Utils.db.Exec("SELECT * FROM Fiches_HistoLigfac WHERE num_ligfac = &1 and typel_ligfac = &2", rResult!numfac, "A")
+          If Hresult.Available Then
+            Bflag = True
+          Else
+            Bflag = False
+          Endif
+        Endif
+        If Face.value = True Then
+          HResult = Utils.db.Exec("SELECT * FROM Fiches_HistoLigfacM WHERE num_ligfac = &1 and typel_ligfac = &2", rResult!numfac, "A")
+          If Hresult.Available Then
+            Bflag = True
+          Else
+            Bflag = False
+          Endif
+        Endif
+        If Fact.value = True Then
+          HResult = Utils.db.Exec("SELECT * FROM Fiches_HistoLigfac WHERE num_ligfac = &1 and typel_ligfac = &2 union SELECT * FROM Fiches_HistoLigfacM WHERE num_ligfac = &1 and typel_ligfac = &2", rResult!numfac, "A")
+          If Hresult.Available Then
+            Bflag = True
+          Else
+            Bflag = False
+          Endif
+        Endif
+        If Bflag = True Then
+          If HResult.Available Then
+            Repeat
+              If IsNull(Hresult!qte_ligfac) Then
+                qte = qte + 1
+              Else
+                qte = qte + Val(.cpoint(Hresult!qte_ligfac))
+                pvht = pvht + Val(.cpoint(Hresult!netht_ligfac))
+              Endif
+            Until HResult.MoveNext()
+          Endif
+        Endif
+        Bflag = False
+        If Val(.cpoint(qte)) <> 0 Then
+          pdf.level2(codeclient, nomclient, code, "", qte, Format$(pvht, "0.00"), PosY)
+          PosY += 5
+          ligne = 1
+        Endif
+        If PosY >= 283 Then
+          pdf.Footer()
+          PosY = 22
+          pdf.Entete("Impression des historiques des ventes de produits du " & Dten0.text & " au " & dten1.text)
+          pdf.Level1()
+        Endif
+      Until rResult.MoveNext()
+    Endif
+    If ligne = 1 Then
+      pdf.Footer()
+      pdf.Output(Filename, False)
+      Visualiseur.Prog_Editeur(Filename)
+    Else
+      If son Then
+        Music.Play
+      Endif
+      message(" Aucun article pour cette demande", "OK")
+    Endif
+    Me.Mouse = Mouse.Pointing
+  End With
+  
+End
+
+Public Sub Button1_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Edtar.html"]
+  
+End
