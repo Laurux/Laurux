@@ -91,24 +91,22 @@ Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As S
       fart = Utils.db.Exec("SELECT four FROM " & Cbase.Table("TabEntcom") & " WHERE numcom = &1", rarts!numcom)
       fourn = fart!four
       If IsNull(Qtefour) Then Qtefour = 0
-      'If rarts!art_stocke Then
       If IsNull(rarts!art_stkmin) Then
         stkmini = 0
       Else
         stkmini = rarts!art_stkmin
       Endif
-      'If stkmini > 0 Or If Not rarts!art_stocke Then 
-      carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and  intitulea = &2 and four = &3", codea, intitulea, fourn)
+      If Left$(codea, 4) = ".Dep" Then
+        carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and four = &2", codea, intitulea, fourn)
+      Else
+        carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and  intitulea = &2 and four = &3", codea, intitulea, fourn)
+      Endif
       If Not carts.Available Then 
-        'If Qtefour > 0 Then Qtefour = "-" & Qtefour
         Utils.db.Exec("INSERT INTO " & Tab2 & "(codea, intitulea, four, qtefour, codec, qtecli) VALUES (&1,&2,&3, &4, &5, &6)", codea, intitulea, fourn, Qtefour, "0", 0)
       Else
         Qtefour = Abs(carts!qtefour) + Qtefour
-        'If Qtefour > 0 Then Qtefour = "-" & Qtefour
         Utils.db.Exec("UPdate  " & Tab2 & "  SET qtefour = &2 where codea = &1 and  intitulea = &3", codea, Qtefour, intitulea)
-      Endif
-      'Endif
-      'Endif 
+      Endif 
     Until rarts.MoveNext()
   Endif
   rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigbl") & " left join " & Cbase.Table("TabBl") & "  on numbl = num_ligbl where type = &1 and typel_ligbl = &2 order by cdclibl", "C", "A")
@@ -129,22 +127,32 @@ Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As S
         qtec = 0
       Endif
       numcom = rarts!numbl
-      rart = Utils.db.Exec("SELECT art_four, art_stocke FROM " & Cbase.Table("TabArt") & "  WHERE art_code = &1", codea)
+      rart = Utils.db.Exec("SELECT art_four, art_stocke, art_design FROM " & Cbase.Table("TabArt") & "  WHERE art_code = &1", codea)
       If rart.Available Then
-        'If Len(Fourn) < 6 Then Fourn = rart!art_four
-        'If Not IsNull(rarts!four_ligbl) Then Fourn = rarts!four_ligbl
         If IsNull(Fourn) Then Fourn = rart!art_four
         Stocke = rart!art_stocke
         If Org = "EdRup" Then
           If Fourn >= Four1 And Fourn <= Four2 Then 
-            carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and codec = &2 and intitulea = &3 and four = &4", codea, "0", intitulea, Fourn)
+            If Left$(codea, 4) = ".Dep" Then
+              carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and codeC = &2 and four = &3", codea, "0", intitulea, fourn)
+            Else
+              carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and codec = &2 and intitulea = &3 and four = &4", codea, "0", intitulea, Fourn)
+            Endif
             Bcarts = True
           Else
-            carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and intitulea = &2 and four = &3", codea, intitulea, Fourn) 
+            If Left$(codea, 4) = ".Dep" Then
+              carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and four = &2", codea, intitulea, fourn)
+            Else
+              carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and intitulea = &2 and four = &3", codea, intitulea, Fourn) 
+            Endif
             Bcarts = True
           Endif
         Else
-          carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and intitulea = &2 and four = &3", codea, intitulea, Four1) 
+          If Left$(codea, 4) = ".Dep" Then
+            carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and four = &2", codea, intitulea, four1)
+          Else
+            carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and intitulea = &2 and four = &3", codea, intitulea, Four1) 
+          Endif 
           Bcarts = True
         Endif
         If Bcarts Then
@@ -233,12 +241,15 @@ Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As S
             Repeat
               Stkth = Stkth + Abs(carts!qtefour) - Abs(carts!qtecli)
             Until carts.MoveNext()
-            Utils.db.Exec("delete from " & Tab2 & " WHERE codea = &1 and intitulea <> &2", codea, intitulea)
+            If Left$(codea, 4) = ".Dep" Then
+              Utils.db.Exec("delete from " & Tab2 & " WHERE codea = &1", codea)
+            Else
+              Utils.db.Exec("delete from " & Tab2 & " WHERE codea = &1 and intitulea <> &2", codea, intitulea)
+            Endif
           Endif
         Else
           Stkth = Stkrl
         Endif
-        'Stkth = Stkth / rarts!art_txconv
         If rarts!art_stocke And stkmini > 0 And stkmini > Stkth Or If Not rarts!art_stocke Then
           If stkmaxi > Stkth Then 
             Qtecom = stkmaxi - Stkth
