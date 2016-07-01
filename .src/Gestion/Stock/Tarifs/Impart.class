@@ -54,11 +54,11 @@ Divers As String
 Marque As String
 minCom As String
 Gpvcons As Boolean
-col_[20] As String
-db_[20] As String
-lg_[20] As String
-pos_[20] As String
-porg_[20] As String
+col_[21] As String
+db_[21] As String
+lg_[21] As String
+pos_[21] As String
+porg_[21] As String
 Type_Champs As String
 Private filename As String
 Private filename2 As String
@@ -593,7 +593,7 @@ Public Sub Button2_Click()
         If son Then
           Music.Play
         Endif
-        If Message.Question("Attention ! Vous allez lancer la mise à jour des codes équivalents ou des codes barres.", "Oui", "Non") = 1 Then
+        If Message.Question("Attention ! Vous allez lancer la mise à jour des codes équivalents ou des codes barres ou des ref liées.", "Oui", "Non") = 1 Then
           Maj_Equ()
         Endif
       Endif
@@ -634,22 +634,35 @@ Public Sub Maj_Equ()
         TableM = Cbase.Table("TabCdBarre")
         Champs = "codeb"
       Endif
-      Codep = RTrim$(Lig2[0])
-      Codequ = RTrim$(Lig2[1])
-      Try Rbarre = Utils.db.Exec("SELECT * FROM " & TableM & " left join " & Cbase.Table("TabArt") & " on art_code = codep where " & Champs & " = &1 or " & Champs & " = &2", Codequ, codep)
+      If Champs = "25" Then 
+        TableM = Cbase.Table("TabArt")
+        Champs = "art_refliee"
+      Endif
+      Try Codep = RTrim$(Lig2[0])
+      Try Codequ = RTrim$(Lig2[1])
       If Not Error Then
-        'On met à jour les codes équivalents ou les codes barres
-        If Champs = "codequ" Then
-          Utils.db.Exec("Update  " & Cbase.Table("TabArt") & "  SET  art_cequ = &2 where art_code = &1", codep, codequ)
-          MajEqu.Maj(codep, codequ)
+        If champs <> "art_refliee" Then
+          Try Rbarre = Utils.db.Exec("SELECT * FROM " & TableM & " left join " & Cbase.Table("TabArt") & " on art_code = codep where " & Champs & " = &1 or " & Champs & " = &2", Codequ, codep)
+          If Not Error Then
+            'On met à jour les codes équivalents ou les codes barres
+            If Champs = "codequ" Then
+              Utils.db.Exec("Update  " & Cbase.Table("TabArt") & "  SET  art_cequ = &2 where art_code = &1", codep, codequ)
+              MajEqu.Maj(codep, codequ)
+            Else
+              Utils.db.Exec("Update  " & Cbase.Table("TabArt") & "  SET  art_cbarre = &2 where art_code = &1", codep, codequ)
+              Try Utils.db.Exec("INSERT INTO " & TableM & " (codep, " & Champs & ") VALUES (&1, &2)", codep, Codequ)
+              Try Utils.db.Exec("INSERT INTO " & TableM & " (" & Champs & ", codep) VALUES (&1, &2)", codep, Codequ)
+            Endif
+          Else
+            Message.Warning("Mise à jour impossible ! Aucun champs code équivalent ou code barre n'est défini !")
+            Break
+          Endif
         Else
-          Utils.db.Exec("Update  " & Cbase.Table("TabArt") & "  SET  art_cbarre = &2 where art_code = &1", codep, codequ)
-          Try Utils.db.Exec("INSERT INTO " & TableM & " (codep, " & Champs & ") VALUES (&1, &2)", codep, Codequ)
-          Try Utils.db.Exec("INSERT INTO " & TableM & " (" & Champs & ", codep) VALUES (&1, &2)", codep, Codequ)
+          Try Rbarre = Utils.db.Exec("SELECT * FROM Fiches_Art where art_code = &1", Codep)
+          If Rbarre.Available Then
+            Utils.db.Exec("Update  Fiches_Art  SET  art_refliee = &2 where art_code = &1", codep, codequ) 
+          Endif
         Endif
-      Else
-        Message.Warning("Mise à jour impossible ! Aucun champs code équivalent ou code barre n'est défini !")
-        Break
       Endif
     Wend
     Me.Mouse = Mouse.Default
@@ -844,7 +857,7 @@ Public Sub Import()
           Lig2 = Split(Lig, separateurFichier)
           RDef = Utils.db.Exec("SELECT * FROM " & Tab & " where num = &1", Cdef.Text)
           If RDef.Available Then
-            For x = 0 To 24
+            For x = 0 To 25
               keyf = "pos_" & Str(x + 1)
               KeyLaurux = "posorg_" & Str(x + 1)
               Try keyf = RDef[keyf]
@@ -1556,7 +1569,7 @@ Public Sub ChargementFichierDef()
   cda = False
   RDef = Utils.db.Exec("SELECT * FROM " & Tab1 & " where num = &1", Cdef.Text)
   If RDef.Available Then
-    For x = 1 To 18
+    For x = 1 To 19
       cols = "col_" & x
       dbs = "db_" & x
       lgs = "lg_" & x
