@@ -88,7 +88,7 @@ Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As S
       Try Qtefour = rarts!qte
       intitulea = rarts!design
       If InStr(intitulea, "~ ") <> 0 Then Try intitulea = Mid$(intitulea, InStr(intitulea, "~ ") + 2, Len(intitulea))
-      fart = Utils.db.Exec("SELECT four FROM " & Cbase.Table("TabEntcom") & " WHERE numcom = &1", rarts!numcom)
+      fart = Utils.db.Exec("SELECT four FROM " & Cbase.Table("TabEntcom") & " WHERE numcom = &1 and four = &2", rarts!numcom, Four1)
       fourn = fart!four
       If IsNull(Qtefour) Then Qtefour = 0
       If IsNull(rarts!art_stkmin) Then
@@ -97,9 +97,9 @@ Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As S
         stkmini = rarts!art_stkmin
       Endif
       If Left$(codea, 4) = ".Dep" Then
-        carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and four = &2", codea, intitulea, fourn)
+        carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and intitulea = &2 and four = &3", codea, intitulea, fourn)
       Else
-        carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and  intitulea = &2 and four = &3", codea, intitulea, fourn)
+        carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and four = &2", codea, fourn)
       Endif
       If Not carts.Available Then 
         Utils.db.Exec("INSERT INTO " & Tab2 & "(codea, intitulea, four, qtefour, codec, qtecli) VALUES (&1,&2,&3, &4, &5, &6)", codea, intitulea, fourn, Qtefour, "0", 0)
@@ -140,7 +140,7 @@ Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As S
             Endif
             Bcarts = True
           Else
-            If Left$(codea, 4) = ".Dep" Then
+            If Left$(codea, 4) <> ".Dep" Then
               carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and four = &2", codea, intitulea, fourn)
             Else
               carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and intitulea = &2 and four = &3", codea, intitulea, Fourn) 
@@ -148,8 +148,8 @@ Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As S
             Bcarts = True
           Endif
         Else
-          If Left$(codea, 4) = ".Dep" Then
-            carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and four = &2", codea, intitulea, four1)
+          If Left$(codea, 4) <> ".Dep" Then
+            carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and four = &2", codea, four1)
           Else
             carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and intitulea = &2 and four = &3", codea, intitulea, Four1) 
           Endif 
@@ -188,7 +188,11 @@ Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As S
               If Four1 = Fourn Then
                 Try qtecli = carts!qtecli
                 qtecli = qtecli + qtec
-                Utils.db.Exec("UPdate  " & Tab2 & "  SET  qtecli = &2 where codea = &1 and intitulea = &3", codea, Qtecli, intitulea)
+                If Left$(codea, 4) <> ".Dep" Then
+                  Utils.db.Exec("UPdate  " & Tab2 & "  SET  qtecli = &2 where codea = &1", codea, Qtecli)
+                Else
+                  Utils.db.Exec("UPdate  " & Tab2 & "  SET  qtecli = &2 where codea = &1 and intitulea = &3", codea, Qtecli, intitulea)
+                Endif
               Endif
             Endif
           Else
@@ -241,7 +245,7 @@ Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As S
             Repeat
               Stkth = Stkth + Abs(carts!qtefour) - Abs(carts!qtecli)
             Until carts.MoveNext()
-            If Left$(codea, 4) = ".Dep" Then
+            If Left$(codea, 4) <> ".Dep" Then
               Utils.db.Exec("delete from " & Tab2 & " WHERE codea = &1", codea)
             Else
               Utils.db.Exec("delete from " & Tab2 & " WHERE codea = &1 and intitulea <> &2", codea, intitulea)
