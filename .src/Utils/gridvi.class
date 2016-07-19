@@ -5,6 +5,8 @@ Private $lab As Label
 Private $sdec As String
 Private $scode As String
 Private $stype As String
+Private $ideb As Integer
+Private $ifin As Integer
 
 Property code As String
 Property dec As String
@@ -44,7 +46,7 @@ Public Sub _new(TabStrip1 As TabStrip, type As String)        'dessin du gridvie
   'but.Expand = True
   'but.Picture = Picture["Icones/find.png"]
   
-  $grdv = New GridView(TabStrip1)
+  $grdv = New GridView(TabStrip1) As "grdv"
   $grdv.Height = TabStrip1.Height - 30 - 24
   $grdv.Width = TabStrip1.Width - 10
   $grdv.x = 0
@@ -52,6 +54,7 @@ Public Sub _new(TabStrip1 As TabStrip, type As String)        'dessin du gridvie
   
   $grdv.Header = GridView.Both
   $grdv.ScrollBar = Scroll.Both
+  If $stype = "C" Then $grdv.Mode = Select.Multiple
   
   res = utils.db.Exec("SELECT * FROM Fiches_Parametres")
   If Not res.Available Then Return
@@ -60,31 +63,7 @@ Public Sub _new(TabStrip1 As TabStrip, type As String)        'dessin du gridvie
   $grdv.Columns.Count = 12
   $grdv.Rows.Count = 13
   
-  k = 0
-  For i = 0 To 3
-    For j = 1 To 3
-      $grdv.Columns[k].Alignment = Align.Center
-      Select j
-        Case 1 
-          $grdv.Columns[k].Width = 110
-          If sdte[0] <> "12" Then
-            $grdv.Columns[k].Title = Str(Val(sdte[2]) - i) & "/" & Str(Val(sdte[2]) - (i + 1))
-            $grdv.Columns[k].text &= " C.A"
-          Else
-            $grdv.Columns[k].text = Str(Val(sdte[2]) - i) 
-            $grdv.Columns[k].text &= " C.A"
-          Endif
-        Case 2
-          $grdv.Columns[k].text = "Quantité"
-          $grdv.Columns[k].Width = 90
-        Case 3
-          $grdv.Columns[k].text = "Marge"
-          $grdv.Columns[k].Width = 80
-      End Select
-      
-      k += 1
-    Next
-  Next
+  affent($grdv, sdte)
   
   j = sdte[0]
   For i = 0 To 11
@@ -144,13 +123,17 @@ Public Sub bouton_Click()         'lit et affiche les stat
       Select $stype
         Case "F"
           req = "mrgart_ligfac AS marge,mrgmo_ligfac AS margem,netht_ligfac AS ht,qte_ligfac AS qte,typel_ligfac AS type"
-          cond = "fam_ligfac=&1 AND numfac=num_ligfac AND datefac BETWEEN &2 AND &3"
+          cond = "fam_ligfac=&1 AND numfac=num_ligfac AND (typel_ligfac='A' OR typel_ligfac='E') AND datefac BETWEEN &2 AND &3"
         Case "A"
           req = "mrgart_ligfac AS marge,netht_ligfac AS ht,qte_ligfac AS qte,typel_ligfac AS type"
-          cond = "code_ligfac=&1 AND numfac=num_ligfac AND datefac BETWEEN &2 AND &3"
+          cond = "code_ligfac=&1 AND numfac=num_ligfac AND (typel_ligfac='A' OR typel_ligfac='E') AND datefac BETWEEN &2 AND &3"
         Case "M"
           req = "mrgmo_ligfac AS margem,netht_ligfac AS ht,qte_ligfac AS qte,typel_ligfac AS type"
-          cond = "code_ligfac=&1 and numfac=num_ligfac AND datefac BETWEEN &2 AND &3"
+          cond = "code_ligfac=&1 and numfac=num_ligfac AND (typel_ligfac='A' OR typel_ligfac='E') AND datefac BETWEEN &2 AND &3"
+        Case "C"
+          req = "mrgart_ligfac AS marge,mrgmo_ligfac AS margem,netht_ligfac AS ht,qte_ligfac AS qte,typel_ligfac AS type"
+          cond = "cdclifac=&1 AND numfac=num_ligfac AND (typel_ligfac='A' OR typel_ligfac='E') AND datefac BETWEEN &2 AND &3"
+          
       End Select
       
       $grdv[j, i].Text = "0.00"
@@ -166,13 +149,16 @@ Public Sub bouton_Click()         'lit et affiche les stat
         Select $stype
           Case "F"
             req = "mrgart_ligbl AS marge,mrgmo_ligbl AS margem,netht_ligbl AS ht,qte_ligbl AS qte,typel_ligbl AS type"
-            cond = "fam_ligbl=&1 and numbl=num_ligbl AND datebl BETWEEN &2 AND &3"
+            cond = "fam_ligbl=&1 and numbl=num_ligbl AND (typel_ligbl='A' OR typel_ligbl='E') AND datebl BETWEEN &2 AND &3"
           Case "A"
             req = "mrgart_ligbl AS marge,netht_ligbl AS ht,qte_ligbl AS qte"
-            cond = "code_ligbl=&1 and numbl=num_ligbl AND datebl BETWEEN &2 AND &3"
+            cond = "code_ligbl=&1 and numbl=num_ligbl AND (typel_ligbl='A' OR typel_ligbl='E') AND datebl BETWEEN &2 AND &3"
           Case "M"
             req = "mrgmo_ligbl AS marge,netht_ligbl AS ht,qte_ligbl AS qte"
-            cond = "code_ligbl=&1 and numbl=num_ligbl AND datebl BETWEEN &2 AND &3"
+            cond = "code_ligbl=&1 and numbl=num_ligbl AND (typel_ligbl='A' OR typel_ligbl='E') AND datebl BETWEEN &2 AND &3"
+          Case "C"
+            req = "mrgart_ligbl AS marge,mrgmo_ligbl AS margem,netht_ligbl AS ht,qte_ligbl AS qte,typel_ligbl AS type"
+            cond = "cdclibl=&1 and numbl=num_ligbl AND (typel_ligbl='A' OR typel_ligbl='E') AND datebl BETWEEN &2 AND &3"
         End Select
         requete(tab, tab1, req, cond, dateinf, datesup, i, j)
         
@@ -229,7 +215,7 @@ Private Sub requete(tab As String, tab1 As String, req As String, cond As String
     Try fsomme = CFloat(Replace($grdv[j, i + 1].Text, ",", ".")) + CFloat(Trim(Replace(resbl!qte, ",", ".")))
     $grdv[j, i + 1].Text = Format(fsomme, "######" & $sdec)
     fsomme = 0
-    If $stype = "F" Then
+    If $stype = "F" Or $stype = "C" Then
       If resbl!type = "A" Or resbl!type = "E" Then
         Try fsomme = CFloat(Replace($grdv[j, i + 2].Text, ",", ".")) + CFloat(resbl!marge)
       Else
@@ -241,6 +227,38 @@ Private Sub requete(tab As String, tab1 As String, req As String, cond As String
     $grdv[j, i + 2].Text = Format(fsomme, "#####0.00")
     
     resbl.MoveNext
+  Next
+  
+End
+
+Private Sub affent($grdv As GridView, sdte As String[])
+  
+  Dim i, j, k As Integer
+  
+  k = 0
+  For i = 0 To 3
+    For j = 1 To 3
+      $grdv.Columns[k].Alignment = Align.Center
+      Select j
+        Case 1 
+          $grdv.Columns[k].Width = 110
+          If sdte[0] <> "12" Then
+            $grdv.Columns[k].Title = Str(Val(sdte[2]) - i) & "/" & Str(Val(sdte[2]) - (i + 1))
+            $grdv.Columns[k].text &= " C.A"
+          Else
+            $grdv.Columns[k].text = Str(Val(sdte[2]) - i) 
+            $grdv.Columns[k].text &= " C.A"
+          Endif
+        Case 2
+          $grdv.Columns[k].text = "Quantité"
+          $grdv.Columns[k].Width = 90
+        Case 3
+          $grdv.Columns[k].text = "Marge"
+          $grdv.Columns[k].Width = 80
+      End Select
+      
+      k += 1
+    Next
   Next
   
 End
@@ -260,6 +278,166 @@ Public Sub razcol()
       $grdv[j, i].Alignment = Align.Right
       If j = 12 Then $grdv[j, i].Background = &HDFBFFF
     Next
+  Next
+  
+End
+
+Public Sub grdv_MouseDown()
+  
+  $ideb = $grdv.Row
+  
+End
+
+Public Sub grdv_MouseUp()
+  
+  Dim win As Window
+  Dim grdv1 As GridView
+  Dim res, restot As Result
+  Dim sdte As String[]
+  Dim smoiscour, smoisprec As String
+  Dim dateinf, datesup As Date
+  Dim d1, d2, d3, d4, d5, d6 As Date
+  Dim jour, mois, ann As Integer
+  Dim i, j As Integer
+  
+  If $stype <> "C" Then
+    Stop Event
+    Return
+  Endif
+  $grdv.Mouse = Mouse.wait
+  'controle sur le bornage
+  $ifin = $grdv.Row
+  If $ifin < $ideb Then Swap $ifin, $ideb
+  If $ifin = 12 And $ideb = 12 Then
+    $ifin = 11
+    $ideb = 0
+  Endif
+  If $ifin = 12 Then $ifin = 11
+  'creation de la fenetre et du gridview
+  win = New Window
+  win.Height = $grdv.Height + 50
+  win.Width = $grdv.Width + 50
+  win.Arrangement = Arrange.Vertical
+  grdv1 = New GridView(win)
+  grdv1.Expand = True
+  grdv1.Header = GridView.Both
+  grdv1.ScrollBar = Scroll.Both
+  grdv1.Font = Font["Serif), Bold, Italic, -1"]
+  'calcul sur date et définition des bornes d'interrogation
+  res = utils.db.Exec("SELECT * FROM Fiches_Parametres")
+  sdte = Split(res!dteclec, "/")
+  grdv1.Columns.Count = 12
+  
+  mois = Val(sdte[0]) + $ideb + 1
+  ann = Val(sdte[2]) - 4
+  If mois > 12 Then
+    mois = mois - 12
+    ann += 1
+  Endif
+  dateinf = Date(ann, mois, 1)
+  
+  mois = Val(sdte[0]) + $ifin + 1
+  If sdte[0] = "12" Then ann = Val(sdte[2]) Else ann = Val(sdte[2]) - 1
+  If mois > 12 Then
+    mois = mois - 12
+    ann += 1
+  Endif
+  datesup = Date(ann, mois, 1)
+  datesup = Date(ann, mois, utils.lastday(datesup))
+  
+  jour = utils.lastday(Date(Year(datesup) - 3, Month(datesup), 1))
+  d1 = Date(Year(datesup) - 3, Month(datesup), jour)
+  
+  d2 = Date(Year(dateinf) + 1, Month(dateinf), 1)
+  jour = utils.lastday(Date(Year(datesup) - 2, Month(datesup), 1))
+  d3 = Date(Year(datesup) - 2, Month(datesup), jour)
+  
+  d4 = Date(Year(dateinf) + 2, Month(dateinf), 1)
+  jour = utils.lastday(Date(Year(datesup) - 2, Month(datesup), 1))
+  d5 = Date(Year(datesup) - 1, Month(datesup), jour)
+  
+  d6 = Date(Year(dateinf) + 3, Month(dateinf), 1)
+  
+  win.Text = "Statistiques articles par client pour la période du " & Format(dateinf, "dd/mm/yyyy") & " au " & Format(datesup, "dd/mm/yyyy")
+  
+  Select $stype
+    Case "C"
+      ' recupere les articles mouvementés pendant la période sélectionnée
+      res = utils.db.Exec("SELECT art_design,art_code FROM Fiches_HistoLigfac JOIN Fiches_HistoFac JOIN Fiches_Art ON numfac=num_ligfac WHERE art_code=code_ligfac AND cdclifac=&1 AND (typel_ligfac='A' OR typel_ligfac='E') AND (datefac BETWEEN &2 AND &3 OR datefac BETWEEN &4 AND &5 OR datefac BETWEEN &6 AND &7 OR datefac BETWEEN &8 AND &9) GROUP BY art_code UNION(SELECT art_design,art_code FROM Fiches_Bl JOIN Fiches_Ligbl JOIN Fiches_Art ON numbl=num_ligbl WHERE art_code=code_ligbl and cdclibl=&1 AND (typel_ligbl='A' OR typel_ligbl='E') AND (datebl BETWEEN &2 AND &3 OR datebl BETWEEN &4 AND &5 OR datebl BETWEEN &6 AND &7 OR datebl BETWEEN &8 AND &9) GROUP BY art_code)", $scode, Format(dateinf, "yyyymmdd"), Format(d1, "yyyymmdd"), Format(d2, "yyyymmdd"), Format(d3, "yyyymmdd"), Format(d4, "yyyymmdd"), Format(d5, "yyyymmdd"), Format(d6, "yyyymmdd"), Format(datesup, "yyyymmdd"))
+      
+  End Select
+  'affiche les entetes du gridview
+  affent(grdv1, sdte)
+  grdv1.Rows.Count = res.Count
+  If res.Available Then
+    res.MoveFirst
+    For i = 0 To res.Max
+      grdv1.Rows[i].Text = res!art_design
+      grdv1.rows[i].Height = 18
+      res.MoveNext
+    Next
+    
+    'affiche les données
+    res.MoveFirst
+    For i = 0 To res.Max
+      restot = Utils.db.Exec("SELECT mrgart_ligfac AS marge,mrgmo_ligfac AS margem,netht_ligfac AS ht,qte_ligfac AS qte,typel_ligfac AS type  FROM Fiches_HistoLigfac JOIN Fiches_HistoFac ON numfac=num_ligfac WHERE cdclifac=&1 AND code_ligfac=&2 AND (typel_ligfac='A' OR typel_ligfac='E') AND datefac BETWEEN &3 AND &4 UNION(SELECT  mrgart_ligbl As Marge, mrgmo_ligbl As Margem, netht_ligbl As Ht, qte_ligbl As Qte, typel_ligbl As Type FROM Fiches_Ligbl JOIN Fiches_Bl ON numbl=num_ligbl WHERE cdclibl=&1 AND code_ligbl=&2 AND (typel_ligbl='A' OR typel_ligbl='E') AND datebl BETWEEN &3 AND &4)", $scode, res!art_code, Format(d6, "yyyymmdd"), Format(datesup, "yyyymmdd"))
+      affdon(grdv1, restot, i, 0)
+      
+      restot = Utils.db.Exec("SELECT mrgart_ligfac AS marge,mrgmo_ligfac AS margem,netht_ligfac AS ht,qte_ligfac AS qte,typel_ligfac AS type  FROM Fiches_HistoLigfac JOIN Fiches_HistoFac ON numfac=num_ligfac WHERE cdclifac=&1 AND code_ligfac=&2 AND (typel_ligfac='A' OR typel_ligfac='E') AND datefac BETWEEN &3 AND &4 UNION(SELECT  mrgart_ligbl As Marge, mrgmo_ligbl As Margem, netht_ligbl As Ht, qte_ligbl As Qte, typel_ligbl As Type FROM Fiches_Ligbl JOIN Fiches_Bl ON numbl=num_ligbl WHERE cdclibl=&1 AND code_ligbl=&2 AND (typel_ligbl='A' OR typel_ligbl='E') AND datebl BETWEEN &3 AND &4)", $scode, res!art_code, Format(d4, "yyyymmdd"), Format(d5, "yyyymmdd"))
+      affdon(grdv1, restot, i, 3)
+      
+      restot = Utils.db.Exec("SELECT mrgart_ligfac AS marge,mrgmo_ligfac AS margem,netht_ligfac AS ht,qte_ligfac AS qte,typel_ligfac AS type  FROM Fiches_HistoLigfac JOIN Fiches_HistoFac ON numfac=num_ligfac WHERE cdclifac=&1 AND code_ligfac=&2 AND (typel_ligfac='A' OR typel_ligfac='E') AND datefac BETWEEN &3 AND &4 UNION(SELECT  mrgart_ligbl As Marge, mrgmo_ligbl As Margem, netht_ligbl As Ht, qte_ligbl As Qte, typel_ligbl As Type FROM Fiches_Ligbl JOIN Fiches_Bl ON numbl=num_ligbl WHERE cdclibl=&1 AND code_ligbl=&2 AND (typel_ligbl='A' OR typel_ligbl='E') AND datebl BETWEEN &3 AND &4)", $scode, res!art_code, Format(d2, "yyyymmdd"), Format(d3, "yyyymmdd"))
+      affdon(grdv1, restot, i, 6)
+      
+      restot = Utils.db.Exec("SELECT mrgart_ligfac AS marge,mrgmo_ligfac AS margem,netht_ligfac AS ht,qte_ligfac AS qte,typel_ligfac AS type  FROM Fiches_HistoLigfac JOIN Fiches_HistoFac ON numfac=num_ligfac WHERE cdclifac=&1 AND code_ligfac=&2 AND datefac BETWEEN &3 AND &4 UNION(SELECT  mrgart_ligbl As Marge, mrgmo_ligbl As Margem, netht_ligbl As Ht, qte_ligbl As Qte, typel_ligbl As Type FROM Fiches_Ligbl JOIN Fiches_Bl ON numbl=num_ligbl WHERE cdclibl=&1 AND code_ligbl=&2 AND (typel_ligbl='A' OR typel_ligbl='E') AND datebl BETWEEN &3 AND &4)", $scode, res!art_code, Format(dateinf, "yyyymmdd"), Format(d1, "yyyymmdd"))
+      affdon(grdv1, restot, i, 9)
+      
+      res.MoveNext
+    Next
+  Endif
+  grdv1.Mouse = Mouse.Default
+  win.ShowModal
+  
+End
+
+Private Sub affdon(grdv1 As GridView, resbl As Result, i As Integer, j As Integer)
+  
+  Dim k As Integer
+  Dim fsomme As Float
+  
+  grdv1[i, j].Text = "0.00"
+  grdv1[i, j].Alignment = Align.Right
+  If Even(i) Then grdv1[i, j].Background = Color.Background Else grdv1[i, j].Background = Color.Background - 100
+  grdv1[i, j + 1].Text = "0.000"
+  grdv1[i, j + 1].Alignment = Align.Right
+  If Even(i) Then grdv1[i, j + 1].Background = Color.Background Else grdv1[i, j + 1].Background = Color.Background - 100
+  grdv1[i, j + 2].Text = "0.00"
+  grdv1[i, j + 2].Alignment = Align.Right
+  If Even(i) Then grdv1[i, j + 2].Background = Color.Background Else grdv1[i, j + 2].Background = Color.Background - 100
+  
+  If Not resbl.Available Then Return
+  
+  resbl.MoveFirst
+  For k = 0 To resbl.Max
+    fsomme = 0
+    Try fsomme = CFloat(Replace(grdv1[i, j].Text, ",", ".")) + CFloat(Trim(Replace(resbl!ht, ",", ".")))
+    grdv1[i, j].Text = Format(fsomme, "#######0.00")
+    fsomme = 0
+    Try fsomme = CFloat(Replace(grdv1[i, j + 1].Text, ",", ".")) + CFloat(Trim(Replace(resbl!qte, ",", ".")))
+    grdv1[i, j + 1].Text = Format(fsomme, "######0.000")
+    fsomme = 0
+    If $stype = "F" Or $stype = "C" Then
+      If resbl!type = "A" Or resbl!type = "E" Then
+        Try fsomme = CFloat(Replace(grdv1[i, j + 2].Text, ",", ".")) + CFloat(resbl!marge)
+      Else
+        Try fsomme = CFloat(Replace(grdv1[i, j + 2].Text, ",", ".")) + CFloat(resbl!margem)
+      Endif
+    Else
+      Try fsomme = CFloat(Replace(grdv1[i, j + 2].Text, ",", ".")) + CFloat(resbl!marge)
+    Endif 
+    grdv1[i, j + 2].Text = Format(fsomme, "#####0.00")
+    
+    resbl.MoveNext
   Next
   
 End

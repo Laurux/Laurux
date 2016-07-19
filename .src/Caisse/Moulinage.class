@@ -380,8 +380,15 @@ Public Sub Moulinage()
       Else
         rTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where left(date,10) = &1 order by numero", Format$(DateChooser1.Value, "dd-mm-yyyy"))
         If rTck.Available Then
+          
+          'création du fichier temporaire pour récuperer les lignes de facture
+          creatmp
           ' On gère d'abord les clients caisse
-          Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabParam") & " WRITE, " & Cbase.Table("TabEntTck") & " WRITE, " & Cbase.Table("TabLigTck") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("Totalisation") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabArt") & " WRITE, " & Cbase.Table("TabHisEntTck") & " WRITE, " & Cbase.Table("TabHisLigTck") & " WRITE, " & Cbase.Table("TabJour") & " WRITE,  " & Cbase.Table("TabCli") & " WRITE, " & Cbase.Table("TabBl") & " WRITE, " & Cbase.Table("TabLigbl") & " WRITE, " & Tab & " WRITE, Fiches_Caisses WRITE, Fiches_FamDep WRITE ")
+          Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabParam") & " WRITE, " & Cbase.Table("TabEntTck") & " WRITE, " & Cbase.Table("TabLigTck") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("Totalisation") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabArt") & " WRITE, " & Cbase.Table("TabHisEntTck") & " WRITE, " & Cbase.Table("TabHisLigTck") & " WRITE, " & Cbase.Table("TabJour") & " WRITE,  " & Cbase.Table("TabCli") & " WRITE, " & Cbase.Table("TabBl") & " WRITE, " & Cbase.Table("TabLigbl") & " WRITE, " & Tab & " WRITE, Fiches_Caisses WRITE, Fiches_FamDep WRITE")
+          
+          '         Génération de la facture 
+          genfac()
+          
           Repeat
             If rtck!sresto = "1" Then 
               resto = "R"
@@ -1302,6 +1309,247 @@ Public Sub Maj_Collectif(Cpt As String, intit As String, libel As String, Mnt As
     Sld = cResult!solde + Mtd - Mtc
   Endif
   Utils.db.Exec("UPDATE " & Cbase.Table("TabComptes") & " set solde = &2 Where compte_cc = &1", coll, Sld)
+  
+End
+
+'*****************************************
+'*  Génération de la facture magasin     *
+'*****************************************
+Private Sub genfac()
+  
+  Dim res, resentz, resligz, resentfac, resligfac, respar, reslig As Result
+  Dim i, j As Integer
+  Dim rem As Float
+  Dim pu, qte, pxttc, mttc, mht, mtva, ttva, mremise As Float
+  Dim snfac, snumlig As String
+  
+  'recuperation et maj du n° facture
+  respar = utils.db.Edit("Fiches_Parametres", "ind='0'")
+  snfac = Str(Year(DateChooser1.Value)) & Format(Val(respar!dnfac) + 1, "000000")
+  respar!dnfac = Format(Val(respar!dnfac) + 1, "000000")
+  
+  'selection des entetes fichier z
+  resentz = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where left(date,10) = &1 and client=&2 group by numero", Format$(DateChooser1.Value, "dd-mm-yyyy"), client)
+  If resentz.Available Then
+    utils.db.Begin
+    resentz.MoveFirst
+    For i = 0 To resentz.Max
+      'selection des lignes z
+      resligz = utils.db.Exec("SELECT * FROM Fiches_LigTicketz WHERE numero=&1  ORDER BY lInd", resentz!numero)
+      If resligz.Available Then
+        
+        'calcul de la remise global en %
+        rem = remglob(resligz)
+        
+        'creation des lignes articles dans fichier temporaire
+        resligz.MoveFirst
+        j = 0
+        Repeat
+          If resligz!type = "A" Then
+            resligfac = utils.db.Create("Tmp_Caisse")
+            'calculs intermediaires 
+            ttva = CFloat(Trim(resligz!tva)) / 100
+            pxttc = CFloat(Trim(Replace(resligz!montant, ",", ".")))
+            qte = Val(Utils.cpoint(resligz!qte))
+            'mttc = pxttc * qte
+            mttc = pxttc
+            'mht = mttc / (1 + ttva)
+            mht = CFloat(Trim(Replace(resligz!mht, ",", ".")))
+            pu = mht / CFloat(Trim(Replace(resligz!qte, ",", ".")))
+            mremise = mht * rem
+            'mtva = (mht - mremise) * ttva
+            mtva = CFloat(Trim(Replace(resligz!mtva, ",", ".")))
+            'affectation
+            resligfac!code = resligz!code
+            resligfac!pu = pu
+            resligfac!quantite = qte
+            resligfac!montant = mht
+            resligfac!fam = resligz!fam
+            If IsNull(resligz!marge) Then resligfac!marge = - mremise Else resligfac!marge = resligz!marge - mremise
+            'incremente la base de 1 pour voir si remise article ==> recalcul de la remise en 1 article puis globale
+            resligz.MoveNext
+            If resligz!type = "S" Or resligz!type = "O" Then 
+              resligz.MoveNext
+              Inc J
+            Endif
+            If resligz!type = "T" Then
+              'calcul intermediaire des montants remisés
+              pxttc = CFloat(Trim(Replace(resligz!montant, ",", ".")))
+              mttc = pxttc
+              'qte = Val(Utils.cpoint(resligz!qte))
+              'mttc = pxttc * qte
+              'mttc = pxttc
+              'mht = mttc / (1 + ttva)
+              mht = CFloat(Trim(Replace(resligz!mht, ",", ".")))
+              'mremise = (resligfac!montant - mht) + (mht * rem)
+              Try mremise = CFloat(Trim(Replace(resligz!mrem, ",", ".")))
+              If Error Then mremise = 0
+              If IsNull(resligz!mtva) Then
+                mtva = mht * ttva
+              Else
+                mtva = CFloat(Trim(Replace(resligz!mtva, ",", ".")))
+              Endif
+              resligfac!montant = mht
+              Inc j
+            Else
+              resligz.MovePrevious
+            Endif
+            resligfac!remise = mremise
+            resligfac!montant = mht
+         '   If IsNull(resligz!marge) Then resligfac!marge = - mremise Else resligfac!marge = resligz!marge - mremise
+            resligfac!tva = mtva
+            resligfac.Update
+          Endif
+          Try resligz.MoveNext
+          Inc j
+        Until j >= resligz.Count
+        resentz.MoveNext
+      Endif
+    Next
+    resligfac.Update
+    utils.db.Commit
+    
+    'mise a jour entete facture
+    utils.db.Begin
+    res = Utils.db.Exec("SELECT SUM(montant) AS montht, SUM(tva) AS tottva, SUM(marge) AS totmarge,SUM(remise) as remise FROM Tmp_Caisse")
+    If res.Available Then
+      resentfac = utils.db.Create("Fiches_HistoFac")
+      resentfac!marge_art = res!totmarge
+      'resentfac!totfac = res!montht - res!remise
+      resentfac!totfac = res!montht
+      resentfac!totfacttc = res!montht + res!tottva
+      resentfac!numfac = snfac
+      resentfac!rmofac = "0,00"
+      resentfac!rartfac = "0,00"
+      resentfac!exofac = 0
+      resentfac!remmofac = "0"
+      resentfac!remartfac = Val(Utils.cpoint(res!remise))
+      resentfac!ech = DateChooser1.Value
+      resentfac!acpt = "0,00"
+      resentfac!marge_art = res!totmarge
+      resentfac!marge_mo = 0
+      resentfac!cdclifac = client
+      res = utils.db.Exec("SELECT * FROM Fiches_Cli WHERE cli_code=&1", client)
+      resentfac!cvclifac = res!cli_rs_soc
+      resentfac!nmclifac = res!cli_nom
+      resentfac!pnmclifac = res!cli_pnm
+      resentfac!adr1fac = res!cli_adr1
+      resentfac!adr2fac = res!cli_adr2
+      resentfac!cpfac = res!cli_cd_ptl
+      resentfac!villefac = res!cli_ville
+      resentfac!datefac = DateChooser1.Value
+      resentfac.Update
+      respar.Update
+      
+      'mise a jour des lignes de facture
+      reslig = utils.db.Exec("SELECT SUM(pu) as pu, SUM(montant) as montant, SUM(remise) as remise, SUM(quantite) as quantite, SUM(tva) as mtva, SUM(marge) as marge, fam,code FROM Tmp_Caisse GROUP BY code")
+      snumlig = "0001"
+      resligfac = Utils.db.Create("Fiches_HistoLigfac")
+      resligfac!num_ligfac = snfac
+      snumlig = snumlig
+      resligfac!numlig_ligfac = Format(snumlig, "0000")
+      resligfac!typel_ligfac = "C"
+      resligfac!com_ligfac = "Facture caisse du : " & Format(DateChooser1.Value, "dd-mm-yyyy")
+      resligfac.Update
+      
+      reslig.MoveFirst
+      For j = 0 To reslig.Max
+        resligfac = Utils.db.Create("Fiches_HistoLigfac")
+        resligfac!num_ligfac = snfac
+        snumlig = Str(Val(snumlig) + 1)
+        resligfac!numlig_ligfac = Format(snumlig, "0000")
+        resligfac!code_ligfac = reslig!code
+        resligfac!pu_ligfac = Format(reslig!pu, "0.00")
+        'resligfac!brut_ligfac = Format(reslig!montant, "0.00")
+        resligfac!brut_ligfac = Format(reslig!pu * reslig!quantite, "0.00") 
+        resligfac!rem_ligfac = Format(reslig!remise, "0.00")
+        'resligfac!netht_ligfac = Format(reslig!montant - reslig!remise, "0.00")
+        'resligfac!nettc_ligfac = Format((reslig!montant - reslig!remise) + reslig!mtva, "0.00")
+        resligfac!netht_ligfac = Format(reslig!montant, "0.00")
+        resligfac!nettc_ligfac = Format(reslig!montant + reslig!mtva, "0.00")
+        resligfac!mrgart_ligfac = reslig!marge
+        'resligfac!nettc_ligfac = Format((reslig!montant - reslig!remise), "0.00")
+        resligfac!typel_ligfac = "A"
+        'lecture des données sur fiche article
+        res = utils.db.Exec("SELECT * FROM Fiches_Art WHERE art_code=&1", reslig!code)
+        If res.Available Then
+          resligfac!libel_ligfac = res!art_design
+          resligfac!fam_ligfac = res!art_fam
+          resligfac!tx_ligfac = res!art_tva
+          resligfac!qte_ligfac = Format(reslig!quantite, utils.Find_nbdec(res!art_dec))
+          'resligfac!pu_ligfac = Format(reslig!montant / reslig!quantite, utils.Find_nbdec(res!art_nbd))
+          res = utils.db.Exec("SELECT * FROM Fiches_Tvaav WHERE code_tva=&1", resligfac!tx_ligfac) 
+          If res.Available Then resligfac!mtx_ligfac = res!taux_tva
+        Else
+          resligfac!libel_ligfac = "Article inconnu"
+          resligfac!qte_ligfac = Format(reslig!quantite, "0.000")
+          'resligfac!pu_ligfac = Format((reslig!montant / reslig!quantite), "0.00") 
+          resligfac!fam_ligfac = reslig!fam
+        Endif
+        resligfac.Update
+        reslig.MoveNext
+      Next
+    Endif
+    
+    utils.db.Commit
+  Endif
+  
+End
+
+Private Function remglob(res As Result) As Float    'calcul de la remise global sur 1 ticket
+  
+  Dim rem As Float
+  Dim i As Integer
+  Dim ftotbr, ftotnet As Float
+  
+  rem = 0
+  res.MoveFirst
+  For I = 0 To res.Max
+    If InStr(res!intitule, "Remise sur total") <> 0 And res!type = "M" Then
+      res.MovePrevious
+      ftotbr = extraction(res!intitule)
+      res.MoveNext
+      res.MoveNext
+      res.MoveNext
+      ftotnet = extraction(res!intitule)
+      If ftotnet <> 0 Then rem = 1 - (ftotnet / ftotbr)
+      Break
+    Endif
+    res.MoveNext
+  Next
+  Return rem
+  
+End
+
+Private Function extraction(intilule As String) As Float
+  
+  Dim fmont As Float
+  Dim smont As String = ""
+  
+  intilule = Trim(intilule)
+  While Right(intilule, 1) Like "[0-9]" Or Right(intilule, 1) Like "[,]"
+    smont = Right(intilule, 1) & smont
+    intilule = Left(intilule, Len(intilule) - 1)
+  Wend
+  Try fmont = CFloat(Replace(smont, ",", "."))
+  Return fmont
+  
+End
+
+Private Sub creatmp()
+  
+  Try utils.db.Exec("DROP TABLE Tmp_Caisse")
+  Utils.db.EXEC("CREATE TABLE Tmp_Caisse" &
+    "(lInd INT NOT NULL AUTO_INCREMENT," &
+    "code Char(15)," &
+    "pu Decimal(8,2)," &
+    "montant Decimal(8,2)," &
+    "remise Decimal(8,2)," &
+    "quantite Decimal(9,3)," &
+    "tva Decimal(8,2)," &
+    "marge Decimal(8,2)," &
+    "fam Char(5)," &
+    "PRIMARY KEY (lInd))")
   
 End
 
