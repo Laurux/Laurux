@@ -413,6 +413,9 @@ Public Sub Moulinage()
               rlTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigTck") & " where numero = &1 order by lInd", rTck!numero)
               If rlTck.Available Then
                 Repeat
+                  If rlTck!type = "O" Then
+                    Print "t"
+                  Endif
                   If rlTck!type = "A" Or If rlTck!type = "M" Or If rlTck!type = "S" Or If rlTck!type = "T" Or If rlTck!type = "L" Then
                     If rlTck!type = "A" And IsNull(rlTck!fam) Then
                       rFam = Utils.db.Exec(" select * from " & Cbase.Table("TabArt") & " where art_code = &1", rltck!code)
@@ -424,8 +427,14 @@ Public Sub Moulinage()
                     If rlTck.index < rlTck.count - 1 Then 
                       $intit = rlTck!intitule
                       rlTck.MoveNext()
+                      If rlTck!type = "O" Then
+                        rlTck.MoveNext()
+                      Endif
                       If rlTck!type <> "S" And If rlTck!type <> "T" Then 
                         rlTck.MovePrevious()
+                        If rlTck!type = "O" Then
+                          rlTck.MovePrevious()
+                        Endif
                       Endif
                     Endif
                     If rlTck!type <> "L" And If rlTck!type <> "M" Then
@@ -474,7 +483,12 @@ Public Sub Moulinage()
                       If IsNull(montant) Then montant = 0
                       If rlTck!type = "S" Then 
                         rlTck.MoveNext()
-                        If rlTck!type <> "T" Then rlTck.MovePrevious()
+                        If rlTck!type <> "T" Then 
+                          rlTck.MovePrevious()
+                          If rlTck!type = "O" Then
+                            rlTck.MovePrevious()
+                          Endif
+                        Endif
                       Endif
                       Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, rltck!numlig, rltck!code, $intit, rltck!montant, rltck!qte, rltck!type, Fam, rltck!mht, rltck!mrem, rltck!tva)
                       If rTck!savoir = "1" Then
@@ -1393,10 +1407,13 @@ Private Sub genfac()
               Inc j
             Else
               resligz.MovePrevious
+              If resligz!type = "O" Then
+                resligz.MovePrevious()
+              Endif
             Endif
             resligfac!remise = mremise
             resligfac!montant = mht
-         '   If IsNull(resligz!marge) Then resligfac!marge = - mremise Else resligfac!marge = resligz!marge - mremise
+            '   If IsNull(resligz!marge) Then resligfac!marge = - mremise Else resligfac!marge = resligz!marge - mremise
             resligfac!tva = mtva
             resligfac.Update
           Endif
