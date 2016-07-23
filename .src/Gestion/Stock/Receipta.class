@@ -88,6 +88,8 @@ Private nombre As String
 Private casier As String
 Private pttc As String = "0"
 Private exo As Boolean
+Private Bcolrcp As Boolean = False
+Private $barre As String
 
 Public Sub _New()
   
@@ -96,7 +98,7 @@ Public Sub _New()
   Dim s As String
   Dim spl As New String[9]
   
-  Balloon.Delay = 1000
+  Balloon.Delay = 800
   Try WidthCol = Settings["/Soc" & Start.Societe & "/Col/LcolRA"]
   
   If son Then
@@ -423,9 +425,28 @@ Public Sub Rcpt_KeyPress()
                     Else
                       If Left$(Cart.Text) = "*" Then
                         Cart.Text = Mid$(Cart.Text, 2, Len(Cart.Text))
-                        Cart.Text = Utils.Find_cbarre(Cart.Text)
+                        $Barre = Utils.Find_cbarre(Cart.Text)
+                        If IsNull($Barre) Then
+                          Message.Warning("Code barre inexistant")
+                          Cart.Clear
+                          Return
+                        Else
+                          Cart.Text = $Barre
+                        Endif
                       Endif
-                      art_Man()
+                      If Not IsNull(Cart.Text) Then 
+                        controlArt()
+                      Endif
+                      If Bcolrcp Then
+                        Modif = "1"
+                        Colrcp_Activate()
+                      Else
+                        If Message.Question("Cet article n'existe pas dans la commande ! Voulez-vous ", "1- L'inclure dans la commande", "2- Revenir à la saisie") = 1 Then
+                          art_Man()
+                        Else
+                          Cart.Clear
+                        Endif
+                      Endif
                     Endif
                   Endif
                 Endif
@@ -1166,12 +1187,6 @@ Public Sub art_man()
       Endif
       If rarts.Available Then
         Stocke = rarts!art_stocke
-        If Not Stocke Then
-          If son Then
-            Music.Play
-          Endif
-          Balloon.Warning(" Cet article n'est pas stocké ! ", cart)
-        Endif
         If rarts!art_suspendu = False Or If IsNull(rarts!art_suspendu) Then
           Cart.Text = rarts!art_code
           If IsNull(rarts!art_casier) Then
@@ -1253,6 +1268,12 @@ Public Sub art_man()
             Loop Until Rligcom.MoveNext()
           Endif
           qterecue.Text = "1"
+          If Not Stocke Then
+            If son Then
+              Music.Play
+            Endif
+            Message.Warning(" Cet article n'est pas stocké ! ")
+          Endif
           qterecue.SetFocus
           qterecue.Select
         Else
@@ -1279,6 +1300,25 @@ Public Sub art_man()
   
 End
 
+Public Sub controlArt()
+  
+  Colrcp.MoveFirst()
+  Try Colrcp.item.Selected = True
+  If Not Error Then
+    Repeat
+      Colrcp.item.Selected = True
+      If Colrcp.current[1] <> cart.Text Then
+        Bcolrcp = False
+        Colrcp.MoveNext()
+      Else
+        BColrcp = True
+        Break
+      Endif
+    Until Colrcp.MoveNext()
+  Endif  
+  
+End
+
 '**********************************************************
 '*           Affichage des quantites en stock             *
 '**********************************************************
@@ -1292,7 +1332,6 @@ Public Sub Quantite()
     If rResult.Available Then
       Stocke = rResult!art_stocke
       Artstock.Text = Format$(rResult!art_qte, "0.000")
-      
     Endif
     If Stocke Then
       Artstock.Text = .Cdec(Decm, Artstock.Text)
@@ -2043,70 +2082,70 @@ Public Sub Colrcp_Activate()
   Totalrcpt.Text = "0,00"
   Tfrais.Text = "0,00"
   With Utils
-    If key.Code <> "4100" And If key.code <> "4101" Then
-    Finally
-      If Not Colrcp.Available Then
-      Else
-        If Numbl.text Then
-          Nl = Colrcp.Current[0]
-          Nlg = 0
-          NlgModif = Colrcp.Current[0]
-          Cart.text = Colrcp.Current[1]
-          art_man()
-          If Materiel And Gmateriel Then
-            If Message.Question("Attention ! La ligne rappelée est un matériel ! \n les numéros de série devront être ressaisis.\n Voulez-vous continuer ?", "Oui", "Non") = 1 Then
-              Mtl = 0
-            Else
-              Mtl = 1
-            Endif
+    'If key.Code <> "4100" And If key.code <> "4101" Then
+    'Finally
+    If Not Colrcp.Available Then
+    Else
+      If Numbl.text Then
+        Nl = Colrcp.Current[0]
+        Nlg = 0
+        NlgModif = Colrcp.Current[0]
+        Cart.text = Colrcp.Current[1]
+        art_man()
+        If Materiel And Gmateriel Then
+          If Message.Question("Attention ! La ligne rappelée est un matériel ! \n les numéros de série devront être ressaisis.\n Voulez-vous continuer ?", "Oui", "Non") = 1 Then
+            Mtl = 0
+          Else
+            Mtl = 1
           Endif
-          If b = 0
-            Dart.text = Colrcp.Current[2]
-            qtecom.text = Colrcp.Current[3]
-            Qtecomc = Colrcp.Current[3]
-            pbht.text = Colrcp.Current[4]
-            Tr.text = Colrcp.Current[5]
-            paht.text = Colrcp.Current[6]
-            qterecue.Text = Colrcp.Current[7]
-            Totht.Text = Colrcp.Item[8]
-            Frais.Text = Colrcp.Item[9]
-            Prvt.Text = Colrcp.Item[10]
-            Colrcp.Item[12] = 0
-            Totht.text = Format(Val(.cpoint(paht.text)) * Val(.cpoint(qterecue.text)), nbdec)
-            Tab = "Fiches_Art"
-            montantr = Tr.Text
-            If Settings["/Soc" & Start.Societe & "/Tmq"] Then
-              Calc_Percent()
-            Endif
-            Tab = "Fiches_Ligcom"
-            Rligcom = Utils.db.Exec("SELECT * FROM " & tab & " WHERE code = &1", Cart.Text)
-            If Rligcom.Available Then
-              Do
-                qtec = qtec + Val(.cpoint(Rligcom!qte))
-              Loop Until Rligcom.MoveNext()
-              qtecom.Text = qtec
-              qtecom.Text = .CDec(Decm, qtecom.Text)
-            Endif
-            pbhtLF()
-            Totht.text = Format(Val(paht.text) * Val(qterecue.text), nbdec)
-            Modif = "1"
-            Colrcp.MoveFirst
-            Do
-              Colrcp.Item.Selected = True
-              If Colrcp.Item[1] = Cart.text Then Break
-            Loop Until Colrcp.MoveNext()
-            Nbligne.Text = Colrcp.count
-            qterecue.SetFocus
-            qterecue.Select
-            qtes = 0
-          Endif
-        Else
-          message.warning("Veuillez saisir un numéro de Bl SVP!", "OK !")
-          Numbl.SetFocus
-          Numbl.Select
         Endif
+        If b = 0
+          Dart.text = Colrcp.Current[2]
+          qtecom.text = Colrcp.Current[3]
+          Qtecomc = Colrcp.Current[3]
+          pbht.text = Colrcp.Current[4]
+          Tr.text = Colrcp.Current[5]
+          paht.text = Colrcp.Current[6]
+          qterecue.Text = Colrcp.Current[7]
+          Totht.Text = Colrcp.Item[8]
+          Frais.Text = Colrcp.Item[9]
+          Prvt.Text = Colrcp.Item[10]
+          Colrcp.Item[12] = 0
+          Totht.text = Format(Val(.cpoint(paht.text)) * Val(.cpoint(qterecue.text)), nbdec)
+          Tab = "Fiches_Art"
+          montantr = Tr.Text
+          If Settings["/Soc" & Start.Societe & "/Tmq"] Then
+            Calc_Percent()
+          Endif
+          Tab = "Fiches_Ligcom"
+          Rligcom = Utils.db.Exec("SELECT * FROM " & tab & " WHERE code = &1", Cart.Text)
+          If Rligcom.Available Then
+            Do
+              qtec = qtec + Val(.cpoint(Rligcom!qte))
+            Loop Until Rligcom.MoveNext()
+            qtecom.Text = qtec
+            qtecom.Text = .CDec(Decm, qtecom.Text)
+          Endif
+          pbhtLF()
+          Totht.text = Format(Val(paht.text) * Val(qterecue.text), nbdec)
+          Modif = "1"
+          Colrcp.MoveFirst
+          Do
+            Colrcp.Item.Selected = True
+            If Colrcp.Item[1] = Cart.text Then Break
+          Loop Until Colrcp.MoveNext()
+          Nbligne.Text = Colrcp.count
+          qterecue.SetFocus
+          qterecue.Select
+          qtes = 0
+        Endif
+      Else
+        message.warning("Veuillez saisir un numéro de Bl SVP!", "OK !")
+        Numbl.SetFocus
+        Numbl.Select
       Endif
     Endif
+    'endif
   End With
   
 End
@@ -3043,7 +3082,21 @@ Public Sub SelectionArt()
   MyForm.Showmodal()
   If Variables.Bsel = True Then
     Cart.text = Variables.ArtCode
-    Art_Man()
+    If Not IsNull(Cart.Text) Then 
+      controlArt()
+    Endif
+    If Bcolrcp Then
+      Modif = "1"
+      Colrcp_Activate()
+    Else
+      If Message.Question("Cet article n'existe pas dans la commande ! Voulez-vous ", "1- L'inclure dans la commande", "2- Revenir à la saisie") = 1 Then
+        art_Man()
+      Else
+        Cart.Clear
+        Cart.SetFocus
+        Return
+      Endif
+    Endif
     Qterecue.SetFocus
     Qterecue.Select
   Endif
