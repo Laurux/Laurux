@@ -6,6 +6,8 @@ Public CodeClient As String
 Public Codearticle As String
 Private nbdec As String 'variable pour decimale des prix
 Private arr As String
+Private ppublic As String
+Private pvente As String
 Private son As Integer = Start.Son
 Private B As Boolean
 
@@ -13,49 +15,52 @@ Public Sub _new()
   
   Me.center
   If Variables.OrgTarTypeCli <> "Art" Then 
-    Lstart.Columns.count = 6
-    Lstart.Columns[0].Width = 160
-    Lstart.Columns[1].Width = 160 
-    Lstart.Columns.count = 6
+    Lstart.Columns.count = 8
     Lstart.Columns[0].Width = 160
     Lstart.Columns[1].Width = 160
     Lstart.Columns[2].Width = 90
     Lstart.Columns[3].Width = 160
-    Lstart.Columns[4].Width = 160
-    Lstart.Columns[5].Width = 160
+    Lstart.Columns[4].Width = 60
+    Lstart.Columns[5].Width = 100
+    Lstart.Columns[7].Width = 100
     Lstart.Columns[1].Alignment = 2
     Lstart.Columns[2].Alignment = 2
     Lstart.Columns[3].Alignment = 2
     Lstart.Columns[4].Alignment = 3
     Lstart.Columns[5].Alignment = 2
+    Lstart.Columns[7].Alignment = 2
     Lstart.Columns[0].Text = "            Code"
     Lstart.Columns[1].Text = "  Prix revient HT"
     Lstart.Columns[2].Text = "   Coef HT"
     Lstart.Columns[3].Text = "  Prix vente HT"
-    Lstart.Columns[4].Text = "           Tva"
+    Lstart.Columns[4].Text = "Tva"
     Lstart.Columns[5].Text = "  Prix vente TTC"
+    Lstart.Columns[7].Text = "Remise"
     If Variables.OrgTarCli = "Art" Then Aff_Tarart()
   Else
-    Lstart.Columns.count = 7
+    Lstart.Columns.count = 9
     Lstart.Columns[0].Width = 80
     Lstart.Columns[1].Width = 260
     Lstart.Columns[2].Width = 120
     Lstart.Columns[3].Width = 90
-    Lstart.Columns[4].Width = 120
+    Lstart.Columns[4].Width = 60
     Lstart.Columns[5].Width = 80
-    Lstart.Columns[6].Width = 120 
+    Lstart.Columns[6].Width = 100
+    Lstart.Columns[8].Width = 100
     Lstart.Columns[2].Alignment = 2
     Lstart.Columns[3].Alignment = 2
     Lstart.Columns[4].Alignment = 2
     Lstart.Columns[5].Alignment = 3
     Lstart.Columns[6].Alignment = 2
+    Lstart.Columns[8].Alignment = 2
     Lstart.Columns[0].Text = "    Type"
     Lstart.Columns[1].Text = "                  Libellé"
     Lstart.Columns[2].Text = "  Prix revient HT"
     Lstart.Columns[3].Text = "   Coef HT"
     Lstart.Columns[4].Text = "  Prix vente HT"
-    Lstart.Columns[5].Text = "     Tva"
+    Lstart.Columns[5].Text = "Tva"
     Lstart.Columns[6].Text = "  Prix vente TTC"
+    Lstart.Columns[8].Text = "Remise"
     If Variables.OrgTarTypeCli = "Art" Then
       Button5.visible = False
       Tart.ReadOnly = True
@@ -181,6 +186,7 @@ End
 Public Sub Aff_Tarart()
   
   Dim rResult As Result
+  Dim rrr As Float
   
   Lstart.clear
   If Variables.OrgTarTypeCli <> "Art" Then
@@ -204,11 +210,19 @@ Public Sub Aff_Tarart()
         Try Lstart.Item[4] = rResult!art_tva
       Else
         Lstart.Item[1] = rResult!libelle
-        Lstart.Item[2] = Tprht.Text
+        'Lstart.Item[2] = Tprht.Text
         Lstart.Item[3] = Format$(rResult!coef, "0.0000")
         Lstart.Item[5] = Variables.ArtTva
+        
       Endif
       Calc_pvht2()
+      If Variables.OrgTarTypeCli <> "Art" Then
+        rrr = rResult!art_pvht - Val(Lstart.Item[3])
+        Lstart.Item[7] = Format$((rrr * 100) / rResult!art_pvht, "0.00")
+      Else
+        rrr = Val(rResult!art_pvht) - Val(Lstart.Item[4])
+        Lstart.Item[8] = Format$((rrr * 100) / rResult!art_pvht, "0.00") 
+      Endif
     Until rResult.MoveNext()
   Endif
   
@@ -281,8 +295,10 @@ Public Sub Art_man(Prod As String)
       Tpvht.Text = Format$(Rarts!art_pvht, Nbdec)
       arr = Rarts!art_cdarr
       TarTva.Text = Rarts!art_tva
+      ppublic = Format$(Rarts!art_pvht, nbdec)
       TpvTTc.Text = Format$(Rarts!art_pvttc, nbdec)
       Try Tcoeff.Text = Format$(Val(Tpvht.Text) / Val(Tprht.Text), "0.0000")
+      Calc_Remise()
       Tcoeff.Select
       Tcoeff.SetFocus
     Else
@@ -299,6 +315,18 @@ Catch
     Music.Play
   Endif
   Try message.Error(Error.Text & " " & Error.where)
+  
+End
+
+'********************************************
+'*           On calcule la remise           *
+'********************************************
+Public Sub Calc_Remise()
+  
+  Dim rrr As Float
+  
+  rrr = Val(ppublic) - Val(Tpvht.text)
+  Remise.text = Format$((rrr * 100) / Val(ppublic), "0.00")
   
 End
 
@@ -359,6 +387,12 @@ Public Sub Button6_KeyPress()
   
 End
 
+Public Sub button6_GotFocus()
+  
+  Calc_Remise()
+  
+End
+
 Public Sub Tcoeff_KeyPress()
   
   If Key.code = Key.Enter Or Key.code = Key.Return Then
@@ -383,9 +417,10 @@ Public Sub Tcoeff_Lostfocus()
       Try message.Warning("Veuillez verifier la saisie de votre coefficient SVP !")
       b = False
     Else
-      Tx = Val(.cpoint(Tcoeff.Text))
-      Tcoeff.Text = Format$(Tx, "0.0000")
+      Tcoeff.Text = Format$(Val(.cpoint(Tcoeff.Text)), "0.0000")
+      ' Tcoeff.Text = Format$(Tx, "0.0000")
       Calc_pvht()
+      button6_GotFocus()
       b = True
     Endif
   End With
@@ -443,6 +478,7 @@ Public Sub Tva_Calcul2()
     Else
       Try Lstart.Item[6] = Format$(Val(Lstart.Item[4]) + (Val(Lstart.Item[4]) * Val(.cpoint(Mtva)) / 100), "0.00")
     Endif
+    
   End With
   
 End
@@ -533,6 +569,7 @@ Public Sub Lstart_Activate()
     Tpvht.Text = Lstart.Item[3]
     TarTva.Text = Lstart.Item[4]
     Tpvttc.Text = Lstart.Item[5]
+    Remise.Text = Lstart.Item[7]
   Else
     Typec.Text = Lstart.Item[0]
     Tlibelle.Text = Lstart.Item[1]
@@ -547,7 +584,7 @@ End
 '***********************************
 Public Sub Tpvht_KeyPress()
   
-  If Key.code = Key.Enter Or Key.code = Key.Return Then Tpvttc.SetFocus
+  If Key.code = Key.Enter Or Key.code = Key.Return Then Button6.SetFocus
   
 End
 
@@ -574,7 +611,43 @@ Public Sub Tpvht_LostFocus()
         Tpvht.select
       Else
         Tva_calcul()
+        Button6.setfocus
       Endif
+    Endif
+  End With
+Catch
+  If start.son Then
+    Music.Play
+  Endif
+  Try message.Error(Error.Text & " " & Error.where)
+  b = 1
+  
+End
+
+Public Sub Remise_KeyPress()
+  
+  If Key.code = Key.Enter Or Key.code = Key.Return Then Button6.SetFocus
+  
+End
+
+Public Sub Remise_LostFocus()
+  
+  With Utils
+    Remise.Text = .cpoint(Remise.Text)
+    If Val(Remise.Text) = Null Then
+      If start.son Then
+        Music.Play
+      Endif
+      Try message.Warning("Veuillez verifier votre saisie SVP !")
+      Remise.SetFocus
+      Remise.select
+    Else
+      Remise.Text = Format$(Val(Remise.Text), "0.00")
+      Tpvht.Text = ppublic
+      Tpvht.Text = Format$(Val(ppublic) - (Val(Tpvht.Text) * Val(remise.Text) / 100), nbdec)
+      Tpvht_LostFocus()
+      Calc_coeff()
+      button6_GotFocus()
     Endif
   End With
 Catch
@@ -613,7 +686,7 @@ Public Sub TpvTTc_LostFocus()
         tx = (1 + tx / 100)
         If Val(TpvTTc.Text) <> 0 Then
           Tpvht.Text = Format$(Val(TpvTTc.Text) / tx, nbdec)
-          'TpvTTc.Text = Format$(Val(TpvTTc.Text), nbdec)
+          TpvTTc.Text = Format$(Val(TpvTTc.Text), nbdec)
         Endif
         arrondi()
         Calc_coeff()
