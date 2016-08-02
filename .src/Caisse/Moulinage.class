@@ -1427,92 +1427,93 @@ Private Sub genfac()
         resentz.MoveNext
       Endif
     Next
-    resligfac.Update
-    utils.db.Commit
-    
-    'mise a jour entete facture
-    utils.db.Begin
-    res = Utils.db.Exec("SELECT SUM(montant) AS montht, SUM(tva) AS tottva, SUM(marge) AS totmarge,SUM(remise) as remise FROM Tmp_Caisse")
-    If res.Available Then
-      resentfac = utils.db.Create("Fiches_HistoFac")
-      resentfac!marge_art = res!totmarge
-      'resentfac!totfac = res!montht - res!remise
-      resentfac!totfac = res!montht
-      resentfac!totfacttc = res!montht + res!tottva
-      resentfac!numfac = snfac
-      resentfac!rmofac = "0,00"
-      resentfac!rartfac = "0,00"
-      resentfac!exofac = 0
-      resentfac!remmofac = "0"
-      resentfac!remartfac = Val(Utils.cpoint(res!remise))
-      resentfac!ech = DateChooser1.Value
-      resentfac!acpt = "0,00"
-      resentfac!marge_art = res!totmarge
-      resentfac!marge_mo = 0
-      resentfac!cdclifac = client
-      res = utils.db.Exec("SELECT * FROM Fiches_Cli WHERE cli_code=&1", client)
-      resentfac!cvclifac = res!cli_rs_soc
-      resentfac!nmclifac = res!cli_nom
-      resentfac!pnmclifac = res!cli_pnm
-      resentfac!adr1fac = res!cli_adr1
-      resentfac!adr2fac = res!cli_adr2
-      resentfac!cpfac = res!cli_cd_ptl
-      resentfac!villefac = res!cli_ville
-      resentfac!datefac = DateChooser1.Value
-      resentfac.Update
-      respar.Update
+    Try resligfac.Update
+    If Not Error Then
+      utils.db.Commit
       
-      'mise a jour des lignes de facture
-      reslig = utils.db.Exec("SELECT SUM(pu) as pu, SUM(montant) as montant, SUM(remise) as remise, SUM(quantite) as quantite, SUM(tva) as mtva, SUM(marge) as marge, fam,code FROM Tmp_Caisse GROUP BY code")
-      snumlig = "0001"
-      resligfac = Utils.db.Create("Fiches_HistoLigfac")
-      resligfac!num_ligfac = snfac
-      snumlig = snumlig
-      resligfac!numlig_ligfac = Format(snumlig, "0000")
-      resligfac!typel_ligfac = "C"
-      resligfac!com_ligfac = "Facture caisse du : " & Format(DateChooser1.Value, "dd-mm-yyyy")
-      resligfac.Update
-      
-      reslig.MoveFirst
-      For j = 0 To reslig.Max
+      'mise a jour entete facture
+      utils.db.Begin
+      res = Utils.db.Exec("SELECT SUM(montant) AS montht, SUM(tva) AS tottva, SUM(marge) AS totmarge,SUM(remise) as remise FROM Tmp_Caisse")
+      If res.Available Then
+        resentfac = utils.db.Create("Fiches_HistoFac")
+        resentfac!marge_art = res!totmarge
+        'resentfac!totfac = res!montht - res!remise
+        resentfac!totfac = res!montht
+        resentfac!totfacttc = res!montht + res!tottva
+        resentfac!numfac = snfac
+        resentfac!rmofac = "0,00"
+        resentfac!rartfac = "0,00"
+        resentfac!exofac = 0
+        resentfac!remmofac = "0"
+        resentfac!remartfac = Val(Utils.cpoint(res!remise))
+        resentfac!ech = DateChooser1.Value
+        resentfac!acpt = "0,00"
+        resentfac!marge_art = res!totmarge
+        resentfac!marge_mo = 0
+        resentfac!cdclifac = client
+        res = utils.db.Exec("SELECT * FROM Fiches_Cli WHERE cli_code=&1", client)
+        resentfac!cvclifac = res!cli_rs_soc
+        resentfac!nmclifac = res!cli_nom
+        resentfac!pnmclifac = res!cli_pnm
+        resentfac!adr1fac = res!cli_adr1
+        resentfac!adr2fac = res!cli_adr2
+        resentfac!cpfac = res!cli_cd_ptl
+        resentfac!villefac = res!cli_ville
+        resentfac!datefac = DateChooser1.Value
+        resentfac.Update
+        respar.Update
+        
+        'mise a jour des lignes de facture
+        reslig = utils.db.Exec("SELECT SUM(pu) as pu, SUM(montant) as montant, SUM(remise) as remise, SUM(quantite) as quantite, SUM(tva) as mtva, SUM(marge) as marge, fam,code FROM Tmp_Caisse GROUP BY code")
+        snumlig = "0001"
         resligfac = Utils.db.Create("Fiches_HistoLigfac")
         resligfac!num_ligfac = snfac
-        snumlig = Str(Val(snumlig) + 1)
+        snumlig = snumlig
         resligfac!numlig_ligfac = Format(snumlig, "0000")
-        resligfac!code_ligfac = reslig!code
-        resligfac!pu_ligfac = Format(reslig!pu, "0.00")
-        'resligfac!brut_ligfac = Format(reslig!montant, "0.00")
-        resligfac!brut_ligfac = Format(reslig!pu * reslig!quantite, "0.00") 
-        resligfac!rem_ligfac = Format(reslig!remise, "0.00")
-        'resligfac!netht_ligfac = Format(reslig!montant - reslig!remise, "0.00")
-        'resligfac!nettc_ligfac = Format((reslig!montant - reslig!remise) + reslig!mtva, "0.00")
-        resligfac!netht_ligfac = Format(reslig!montant, "0.00")
-        resligfac!nettc_ligfac = Format(reslig!montant + reslig!mtva, "0.00")
-        resligfac!mrgart_ligfac = reslig!marge
-        'resligfac!nettc_ligfac = Format((reslig!montant - reslig!remise), "0.00")
-        resligfac!typel_ligfac = "A"
-        'lecture des données sur fiche article
-        res = utils.db.Exec("SELECT * FROM Fiches_Art WHERE art_code=&1", reslig!code)
-        If res.Available Then
-          resligfac!libel_ligfac = res!art_design
-          resligfac!fam_ligfac = res!art_fam
-          resligfac!tx_ligfac = res!art_tva
-          resligfac!qte_ligfac = Format(reslig!quantite, utils.Find_nbdec(res!art_dec))
-          'resligfac!pu_ligfac = Format(reslig!montant / reslig!quantite, utils.Find_nbdec(res!art_nbd))
-          res = utils.db.Exec("SELECT * FROM Fiches_Tvaav WHERE code_tva=&1", resligfac!tx_ligfac) 
-          If res.Available Then resligfac!mtx_ligfac = res!taux_tva
-        Else
-          resligfac!libel_ligfac = "Article inconnu"
-          resligfac!qte_ligfac = Format(reslig!quantite, "0.000")
-          'resligfac!pu_ligfac = Format((reslig!montant / reslig!quantite), "0.00") 
-          resligfac!fam_ligfac = reslig!fam
-        Endif
+        resligfac!typel_ligfac = "C"
+        resligfac!com_ligfac = "Facture caisse du : " & Format(DateChooser1.Value, "dd-mm-yyyy")
         resligfac.Update
-        reslig.MoveNext
-      Next
+        
+        reslig.MoveFirst
+        For j = 0 To reslig.Max
+          resligfac = Utils.db.Create("Fiches_HistoLigfac")
+          resligfac!num_ligfac = snfac
+          snumlig = Str(Val(snumlig) + 1)
+          resligfac!numlig_ligfac = Format(snumlig, "0000")
+          resligfac!code_ligfac = reslig!code
+          resligfac!pu_ligfac = Format(reslig!pu, "0.00")
+          'resligfac!brut_ligfac = Format(reslig!montant, "0.00")
+          resligfac!brut_ligfac = Format(reslig!pu * reslig!quantite, "0.00") 
+          resligfac!rem_ligfac = Format(reslig!remise, "0.00")
+          'resligfac!netht_ligfac = Format(reslig!montant - reslig!remise, "0.00")
+          'resligfac!nettc_ligfac = Format((reslig!montant - reslig!remise) + reslig!mtva, "0.00")
+          resligfac!netht_ligfac = Format(reslig!montant, "0.00")
+          resligfac!nettc_ligfac = Format(reslig!montant + reslig!mtva, "0.00")
+          resligfac!mrgart_ligfac = reslig!marge
+          'resligfac!nettc_ligfac = Format((reslig!montant - reslig!remise), "0.00")
+          resligfac!typel_ligfac = "A"
+          'lecture des données sur fiche article
+          res = utils.db.Exec("SELECT * FROM Fiches_Art WHERE art_code=&1", reslig!code)
+          If res.Available Then
+            resligfac!libel_ligfac = res!art_design
+            resligfac!fam_ligfac = res!art_fam
+            resligfac!tx_ligfac = res!art_tva
+            resligfac!qte_ligfac = Format(reslig!quantite, utils.Find_nbdec(res!art_dec))
+            'resligfac!pu_ligfac = Format(reslig!montant / reslig!quantite, utils.Find_nbdec(res!art_nbd))
+            res = utils.db.Exec("SELECT * FROM Fiches_Tvaav WHERE code_tva=&1", resligfac!tx_ligfac) 
+            If res.Available Then resligfac!mtx_ligfac = res!taux_tva
+          Else
+            resligfac!libel_ligfac = "Article inconnu"
+            resligfac!qte_ligfac = Format(reslig!quantite, "0.000")
+            'resligfac!pu_ligfac = Format((reslig!montant / reslig!quantite), "0.00") 
+            resligfac!fam_ligfac = reslig!fam
+          Endif
+          resligfac.Update
+          reslig.MoveNext
+        Next
+      Endif
+      utils.db.Commit
     Endif
-    
-    utils.db.Commit
   Endif
   
 End
