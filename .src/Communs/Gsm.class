@@ -126,22 +126,42 @@ Public Sub Button2_Click()
   Dim Tel As String = Replace$(TextBox1.Text, " ", "")
   Dim mesg As String = Quote(Intitule.Text)
   Dim $Txt As String
+  Dim Support As String = Settings["/Soc" & Start.Societe & "/Support"]
+  Dim Api As String = Settings["/Soc" & Start.Societe & "/Api"]
+  Dim Type As String = Right$(Settings["/Soc" & Start.Societe & "/Type"], -3)
+  Dim Expediteur As String = Settings["/Soc" & Start.Societe & "/Expediteur"]
   
-  mesg = Replace$(mesg, "\\n", " ")
-  mesg &= "."
+  If Left$(Support, 1) = "1" Then 
+    mesg = Replace$(mesg, "\\n", " ")
+    mesg &= "."
+  Else
+    mesg = Replace$(mesg, " ", "+") 
+  Endif
   If Not IsNull(TextBox1.text) And Not IsNull(TextLabel1.Text) Then
     Me.Mouse = Mouse.Wait
-    Shell "gammu sendsms TEXT " & Tel & " -text " & mesg & " >" & User.home & "/tmp/sms.txt 2>&1" Wait
-    Me.mouse = Mouse.Default
-    If Exist(User.Home & "/tmp/sms.txt") Then
-      $txt = Trim$(File.Load(User.Home & "/tmp/sms.txt"))
-      If InStr($txt, "OK") = 0 Then
-        Message.Error("Problème ! Le message n'a pas pu être envoyé.")
-      Else
-        Message.Info("Le message a été envoyé.")
+    If Left$(Support, 1) = "1" Then 
+      Shell "gammu sendsms TEXT " & Tel & " -text " & mesg & " >" & User.home & "/tmp/sms.txt 2>&1" Wait
+      Me.mouse = Mouse.Default
+      If Exist(User.Home & "/tmp/sms.txt") Then
+        $txt = Trim$(File.Load(User.Home & "/tmp/sms.txt"))
+        If InStr($txt, "OK") = 0 Then
+          Message.Error("Problème ! Le message n'a pas pu être envoyé.")
+        Else
+          Message.Info("Le message a été envoyé.")
+        Endif
+      Endif
+    Else
+      Shell "curl " & "\"http://www.spot-hit.fr/api/envoyer/sms?key=" & Api & "&type=" & Type & "&destinataires=" & Tel & "&message=" & mesg & "&expediteur=" & Replace$(Expediteur, " ", "+") & "\"" & " >" & User.home & "/tmp/sms.txt 2>&1" Wait
+      Me.mouse = Mouse.Default
+      If Exist(User.Home & "/tmp/sms.txt") Then
+        $txt = Trim$(File.Load(User.Home & "/tmp/sms.txt"))
+        If InStr($txt, "{\"resultat\":1") = 0 Then
+          Message.Error("Problème ! Le message n'a pas pu être envoyé.")
+        Else
+          Message.Info("Le message a été envoyé.")
+        Endif
       Endif
     Endif
-    
   Endif
   
 End
