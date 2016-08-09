@@ -39,14 +39,38 @@ Sens As String
 Tri As String
 Piece As Boolean
 Adr_Mail As String
+Private $type As String
+Private $gsm As String
+Private mesg As String 
+Private $Txt As String
+Private Support As String
+Private $contrat As String
+Private Api As String
+Private Expediteur As String
+Private ilettre As Integer = 0
 
-Public Sub _New()
+Public Sub _New(sType As String)
   
   Dim Frmt As New String[]
   Dim rResult As Result
   
   Me.Center
   
+  $type = stype
+  If stype = "sms" Then
+    Me.Text = "Envoi SMS groupés"
+    Titre.text = "Envoi SMS"
+    Frame1.Text = "Données SMS"
+    Label8.Visible = False
+    TextBox1.visible = False
+    Label9.Visible = False
+    TextBox2.Visible = False
+    Btnopen.Visible = False
+    Label7.Text = "Texte SMS 160 caractères maxi"
+    sText.Height = 126
+    TextLabel1.visible = True
+    TextLabel1.Text = "0 caractères saisi"
+  Endif
   Music.Load(Start.Musique)
   Frmt = Utils.FColr(Settings["/Coul/Znaff"])
   CoulZnaf = Val(Frmt[0])
@@ -717,71 +741,157 @@ Public Sub Etiq_KeyPress()
   
 End
 
+Public Sub sText_KeyPress()
+  
+  If Key.code = Key.BackSpace Then
+    Dec ilettre
+  Else
+    Inc ilettre
+  Endif
+  If ilettre > 1 Then 
+    TextLabel1.Text = ilettre & " caractères saisis"
+  Else
+    TextLabel1.Text = ilettre & " caractère saisi"
+  Endif
+  
+End
+
 Public Sub Button2_Click()
   
+  mesg = Quote(sText.Text)
+  Support = Settings["/Soc" & Start.Societe & "/Support"]
+  Api = Settings["/Soc" & Start.Societe & "/Api"]
+  $contrat = Right$(Settings["/Soc" & Start.Societe & "/Type"], -3)
+  Expediteur = Settings["/Soc" & Start.Societe & "/Expediteur"]
+  
   Me.Mouse = Mouse.Wait
-  If TextBox1.text Then
-    If Stext.text Then
-      Panel4.visible = True
-      If Liste.Value = False Then
-        If CheckType.value = False Then
-          If bstatut.Value = True Then
-            If Radiobutton1.Value Then rCli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " WHERE cast(cli_code AS char) >= &1  and cast(cli_code AS char) <= &2 and cli_statut = &3 order by cast(cli_code AS char)", Client1.Text, Client2.Text, Left$(Statut.text, 2))
-            If Radiobutton3.Value Then rCli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " WHERE cast(cli_code AS char) >= &1  and cast(cli_code AS char) <= &2 and cli_statut = &3 order by cli_cd_ptl, cast(cli_code AS char)", Client1.Text, Client2.Text, Left$(Statut.text, 2))
-          Else
-            If Radiobutton1.Value Then rCli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " WHERE cast(cli_code AS char) >= &1  and cast(cli_code AS char) <= &2 order by cast(cli_code AS char)", Client1.Text, Client2.Text)
-            If Radiobutton3.Value Then rCli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " WHERE cast(cli_code AS char) >= &1  and cast(cli_code AS char) <= &2 order by cli_cd_ptl, cast(cli_code AS char)", Client1.Text, Client2.Text)
+  Panel4.visible = True
+  If Liste.Value = False Then
+    If CheckType.value = False Then
+      If bstatut.Value = True Then
+        If Radiobutton1.Value Then rCli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " WHERE cast(cli_code AS char) >= &1  and cast(cli_code AS char) <= &2 and cli_statut = &3 order by cast(cli_code AS char)", Client1.Text, Client2.Text, Left$(Statut.text, 2))
+        If Radiobutton3.Value Then rCli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " WHERE cast(cli_code AS char) >= &1  and cast(cli_code AS char) <= &2 and cli_statut = &3 order by cli_cd_ptl, cast(cli_code AS char)", Client1.Text, Client2.Text, Left$(Statut.text, 2))
+      Else
+        If Radiobutton1.Value Then rCli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " WHERE cast(cli_code AS char) >= &1  and cast(cli_code AS char) <= &2 order by cast(cli_code AS char)", Client1.Text, Client2.Text)
+        If Radiobutton3.Value Then rCli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " WHERE cast(cli_code AS char) >= &1  and cast(cli_code AS char) <= &2 order by cli_cd_ptl, cast(cli_code AS char)", Client1.Text, Client2.Text)
+      Endif
+    Endif
+    If CheckType.value = True Then
+      If bstatut.value = False Then
+        If Radiobutton1.Value Then rCli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " WHERE cast(cli_code AS char) >= &1  and cast(cli_code AS char) <= &2 and cli_typec >= &3 and cli_typec <= &4 order by cast(cli_code AS char)", Client1.Text, Client2.Text, Type.Text, Type2.Text)
+        If Radiobutton2.Value And Not CheckCp.value Then
+          rCli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " WHERE cast(cli_code AS char) >= &1  and cast(cli_code AS char) <= &2 and cli_typec >= &3 and cli_typec <= &4 order by cli_typec, cast(cli_code AS char)", Client1.Text, Client2.Text, Type.Text, Type2.Text)
+        Else
+          If Radiobutton2.Value And CheckCp.value Then
+            rCli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " WHERE cast(cli_code AS char) >= &1  and cast(cli_code AS char) <= &2 and cli_typec >= &3 and cli_typec <= &4 order by cli_typec, cli_cd_ptl, cast(cli_code AS char)", Client1.Text, Client2.Text, Type.Text, Type2.Text)
           Endif
         Endif
-        If CheckType.value = True Then
-          If bstatut.value = False Then
-            If Radiobutton1.Value Then rCli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " WHERE cast(cli_code AS char) >= &1  and cast(cli_code AS char) <= &2 and cli_typec >= &3 and cli_typec <= &4 order by cast(cli_code AS char)", Client1.Text, Client2.Text, Type.Text, Type2.Text)
-            If Radiobutton2.Value And Not CheckCp.value Then
-              rCli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " WHERE cast(cli_code AS char) >= &1  and cast(cli_code AS char) <= &2 and cli_typec >= &3 and cli_typec <= &4 order by cli_typec, cast(cli_code AS char)", Client1.Text, Client2.Text, Type.Text, Type2.Text)
-            Else
-              If Radiobutton2.Value And CheckCp.value Then
-                rCli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " WHERE cast(cli_code AS char) >= &1  and cast(cli_code AS char) <= &2 and cli_typec >= &3 and cli_typec <= &4 order by cli_typec, cli_cd_ptl, cast(cli_code AS char)", Client1.Text, Client2.Text, Type.Text, Type2.Text)
-              Endif
-            Endif
-            If Radiobutton3.Value Then rCli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " WHERE cast(cli_code AS char) >= &1  and cast(cli_code AS char) <= &2 and cli_typec >= &3 and cli_typec <= &4 order by cli_cd_ptl, cli_typec, cast(cli_code AS char)", Client1.Text, Client2.Text, Type.Text, Type2.Text)
+        If Radiobutton3.Value Then rCli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " WHERE cast(cli_code AS char) >= &1  and cast(cli_code AS char) <= &2 and cli_typec >= &3 and cli_typec <= &4 order by cli_cd_ptl, cli_typec, cast(cli_code AS char)", Client1.Text, Client2.Text, Type.Text, Type2.Text)
+      Else
+        If Radiobutton1.Value Then rCli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " WHERE cast(cli_code AS char) >= &1  and cast(cli_code AS char) <= &2 and cli_typec >= &3 and cli_typec <= &4 and cli_statut = &5 order by cast(cli_code AS char)", Client1.Text, Client2.Text, Type.Text, Type2.Text, Left$(Statut.text, 2))
+        If Radiobutton2.Value And Not CheckCp.value Then
+          rCli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " WHERE cast(cli_code AS char) >= &1  and cast(cli_code AS char) <= &2 and cli_typec >= &3 and cli_typec <= &4 and cli_statut = &5 order by cli_typec, cast(cli_code AS char)", Client1.Text, Client2.Text, Type.Text, Type2.Text, Left$(Statut.text, 2))
+        Else
+          If Radiobutton2.Value And CheckCp.value Then
+            rCli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " WHERE cast(cli_code AS char) >= &1  and cast(cli_code AS char) <= &2 and cli_typec >= &3 and cli_typec <= &4 and cli_statut = &5 order by cli_typec, cli_cd_ptl, cast(cli_code AS char)", Client1.Text, Client2.Text, Type.Text, Type2.Text, Left$(Statut.text, 2))
+          Endif
+        Endif
+        If Radiobutton3.Value Then rCli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " WHERE cast(cli_code AS char) >= &1  and cast(cli_code AS char) <= &2 and cli_typec >= &3 and cli_typec <= &4 and cli_statut = &5 order by cli_cd_ptl, cli_typec, cast(cli_code AS char)", Client1.Text, Client2.Text, Type.Text, Type2.Text, Left$(Statut.text, 2))
+      Endif
+    Endif
+  Else
+    Tab2 = "Cli_Mailing"
+    rcli2 = Utils.db.Exec("SELECT * FROM " & Tab2 & "")
+  Endif
+  If IsNull($Type) Then
+    If TextBox1.text Then
+      If Stext.text Then
+        If Liste.Value = True
+          Repeat
+            Try rcli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " WHERE cli_code = &1", rcli2!code)
+            Adr_Mail = rCli!cli_email
+            $gsm = rCli!cli_pble
+            If Not IsNull(TextBox2.Text) Then piece = True
+            Label13.Text = rcli!cli_code & " " & rcli!cli_nom & " " & rcli!cli_pnm
+            Label14.Text = Adr_Mail
+            Panel4.Visible = True
+            If Not Error Then EnvMail.Envoi(Adr_mail, TextBox1.Text, sText.Text, piece, TextBox2.text, TypeM, FileN)
+          Until rcli2.MoveNext()
+          Me.mouse = Mouse.Default
+          Message.Info("Traitement terminé.")
+        Else
+          If rcli.Available Then
+            Repeat
+              Adr_Mail = rCli!cli_email
+              If Not IsNull(TextBox2.Text) Then piece = True
+              Label13.Text = rcli!cli_code & " " & rcli!cli_nom & " " & rcli!cli_pnm
+              Label14.Text = Adr_Mail
+              Panel4.Visible = True
+              Wait 1
+              EnvMail.Envoi(Adr_mail, TextBox1.Text, sText.Text, piece, TextBox2.text, TypeM, FileN)
+            Until rcli.MoveNext()
+            Me.mouse = Mouse.Default
+            Message.Info("Traitement terminé.")
+            Panel4.Visible = False
           Else
-            If Radiobutton1.Value Then rCli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " WHERE cast(cli_code AS char) >= &1  and cast(cli_code AS char) <= &2 and cli_typec >= &3 and cli_typec <= &4 and cli_statut = &5 order by cast(cli_code AS char)", Client1.Text, Client2.Text, Type.Text, Type2.Text, Left$(Statut.text, 2))
-            If Radiobutton2.Value And Not CheckCp.value Then
-              rCli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " WHERE cast(cli_code AS char) >= &1  and cast(cli_code AS char) <= &2 and cli_typec >= &3 and cli_typec <= &4 and cli_statut = &5 order by cli_typec, cast(cli_code AS char)", Client1.Text, Client2.Text, Type.Text, Type2.Text, Left$(Statut.text, 2))
-            Else
-              If Radiobutton2.Value And CheckCp.value Then
-                rCli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " WHERE cast(cli_code AS char) >= &1  and cast(cli_code AS char) <= &2 and cli_typec >= &3 and cli_typec <= &4 and cli_statut = &5 order by cli_typec, cli_cd_ptl, cast(cli_code AS char)", Client1.Text, Client2.Text, Type.Text, Type2.Text, Left$(Statut.text, 2))
-              Endif
+            If son Then
+              Music.Play
             Endif
-            If Radiobutton3.Value Then rCli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " WHERE cast(cli_code AS char) >= &1  and cast(cli_code AS char) <= &2 and cli_typec >= &3 and cli_typec <= &4 and cli_statut = &5 order by cli_cd_ptl, cli_typec, cast(cli_code AS char)", Client1.Text, Client2.Text, Type.Text, Type2.Text, Left$(Statut.text, 2))
+            Me.mouse = Mouse.Default
+            message(" Aucun client pour cette demande", "OK")
           Endif
         Endif
       Else
-        Tab2 = "Cli_Mailing"
-        rcli2 = Utils.db.Exec("SELECT * FROM " & Tab2 & "")
+        If son Then
+          Music.Play
+        Endif
+        Me.mouse = Mouse.Default
+        message(" Veuillez saisir le texte de votre courriel SVP", "OK")
+        Stext.SetFocus
+        Stext.Select
+      Endif
+    Else
+      If son Then
+        Music.Play
+      Endif
+      Me.mouse = Mouse.Default
+      message(" veuillez saisir le sujet de votre courriel SVP", "OK")
+      TextBox1.SetFocus
+      TextBox1.Select
+    Endif
+  Else
+    If Stext.Text Then
+      If Left$(Support, 1) = "1" Then 
+        mesg = Replace$(mesg, "\\n", " ")
+        mesg &= "."
+      Else
+        mesg = Replace$(mesg, "\\n", " ")
+        mesg = Replace$(mesg, " ", "+") 
       Endif
       If Liste.Value = True
         Repeat
           Try rcli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " WHERE cli_code = &1", rcli2!code)
-          Adr_Mail = rCli!cli_email
-          If Not IsNull(TextBox2.Text) Then piece = True
+          $gsm = rCli!cli_pble
+          $gsm = Replace$($gsm, " ", "")
           Label13.Text = rcli!cli_code & " " & rcli!cli_nom & " " & rcli!cli_pnm
-          Label14.Text = Adr_Mail
+          Label14.Text = $gsm
           Panel4.Visible = True
-          If Not Error Then EnvMail.Envoi(Adr_mail, TextBox1.Text, sText.Text, piece, TextBox2.text, TypeM, FileN)
+          Me.Mouse = Mouse.Wait
+          If Not Error Then EnvoiSms()
+          Wait 0.2
         Until rcli2.MoveNext()
         Me.mouse = Mouse.Default
         Message.Info("Traitement terminé.")
       Else
         If rcli.Available Then
           Repeat
-            Adr_Mail = rCli!cli_email
-            If Not IsNull(TextBox2.Text) Then piece = True
+            $gsm = rCli!cli_pble
             Label13.Text = rcli!cli_code & " " & rcli!cli_nom & " " & rcli!cli_pnm
-            Label14.Text = Adr_Mail
+            Label14.Text = $gsm
             Panel4.Visible = True
             Wait 1
-            EnvMail.Envoi(Adr_mail, TextBox1.Text, sText.Text, piece, TextBox2.text, TypeM, FileN)
+            EnvoiSms()
+            Wait 0.2
           Until rcli.MoveNext()
           Me.mouse = Mouse.Default
           Message.Info("Traitement terminé.")
@@ -799,18 +909,10 @@ Public Sub Button2_Click()
         Music.Play
       Endif
       Me.mouse = Mouse.Default
-      message(" Veuillez saisir le texte de votre courriel SVP", "OK")
+      message(" Veuillez saisir le texte de votre SMS SVP", "OK")
       Stext.SetFocus
       Stext.Select
     Endif
-  Else
-    If son Then
-      Music.Play
-    Endif
-    Me.mouse = Mouse.Default
-    message(" veuillez saisir le sujet de votre courriel SVP", "OK")
-    TextBox1.SetFocus
-    TextBox1.Select
   Endif
 Catch
   If son Then
@@ -818,6 +920,35 @@ Catch
   Endif
   Me.mouse = Mouse.Default
   message.Error(Error.Text & " " & Error.where)
+  
+End
+
+Public Sub EnvoiSms()
+  
+  If Exist(User.Home & "/tmp/sms.txt") Then Kill User.Home & "/tmp/sms.txt"
+  If Left$(Support, 1) = "1" Then 
+    Shell "gammu sendsms TEXT " & $gsm & " -text " & mesg & " >" & User.home & "/tmp/sms.txt 2>&1" Wait
+    Me.mouse = Mouse.Default
+    If Exist(User.Home & "/tmp/sms.txt") Then
+      $txt = Trim$(File.Load(User.Home & "/tmp/sms.txt"))
+      If InStr($txt, "OK") = 0 Then
+        Message.Error("Problème ! Le message n'a pas pu être envoyé.")
+      Endif
+    Endif
+  Else
+    If $contrat = "premium" Then
+      Shell "curl " & "\"http://www.spot-hit.fr/api/envoyer/sms?key=" & Api & "&type=" & $contrat & "&destinataires=" & $gsm & "&message=" & mesg & "&smslong=1&expediteur=" & Replace$(Expediteur, " ", "+") & "\"" & " >" & User.home & "/tmp/sms.txt 2>&1" Wait
+    Else
+      Shell "curl " & "\"http://www.spot-hit.fr/api/envoyer/sms?key=" & Api & "&type=" & $contrat & "&destinataires=" & $gsm & "&message=" & mesg & "&expediteur=" & Replace$(Expediteur, " ", "+") & "\"" & " >" & User.home & "/tmp/sms.txt 2>&1" Wait 
+    Endif
+    Me.mouse = Mouse.Default
+    If Exist(User.Home & "/tmp/sms.txt") Then
+      $txt = Trim$(File.Load(User.Home & "/tmp/sms.txt"))
+      If InStr($txt, "{\"resultat\":1") = 0 Then
+        Message.Error("Problème ! Le message n'a pas pu être envoyé.")
+      Endif
+    Endif
+  Endif
   
 End
 
