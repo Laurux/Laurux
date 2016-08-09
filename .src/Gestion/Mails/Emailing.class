@@ -48,6 +48,9 @@ Private $contrat As String
 Private Api As String
 Private Expediteur As String
 Private ilettre As Integer = 0
+Private premium As String
+Private lowcost As String
+Private credit As Boolean = True
 
 Public Sub _New(sType As String)
   
@@ -109,12 +112,34 @@ Public Sub _New(sType As String)
   
 End
 
-Public Sub Form_Open()
+Public Sub Form_Show()
   
-  If IsNull(Settings["/Smtp"]) Or If IsNull(Settings["Port"]) Or If IsNull(Settings["/Adrmail"]) Then
-    Message.Error("Veuillez vérifier la configuration de vos coordonnées mail dans les préférences SVP !")
-    Me.close
+  If $type = "sms" Then Label7.SetFocus
+  
+End
+
+Public Sub Label7_GotFocus()
+  
+  If $type = "sms" Then
+    If Exist(User.Home & "/tmp/sms.txt") Then Kill User.Home & "/tmp/sms.txt"
+    If IsNull(Settings["/Smtp"]) Or If IsNull(Settings["Port"]) Or If IsNull(Settings["/Adrmail"]) Then
+      Message.Error("Veuillez vérifier la configuration de vos coordonnées mail dans les préférences SVP !")
+      Me.close
+    Endif
+    Support = Settings["/Soc" & Start.Societe & "/Support"]
+    Api = Settings["/Soc" & Start.Societe & "/Api"]
+    $contrat = Right$(Settings["/Soc" & Start.Societe & "/Type"], -3)
+    Expediteur = Settings["/Soc" & Start.Societe & "/Expediteur"]
+    Shell "curl " & "\"http://www.spot-hit.fr/api/credits/?key=" & Api & "\"" & " >" & User.home & "/tmp/sms.txt 2>&1" Wait 
+    If Exist(User.Home & "/tmp/sms.txt") Then
+      $txt = Trim$(File.Load(User.Home & "/tmp/sms.txt"))
+      premium = Mid$($txt, InStr($txt, "premium\":\"") + 10, InStr($txt, "\",\"lowcost") - InStr($txt, "premium\":\"") - 10)
+      lowcost = Mid$($txt, InStr($txt, "lowcost\":\"") + 10, InStr($txt, "\",\"mobile") - InStr($txt, "lowcost\":\"") - 10)
+      Message.Info("Il vous reste " & premium & " sms premium" & "\n" & "il vous reste " & lowcost & " sms lowcost")
+    Endif
   Endif
+  client1.Select
+  client1.SetFocus
   
 End
 
@@ -759,11 +784,6 @@ End
 Public Sub Button2_Click()
   
   mesg = Quote(sText.Text)
-  Support = Settings["/Soc" & Start.Societe & "/Support"]
-  Api = Settings["/Soc" & Start.Societe & "/Api"]
-  $contrat = Right$(Settings["/Soc" & Start.Societe & "/Type"], -3)
-  Expediteur = Settings["/Soc" & Start.Societe & "/Expediteur"]
-  
   Me.Mouse = Mouse.Wait
   Panel4.visible = True
   If Liste.Value = False Then
@@ -860,6 +880,7 @@ Public Sub Button2_Click()
       TextBox1.Select
     Endif
   Else
+    
     If Stext.Text Then
       If Left$(Support, 1) = "1" Then 
         mesg = Replace$(mesg, "\\n", " ")
@@ -877,8 +898,12 @@ Public Sub Button2_Click()
           Label14.Text = $gsm
           Panel4.Visible = True
           Me.Mouse = Mouse.Wait
-          If Not Error Then EnvoiSms()
-          Wait 0.2
+          If credit Then
+            If Not Error Then EnvoiSms()
+            Wait 0.2
+          Else
+            Return
+          Endif
         Until rcli2.MoveNext()
         Me.mouse = Mouse.Default
         Message.Info("Traitement terminé.")
@@ -889,9 +914,12 @@ Public Sub Button2_Click()
             Label13.Text = rcli!cli_code & " " & rcli!cli_nom & " " & rcli!cli_pnm
             Label14.Text = $gsm
             Panel4.Visible = True
-            Wait 1
-            EnvoiSms()
-            Wait 0.2
+            If credit Then
+              If Not Error Then EnvoiSms()
+              Wait 0.2
+            Else
+              Return
+            Endif
           Until rcli.MoveNext()
           Me.mouse = Mouse.Default
           Message.Info("Traitement terminé.")
@@ -938,8 +966,18 @@ Public Sub EnvoiSms()
   Else
     If $contrat = "premium" Then
       Shell "curl " & "\"http://www.spot-hit.fr/api/envoyer/sms?key=" & Api & "&type=" & $contrat & "&destinataires=" & $gsm & "&message=" & mesg & "&smslong=1&expediteur=" & Replace$(Expediteur, " ", "+") & "\"" & " >" & User.home & "/tmp/sms.txt 2>&1" Wait
+      Dec premium
+      If premium = 0 Then
+        Message.Warning("Votre crédit de SMS premium est épuisé\nVeuillez recharger vos SMS !")
+        credit = False
+      Endif
     Else
       Shell "curl " & "\"http://www.spot-hit.fr/api/envoyer/sms?key=" & Api & "&type=" & $contrat & "&destinataires=" & $gsm & "&message=" & mesg & "&expediteur=" & Replace$(Expediteur, " ", "+") & "\"" & " >" & User.home & "/tmp/sms.txt 2>&1" Wait 
+      Dec lowcost
+      If lowcost = 0 Then
+        Message.Warning("Votre crédit de SMS lowcost est épuisé\nVeuillez recharger vos SMS !")
+        credit = False
+      Endif
     Endif
     Me.mouse = Mouse.Default
     If Exist(User.Home & "/tmp/sms.txt") Then
