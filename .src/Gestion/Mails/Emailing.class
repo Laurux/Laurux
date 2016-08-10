@@ -133,9 +133,22 @@ Public Sub Label7_GotFocus()
     Shell "curl " & "\"http://www.spot-hit.fr/api/credits/?key=" & Api & "\"" & " >" & User.home & "/tmp/sms.txt 2>&1" Wait 
     If Exist(User.Home & "/tmp/sms.txt") Then
       $txt = Trim$(File.Load(User.Home & "/tmp/sms.txt"))
-      premium = Mid$($txt, InStr($txt, "premium\":\"") + 10, InStr($txt, "\",\"lowcost") - InStr($txt, "premium\":\"") - 10)
-      lowcost = Mid$($txt, InStr($txt, "lowcost\":\"") + 10, InStr($txt, "\",\"mobile") - InStr($txt, "lowcost\":\"") - 10)
-      Message.Info("Il vous reste " & premium & " sms premium" & "\n" & "il vous reste " & lowcost & " sms lowcost")
+      If InStr($txt, "erreur") = 0 Then
+        premium = Mid$($txt, InStr($txt, "premium\":\"") + 10, InStr($txt, "\",\"lowcost") - InStr($txt, "premium\":\"") - 10)
+        lowcost = Mid$($txt, InStr($txt, "lowcost\":\"") + 10, InStr($txt, "\",\"mobile") - InStr($txt, "lowcost\":\"") - 10)
+        If premium = 0 Then
+          Message.Info("Votre crédit premium est épuisé !\n" & "il vous reste " & lowcost & " sms lowcost")
+        Else
+          If lowcost = 0 Then
+            Message.Info("Il vous reste " & premium & " sms premium\n" & "Votre crédit lowcost est épuisé !")
+          Else 
+            Message.Info("Il vous reste " & premium & " sms premium\n" & "il vous reste " & lowcost & " sms lowcost")
+          Endif
+        Endif
+      Else
+        Message.Error("Votre clé API est mauvaise !\nVeuillez la contrôler dans les préférences SVP")
+        Me.close
+      Endif
     Endif
   Endif
   client1.Select
