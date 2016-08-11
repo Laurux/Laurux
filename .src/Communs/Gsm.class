@@ -1,6 +1,15 @@
 ' Gambas class file
 
 Private son As Integer = Start.Son
+Private Support As String
+Private $contrat As String
+Private Api As String
+Private Expediteur As String
+Private ilettre As Integer = 0
+Private premium As String
+Private lowcost As String
+Private credit As Boolean = True
+Private $Txt As String
 
 Public Sub _New(Tel As String)
   
@@ -20,6 +29,48 @@ Public Sub _New(Tel As String)
   Endif
   TextBox1.text = Tel
   If Exist(User.Home & "/tmp/sms.txt") Then Kill User.Home & "/tmp/sms.txt"
+  
+End
+
+Public Sub Form_Show()
+  
+  TextLabel1.SetFocus
+  
+End
+
+Public Sub TextLabel1_GotFocus()
+  
+  If Exist(User.Home & "/tmp/sms.txt") Then Kill User.Home & "/tmp/sms.txt"
+  If IsNull(Settings["/Smtp"]) Or If IsNull(Settings["Port"]) Or If IsNull(Settings["/Adrmail"]) Then
+    Message.Error("Veuillez vérifier la configuration de vos coordonnées mail dans les préférences SVP !")
+    Try Me.close
+  Endif
+  Support = Settings["/Soc" & Start.Societe & "/Support"]
+  Api = Settings["/Soc" & Start.Societe & "/Api"]
+  $contrat = Right$(Settings["/Soc" & Start.Societe & "/Type"], -3)
+  Expediteur = Settings["/Soc" & Start.Societe & "/Expediteur"]
+  Shell "curl " & "\"http://www.spot-hit.fr/api/credits/?key=" & Api & "\"" & " >" & User.home & "/tmp/sms.txt 2>&1" Wait 
+  If Exist(User.Home & "/tmp/sms.txt") Then
+    $txt = Trim$(File.Load(User.Home & "/tmp/sms.txt"))
+    If InStr($txt, "erreur") = 0 Then
+      premium = Mid$($txt, InStr($txt, "premium\":\"") + 10, InStr($txt, "\",\"lowcost") - InStr($txt, "premium\":\"") - 10)
+      lowcost = Mid$($txt, InStr($txt, "lowcost\":\"") + 10, InStr($txt, "\",\"mobile") - InStr($txt, "lowcost\":\"") - 10)
+      If premium = 0 Then
+        Message.Info("Votre crédit premium est épuisé !\n" & "il vous reste " & lowcost & " sms lowcost")
+      Else
+        If lowcost = 0 Then
+          Message.Info("Il vous reste " & premium & " sms premium\n" & "Votre crédit lowcost est épuisé !")
+        Else 
+          Message.Info("Il vous reste " & premium & " sms premium\n" & "il vous reste " & lowcost & " sms lowcost")
+        Endif
+      Endif
+    Else
+      Message.Error("Votre clé API est mauvaise !\nVeuillez la contrôler dans les préférences SVP")
+      Try Me.close
+    Endif
+  Endif
+  comcode.Select
+  comcode.SetFocus
   
 End
 
