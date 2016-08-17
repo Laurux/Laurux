@@ -92,6 +92,7 @@ Private pttc As String = "0"
 Private exo As Boolean
 Private Bcolrcp As Boolean = False
 Private $barre As String
+Private bTotal As Boolean = False
 
 Public Sub _New()
   
@@ -116,7 +117,7 @@ Public Sub _New()
   Nlg = 1
   Dsgn = ""
   Totalrcpt.Text = "0,00"
-  datej.Text = Format$(Now, "dd.mm.yyyy")
+  Datej.Text = Format$(Now, "dd.mm.yyyy")
   Colrcp.Columns.count = 14
   If Not IsNull(WidthCol) Then
     WidthCol = Trim(WidthCol)
@@ -263,18 +264,39 @@ Public Sub RazBl()
   numcom.Clear
   numbl.Clear
   An.value = False
-  datej.Text = Format$(Now, "dd.mm.yyyy")
+  Datej.Text = Format$(Now, "dd.mm.yyyy")
   Colrcp.Clear
   Nbligne.Text = ""
   Totalrcpt.Text = ""
   Tfrais.Text = "0,00"
   Nlgn = "0000"
+  bTotal = False
+  
+End
+
+'***************************************
+'*       Creation numéro BR            *
+'***************************************
+Public Sub CreateBR()
+  
+  Dim rBon As Result
+  
+  Tab = "Fiches_Parametres" 
+  rBon = Utils.db.Exec("SELECT * FROM Fiches_Parametres")
+  If rBon.Available Then
+    numbl.Text = rBon!dnbr
+  Endif
+  If numbl.Text = "" Then numbl.Text = "000000"
+  numbl.Text = Val(numbl.Text) + 1
+  numbl.Text = Format$(numbl.Text, "000000")
+  Utils.db.Exec("UPDATE  Fiches_Parametres SET  dnbr = &1", numbl.Text)
   
 End
 
 '**********************************************************
 '*      Gestion des touches sur le panel Entete           *
 '**********************************************************
+
 Public Sub Rcpt_KeyPress()
   
   Dim EntResult As Result
@@ -310,8 +332,13 @@ Public Sub Rcpt_KeyPress()
             Stop Event
           Else
             b = 0
-            numcom.SetFocus
-            numcom.Select
+            If bTotal Then 
+              Datej.Text = Format$(Now, "dd.mm.yyyy")
+              RecupCom()
+              Numbl.SetFocus
+            Else
+              numcom.SetFocus
+            Endif
           Endif
           Stop Event
           
@@ -324,7 +351,7 @@ Public Sub Rcpt_KeyPress()
             codefour.SetFocus
             codefour.select
           Else
-            If numcom.Text = "" Then
+            If numcom.Text = "" And Not bTotal Then
               If son Then
                 Music.Play
               Endif
@@ -334,53 +361,65 @@ Public Sub Rcpt_KeyPress()
             Else
               EntResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE numcom = &1 and four = &2", numcom.Text, codefour.Text)
               If EntResult.Count Then
-                datej.Text = .Cdate_Aff(EntResult!ddate)
+                Datej.Text = .Cdate_Aff(EntResult!ddate)
                 RecupLig()
-                numbl.SetFocus
-                numbl.select
+                Datej.Text = Format$(Now, "dd.mm.yyyy")
               Else
-                message.Warning(" Ce numero de commande n'existe pas chez ce fournisseur ! ")
-                numcom.SetFocus
-                numcom.select
+                If Not bTotal Then
+                  message.Warning(" Ce numéro de commande n'existe pas chez ce fournisseur ! ")
+                  numcom.SetFocus
+                  numcom.select
+                Endif
               Endif
             Endif
           Endif
           Stop Event
           
         Case 3
-          'EntResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE numcom = &1 and four = &2", numcom.Text, codefour.Text)
-          'IF EntResult.count <> 0 THEN
-          If numbl.Text = "" Then
-            If son Then
-              Music.Play
-            Endif
-            message.Warning(" Veuillez saisir un numéro de BL SVP ! ")
-            numbl.SetFocus
-            numbl.select
+          EntResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntrecpt") & " where numrecpt = &1 and four = &2", numbl.Text, codefour.Text)
+          If EntResult.count <> 0 Then
+            Message.Warning("Ce numéro de bon existe déjà !")
+            Numbl.clear
+            Return
           Else
-            Ver_comm()
-            If b <> 1 Then
-              Verifbl()
-              If B = 1 Then
-                b = 0
-                numbl.SetFocus
-                numbl.select
+            If numbl.Text = "" Then
+              Datej.Text = Format$(Now, "dd.mm.yyyy")
+              If son Then
+                Music.Play
+              Endif
+              message.Warning(" Veuillez saisir un numéro de BL SVP ! ")
+              numbl.SetFocus
+              numbl.select
+            Else
+              If Not bTotal Then
+                Ver_comm()
+                If b <> 1 Then
+                  Verifbl()
+                  If B = 1 Then
+                    b = 0
+                    Datej.Text = Format$(Now, "dd.mm.yyyy")
+                    Numbl.SetFocus
+                  Else
+                    If Datej.Text = "" Then Datej.Text = Format$(Now, "dd.mm.yyyy")
+                    Datej.SetFocus
+                    Datej.Select
+                  Endif
+                Endif
               Else
-                If datej.Text = "" Then datej.Text = Format$(Now, "dd.mm.yyyy")
-                datej.SetFocus
-                datej.Select
+                If Datej.Text = "" Then Datej.Text = Format$(Now, "dd.mm.yyyy")
+                Datej.SetFocus
+                Datej.Select
               Endif
             Endif
           Endif
-          
           Stop Event
           
         Case 4
           Quittedate()
-          If Left$(datej.Text, 5) = "00.00" Then
-            datej.Text = Format$(Now, "dd.mm.yyyy")
-            datej.SetFocus
-            datej.Select
+          If Left$(Datej.Text, 5) = "00.00" Then
+            Datej.Text = Format$(Now, "dd.mm.yyyy")
+            Datej.SetFocus
+            Datej.Select
           Else
             Cart.SetFocus
             Cart.Select
@@ -396,16 +435,16 @@ Public Sub Rcpt_KeyPress()
             Cart.SetFocus
             Cart.Select
           Else
-            Ver_comm()
-            If datej.Text = "" Then
+            If Not bTotal Then Ver_comm()
+            If Datej.Text = "" Then
               If son Then
                 Music.Play
               Endif
               message.Warning(" Veuillez saisir une date SVP ! ")
               Cart.Text = ""
-              datej.Text = Format$(Now, "dd.mm.yyyy")
-              datej.SetFocus
-              datej.select
+              Datej.Text = Format$(Now, "dd.mm.yyyy")
+              Datej.SetFocus
+              Datej.select
             Else
               If codefour.Text = "" Then
                 If son Then
@@ -416,7 +455,7 @@ Public Sub Rcpt_KeyPress()
                 codefour.SetFocus
                 codefour.select
               Else
-                If numcom.Text = "" Then
+                If numcom.Text = "" And Not bTotal Then
                   If son Then
                     Music.Play
                   Endif
@@ -427,7 +466,7 @@ Public Sub Rcpt_KeyPress()
                 Else
                   If numbl.Text = "" Then
                     If son Then
-                      Music.Play
+                      music.Play
                     Endif
                     message.Warning(" Veuillez saisir un numéro de Bl SVP ! ")
                     Cart.Text = ""
@@ -450,14 +489,19 @@ Public Sub Rcpt_KeyPress()
                           Cart.Text = $Barre
                         Endif
                       Endif
+                      art_Man()
                       If Not IsNull(Cart.Text) Then 
                         controlArt()
                       Endif
                       If Bcolrcp Then
-                        'Modif = "1"
-                        'Colrcp_Activate()
+                        If Colrcp.current[7] = 0 Then
+                          Modif = "1"
+                          Nl = Colrcp.Current[0]
+                          Nlg = 0
+                          NlgModif = Colrcp.Current[0]
+                          'Colrcp_Activate()
+                        Endif
                         'ControlProd()
-                        art_Man()
                       Else
                         If Message.Question("Cet article n'existe pas dans la commande ! Voulez-vous ", "1- L'inclure dans la commande", "2- Revenir à la saisie") = 1 Then
                           art_Man()
@@ -670,6 +714,14 @@ Public Sub Rcpt_KeyPress()
     If Not IsNull(FCalc.Resultat) Then Last.Text = Format$(Val(FCalc.Resultat), "0.000")
   Endif
   
+  If Key.code = Key.F9 Then
+    Select Case Last.tag
+      Case 3
+        CreateBR()
+        Stop Event
+    End Select
+  Endif
+  
 End
 
 '********************************************
@@ -686,7 +738,7 @@ Public Sub Ver_comm()
     If son Then
       Music.Play
     Endif
-    message.Warning(" Ce numero de commande n'existe pas chez ce fournisseur ! \n Veuillez saisir un numéro de commande existant SVP ! ")
+    message.Warning(" Ce numéro de commande n'existe pas chez ce fournisseur ! \n Veuillez saisir un numéro de commande existant SVP ! ")
     Numcom.SetFocus
     Numcom.Select
   Endif
@@ -702,18 +754,6 @@ Public Sub Rcpt_GotFocus()
     .SetEditColor(Me, Last)
   End With
   Select Case Last.tag
-      'CASE 2
-      '  EntResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE numcom = &1 and four = &2", numcom.Text, codefour.Text)
-      '  IF EntResult.count = 0 THEN
-      '    b = 1
-      '    IF son THEN
-      '      Music.Play
-      '    ENDIF
-      '    IF Numcom.Text THEN message.Warning(" Ce numero de commande n'existe pas chez ce fournisseur ! \n Veuillez saisir un numéro de commande existant SVP ! ")
-      'Numcom.SetFocus
-      'Numcom.Select
-      '    STOP EVENT
-      '  ENDIF
     Case 10
       pahtGF()
       Stop Event
@@ -855,15 +895,11 @@ Public Sub Btn_KeyPress()
         If b = 0 Then
           codefour.SetFocus
           codefour.Select
+          Numbl.SetFocus
         Else
-          If b = 1 Then
-            numbl.SetFocus
-            numbl.Select
-          Else
-            If b = 2 Then
-              datej.SetFocus
-              datej.Select
-            Endif
+          If b = 2 Then
+            Datej.SetFocus
+            Datej.Select
           Endif
         Endif
         Stop Event
@@ -924,12 +960,12 @@ Public Sub Btn_Click()
         codefour.Select
       Else
         If b = 1 Then
-          numbl.SetFocus
-          numbl.Select
+          Datej.Text = Format$(Now, "dd.mm.yyyy")
+          Numbl.SetFocus
         Else
           If b = 2 Then
-            datej.SetFocus
-            datej.Select
+            Datej.SetFocus
+            Datej.Select
           Endif
         Endif
       Endif
@@ -947,12 +983,12 @@ Public Sub Btn_Click()
             codefour.Select
           Else
             If b = 1 Then
-              numbl.SetFocus
-              numbl.Select
+              Datej.Text = Format$(Now, "dd.mm.yyyy")
+              Numbl.SetFocus
             Else
               If b = 2 Then
-                datej.SetFocus
-                datej.Select
+                Datej.SetFocus
+                Datej.Select
               Endif
             Endif
           Endif
@@ -964,15 +1000,15 @@ Public Sub Btn_Click()
       Stop Event
       
     Case 4
-      If datej.Text = "" Then
+      If Datej.Text = "" Then
         If son Then
           Music.Play
         Endif
         message.Warning(" Veuillez saisir une date SVP ! ")
         Cart.Text = ""
-        datej.Text = Format$(Now, "dd.mm.yyyy")
-        datej.SetFocus
-        datej.select
+        Datej.Text = Format$(Now, "dd.mm.yyyy")
+        Datej.SetFocus
+        Datej.select
         Return
       Else
         If codefour.Text = "" Then
@@ -985,7 +1021,7 @@ Public Sub Btn_Click()
           codefour.select
           Return
         Else
-          If numcom.Text = "" Then
+          If numcom.Text = "" And Not bTotal Then
             If son Then
               Music.Play
             Endif
@@ -1003,6 +1039,7 @@ Public Sub Btn_Click()
               Cart.Text = ""
               numbl.SetFocus
               numbl.select
+              Datej.Text = Format$(Now, "dd.mm.yyyy")
               Return
             Endif
           Endif
@@ -1065,8 +1102,12 @@ Public Sub ToggleButton1_Click()
     CodeFour.SetFocus
   Endif
   Fourman()  
-  Nbl.SetFocus
-  Nbl.Select
+  Datej.Text = Format$(Now, "dd.mm.yyyy")
+  If bTotal Then
+    Numbl.SetFocus
+  Else
+    Numcom.SetFocus
+  Endif
   
 End
 
@@ -1118,6 +1159,7 @@ Public Sub fourMan()
   
   Tab = "Fiches_Four"
   rResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE fo_code = &1", codefour.Text)
+  $four = Codefour.Text
   nomfour.Text = rResult!fo_nom
   bCentrale = rResult!fo_centrale
   If bCentrale = True Then
@@ -1127,6 +1169,15 @@ Public Sub fourMan()
   Endif
   scentraleF = rResult!fo_ccentrale
   b = 0
+  If IsNull(numcom.Text) Then
+    If Message.Question("Vous allez faire une réception pour l'ensemble des commandes du fournisseur " & Codefour.text, "Oui", "Non") = 1 Then
+      bTotal = True
+      Datej.Text = Format$(Now, "dd.mm.yyyy")
+      Numbl.SetFocus
+    Else
+      bTotal = False
+    Endif
+  Endif
 Catch
   B = 1
   If son Then
@@ -1163,8 +1214,8 @@ End
 Public Sub Quittedate()
   
   With utils
-    datej.text = .Cdate_calc(datej.text)
-    datej.Text = .Cdate_aff(datej.Text)
+    Datej.text = .Cdate_calc(Datej.text)
+    Datej.Text = .Cdate_aff(Datej.Text)
   End With
   
 End
@@ -1338,9 +1389,9 @@ Public Sub controlArt()
   If Not Error Then
     Repeat
       Colrcp.item.Selected = True
-      If Colrcp.current[1] <> cart.Text Then
+      If Upper$(Colrcp.current[1]) <> Upper$(cart.Text) Then
         Bcolrcp = False
-        Colrcp.MoveNext()
+        'Colrcp.MoveNext()
       Else
         BColrcp = True
         Break
@@ -1876,7 +1927,7 @@ Public Sub Maj_colrcp()
           Else
             $dart = Dart.Text
           Endif
-          Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET  art_code = &1, art_pbht = &2 , art_tr = &3 , art_pauaht = &4 , art_coef = &5, art_pvht = &6, art_pvttc = &7, art_paht = &8, art_frais = &9, art_prvt = &{10}, art_cdarr = &{11}, art_design = &{12}, art_ddatefbt = &{13} where art_code = &1", Cart.Text, Val(pbht.Text), Val(Tr.Text), Val(paht.Text), Val(Coef.Text), Val(Pvht.Text), Val(Pvttc.Text), Val(Pauv.Text), Val(frais.Text), Val(prvt.Text), arr.text, $Dart, .Cdate_Dbase(datej.text))
+          Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET  art_code = &1, art_pbht = &2 , art_tr = &3 , art_pauaht = &4 , art_coef = &5, art_pvht = &6, art_pvttc = &7, art_paht = &8, art_frais = &9, art_prvt = &{10}, art_cdarr = &{11}, art_design = &{12}, art_ddatefbt = &{13} where art_code = &1", Cart.Text, Val(pbht.Text), Val(Tr.Text), Val(paht.Text), Val(Coef.Text), Val(Pvht.Text), Val(Pvttc.Text), Val(Pauv.Text), Val(frais.Text), Val(prvt.Text), arr.text, $Dart, .Cdate_Dbase(Datej.text))
           Utils.db.Exec("UNLOCK TABLES")
           Etiqa = True
         Endif
@@ -2132,9 +2183,9 @@ Public Sub Colrcp_Activate()
           qtes = 0
         Endif
       Else
-        message.warning("Veuillez saisir un numéro de Bl SVP!", "OK !")
-        Numbl.SetFocus
-        Numbl.Select
+        'message.warning("Veuillez saisir un numéro de Bl SVP!", "OK !")
+        'Numbl.SetFocus
+        'Numbl.Select
       Endif
     Endif
   End With
@@ -2230,6 +2281,7 @@ Public Sub Enrgcoml()
   Dim ArtResult As Result
   Dim Mtl As Integer = 0
   Dim Ncode As String
+  Dim CtrlCom As Boolean = True
   
   With Utils
     Etiqb = False
@@ -2256,17 +2308,20 @@ Public Sub Enrgcoml()
       Until Colrcp.Movenext()
     Endif
     If Mtl = 0 Then
-      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntcom") & " where numcom = &1 and four = &2", numcom.Text, codefour.Text)
-      If rResult.Available Then
+      If Not bTotal Then
+        rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntcom") & " where numcom = &1 and four = &2", numcom.Text, codefour.Text)
+        If Not rResult.Available Then CtrlCom = False
+      Endif
+      If CtrlCom Then
         If totalrcpt.Text <> "0,00" Then
-          If datej.Text <> "" Or Left$(datej.Text, 2) = "00" Then
+          If Datej.Text <> "" Or Left$(Datej.Text, 2) = "00" Then
             If numbl.Text <> "" Then
               Totcom = Totcom - Val(totalrcpt.Text)
               rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntrecpt") & " where numrecpt = &1 and four = &2", numbl.Text, codefour.Text)
               If Not rResult.Available Then
                 If Colrcp.Count <> 0 Then
-                  Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabArt") & " WRITE, " & Cbase.Table("TabLigrecpt") & " WRITE, " & Cbase.Table("TabEtiqp") & " WRITE, " & Cbase.Table("TabEtiqg") & " WRITE, " & Cbase.Table("TabEntrecpt") & " WRITE, " & Cbase.Table("TabMat") & " WRITE, " & Tmats & " write ")
-                  Utils.db.Exec("INSERT INTO " & Cbase.Table("TabEntrecpt") & "(four,numrecpt,ddate,montant,validee, mttc, anomalie, commentaire) VALUES (&1, &2, &3, &4, &5, &6, &7, &8)", codefour.text, numbl.text, .Cdate_Dbase(datej.text), Val(Totalrcpt.text), False, Val(Totalttc.text), An.value, Comments.text)
+                  Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabArt") & " WRITE, " & Cbase.Table("TabLigrecpt") & " WRITE, " & Cbase.Table("TabEtiqp") & " WRITE, " & Cbase.Table("TabEtiqg") & " WRITE, " & Cbase.Table("TabEntrecpt") & " WRITE, " & Cbase.Table("TabMat") & " WRITE, " & Tmats & " write")
+                  Utils.db.Exec("INSERT INTO " & Cbase.Table("TabEntrecpt") & "(four,numrecpt,ddate,montant,validee, mttc, anomalie, commentaire) VALUES (&1, &2, &3, &4, &5, &6, &7, &8)", codefour.text, numbl.text, .Cdate_Dbase(Datej.text), Val(Totalrcpt.text), False, Val(Totalttc.text), An.value, Comments.text)
                   Colrcp.MoveFirst
                   Repeat
                     Colrcp.Item.Selected = True
@@ -2284,20 +2339,20 @@ Public Sub Enrgcoml()
                           Maj_Qta()
                           If ArtResult!art_etiq And Val(.cpoint(Colrcp.Item[7])) > 0 Then Maj_Etiqp()
                           If Etiqa = True And Val(.cpoint(Colrcp.Item[7])) > 0 Then Maj_Etiqg()
-                          Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET art_qte = &2, art_pmp = &3, art_dpa = &4, art_dfour = &5, art_ddate = &6 WHERE art_code = &1", ArtResult!art_code, Arts, Val(.cpoint(Pmp)), Colrcp.Item[6], codefour.text, datej.text)
+                          Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET art_qte = &2, art_pmp = &3, art_dpa = &4, art_dfour = &5, art_ddate = &6 WHERE art_code = &1", ArtResult!art_code, Arts, Val(.cpoint(Pmp)), Colrcp.Item[6], codefour.text, Datej.text)
                         Else
                           Materiel = False
-                          Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET art_dpa = &2, art_dfour = &3, art_ddate = &4 WHERE art_code = &1", ArtResult!art_code, Colrcp.Item[6], codefour.text, datej.text)
+                          Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET art_dpa = &2, art_dfour = &3, art_ddate = &4 WHERE art_code = &1", ArtResult!art_code, Colrcp.Item[6], codefour.text, Datej.text)
                         Endif
                       Endif
-                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigrecpt") & "(code,design,numrecpt,four,daterecpt,qte,pbht,rm,paht,nligne, frais, prvt, pattc) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13})", Colrcp.Item[1], Colrcp.Item[2], numbl.Text, codefour.Text, .Cdate_Dbase(datej.Text), Colrcp.Item[7], Colrcp.Item[4], Colrcp.Item[5], Colrcp.Item[6], Colrcp.Item[0], Colrcp.Item[9], Colrcp.Item[10], Colrcp.Item[13])
+                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigrecpt") & "(code,design,numrecpt,four,daterecpt,qte,pbht,rm,paht,nligne, frais, prvt, pattc) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13})", Colrcp.Item[1], Colrcp.Item[2], numbl.Text, codefour.Text, .Cdate_Dbase(Datej.Text), Colrcp.Item[7], Colrcp.Item[4], Colrcp.Item[5], Colrcp.Item[6], Colrcp.Item[0], Colrcp.Item[9], Colrcp.Item[10], Colrcp.Item[13])
                       If Materiel And Gmateriel Then Enrgnum()
                     Endif
                   Until Colrcp.Movenext()
                   Utils.db.Exec("UNLOCK TABLES")
                 Endif
                 Maj_Com()
-                b = 1
+                b = 0
               Else
                 If son Then
                   Music.Play
@@ -2328,10 +2383,12 @@ Public Sub Enrgcoml()
           Endif
         Endif
       Else
-        If son Then Music.Play
-        message.Warning("Ce numero de commande n'existe pas ! Veuillez saisir une commande existante SVP  !", "Ok")
-        Numcom.SetFocus
-        Numcom.Select
+        If Not bTotal Then
+          If son Then Music.Play
+          message.Warning("Ce numéro de commande n'existe pas ! Veuillez saisir une commande existante SVP  !", "Ok")
+          Numcom.SetFocus
+          Numcom.Select
+        Endif
       Endif
     Endif
   End With
@@ -2387,7 +2444,7 @@ Public Sub Button9_Click()
     If Not rmats.Available Then
       rmat = Utils.db.Exec("SELECT * FROM " & Tmat & " where mat_code = &1 and mat_serie = &2", Cart.Text, numero.text)
       If Not rmat.Available Then
-        Utils.db.Exec("INSERT INTO " & Tmats & "(mat_serie,mat_code,mat_design, mat_fam,mat_four,mat_cequ,mat_cbarre,mat_cfour,mat_paht,mat_dpa,mat_dfour,mat_ddate,mat_frais,mat_prvt,mat_eco,mat_cdarr,mat_nbd,mat_design2,mat_qte) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19})", Numero.text, Cart.text, Dart.Text, fam, codefour.text, Cequivalent, Cbarre, Cfournisseur, Val(Pauv.text), Val(Pauv.text), CodeFour.text, datej.text, Val(Frais.text), Val(Prvt.text), Val(Ect), Arr.Text, Nbd, Desg2, "1", Nbl.Text)
+        Utils.db.Exec("INSERT INTO " & Tmats & "(mat_serie,mat_code,mat_design, mat_fam,mat_four,mat_cequ,mat_cbarre,mat_cfour,mat_paht,mat_dpa,mat_dfour,mat_ddate,mat_frais,mat_prvt,mat_eco,mat_cdarr,mat_nbd,mat_design2,mat_qte) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19})", Numero.text, Cart.text, Dart.Text, fam, codefour.text, Cequivalent, Cbarre, Cfournisseur, Val(Pauv.text), Val(Pauv.text), CodeFour.text, Datej.text, Val(Frais.text), Val(Prvt.text), Val(Ect), Arr.Text, Nbd, Desg2, "1", Nbl.Text)
         numero.Clear
         Inc i
         If i <= Val(qterecue.Text) Then
@@ -2492,7 +2549,8 @@ End
 Public Sub Maj_Com()
   
   Dim qtec As String
-  Dim Entcm As String
+  Dim Entcm, ncom2 As String
+  Dim Totcom2 As Float = 0
   
   Tab = "Fiches_Ligcom"
   Entcm = "Fiches_Entcom"
@@ -2509,10 +2567,17 @@ Public Sub Maj_Com()
           Utils.db.Exec("UPdate  " & tab & "  SET art_com = &2 WHERE art_code = &1", Colrcp.Item[1], qtec)
           Tab = "Fiches_Ligcom"
           Utils.db.Exec("UPdate  " & tab & "  SET qte = &2 WHERE lind = &1", Colrcp.Item[11], qtec)
+          Totcom2 = Totcom2 + Val(Colrcp.Item[6])
         Endif
+        ncom2 = Colrcp.Item[14]
       Until Colrcp.MoveNext()
     Endif
-    Utils.db.Exec("UPdate  " & Entcm & "  SET montant = &1, anomalie = &4, commentaire = &5 WHERE four = &2 and numcom = &3", Totcom, codefour.Text, numcom.text, An.value, Comments.Text)
+    If Not bTotal Then 
+      ncom2 = numcom.Text
+    Else
+      Totcom = Totcom2
+    Endif
+    Utils.db.Exec("UPdate  " & Entcm & "  SET montant = &1, anomalie = &4, commentaire = &5 WHERE four = &2 and numcom = &3", Totcom, codefour.Text, ncom2, An.value, Comments.Text)
     RecupLig()
     Delcom()
     Recomp()
@@ -2550,10 +2615,17 @@ End
 Public Sub Delcom()
   
   With Utils
-    Tab = "Fiches_Ligcom"
-    Utils.db.Exec("delete  from " & Tab & " WHERE numcom = &1 and four = &2 and datecom = &3", Numcom.Text, codefour.Text, .Cdate_Dbase(datecom))
-    Tab = "Fiches_Entcom"
-    Utils.db.Exec("delete  from " & Tab & " WHERE numcom = &1 and four = &2", Numcom.Text, Codefour.Text)
+    If Not bTotal Then
+      Tab = "Fiches_Ligcom"
+      Utils.db.Exec("delete  from " & Tab & " WHERE numcom = &1 and four = &2 and datecom = &3", Numcom.Text, codefour.Text, .Cdate_Dbase(datecom))
+      Tab = "Fiches_Entcom"
+      Utils.db.Exec("delete  from " & Tab & " WHERE numcom = &1 and four = &2", Numcom.Text, Codefour.Text)
+    Else
+      Tab = "Fiches_Ligcom"
+      Utils.db.Exec("delete  from " & Tab & " WHERE four = &1", codefour.Text)
+      Tab = "Fiches_Entcom"
+      Utils.db.Exec("delete  from " & Tab & " WHERE four = &1", Codefour.Text) 
+    Endif
   End With
   
 End
@@ -2564,25 +2636,30 @@ End
 Public Sub Enrgcom()
   
   Dim LigResult As Result
+  Dim Numcom2 As String
   
   Tab = "Fiches_Entcom"
   With Utils
     If Codefour.Text Then
       If Colrcp.Count <> 0 Then
-        Utils.db.Exec("INSERT INTO " & Tab & "(four,numcom,ddate,montant, reliquat, anomalie, commentaire) VALUES (&1, &2, &3, &4, &5, &6, &7)", Codefour.text, Numcom.text, .Cdate_Dbase(datej.text), Val(Totalrcpt.text), 1, An.value, Comments.Text)
-        Tab = "Fiches_Ligcom"
         Colrcp.MoveFirst
+        Colrcp.Item.Selected = True
+        Numcom2 = Colrcp.Item[14]
+        If Not bTotal Then numcom2 = Numcom.text
+        Utils.db.Exec("INSERT INTO " & Tab & "(four,numcom,ddate,montant, reliquat, anomalie, commentaire) VALUES (&1, &2, &3, &4, &5, &6, &7)", Codefour.text, Numcom2, .Cdate_Dbase(Datej.text), Val(Totalrcpt.text), 1, An.value, Comments.Text)
+        Tab = "Fiches_Ligcom"
         Repeat
           Colrcp.Item.Selected = True
-          LigResult = Utils.db.Exec("select *  from " & Tab & " WHERE numcom = &1 and four = &2 and code = &3", Numcom.Text, codefour.Text, Colrcp.Item[1])
+          If bTotal Then Numcom2 = Colrcp.Item[14]
+          LigResult = Utils.db.Exec("select *  from " & Tab & " WHERE numcom = &1 and four = &2 and code = &3", Numcom2, codefour.Text, Colrcp.Item[1])
           If LigResult.Available Then
             If LigResult!qte = Colrcp.Item[7] Then
-              Utils.db.Exec("UPdate  " & tab & "  SET qte = &4 WHERE numcom = &1 and four = &2 and code = &3", Numcom.Text, codefour.Text, Colrcp.Item[1], Colrcp.Item[7])
+              Utils.db.Exec("UPdate  " & tab & "  SET qte = &4 WHERE numcom = &1 and four = &2 and code = &3", Numcom2, codefour.Text, Colrcp.Item[1], Colrcp.Item[7])
             Else
-              Utils.db.Exec("delete from " & Tab & " WHERE numcom = &1 and four = &2 and code = &3", numcom.Text, codefour.Text, Colrcp.Item[1])
+              Utils.db.Exec("delete from " & Tab & " WHERE numcom = &1 and four = &2 and code = &3", numcom2, codefour.Text, Colrcp.Item[1])
             Endif
           Else
-            Utils.db.Exec("INSERT INTO " & Tab & "(code,design,numcom,four,pbht,rm,paht,qte,frais,prvt, datecom, nligne) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12})", Colrcp.Item[1], Colrcp.Item[2], Numcom.Text, Codefour.Text, Colrcp.Item[4], Colrcp.Item[5], Colrcp.Item[6], Colrcp.Item[7], Colrcp.Item[9], Colrcp.Item[10], .Cdate_Dbase(datej.Text), Colrcp.Item[0])
+            Utils.db.Exec("INSERT INTO " & Tab & "(code,design,numcom,four,pbht,rm,paht,qte,frais,prvt, datecom, nligne) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12})", Colrcp.Item[1], Colrcp.Item[2], Numcom2, Codefour.Text, Colrcp.Item[4], Colrcp.Item[5], Colrcp.Item[6], Colrcp.Item[7], Colrcp.Item[9], Colrcp.Item[10], .Cdate_Dbase(Datej.Text), Colrcp.Item[0])
           Endif
         Until Colrcp.Movenext()
       Endif
@@ -2610,6 +2687,7 @@ Public Sub ToggleButton4_Click()
   Dim Tab1 As String
   Dim NmF As Result
   
+  bTotal = False
   Tab = "Fiches_Entcom"
   Tab1 = "Fiches_Four"
   With Utils
@@ -2701,7 +2779,7 @@ Public Sub AffColcom()
       LigResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE numcom = &1 and four = &2 order by nligne", $num, codefour.Text)
       If LigResult.Available Then
         EntResult = Utils.db.Exec("SELECT * FROM " & tab3 & " WHERE numcom = &1 and four = &2", $num, codefour.Text)
-        datej.Text = Format$(Now, "dd.mm.yyyy")
+        Datej.Text = Format$(Now, "dd.mm.yyyy")
         numcom.Text = LigResult!numcom
         numbl.Text = ""
         Try An.value = EntResult!anomalie
@@ -2769,8 +2847,8 @@ Public Sub AffColcom()
         Comments.text = Commentaire
       Endif
       If mat = True Then Message.Warning("Attention ! Il y a un matériel dans cette réception ! Veillez a saisir les numéros de série avant de valider SVP")
+      Datej.Text = Format$(Now, "dd.mm.yyyy")
       Numbl.SetFocus
-      Numbl.Select
     Else
       If son Then
         Music.Play
@@ -2787,8 +2865,13 @@ Public Sub Rcptman_Click()
   
   If Colrcp.Count > 0 Then
     Colrcp.Clear
-    AffColcom() 
+    If bTotal Then 
+      RecupCom()
+    Else
+      AffColcom() 
+    Endif
   Endif
+  Cart.SetFocus
   
 End
 '***************************************************
@@ -2815,6 +2898,73 @@ Public Sub Colcom_KeyPress()
   
 End
 
+'****************************************************
+'*  On affiche les lignes pour toutes les commandes *
+'****************************************************
+Public Sub RecupCom()
+  
+  Dim LigResult As Result
+  Dim ArtResult As Result
+  Dim ComRslt As Result
+  Dim Tab3 As String
+  Dim iligne As Integer = 0
+  
+  With Utils
+    Tab = "Fiches_Ligcom"
+    Tab2 = "Fiches_Art"
+    Tab3 = "Fiches_Entcom"
+    Colrcp.Clear
+    ComRslt = Utils.db.Exec("SELECT * FROM " & tab3 & " WHERE four = &1", codefour.Text)
+    If ComRslt.Available Then
+      Do
+        LigResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE numcom = &1 and four = &2", ComRslt!numcom, codefour.Text)
+        If LigResult.Available Then
+          Do
+            ArtResult = Utils.db.Exec("SELECT * FROM " & tab2 & " WHERE art_code = &1", LigResult!code)
+            iligne = Format$(Colrcp.count + 1, "000")
+            Colrcp.Add(iligne, iligne)
+            Colrcp.Item[0] = iligne
+            Colrcp.Item[1] = LigResult!code
+            If ArtResult.Available Then
+              Pmp = ArtResult!art_pmp
+              nbd = ArtResult!art_nbd
+              nbdec = Utils.Find_nbdec(nbd)
+            End If
+            If Rcptman.value = True Then
+              Colrcp.Item[7] = 0
+            Else
+              Colrcp.Item[7] = LigResult!qte
+            Endif
+            Colrcp.Item[3] = Colrcp.Item[7]
+            Colrcp.Item[2] = LigResult!design
+            Colrcp.Item[4] = Format$(Val(Utils.cpoint(LigResult!pbht)), Nbdec)
+            If Len(Colrcp.Item[4]) - InStr(Colrcp.Item[4], ",") = 2 Then Colrcp.Item[4] = Colrcp.Item[4] & "  "
+            Colrcp.Item[5] = LigResult!rm
+            Colrcp.Item[6] = Format$(Val(Utils.cpoint(LigResult!paht)), Nbdec)
+            If Len(Colrcp.Item[6]) - InStr(Colrcp.Item[6], ",") = 2 Then Colrcp.Item[6] = Colrcp.Item[6] & "  "
+            Colrcp.Item[8] = Format(Val(.cpoint(Colrcp.Item[6])) * Val(.cpoint(Colrcp.Item[7])), nbdec)
+            If Len(Colrcp.Item[8]) - InStr(Colrcp.Item[8], ",") = 2 Then Colrcp.Item[8] = Colrcp.Item[8] & "  "
+            Colrcp.Item[9] = LigResult!frais
+            Colrcp.Item[10] = Format$(Val(Utils.cpoint(LigResult!prvt)), Nbdec)
+            If Len(Colrcp.Item[10]) - InStr(Colrcp.Item[10], ",") = 2 Then Colrcp.Item[10] = Colrcp.Item[10] & "  "
+            Colrcp.Item[11] = LigResult!lind
+            Colrcp.Item[12] = Format$(Val(.cpoint(LigResult!paht)) + (Val(.cpoint(LigResult!paht)) * CPrix.CTva(ArtResult!art_tva) / 100), nbdec)
+            Colrcp.Item[13] = LigResult!pattc
+            Colrcp.Item[14] = ComRslt!numcom
+          Loop Until LigResult.MoveNext()
+        Endif
+      Loop Until ComRslt.MoveNext()
+    Endif
+    If Colrcp.Count > 0 Then 
+      bas_doc()
+    Else
+      Message.Warning("Aucune commande pour ce fournisseur !")
+      Codefour.SetFocus
+    Endif
+  End With
+  
+End
+
 '**************************************************
 '*     On affiche les lignes de commandes      *
 '**************************************************
@@ -2824,55 +2974,47 @@ Public Sub RecupLig()
   Dim ArtResult As Result
   Dim Tab3 As String
   
-  With Utils
-    Tab = "Fiches_Ligcom"
-    Tab2 = "Fiches_Art"
-    Tab3 = "Fiches_Entcom"
-    Colrcp.Clear
-    LigResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE numcom = &1 and four = &2", numcom.Text, codefour.Text)
-    If LigResult.Available Then
-      Do
-        ArtResult = Utils.db.Exec("SELECT * FROM " & tab2 & " WHERE art_code = &1", LigResult!code)
-        Colrcp.Add(LigResult!nligne, LigResult!nligne)
-        Colrcp.Item[0] = LigResult!nligne
-        Colrcp.Item[1] = LigResult!code
-        If ArtResult.Available Then
-          Pmp = ArtResult!art_pmp
-          nbd = ArtResult!art_nbd
-          nbdec = Utils.Find_nbdec(nbd)
-        End If
-        Colrcp.Item[7] = LigResult!qte
-        Colrcp.Item[3] = Colrcp.Item[7]
-        Colrcp.Item[2] = LigResult!design
-        Colrcp.Item[4] = Format$(Val(Utils.cpoint(LigResult!pbht)), Nbdec)
-        If Len(Colrcp.Item[4]) - InStr(Colrcp.Item[4], ",") = 2 Then Colrcp.Item[4] = Colrcp.Item[4] & "  "
-        'If Len(LigResult!pbht) - InStr(LigResult!pbht, ",") = 2 Then
-        'Colrcp.Item[4] = LigResult!pbht & "  "
-        'Else
-        'Colrcp.Item[4] = LigResult!pbht
-        'Endif
-        Colrcp.Item[5] = LigResult!rm
-        Colrcp.Item[6] = Format$(Val(Utils.cpoint(LigResult!paht)), Nbdec)
-        If Len(Colrcp.Item[6]) - InStr(Colrcp.Item[6], ",") = 2 Then Colrcp.Item[6] = Colrcp.Item[6] & "  "
-        'If Len(LigResult!paht) - InStr(LigResult!paht, ",") = 2 Then
-        'Colrcp.Item[6] = LigResult!paht & "  "
-        'Else
-        'Colrcp.Item[6] = LigResult!paht
-        ' Endif
-        'Colrcp.Item[6] = Format(Val(Utils.cpoint(Colrcp.Item[6])), nbdec)
-        Colrcp.Item[8] = Format(Val(.cpoint(Colrcp.Item[6])) * Val(.cpoint(Colrcp.Item[7])), nbdec)
-        If Len(Colrcp.Item[8]) - InStr(Colrcp.Item[8], ",") = 2 Then Colrcp.Item[8] = Colrcp.Item[8] & "  "
-        Colrcp.Item[9] = LigResult!frais
-        Colrcp.Item[10] = Format$(Val(Utils.cpoint(LigResult!prvt)), Nbdec)
-        If Len(Colrcp.Item[10]) - InStr(Colrcp.Item[10], ",") = 2 Then Colrcp.Item[10] = Colrcp.Item[10] & "  "
-        'Colrcp.Item[10] = LigResult!prvt
-        Colrcp.Item[11] = LigResult!lind
-        Colrcp.Item[12] = Format$(Val(.cpoint(LigResult!paht)) + (Val(.cpoint(LigResult!paht)) * CPrix.CTva(ArtResult!art_tva) / 100), nbdec)
-        Colrcp.Item[13] = LigResult!pattc
-      Loop Until LigResult.MoveNext()
-      bas_doc()
-    Endif
-  End With
+  If bTotal Then 
+    RecupCom()
+  Else
+    With Utils
+      Tab = "Fiches_Ligcom"
+      Tab2 = "Fiches_Art"
+      Tab3 = "Fiches_Entcom"
+      Colrcp.Clear
+      LigResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE numcom = &1 and four = &2", numcom.Text, codefour.Text)
+      If LigResult.Available Then
+        Do
+          ArtResult = Utils.db.Exec("SELECT * FROM " & tab2 & " WHERE art_code = &1", LigResult!code)
+          Colrcp.Add(LigResult!nligne, LigResult!nligne)
+          Colrcp.Item[0] = LigResult!nligne
+          Colrcp.Item[1] = LigResult!code
+          If ArtResult.Available Then
+            Pmp = ArtResult!art_pmp
+            nbd = ArtResult!art_nbd
+            nbdec = Utils.Find_nbdec(nbd)
+          End If
+          Colrcp.Item[7] = LigResult!qte
+          Colrcp.Item[3] = Colrcp.Item[7]
+          Colrcp.Item[2] = LigResult!design
+          Colrcp.Item[4] = Format$(Val(Utils.cpoint(LigResult!pbht)), Nbdec)
+          If Len(Colrcp.Item[4]) - InStr(Colrcp.Item[4], ",") = 2 Then Colrcp.Item[4] = Colrcp.Item[4] & "  "
+          Colrcp.Item[5] = LigResult!rm
+          Colrcp.Item[6] = Format$(Val(Utils.cpoint(LigResult!paht)), Nbdec)
+          If Len(Colrcp.Item[6]) - InStr(Colrcp.Item[6], ",") = 2 Then Colrcp.Item[6] = Colrcp.Item[6] & "  "
+          Colrcp.Item[8] = Format(Val(.cpoint(Colrcp.Item[6])) * Val(.cpoint(Colrcp.Item[7])), nbdec)
+          If Len(Colrcp.Item[8]) - InStr(Colrcp.Item[8], ",") = 2 Then Colrcp.Item[8] = Colrcp.Item[8] & "  "
+          Colrcp.Item[9] = LigResult!frais
+          Colrcp.Item[10] = Format$(Val(Utils.cpoint(LigResult!prvt)), Nbdec)
+          If Len(Colrcp.Item[10]) - InStr(Colrcp.Item[10], ",") = 2 Then Colrcp.Item[10] = Colrcp.Item[10] & "  "
+          Colrcp.Item[11] = LigResult!lind
+          Colrcp.Item[12] = Format$(Val(.cpoint(LigResult!paht)) + (Val(.cpoint(LigResult!paht)) * CPrix.CTva(ArtResult!art_tva) / 100), nbdec)
+          Colrcp.Item[13] = LigResult!pattc
+        Loop Until LigResult.MoveNext()
+        bas_doc()
+      Endif
+    End With
+  Endif
   
 End
 

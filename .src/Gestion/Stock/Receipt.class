@@ -255,6 +255,25 @@ Public Sub RazBl()
   
 End
 
+'***************************************
+'*       Creation numéro BR            *
+'***************************************
+Public Sub CreateBR()
+  
+  Dim rBon As Result
+  
+  Tab = "Fiches_Parametres" 
+  rBon = Utils.db.Exec("SELECT * FROM Fiches_Parametres")
+  If rBon.Available Then
+    nbl.Text = rBon!dnbr
+  Endif
+  If nbl.Text = "" Then nbl.Text = "000000"
+  nbl.Text = Val(nbl.Text) + 1
+  nbl.Text = Format$(nbl.Text, "000000")
+  Utils.db.Exec("UPDATE  Fiches_Parametres SET  dnbr = &1", nbl.Text)
+  
+End
+
 '**********************************************************
 '*      Gestion des touches sur le panel Entete           *
 '**********************************************************
@@ -281,6 +300,8 @@ Public Sub Rcpt_KeyPress()
             Endif
           Endif
           fourman()
+          Datej.Text = Format$(Now, "dd.mm.yyyy")
+          Nbl.SetFocus
         Endif
         If b = 1 Then
           four.SetFocus
@@ -288,8 +309,8 @@ Public Sub Rcpt_KeyPress()
           Stop Event
         Else
           b = 0
+          Datej.Text = Format$(Now, "dd.mm.yyyy")
           Nbl.SetFocus
-          Nbl.Select
         Endif
         Stop Event
         
@@ -313,8 +334,8 @@ Public Sub Rcpt_KeyPress()
             Verifbl()
             If B = 1 Then
               b = 0
+              Datej.Text = Format$(Now, "dd.mm.yyyy")
               Nbl.SetFocus
-              Nbl.select
             Else
               datej.Text = Format$(Now, "dd.mm.yyyy")
               datej.SetFocus
@@ -597,6 +618,14 @@ Public Sub Rcpt_KeyPress()
     If Not IsNull(FCalc.Resultat) Then Last.Text = Format$(Val(FCalc.Resultat), "0.000")
   Endif
   
+  If Key.code = Key.F9 Then
+    Select Case Last.tag
+      Case 2
+        CreateBR()
+        Stop Event
+    End Select
+  Endif
+  
 End
 
 Public Sub Rcpt_MouseDown()
@@ -861,8 +890,8 @@ Public Sub ToggleButton1_Click()
     Four.SetFocus
   Endif
   Fourman()  
+  Datej.Text = Format$(Now, "dd.mm.yyyy")
   Nbl.SetFocus
-  Nbl.Select
   
 End
 
@@ -1904,7 +1933,7 @@ Public Sub Enrgbl()
         rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntrecpt") & " where numrecpt = &1 and four = &2", NBl.Text, four.Text)
         If Not rResult.Available Then
           If Colrcp.Count <> 0 Then
-            Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabArt") & " WRITE, " & Cbase.Table("TabLigrecpt") & " WRITE, " & Cbase.Table("TabEtiqp") & " WRITE, " & Cbase.Table("TabEtiqg") & " WRITE, " & Cbase.Table("TabEntrecpt") & " WRITE, " & Cbase.Table("TabMat") & " WRITE, " & Tmats & " write ")
+            Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabArt") & " WRITE, " & Cbase.Table("TabLigrecpt") & " WRITE, " & Cbase.Table("TabEtiqp") & " WRITE, " & Cbase.Table("TabEtiqg") & " WRITE, " & Cbase.Table("TabEntrecpt") & " WRITE, " & Cbase.Table("TabMat") & " WRITE, " & Tmats & " write")
             Utils.db.Exec("INSERT INTO " & Cbase.Table("TabEntrecpt") & "(four,numrecpt,ddate,montant, validee, mttc) VALUES (&1, &2, &3, &4, &5, &6)", four.text, Nbl.text, .Cdate_Dbase(datej.text), Val(Totalrcpt.text), False, Val(Totalttc.text))
             Colrcp.MoveFirst
             Repeat
@@ -2302,8 +2331,6 @@ Public Sub SelectionArt()
   If Variables.Bsel = True Then
     Cart.text = Variables.ArtCode
     Art_Man()
-    'Qterecue.SetFocus
-    'Qterecue.Select
   Endif
   
 End
