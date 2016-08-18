@@ -48,7 +48,7 @@ Txconv As Float ' Taux de conversion
 Nlg As Integer ' Flag pour gestion des modifs
 Nlgn As String ' numero de ligne
 Nl As String ' numero de ligne rappelée
-Modif As String ' Flag pour savoir si la ligne est en modification
+Modif As String = "0" ' Flag pour savoir si la ligne est en modification
 NlgModif As String ' Flag pour récuperer le numéro de ligne modifiée
 Totcom As Float ' Montant de la commande lors du rappel
 son As Integer = Start.Son
@@ -93,6 +93,9 @@ Private exo As Boolean
 Private Bcolrcp As Boolean = False
 Private $barre As String
 Private bTotal As Boolean = False
+Private bQte As Boolean = False
+Private bCbarre As Boolean = False
+Private bsaisie As Boolean = False 'flag pour savoir si on réaffiche après la validation
 
 Public Sub _New()
   
@@ -113,6 +116,7 @@ Public Sub _New()
   Frmt = Utils.FColr(Settings["/Coul/Fnets"])
   Coulfond = Utils.Coulfd()
   If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  If Not Settings["/Soc" & Start.Societe & "/prixRecpt"] Then Panel7.visible = False
   b = 0
   Nlg = 1
   Dsgn = ""
@@ -306,7 +310,7 @@ Public Sub Rcpt_KeyPress()
   If key.Code = key.F4 Then
     Articles.ShowModal()
   Endif
-  
+  bCbarre = False
   If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
     With Utils
       Select Case Last.tag
@@ -487,6 +491,7 @@ Public Sub Rcpt_KeyPress()
                           Return
                         Else
                           Cart.Text = $Barre
+                          bCbarre = True
                         Endif
                       Endif
                       art_Man()
@@ -525,21 +530,23 @@ Public Sub Rcpt_KeyPress()
           
         Case 7
           qterecue_LF()
-          If Val(paht.Text) = 0 Then
-            If b <> 1 Then
-              pbhtC()
-              'arrondi()
-              pbht.SetFocus
-              pbht.Select
-              b = 0
+          If Panel7.visible Then
+            If Val(paht.Text) = 0 Then
+              If b <> 1 Then
+                pbhtC()
+                'arrondi()
+                pbht.SetFocus
+                pbht.Select
+                b = 0
+              Else
+                qterecue.SetFocus
+                qterecue.Select
+                b = 0
+              Endif
             Else
-              qterecue.SetFocus
-              qterecue.Select
-              b = 0
+              Panel6.visible = False
+              Button1.SetFocus
             Endif
-          Else
-            Panel6.visible = False
-            Button1.SetFocus
           Endif
           Stop Event
           
@@ -843,6 +850,51 @@ End
 '*****************************************************
 '*      Gestion des touches sur les boutons          *
 '*****************************************************
+Public Sub Vbtn1()
+  
+  If Not Cart.Text Then
+    If son Then
+      Music.Play
+    Endif
+    Message.Warning("Veuillez saisir un code article Svp !", "Ok")
+    Cart.SetFocus
+    Cart.Select
+  Endif
+  If Not qterecue.Text Then
+    If son Then
+      Music.Play
+    Endif
+    Message.Warning("Veuillez saisir une quantité Svp !", "Ok")
+    qterecue.SetFocus
+    qterecue.Select
+  Endif
+  If Cart.Text And qterecue.Text Then
+    qterecue_LF()
+    'Trc()
+    'pahtGF()
+    'pahtLF()
+    controlArt()          
+    If BColrcp And modif = "0" Then
+      ControlProd()
+      bas_doc()
+    Else
+      Maj_colrcp()
+    Endif
+    'Maj_colrcp()
+    If Materiel And Gmateriel Then
+      Num_serie()
+      Numero.SetFocus
+    Else
+      CleanChamps()
+      Cart.SetFocus
+      Cart.Select
+    Endif
+    Modif = "0"
+    Nlg = 0
+  Endif
+  
+End
+
 Public Sub Btn_KeyPress()
   
   If Key.code = Key.enter Or Key.code = Key.return Then
@@ -850,44 +902,7 @@ Public Sub Btn_KeyPress()
     Select Case Last.tag
         
       Case 1
-        If Not Cart.Text Then
-          If son Then
-            Music.Play
-          Endif
-          Message.Warning("Veuillez saisir un code article Svp !", "Ok")
-          Cart.SetFocus
-          Cart.Select
-        Endif
-        If Not qterecue.Text Then
-          If son Then
-            Music.Play
-          Endif
-          Message.Warning("Veuillez saisir une quantité Svp !", "Ok")
-          qterecue.SetFocus
-          qterecue.Select
-        Endif
-        If Cart.Text And qterecue.Text Then
-          qterecue_LF()
-          'Trc()
-          'pahtGF()
-          'pahtLF()
-          controlArt()
-          If BColrcp And modif = "0" Then
-            ControlProd()
-            bas_doc()
-          Else
-            Maj_colrcp()
-          Endif
-          'Maj_colrcp()
-          If Materiel And Gmateriel Then
-            Num_serie()
-            Numero.SetFocus
-          Else
-            CleanChamps()
-            Cart.SetFocus
-            Cart.Select
-          Endif
-        Endif
+        Vbtn1()
         Stop Event
         
       Case 2
@@ -1353,13 +1368,19 @@ Public Sub art_man()
           Endif
           qterecue.Text = "1"
           If Not Stocke Then
-            If son Then
-              Music.Play
+            If Not rcptman.value Then
+              If son Then
+                Music.Play
+              Endif
+              Message.Warning(" Cet article n'est pas stocké ! ")
             Endif
-            Message.Warning(" Cet article n'est pas stocké ! ")
           Endif
-          qterecue.SetFocus
-          qterecue.Select
+          If bCbarre Then
+            Vbtn1() 
+          Else
+            qterecue.SetFocus
+            qterecue.Select
+          Endif
         Else
           Message.Warning(" Saisie impossible ! Cet article est suspendu. ")
           b = 1
@@ -1393,9 +1414,19 @@ Public Sub controlArt()
       Colrcp.item.Selected = True
       If Upper$(Colrcp.current[1]) <> Upper$(cart.Text) Then
         Bcolrcp = False
-        'Colrcp.MoveNext()
+        Modif = "0"
+        Nlg = 1
       Else
         BColrcp = True
+        If Colrcp.current[7] = 0 Then
+          Modif = "1"
+          Nl = Colrcp.Current[0]
+          Nlg = 0
+          NlgModif = Colrcp.Current[0]
+          'Colrcp_Activate()
+        Else
+          Modif = "0"
+        Endif
         Break
       Endif
     Until Colrcp.MoveNext()
@@ -1984,7 +2015,7 @@ Public Sub Maj_colrcp()
       Endif
     Endif
     Colrcp.Item[2] = Dart.text
-    Colrcp.Item[3] = qtecomC
+    'Colrcp.Item[3] = qtecomC
     If IsNull(Colrcp.Item[3]) Then Colrcp.Item[3] = 0
     Colrcp.Item[4] = Format$(Val(Utils.cpoint(pbht.text)), Nbdec)
     If Len(Colrcp.Item[4]) - InStr(Colrcp.Item[4], ",") = 2 Then Colrcp.Item[4] = Colrcp.Item[4] & "  "
@@ -2004,6 +2035,7 @@ Public Sub Maj_colrcp()
     Else
       Colrcp.Item[13] = Totht.Text
     Endif
+    Print Colrcp.Item[14]
     Colrcp.MoveFirst
     Totalrcpt.Text = "0,00"
     bas_doc()
@@ -2054,6 +2086,7 @@ Public Sub ControlProd()
       Colrcp.Item[8] = Format$(Val(paht.text) * Val(Utils.cpoint(Colrcp.Item[7])), nbdec)
     Case 3
       Nlgn = Format$(Val(Nlgn) + 1, "000")
+      Nlg = 1
       Try Colrcp.Add(Nlgn, Nlgn)
       Colrcp.Item[0] = Nlgn
       Colrcp.Item[1] = Cart.text
@@ -2088,6 +2121,7 @@ Public Sub ControlProd()
         Colrcp.Item[13] = Patot
       Endif
   End Select
+  Modif = "0"
   
 End
 
@@ -2580,10 +2614,12 @@ Public Sub Maj_Com()
       Totcom = Totcom2
     Endif
     Utils.db.Exec("UPdate  " & Entcm & "  SET montant = &1, anomalie = &4, commentaire = &5 WHERE four = &2 and numcom = &3", Totcom, codefour.Text, ncom2, An.value, Comments.Text)
+    bsaisie = True
     RecupLig()
     Delcom()
     Recomp()
     Enrgcom()
+    bsaisie = False
   End With
   
 End
@@ -2783,7 +2819,6 @@ Public Sub AffColcom()
         EntResult = Utils.db.Exec("SELECT * FROM " & tab3 & " WHERE numcom = &1 and four = &2", $num, codefour.Text)
         Datej.Text = Format$(Now, "dd.mm.yyyy")
         numcom.Text = LigResult!numcom
-        numbl.Text = ""
         Try An.value = EntResult!anomalie
         If Error Then An.value = False
         Commentaire = EntResult!commentaire
@@ -2931,13 +2966,17 @@ Public Sub RecupCom()
               Pmp = ArtResult!art_pmp
               nbd = ArtResult!art_nbd
               nbdec = Utils.Find_nbdec(nbd)
-            End If
+            Endif
+            Colrcp.Item[3] = LigResult!qte
             If Rcptman.value = True Then
-              Colrcp.Item[7] = 0
+              If bsaisie = False Then
+                Colrcp.Item[7] = 0
+              Else
+                Colrcp.Item[7] = LigResult!qte
+              Endif
             Else
               Colrcp.Item[7] = LigResult!qte
             Endif
-            Colrcp.Item[3] = Colrcp.Item[7]
             Colrcp.Item[2] = LigResult!design
             Colrcp.Item[4] = Format$(Val(Utils.cpoint(LigResult!pbht)), Nbdec)
             If Len(Colrcp.Item[4]) - InStr(Colrcp.Item[4], ",") = 2 Then Colrcp.Item[4] = Colrcp.Item[4] & "  "
@@ -2960,8 +2999,10 @@ Public Sub RecupCom()
     If Colrcp.Count > 0 Then 
       bas_doc()
     Else
-      Message.Warning("Aucune commande pour ce fournisseur !")
-      Codefour.SetFocus
+      If Not bsaisie Then
+        Message.Warning("Aucune commande pour ce fournisseur !")
+        Codefour.SetFocus
+      Endif
     Endif
   End With
   
@@ -2997,7 +3038,7 @@ Public Sub RecupLig()
             nbdec = Utils.Find_nbdec(nbd)
           End If
           Colrcp.Item[7] = LigResult!qte
-          Colrcp.Item[3] = Colrcp.Item[7]
+          Colrcp.Item[3] = LigResult!qte
           Colrcp.Item[2] = LigResult!design
           Colrcp.Item[4] = Format$(Val(Utils.cpoint(LigResult!pbht)), Nbdec)
           If Len(Colrcp.Item[4]) - InStr(Colrcp.Item[4], ",") = 2 Then Colrcp.Item[4] = Colrcp.Item[4] & "  "
