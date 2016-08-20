@@ -309,7 +309,7 @@ End
 
 Public Sub Rcpt_KeyPress()
   
-  Dim EntResult As Result
+  Dim EntResult, rarts As Result
   
   b = 0
   Tab = "Fiches_Entcom" 
@@ -445,7 +445,7 @@ Public Sub Rcpt_KeyPress()
             Cart.SetFocus
             Cart.Select
           Else
-            If Not bTotal Then Ver_comm()
+            Ver_comm()
             If Datej.Text = "" Then
               If son Then
                 Music.Play
@@ -500,7 +500,8 @@ Public Sub Rcpt_KeyPress()
                           bCbarre = True
                         Endif
                       Endif
-                      art_Man()
+                      rarts = Utils.db.Exec("SELECT * FROM Fiches_Art where art_code = &1 and art_four = &2", Cart.Text, Codefour.Text)
+                      If rarts.Available Then Cart.Text = rarts!art_code
                       If Not IsNull(Cart.Text) Then 
                         controlArt()
                       Endif
@@ -510,14 +511,15 @@ Public Sub Rcpt_KeyPress()
                           Nl = Colrcp.Current[0]
                           Nlg = 0
                           NlgModif = Colrcp.Current[0]
-                          'Colrcp_Activate()
+                        Else
+                          art_Man()
                         Endif
-                        'ControlProd()
                       Else
                         If Message.Question("Cet article n'existe pas dans la commande ! Voulez-vous ", "1- L'inclure dans la commande", "2- Revenir à la saisie") = 1 Then
                           art_Man()
                         Else
                           Cart.Clear
+                          Cart.SetFocus
                         Endif
                       Endif
                     Endif
@@ -553,6 +555,8 @@ Public Sub Rcpt_KeyPress()
               Panel6.visible = False
               Button1.SetFocus
             Endif
+          Else
+            Button1.SetFocus
           Endif
           Stop Event
           
@@ -666,11 +670,11 @@ Public Sub Rcpt_KeyPress()
           Endif
           Stop Event
           
-        Case 14
+        Case 15
           arrondi()
           Stop Event
           
-        Case 15
+        Case 14
           PvttcLF()
           If b <> 1 Then
             Calc_Marge()
@@ -876,17 +880,13 @@ Public Sub Vbtn1()
   Endif
   If Cart.Text And qterecue.Text Then
     qterecue_LF()
-    'Trc()
-    'pahtGF()
-    'pahtLF()
-    controlArt()          
+    controlArt()
     If BColrcp And modif = "0" Then
       ControlProd()
       bas_doc()
     Else
       Maj_colrcp()
     Endif
-    'Maj_colrcp()
     If Materiel And Gmateriel Then
       Num_serie()
       Numero.SetFocus
