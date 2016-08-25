@@ -504,7 +504,7 @@ Public Sub Rcpt_KeyPress()
                       rarts = Utils.db.Exec("SELECT * FROM Fiches_Art where art_code = &1 and art_four = &2", Cart.Text, Codefour.Text)
                       If rarts.Available Then Cart.Text = rarts!art_code
                       If Not IsNull(Cart.Text) Then 
-                        controlArt()
+                        controlArt(Cart.Text)
                       Endif
                       If Bcolrcp Then
                         If Colrcp.current[7] = 0 Then
@@ -882,7 +882,7 @@ Public Sub Vbtn1()
   Endif
   If Cart.Text And qterecue.Text Then
     qterecue_LF()
-    controlArt()
+    controlArt(Cart.Text)
     If BColrcp And modif = "0" Then
       ControlProd()
       bas_doc()
@@ -955,7 +955,7 @@ Public Sub Btn_Click()
       Endif
       If Cart.Text And qterecue.Text Then
         qterecue_LF()
-        controlArt()
+        If modif <> "1" Then controlArt(Cart.Text)
         If BColrcp And modif = "0" Then
           ControlProd()
           bas_doc()
@@ -1413,14 +1413,14 @@ Public Sub art_man()
   
 End
 
-Public Sub controlArt()
+Public Sub controlArt($cart As String)
   
   Colrcp.MoveFirst()
   Try Colrcp.item.Selected = True
   If Not Error Then
     Repeat
       Colrcp.item.Selected = True
-      If Upper$(Colrcp.current[1]) <> Upper$(cart.Text) Then
+      If Upper$(Colrcp.current[1]) <> Upper$($cart) Then
         Bcolrcp = False
         Modif = "0"
         Nlg = 1
@@ -1442,9 +1442,28 @@ Public Sub controlArt()
   
 End
 
+Public Sub controlArt2($cart As String)
+  
+  Colrcp.MoveFirst()
+  Try Colrcp.item.Selected = True
+  If Not Error Then
+    Repeat
+      Colrcp.item.Selected = True
+      If Upper$(Colrcp.current[1]) <> Upper$($cart) Then
+        Modif = "0"
+      Else
+        Modif = "1"
+        NlgModif = Colrcp.Current[0]
+        Break
+      Endif
+    Until Colrcp.MoveNext()
+  Endif  
+  
+End
 '**********************************************************
 '*           Affichage des quantites en stock             *
 '**********************************************************
+
 Public Sub Quantite()
   
   Dim rResult As Result
@@ -2194,9 +2213,9 @@ Public Sub Colrcp_Activate()
           Else
             qterecue.Text = Colrcp.Current[7]
           Endif
-          Totht.Text = Colrcp.Item[8]
-          Frais.Text = Colrcp.Item[9]
-          Prvt.Text = Colrcp.Item[10]
+          Totht.Text = Colrcp.Current[8]
+          Frais.Text = Colrcp.Current[9]
+          Prvt.Text = Colrcp.Current[10]
           Colrcp.Item[12] = 0
           Totht.text = Format(Val(.cpoint(paht.text)) * Val(.cpoint(qterecue.text)), nbdec)
           Tab = "Fiches_Art"
@@ -2219,7 +2238,7 @@ Public Sub Colrcp_Activate()
           Colrcp.MoveFirst
           Do
             Colrcp.Item.Selected = True
-            If Colrcp.Item[1] = Cart.text Then Break
+            If Colrcp.Current[1] = Cart.text Then Break
           Loop Until Colrcp.MoveNext()
           Nbligne.Text = Colrcp.count
           qterecue.SetFocus
@@ -2971,40 +2990,56 @@ Public Sub RecupCom()
         If LigResult.Available Then
           Do
             ArtResult = Utils.db.Exec("SELECT * FROM " & tab2 & " WHERE art_code = &1", LigResult!code)
-            iligne = Format$(Colrcp.count + 1, "000")
-            Colrcp.Add(iligne, iligne)
-            Colrcp.Item[0] = iligne
-            Colrcp.Item[1] = LigResult!code
-            If ArtResult.Available Then
-              Pmp = ArtResult!art_pmp
-              nbd = ArtResult!art_nbd
-              nbdec = Utils.Find_nbdec(nbd)
-            Endif
-            Colrcp.Item[3] = LigResult!qte
-            If Rcptman.value = True Then
-              If bsaisie = False Then
-                Colrcp.Item[7] = 0
+            controlArt2(LigResult!code)
+            If modif = 0 Then
+              iligne = Format$(Colrcp.count + 1, "000")
+              Colrcp.Add(iligne, iligne)
+              Colrcp.Item[0] = iligne
+              Colrcp.Item[1] = LigResult!code
+              If ArtResult.Available Then
+                Pmp = ArtResult!art_pmp
+                nbd = ArtResult!art_nbd
+                nbdec = Utils.Find_nbdec(nbd)
+              Endif
+              Colrcp.Item[3] = LigResult!qte
+              If Rcptman.value = True Then
+                If bsaisie = False Then
+                  Colrcp.Item[7] = 0
+                Else
+                  Colrcp.Item[7] = LigResult!qte
+                Endif
               Else
                 Colrcp.Item[7] = LigResult!qte
               Endif
+              Colrcp.Item[2] = LigResult!design
+              Colrcp.Item[4] = Format$(Val(Utils.cpoint(LigResult!pbht)), Nbdec)
+              If Len(Colrcp.Item[4]) - InStr(Colrcp.Item[4], ",") = 2 Then Colrcp.Item[4] = Colrcp.Item[4] & "  "
+              Colrcp.Item[5] = LigResult!rm
+              Colrcp.Item[6] = Format$(Val(Utils.cpoint(LigResult!paht)), Nbdec)
+              If Len(Colrcp.Item[6]) - InStr(Colrcp.Item[6], ",") = 2 Then Colrcp.Item[6] = Colrcp.Item[6] & "  "
+              Colrcp.Item[8] = Format(Val(.cpoint(Colrcp.Item[6])) * Val(.cpoint(Colrcp.Item[7])), nbdec)
+              If Len(Colrcp.Item[8]) - InStr(Colrcp.Item[8], ",") = 2 Then Colrcp.Item[8] = Colrcp.Item[8] & "  "
+              Colrcp.Item[9] = LigResult!frais
+              Colrcp.Item[10] = Format$(Val(Utils.cpoint(LigResult!prvt)), Nbdec)
+              If Len(Colrcp.Item[10]) - InStr(Colrcp.Item[10], ",") = 2 Then Colrcp.Item[10] = Colrcp.Item[10] & "  "
+              Colrcp.Item[11] = LigResult!lind
+              Colrcp.Item[12] = Format$(Val(.cpoint(LigResult!paht)) + (Val(.cpoint(LigResult!paht)) * CPrix.CTva(ArtResult!art_tva) / 100), nbdec)
+              Colrcp.Item[13] = LigResult!pattc
+              Colrcp.Item[14] = ComRslt!numcom
             Else
-              Colrcp.Item[7] = LigResult!qte
+              If Rcptman.value = True Then
+                If bsaisie = False Then
+                  Colrcp.Item[7] = 0
+                  Colrcp.Item[3] = Val(utils.cpoint(Colrcp.current[3])) + Val(utils.cpoint(LigResult!qte))
+                Else
+                  Colrcp.Item[3] = Val(utils.cpoint(Colrcp.current[3])) + Val(utils.cpoint(LigResult!qte))
+                  Colrcp.Item[7] = Val(utils.cpoint(Colrcp.current[7])) + Val(utils.cpoint(LigResult!qte))
+                Endif
+              Else
+                Colrcp.Item[3] = Val(utils.cpoint(Colrcp.current[3])) + Val(utils.cpoint(LigResult!qte))
+                Colrcp.Item[7] = Val(utils.cpoint(Colrcp.current[7])) + Val(utils.cpoint(LigResult!qte)) 
+              Endif
             Endif
-            Colrcp.Item[2] = LigResult!design
-            Colrcp.Item[4] = Format$(Val(Utils.cpoint(LigResult!pbht)), Nbdec)
-            If Len(Colrcp.Item[4]) - InStr(Colrcp.Item[4], ",") = 2 Then Colrcp.Item[4] = Colrcp.Item[4] & "  "
-            Colrcp.Item[5] = LigResult!rm
-            Colrcp.Item[6] = Format$(Val(Utils.cpoint(LigResult!paht)), Nbdec)
-            If Len(Colrcp.Item[6]) - InStr(Colrcp.Item[6], ",") = 2 Then Colrcp.Item[6] = Colrcp.Item[6] & "  "
-            Colrcp.Item[8] = Format(Val(.cpoint(Colrcp.Item[6])) * Val(.cpoint(Colrcp.Item[7])), nbdec)
-            If Len(Colrcp.Item[8]) - InStr(Colrcp.Item[8], ",") = 2 Then Colrcp.Item[8] = Colrcp.Item[8] & "  "
-            Colrcp.Item[9] = LigResult!frais
-            Colrcp.Item[10] = Format$(Val(Utils.cpoint(LigResult!prvt)), Nbdec)
-            If Len(Colrcp.Item[10]) - InStr(Colrcp.Item[10], ",") = 2 Then Colrcp.Item[10] = Colrcp.Item[10] & "  "
-            Colrcp.Item[11] = LigResult!lind
-            Colrcp.Item[12] = Format$(Val(.cpoint(LigResult!paht)) + (Val(.cpoint(LigResult!paht)) * CPrix.CTva(ArtResult!art_tva) / 100), nbdec)
-            Colrcp.Item[13] = LigResult!pattc
-            Colrcp.Item[14] = ComRslt!numcom
           Loop Until LigResult.MoveNext()
         Endif
       Loop Until ComRslt.MoveNext()
@@ -3266,7 +3301,7 @@ Public Sub SelectionArt()
   If Variables.Bsel = True Then
     Cart.text = Variables.ArtCode
     If Not IsNull(Cart.Text) Then 
-      controlArt()
+      controlArt(Cart.Text)
     Endif
     If Bcolrcp And modif = "0" Then
       art_Man()
