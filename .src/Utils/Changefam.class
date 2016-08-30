@@ -25,11 +25,17 @@
 '################################################
 '
 
-Tab As String
-
+Private Tab As String
+Private $Org As String
+Private $hform As Form
+Private hText As TextBox
+Private hbutton1 As Button
+Private hbutton2 As Button
+Private hbutton3 As Button
 '*************************
 '* On initialise l'écran *
 '*************************
+
 Public Sub _New()
   
   Music.Load(Start.Musique)
@@ -69,8 +75,8 @@ Public Sub Cmpt_KeyPress()
               b = 0
             Else
               b = 0
-              Afam.SetFocus
-              Afam.Select
+              Nfam.SetFocus
+              Nfam.Select
             Endif
             Stop Event
           Endif
@@ -81,6 +87,11 @@ Public Sub Cmpt_KeyPress()
       Case 2
         fam_man2()
         Stop Event
+        
+      Case 3
+        If Liste.value Then 
+          fam_man2()
+        Endif
         
       Case 4
         fam_man3()
@@ -105,74 +116,70 @@ Public Sub art_man()
   
   Dim rarts As Result
   
-  Tab = "Fiches_Art" 
-  rarts = Utils.db.Exec("SELECT * FROM " & Tab & " where art_code = &1", code.Text)
+  rarts = Utils.db.Exec("SELECT * FROM Fiches_Art where art_code = &1", code.Text)
   If rarts.Available Then
     With utils
       code.Text = rarts!art_code
       Desg.text = rarts!art_design
       Afam.Text = rarts!art_fam
-      'ENDIF
-      'FamMan()
+      
     End With
   Endif
   
 End
 
-'**********************************************************
-'*                 Gestion onglet Saisie Articles         *
-'**********************************************************
-Public Sub SelectionArt()
+Public Sub Button9_Click()
+  
+  If Not IsNull(Nfam.text) Then 
+    AjoutArt()
+    Code.SetFocus
+  Endif
+  
+End
+
+Public Sub Button9_KeyPress()
+  
+  If Key.Code = Key.Enter Or If Key.code = Key.Return Then Button9_Click()
+  
+End
+
+Public Sub AjoutArt()
   
   Dim rarts As Result
   
-  Tab = "Fiches_Art" 
-  ColArt.Clear
-  If ColArt.Visible Then
-    ColArt.Visible = False
+  Try Utils.db.Exec("INSERT INTO CFamille (codeart, afam, nfam) Values (&1, &2, &3)", Code.Text, Afam.Text, NFam.Text)
+  If Error Then
+    Rarts = Utils.db.Exec("SELECT * FROM CFamille where code = &1", Code.Text)
+    If Start.son Then
+      Music.Play
+    Endif
+    Message.Warning("Ce produit a déjà été saisit !")
   Else
-    ColArt.Visible = True
-    With ColArt
-      .Columns.count = 3
-      .Columns[0].Width = 120
-      .Columns[1].Width = 300
-      .Columns[2].Width = 60
-      .Columns[0].Text = "code"
-      .Columns[1].Text = "Intitulé"
-      .Columns[2].Text = "Famille"
-      
-    End With
-    rarts = Utils.db.Exec("SELECT * FROM " & Tab & " ")
-    If rarts.Available Then
-      Do
-        ColArt.Add(rarts!art_code, rarts!art_code)
-        ColArt.Item[0] = rarts!art_code
-        ColArt.Item[1] = rarts!art_design
-        ColArt.Item[2] = rarts!art_fam
-      Loop Until rarts.MoveNext()
-    Endif
-    If ColArt.Count Then
-      ColArt.MoveFirst
-      ColArt.SetFocus
-      ColArt.Item.Selected = True
-    Endif
+    listBart.Text = listBart.Text & " " & Code.Text
+    Code.Clear
+    Afam.Clear
+    LibelFam.Text = ""
   Endif
   
 End
 
-'*******************************************
-'*  Saisie d'un article a la souris        *
-'*******************************************
-Public Sub Colart_Click()
+'****************************************Gestion des articles**************************************************
+Public Sub SelectionArt()
   
-  code.Text = ColArt.Current[0]
-  Desg.Text = ColArt.Current[0]
-  ColArt.Clear
-  ColArt.visible = False
-  code.SetFocus
-  code.Select
-  art_Man()
-  fam_Man()
+  Dim sel, tri As String = ""
+  Dim MyForm As TriArticles
+  Dim sFour As String = ""
+  Dim $centrale As String = ""
+  
+  Tri = "art_code"
+  Variables.Bsel = False
+  MyForm = New TriArticles("", "", Tri, "", "", "")
+  MyForm.Showmodal()
+  If Variables.Bsel = True Then
+    Code.text = Variables.ArtCode
+    Art_Man()
+    fam_Man
+  Endif
   
 End
 
@@ -184,19 +191,24 @@ Public Sub Btn_Click()
       Stop Event
       
     Case 2
-      SelectionFam()
+      SelectionFam(1)
       Stop Event
       
     Case 3
-      Change()
+      If Not Liste.value Then
+        Change("Btn")
+      Else
+        Change3() 
+      Endif
       Stop Event
       
     Case 4
-      SelectionFam2()
+      Famlist.X = 96
+      SelectionFam(2)
       Stop Event
       
     Case 5
-      SelectionFam3()
+      SelectionFam(3)
       Stop Event
       
     Case 6
@@ -213,10 +225,11 @@ End
 '*********************************************
 '*Appel de la liste des familles             *
 '*********************************************
-Public Sub SelectionFam()
+Public Sub SelectionFam(sOrg As String)
   
   Dim Rfams As Result
   
+  $Org = sorg
   Tab = "Fiches_Fam" 
   
   If FamList.visible Then
@@ -229,11 +242,7 @@ Public Sub SelectionFam()
     FamList.Columns[1].Width = 260
     FamList.Columns[0].Text = "code"
     FamList.Columns[1].Text = "Intitulé"
-    'IF NOT Dne THEN
     Rfams = Utils.db.Exec("SELECT * FROM " & Tab & " order by code_fam ASC")
-    'ELSE
-    'Rfams = Utils.db.Exec("SELECT * FROM " & Tab & " where left(code_fam,'" & Len(Fam.Text) & "') = '" & Fam.Text & "'")
-    'ENDIF
     If Rfams.Available Then
       Do
         FamList.Add(Rfams!code_fam, Rfams!code_fam)
@@ -256,8 +265,20 @@ End
 '************************************
 Public Sub FamList_Click()
   
-  NFam.text = FamList.Item[0]
-  LibelFam2.text = FamList.Item[1]
+  If $Org = 1 Then
+    NFam.text = FamList.Item[0]
+    LibelFam2.text = FamList.Item[1]
+  Else
+    If $Org = 2 Then
+      AFam2.text = FamList.Item[0]
+      LibelFam3.text = FamList.Item[1]
+      Famlist.x = 16
+    Else
+      NFam2.text = FamList.Item[0]
+      LibelFam4.text = FamList.Item[1]
+    Endif
+  Endif 
+  
   FamList.Clear
   Famlist.Visible = False
   
@@ -304,6 +325,7 @@ End
 '**************************************************
 '* recherche  de la nouvelle famille manuellement *
 '**************************************************
+
 Public Sub fam_Man2()
   
   Dim Rfams As Result
@@ -312,6 +334,7 @@ Public Sub fam_Man2()
   Rfams = Utils.db.Exec("SELECT * FROM " & tab & " WHERE code_fam = &1", Nfam.Text)
   If Rfams.Available Then
     LibelFam2.Text = Rfams!libell_fam
+    If Liste.value Then Button9.setfocus
   Else
     If Start.son Then
       Music.Play
@@ -323,85 +346,6 @@ Public Sub fam_Man2()
   
 End
 
-'************************************************************************************
-'                                On travaille avec les familles
-
-'************************************************************************************
-'******************************************************
-'*Appel de la première liste des familles             *
-'******************************************************
-Public Sub SelectionFam2()
-  
-  Dim Rfams As Result
-  
-  Tab = "Fiches_Fam" 
-  
-  If FamList2.visible Then
-    FamList2.clear
-    FamList2.visible = False
-  Else
-    FamList2.visible = True
-    FamList2.Columns.count = 2
-    FamList2.Columns[0].Width = 65
-    FamList2.Columns[1].Width = 260
-    FamList2.Columns[0].Text = "code"
-    FamList2.Columns[1].Text = "Intitulé"
-    'IF NOT Dne THEN
-    Rfams = Utils.db.Exec("SELECT * FROM " & Tab & " order by code_fam ASC")
-    'ELSE
-    'Rfams = Utils.db.Exec("SELECT * FROM " & Tab & " where left(code_fam,'" & Len(Fam.Text) & "') = '" & Fam.Text & "'")
-    'ENDIF
-    If Rfams.Available Then
-      Do
-        FamList2.Add(Rfams!code_fam, Rfams!code_fam)
-        FamList2.Item[0] = Rfams!code_fam
-        FamList2.Item[1] = Rfams!libell_fam
-        FamList2.Item[2] = Rfams!coef_fam
-        FamList2.Item[3] = Rfams!cdtva_fam
-        FamList2.Item[4] = Rfams!txtva_fam
-      Loop Until Rfams.MoveNext()
-      FamList2.MoveFirst
-      FamList2.SetFocus
-      FamList2.Item.Selected = True
-    Endif
-  Endif
-  
-End
-
-'************************************
-'* Saisie d'une famille a la souris *
-'************************************
-Public Sub FamList2_Click()
-  
-  AFam2.text = FamList2.Item[0]
-  LibelFam3.text = FamList2.Item[1]
-  FamList2.Clear
-  Famlist2.Visible = False
-  
-End
-
-'***************************************************
-'* Saisie de l'ancienne famille manuellement       *
-'***************************************************
-Public Sub FamList2_KeyPress()
-  
-  If Key.code = Key.Enter Or Key.code = Key.Return Then
-    FamList2_Click()
-  Endif
-  If Key.code = Key.Escape Or Key.code = Key.F2 Then
-    FamList2.visible = False
-    FamList2.clear
-    'fam_Gotfocus()
-    'Fam.Select
-    Afam2.SetFocus
-    Stop Event
-  Endif
-  
-End
-
-'**************************************************
-'* recherche  de l' ancienne famille manuellement *
-'**************************************************
 Public Sub fam_Man3()
   
   Dim Rfams As Result
@@ -423,82 +367,6 @@ Public Sub fam_Man3()
   
 End
 
-'************************************************************************************
-'******************************************************
-'*Appel de la deuxieme liste des familles             *
-'******************************************************
-Public Sub SelectionFam3()
-  
-  Dim Rfams As Result
-  
-  Tab = "Fiches_Fam" 
-  
-  If FamList3.visible Then
-    FamList3.clear
-    FamList3.visible = False
-  Else
-    FamList3.visible = True
-    FamList3.Columns.count = 2
-    FamList3.Columns[0].Width = 65
-    FamList3.Columns[1].Width = 260
-    FamList3.Columns[0].Text = "code"
-    FamList3.Columns[1].Text = "Intitulé"
-    'IF NOT Dne THEN
-    Rfams = Utils.db.Exec("SELECT * FROM " & Tab & " order by code_fam ASC")
-    'ELSE
-    'Rfams = Utils.db.Exec("SELECT * FROM " & Tab & " where left(code_fam,'" & Len(Fam.Text) & "') = '" & Fam.Text & "'")
-    'ENDIF
-    If Rfams.Available Then
-      Do
-        FamList3.Add(Rfams!code_fam, Rfams!code_fam)
-        FamList3.Item[0] = Rfams!code_fam
-        FamList3.Item[1] = Rfams!libell_fam
-        FamList3.Item[2] = Rfams!coef_fam
-        FamList3.Item[3] = Rfams!cdtva_fam
-        FamList3.Item[4] = Rfams!txtva_fam
-      Loop Until Rfams.MoveNext()
-      FamList3.MoveFirst
-      FamList3.SetFocus
-      FamList3.Item.Selected = True
-    Endif
-  Endif
-  
-End
-
-'************************************
-'* Saisie d'une famille a la souris *
-'************************************
-Public Sub FamList3_Click()
-  
-  NFam2.text = FamList3.Item[0]
-  LibelFam4.text = FamList3.Item[1]
-  FamList3.Clear
-  Famlist3.Visible = False
-  
-End
-
-'****************************************************
-'* Saisie de la nouvelle famille manuellement       *
-'****************************************************
-Public Sub FamList3_KeyPress()
-  
-  If Key.code = Key.Enter Or Key.code = Key.Return Then
-    FamList3_Click()
-  Endif
-  If Key.code = Key.Escape Or Key.code = Key.F2 Then
-    FamList3.visible = False
-    FamList3.clear
-    'fam_Gotfocus()
-    'Fam.Select
-    Nfam2.SetFocus
-    Stop Event
-  Endif
-  
-End
-
-'**************************************************
-'* recherche  de la nouvelle famille manuellement *
-'**************************************************
 Public Sub fam_Man4()
   
   Dim Rfams As Result
@@ -521,9 +389,9 @@ Public Sub fam_Man4()
 End
 
 '******************************************************************************************
-'*            On lance les modifications pour les modifications pour un article           *
+'*            On lance les modifications pour un article           *
 '******************************************************************************************
-Public Sub Change()
+Public Sub Change($hOrg As String)
   
   Dim Tab1 As String
   Dim Tab2 As String
@@ -557,31 +425,37 @@ Public Sub Change()
       If Start.son Then
         Music.Play
       Endif
-      Message.Warning("Traitement terminé !", "OK")
-      code.SetFocus
-      code.Select
+      If $hOrg = "Btn" Then
+        Message.Warning("Traitement terminé !", "OK")
+        code.SetFocus
+        code.Select
+      Endif
     Else
+      If $hOrg = "Btn" Then
+        If Start.son Then
+          Music.Play
+        Endif
+        Message.Warning("Veuillez saisir la nouvelle famille SVP !", "OK")
+        Nfam.SetFocus
+        Nfam.Select
+      Endif
+    Endif
+  Else
+    If $hOrg = "Btn" Then
       If Start.son Then
         Music.Play
       Endif
-      Message.Warning("Veuillez saisir la nouvelle famille SVP !", "OK")
-      Nfam.SetFocus
-      Nfam.Select
+      Message.Warning("Veuillez saisir un code article SVP !", "OK")
+      code.SetFocus
+      code.Select 
     Endif
-  Else
-    If Start.son Then
-      Music.Play
-    Endif
-    Message.Warning("Veuillez saisir un code article SVP !", "OK")
-    code.SetFocus
-    code.Select
   Endif
   
 End
 
-'******************************************************************************************
-'*            On lance les modifications pour les modifications pour un article           *
-'******************************************************************************************
+'********************************************************************
+'*            On lance les modifications  pour un article           *
+'********************************************************************
 Public Sub Change2()
   
   Dim Tab1 As String
@@ -625,5 +499,179 @@ Public Sub Change2()
     code.SetFocus
     code.Select
   Endif
+  
+End
+
+'********************************************************************
+'*  On lance les modifications  pour la liste des articles          *
+'********************************************************************
+Public Sub Change3()
+  
+  Dim Tab1 As String
+  Dim Tab2 As String
+  Dim Tab3 As String
+  Dim rfam, r2Result As Result
+  
+  Tab = "CFamille" 
+  Tab1 = "Fiches_Art" 
+  Tab2 = "Fiches_HistoLigfac" 
+  Tab3 = "Fiches_Ligbl" 
+  If listBart.Text Then
+    Me.Mouse = Mouse.Wait
+    rfam = Utils.db.Exec("SELECT * from  " & Tab & "")
+    If rfam.Available Then 
+      Repeat
+        Utils.db.Exec("UPdate  " & Tab1 & "  SET  art_fam = &2 where art_fam = &1", rfam!afam, rfam!nfam)
+        r2Result = Utils.db.Exec("SELECT * from  " & Tab2 & " where fam_ligfac = &1 ", rfam!afam)
+        If r2Result.Available Then Utils.db.Exec("UPdate  " & Tab2 & "  SET  fam_ligfac = &2 where fam_ligfac = &1", rfam!afam, rfam!nfam)
+        r2Result = Utils.db.Exec("SELECT * from  " & Tab3 & " where fam_ligbl = &1 ", rfam!afam)
+        If r2Result.Available Then Utils.db.Exec("UPdate  " & Tab3 & "  SET  fam_ligbl = &2 where fam_ligbl = &1", rfam!afam, rfam!nfam)
+      Until rfam.MoveNext()
+      Me.Mouse = Mouse.Default
+      If Start.son Then
+        Music.Play
+      Endif
+      Message.Warning("Traitement terminé !", "OK")
+      listBart.Text = ""
+      code.SetFocus
+      code.Select
+    Endif
+  Else
+    If Start.son Then
+      Music.Play
+    Endif
+    Message.Warning("Veuillez saisir des produits SVP !", "OK")
+    code.SetFocus
+    code.Select
+  Endif
+  
+End
+
+Public Sub Liste_Click()
+  
+  Dim TabF As String = "CFamille"
+  
+  If Listbart.Visible Then 
+    Listbart.visible = False
+    Button9.visible = False
+  Else
+    Listbart.Visible = True
+    Button9.Visible = True
+    Try utils.db.Exec("DROP TABLE CFamille")
+    Utils.db.Exec("CREATE Temporary TABLE " & TabF &
+      "(codeart Char(15) Not Null, " & ""
+    "afam Char(5)," &
+      "nfam Char(5)," &
+      "PRIMARY KEY (codeart))" & "ENGINE = MYISAM")
+    
+  Endif
+  Code.SetFocus
+  
+End
+
+Public Sub Fichier_Click()
+  
+  Dim hLabel As Label
+  
+  If Fichier.value = True Then
+    $hForm = New Form As "Form"
+    $hform.Width = Frame2.W
+    $hform.Height = 225
+    $hForm.Border = Border.Etched
+    hLabel = New Label($hForm)
+    hLabel.Text = "Chemin du fichier texte."
+    hLabel.Width = 325
+    hLabel.Alignment = Align.center
+    hLabel.Height = 20
+    hLabel.Y = 12
+    hText = New TextBox($hForm)
+    hText.Width = 425
+    hText.Height = 20
+    hText.X = 11
+    hText.Y = 50
+    hText.Alignment = Align.Left
+    hbutton1 = New Button($hForm) As "Bouton1"
+    hbutton2 = New Button($hForm) As "Bouton2"
+    hbutton3 = New Button($hForm) As "Bouton3"
+    hbutton1.Width = 24
+    hbutton1.Height = 24
+    hbutton1.X = hText.Width + 12
+    hbutton1.Y = hText.Y - 2
+    hbutton1.Picture = Picture["Icones/next_frame.png"]
+    hbutton3.Width = 124
+    hbutton3.Picture = Picture["Icones/exit.png"]
+    hbutton3.Text = "Fermer"
+    hbutton3.Font.Bold = True
+    hbutton3.Height = 28
+    hbutton3.X = hbutton1.X + 12
+    hbutton3.Y = hbutton1.Y + 140
+    hbutton3.Visible = True
+    $hForm.Move($hForm.ScreenX, $hForm.ScreenY, 595, 225)
+    $hform.Center
+    $hform.Visible = True
+  Else
+    Try $hform.Close
+  Endif
+  
+End
+
+Public Sub Bouton1_Click()
+  
+  Dialog.Title = "Choisir un fichier"
+  Dialog.Path = User.home
+  Dialog.Filter = ["*.csv", "Fichiers csv", "*.txt", "Fichiers texte", "*", "Tous les fichiers"]
+  If Dialog.OpenFile() Then Return
+  hText.Text = Dialog.Path
+  hbutton2.Width = 124
+  hbutton2.Picture = Picture["Icones/charset.png"]
+  hbutton2.Text = "Traitement"
+  hbutton2.Font.Bold = True
+  hbutton2.Height = 28
+  hbutton2.X = hbutton1.X + 12
+  hbutton2.Y = hbutton1.Y + 100
+  hbutton2.Visible = True
+  
+End
+
+Public Sub Bouton2_Click()
+  
+  Dim Filetxt As String = hText.Text
+  Dim hfile As File
+  Dim Lig As String
+  Dim Lig2 As String[]
+  Dim Cart, NvFam As String
+  Dim Rfams As Result
+  
+  If Exist(filetxt) Then
+    If message.question("Attention ! Vous allez changer les familles a partir du fichier : " & hText.Text & "\n Voulez-vous continuer ?", "Oui", "Non") = 1 Then
+      hFile = Open Filetxt For Read
+      While Not Eof(hFile)
+        Line Input #hFile, Lig
+        Lig2 = Split(Lig, ";")
+        Code.Text = Lig2[0]
+        NFam.Text = Lig2[1]
+        Rfams = Utils.db.Exec("SELECT * FROM Fiches_Fam WHERE code_fam = &1", NFam.Text)
+        If Not Rfams.Available Then
+          If Start.son Then
+            Music.Play
+          Endif
+          Message.Warning("La famille " & NFam.Text & " n'existe pas !" & "\nLe produit " & Code.Text & " ne sera pas traité.", "OK")
+        Else
+          Change("Bouton2") 
+        Endif
+      Wend
+      hbutton3.Text = "Quitter"
+      Message.Info("Traitement terminé.")
+    Endif
+  Else
+    Message.Error("Fichier inexistant !")
+  Endif 
+  
+End
+
+Public Sub Bouton3_Click()
+  
+  $hform.Close
+  Fichier.value = False
   
 End
