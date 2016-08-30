@@ -26,6 +26,12 @@
 '
 
 Private Tab As String
+Private $Org As String
+Private $hform As Form
+Private hText As TextBox
+Private hbutton1 As Button
+Private hbutton2 As Button
+Private hbutton3 As Button
 
 '*************************
 '* On initialise l'écran *
@@ -116,6 +122,26 @@ Public Sub art_man()
       'ENDIF
       'FamMan()
     End With
+  Endif
+  
+End
+
+Public Sub AjoutArt()
+  
+  Dim rarts As Result
+  
+  Try Utils.db.Exec("INSERT INTO CFour (codeart, afour, nfour) Values (&1, &2, &3)", Code.Text, Afour.Text, NFour.Text)
+  If Error Then
+    Rarts = Utils.db.Exec("SELECT * FROM CFour where code = &1", Code.Text)
+    If Start.son Then
+      Music.Play
+    Endif
+    Message.Warning("Ce produit a déjà été saisit !")
+  Else
+    listBart.Text = listBart.Text & " " & Code.Text
+    Code.Clear
+    Afour.Clear
+    LibelFour.Text = ""
   Endif
   
 End
@@ -243,7 +269,12 @@ Public Sub Btn_Click()
       Stop Event
       
     Case 3
-      Change()
+      If Not Liste.value Then
+        Change("Btn")
+      Else
+        Change3() 
+      Endif
+      Stop Event
       Stop Event
       
     Case 4
@@ -268,7 +299,7 @@ End
 '******************************************************************************************
 '*            On lance les modifications pour les modifications pour un article           *
 '******************************************************************************************
-Public Sub Change()
+Public Sub Change($hOrg As String)
   
   Dim Tab1 As String
   Dim r2Result As Result
@@ -282,27 +313,33 @@ Public Sub Change()
           Utils.db.Exec("UPdate  " & Tab1 & "  SET  art_four = &2 where art_code = &1", Code.Text, Nfour.Text)
         Until r2Result.MoveNext()
       Endif
-      If Start.son Then
-        Music.Play
+      If $hOrg = "Btn" Then
+        If Start.son Then
+          Music.Play
+        Endif
+        Message.Warning("Traitement terminé !", "OK")
+        code.SetFocus
+        code.Select
       Endif
-      Message.Warning("Traitement terminé !", "OK")
-      code.SetFocus
-      code.Select
     Else
-      If Start.son Then
-        Music.Play
+      If $hOrg = "Btn" Then
+        If Start.son Then
+          Music.Play
+        Endif
+        Message.Warning("Veuillez saisir le nouveau fournisseur SVP !", "OK")
+        Nfour.SetFocus
+        Nfour.Select
       Endif
-      Message.Warning("Veuillez saisir le nouveau fournisseur SVP !", "OK")
-      Nfour.SetFocus
-      Nfour.Select
     Endif
   Else
-    If Start.son Then
-      Music.Play
+    If $hOrg = "Btn" Then
+      If Start.son Then
+        Music.Play
+      Endif
+      Message.Warning("Veuillez saisir un code article SVP !", "OK")
+      code.SetFocus
+      code.Select
     Endif
-    Message.Warning("Veuillez saisir un code article SVP !", "OK")
-    code.SetFocus
-    code.Select
   Endif
   
 End
@@ -344,5 +381,183 @@ Public Sub Change2()
     code.SetFocus
     code.Select
   Endif
+  
+End
+
+'********************************************************************
+'*  On lance les modifications  pour la liste des articles          *
+'********************************************************************
+Public Sub Change3()
+  
+  Dim rfour As Result
+  
+  If listBart.Text Then
+    Me.Mouse = Mouse.Wait
+    rfour = Utils.db.Exec("SELECT * from  CFour")
+    If rfour.Available Then 
+      Repeat
+        Utils.db.Exec("UPdate  Fiches_Art  SET  art_four = &2 where art_code = &1", rfour!codeart, rfour!nfour)
+      Until rfour.MoveNext()
+      Me.Mouse = Mouse.Default
+      If Start.son Then
+        Music.Play
+      Endif
+      Message.Warning("Traitement terminé !", "OK")
+      listBart.Text = ""
+      code.SetFocus
+      code.Select
+    Endif
+  Else
+    If Start.son Then
+      Music.Play
+    Endif
+    Message.Warning("Veuillez saisir des produits SVP !", "OK")
+    code.SetFocus
+    code.Select
+  Endif
+  
+End
+
+Public Sub Liste_Click()
+  
+  Dim TabF As String = "CFour"
+  
+  If Listbart.Visible Then 
+    Listbart.visible = False
+    Button9.visible = False
+  Else
+    Listbart.Visible = True
+    Button9.Visible = True
+    Try utils.db.Exec("DROP TABLE CFour")
+    Utils.db.Exec("CREATE Temporary TABLE " & TabF &
+      "(codeart Char(15) Not Null," &
+      "afour Char(15)," &
+      "nfour Char(15)," &
+      "PRIMARY KEY (codeart))" & "ENGINE = MYISAM")
+    
+  Endif
+  Code.SetFocus
+  
+End
+
+Public Sub Fichier_Click()
+  
+  Dim hLabel As Label
+  
+  If Fichier.value = True Then
+    $hForm = New Form As "Form"
+    $hform.Width = Frame2.W
+    $hform.Height = 225
+    $hForm.Border = Border.Etched
+    hLabel = New Label($hForm)
+    hLabel.Text = "Chemin du fichier texte."
+    hLabel.Width = 325
+    hLabel.Alignment = Align.center
+    hLabel.Height = 20
+    hLabel.Y = 12
+    hText = New TextBox($hForm)
+    hText.Width = 425
+    hText.Height = 20
+    hText.X = 11
+    hText.Y = 50
+    hText.Alignment = Align.Left
+    hbutton1 = New Button($hForm) As "Bouton1"
+    hbutton2 = New Button($hForm) As "Bouton2"
+    hbutton3 = New Button($hForm) As "Bouton3"
+    hbutton1.Width = 24
+    hbutton1.Height = 24
+    hbutton1.X = hText.Width + 12
+    hbutton1.Y = hText.Y - 2
+    hbutton1.Picture = Picture["Icones/next_frame.png"]
+    hbutton3.Width = 124
+    hbutton3.Picture = Picture["Icones/exit.png"]
+    hbutton3.Text = "Fermer"
+    hbutton3.Font.Bold = True
+    hbutton3.Height = 28
+    hbutton3.X = hbutton1.X + 12
+    hbutton3.Y = hbutton1.Y + 140
+    hbutton3.Visible = True
+    $hForm.Move($hForm.ScreenX, $hForm.ScreenY, 595, 225)
+    $hform.Center
+    $hform.Visible = True
+  Else
+    Try $hform.Close
+  Endif
+  
+End
+
+Public Sub Bouton1_Click()
+  
+  Dialog.Title = "Choisir un fichier"
+  Dialog.Path = User.home
+  Dialog.Filter = ["*.csv", "Fichiers csv", "*.txt", "Fichiers texte", "*", "Tous les fichiers"]
+  If Dialog.OpenFile() Then Return
+  hText.Text = Dialog.Path
+  hbutton2.Width = 124
+  hbutton2.Picture = Picture["Icones/charset.png"]
+  hbutton2.Text = "Traitement"
+  hbutton2.Font.Bold = True
+  hbutton2.Height = 28
+  hbutton2.X = hbutton1.X + 12
+  hbutton2.Y = hbutton1.Y + 100
+  hbutton2.Visible = True
+  
+End
+
+Public Sub Bouton2_Click()
+  
+  Dim Filetxt As String = hText.Text
+  Dim hfile As File
+  Dim Lig As String
+  Dim Lig2 As String[]
+  Dim Cart, NvFam As String
+  Dim Rfams As Result
+  
+  If Exist(filetxt) Then
+    If message.question("Attention ! Vous allez changer les fournisseurs a partir du fichier : " & hText.Text & "\n Voulez-vous continuer ?", "Oui", "Non") = 1 Then
+      hFile = Open Filetxt For Read
+      While Not Eof(hFile)
+        Line Input #hFile, Lig
+        Lig2 = Split(Lig, ";")
+        Code.Text = Lig2[0]
+        NFour.Text = Lig2[1]
+        Rfams = Utils.db.Exec("SELECT * FROM Fiches_Four WHERE fo_code = &1", NFour.Text)
+        If Not Rfams.Available Then
+          If Start.son Then
+            Music.Play
+          Endif
+          Message.Warning("Le fournisseur " & NFour.Text & " n'existe pas !" & "\nLe produit " & Code.Text & " ne sera pas traité.", "OK")
+        Else
+          Change("Bouton2") 
+        Endif
+      Wend
+      hbutton3.Text = "Quitter"
+      Message.Info("Traitement terminé.")
+    Endif
+  Else
+    Message.Error("Fichier inexistant !")
+  Endif 
+  
+End
+
+Public Sub Bouton3_Click()
+  
+  $hform.Close
+  Fichier.value = False
+  
+End
+
+Public Sub Button9_Click()
+  
+  If Not IsNull(Nfour.text) Then 
+    AjoutArt()
+    Code.SetFocus
+  Endif
+  
+End
+
+Public Sub Button9_KeyPress()
+  
+  If Key.Code = Key.Enter Or If Key.code = Key.Return Then Button9_Click()
   
 End
