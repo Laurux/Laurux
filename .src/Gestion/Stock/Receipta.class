@@ -49,6 +49,7 @@ Nlg As Integer ' Flag pour gestion des modifs
 Nlgn As String ' numero de ligne
 Nl As String ' numero de ligne rappelée
 Modif As String = "0" ' Flag pour savoir si la ligne est en modification
+Private bModif As Boolean = False ' test pour enregistrement produit lors d'un rappel de ligne
 NlgModif As String ' Flag pour récuperer le numéro de ligne modifiée
 Totcom As Float ' Montant de la commande lors du rappel
 son As Integer = Start.Son
@@ -1428,11 +1429,12 @@ Public Sub controlArt($cart As String)
         Nlg = 1
       Else
         BColrcp = True
-        If Colrcp.current[7] = 0 Then
+        If Colrcp.current[7] = 0 Or If bmodif Then
           Modif = "1"
           Nl = Colrcp.Current[0]
           Nlg = 0
           NlgModif = Colrcp.Current[0]
+          bModif = False
           'Colrcp_Activate()
         Else
           Modif = "0"
@@ -2064,7 +2066,6 @@ Public Sub Maj_colrcp()
     Else
       Colrcp.Item[13] = Totht.Text
     Endif
-    Print Colrcp.Item[14]
     Colrcp.MoveFirst
     Totalrcpt.Text = "0,00"
     bas_doc()
@@ -2237,6 +2238,7 @@ Public Sub Colrcp_Activate()
           pbhtLF()
           Totht.text = Format(Val(paht.text) * Val(qterecue.text), nbdec)
           Modif = "1"
+          bModif = True
           Colrcp.MoveFirst
           Do
             Colrcp.Item.Selected = True
@@ -2248,9 +2250,9 @@ Public Sub Colrcp_Activate()
           qtes = 0
         Endif
       Else
-        'message.warning("Veuillez saisir un numéro de Bl SVP!", "OK !")
-        'Numbl.SetFocus
-        'Numbl.Select
+        message.warning("Veuillez saisir un numéro de Bl SVP!", "OK !")
+        Numbl.SetFocus
+        Numbl.Select
       Endif
     Endif
   End With
@@ -2634,6 +2636,8 @@ Public Sub Maj_Com()
         Endif
         ncom2 = Colrcp.Item[14]
       Until Colrcp.MoveNext()
+      If bTotal Then Utils.db.Exec("delete from Fiches_Ligcom WHERE numcom <> &1 and four = &2", ncom2, Codefour.Text)
+      If bTotal Then Utils.db.Exec("delete from Fiches_Entcom WHERE numcom <> &1 and four = &2", ncom2, Codefour.Text)
     Endif
     If Not bTotal Then 
       ncom2 = numcom.Text
