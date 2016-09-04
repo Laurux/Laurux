@@ -883,7 +883,8 @@ Public Sub Vbtn1()
   Endif
   If Cart.Text And qterecue.Text Then
     qterecue_LF()
-    controlArt(Cart.Text)
+    'controlArt(Cart.Text)
+    If modif <> "1" Then controlArt(Cart.Text)
     If BColrcp And modif = "0" Then
       ControlProd()
       bas_doc()
@@ -971,6 +972,8 @@ Public Sub Btn_Click()
           Cart.SetFocus
           Cart.Select
         Endif
+        Modif = "0"
+        Nlg = 0
       Endif
       Stop Event
       
@@ -2941,14 +2944,20 @@ Public Sub Rcptman_Click()
       Colrcp.Clear
       If bTotal Then 
         RecupCom()
+      Else
+        RecupLig()
       Endif
     Else
       AffColcom() 
     Endif
     Cart.SetFocus
+  Else
+    Message.Warning("Veuillez saisir un numéro de BR SVP", "OK")
+    Numbl.SetFocus
   Endif
   
 End
+
 '***************************************************
 '*     Selection d'une commande  manuellement      *
 '***************************************************
@@ -2996,11 +3005,15 @@ Public Sub RecupCom()
         If LigResult.Available Then
           Do
             ArtResult = Utils.db.Exec("SELECT * FROM " & tab2 & " WHERE art_code = &1", LigResult!code)
-            controlArt2(LigResult!code)
+            If Left$(LigResult!code, 4) <> ".DEP" Then
+              controlArt2(LigResult!code)
+            Else
+              modif = 0
+            Endif
             If modif = 0 Then
-              iligne = Format$(Colrcp.count + 1, "000")
-              Colrcp.Add(iligne, iligne)
-              Colrcp.Item[0] = iligne
+              iligne = Colrcp.count + 1
+              Colrcp.Add(Format$(iligne, "000"), Format$(iligne, "000"))
+              Colrcp.Item[0] = Format$(iligne, "000")
               Colrcp.Item[1] = LigResult!code
               If ArtResult.Available Then
                 Pmp = ArtResult!art_pmp
@@ -3085,15 +3098,19 @@ Public Sub RecupLig()
         Do
           ArtResult = Utils.db.Exec("SELECT * FROM " & tab2 & " WHERE art_code = &1", LigResult!code)
           Colrcp.Add(LigResult!nligne, LigResult!nligne)
-          Colrcp.Item[0] = LigResult!nligne
+          Colrcp.Item[0] = Format$(LigResult!nligne, "000")
           Colrcp.Item[1] = LigResult!code
           If ArtResult.Available Then
             Pmp = ArtResult!art_pmp
             nbd = ArtResult!art_nbd
             nbdec = Utils.Find_nbdec(nbd)
           End If
-          Colrcp.Item[7] = LigResult!qte
           Colrcp.Item[3] = LigResult!qte
+          If Rcptman.value = True Then
+            Colrcp.Item[7] = 0
+          Else
+            Colrcp.Item[7] = LigResult!qte
+          Endif
           Colrcp.Item[2] = LigResult!design
           Colrcp.Item[4] = Format$(Val(Utils.cpoint(LigResult!pbht)), Nbdec)
           If Len(Colrcp.Item[4]) - InStr(Colrcp.Item[4], ",") = 2 Then Colrcp.Item[4] = Colrcp.Item[4] & "  "
