@@ -226,6 +226,7 @@ Private $photo As String
 Private Refliee As String
 Private QteRefliee As String
 Private $Matlist As ColumnView
+Private bnumfac As Boolean = False
 
 '**********************************************************
 '*initialisation écrans et gestion onglet client          *
@@ -9506,8 +9507,13 @@ Public Sub Impression(Org As String)
               Try Message.Warning(" veuillez saisir une date d'édition Svp !", "Ok")
             Else
               If Bfac.value And Imp = "0" Then
-                Jour = ty & Format$(Now, "yyyy") & nfac & " du " & dtef.Text
-                Nmfac = Format$(Now, "yyyy") & nfac
+                If bnumfac Then
+                  Jour = ty & Right$(dtef.Text, 2) & Mid$(dtef.Text, 4, 2) & nfac & " du " & dtef.Text
+                  Nmfac = Right$(dtef.Text, 2) & Mid$(dtef.Text, 4, 2) & nfac
+                Else
+                  Jour = ty & Right$(Dtef.text, 4) & nfac & " du " & dtef.Text
+                  Nmfac = Right$(Dtef.text, 4) & nfac
+                Endif
               Else
                 If Bfac.value And Imp = "1" Then
                   Jour = ty & Nmfac & " du " & Dfac
@@ -10365,8 +10371,9 @@ Public Sub Impression(Org As String)
             AffBledit2.Value = False
             'Maj_Parametres()
             BlRslt = Utils.db.Exec("SELECT * FROM " & tab1 & " where numbl = &1", num.Text)
-            Nfac = Right$(Dtef.text, 4) & Nfac
-            Utils.db.Exec("UPDATE  " & Tab1 & "  SET  imp = &2, numfac = &3, reg = &4, ech = &5 , dtefac = &6, mtreg = &7, type = &8 WHERE numbl = &1", num.Text, "1", Nfac, regmt.Text, .Cdate_Dbase(Dtech.text), .Cdate_Dbase(Dtef.Text), Rglt.Text, "F")
+            
+            'Nfac = Right$(Dtef.text, 4) & Nfac
+            Utils.db.Exec("UPDATE  " & Tab1 & "  SET  imp = &2, numfac = &3, reg = &4, ech = &5 , dtefac = &6, mtreg = &7, type = &8 WHERE numbl = &1", num.Text, "1", Nmfac, regmt.Text, .Cdate_Dbase(Dtech.text), .Cdate_Dbase(Dtef.Text), Rglt.Text, "F")
             Verif_solde()
             Maj_Compta()
             Maj_Suivis()
@@ -10421,7 +10428,7 @@ Public Sub Maj_Traite()
     Accept = False
   Endif
   Traite = "Fiches_Traites"
-  Utils.db.Exec("insert into  " & Traite & "  (code, nom, numfac, montant, datech, date, acceptee, ecartee) value (&1, &2, &3, &4, &5, &6, &7, &8)", Code3.Text, Nom.text, Nfac, rglt.Text, Utils.Cdate_Dbase(dateech), Utils.Cdate_Dbase(dtef.Text), Accept, 0)
+  Utils.db.Exec("insert into  " & Traite & "  (code, nom, numfac, montant, datech, date, acceptee, ecartee) value (&1, &2, &3, &4, &5, &6, &7, &8)", Code3.Text, Nom.text, Nmfac, rglt.Text, Utils.Cdate_Dbase(dateech), Utils.Cdate_Dbase(dtef.Text), Accept, 0)
   
 End
 
@@ -10477,6 +10484,7 @@ Public Sub Parametres()
   If rResult.Available Then
     Nfac = rResult!dnfac
     Jnl = rResult!jrnal
+    bnumfac = rResult!nfac
   Endif
   Nfac = Format$(Val(Nfac) + 1, "000000")
   
@@ -10770,7 +10778,7 @@ Public Sub Maj_Compta()
             Mtc = Abs(Val(.cpoint(rResult!totalht)))
             Mtd = 0
           Endif
-          Utils.db.Exec("INSERT INTO " & Tab & "(jour, numero, compte, collectif, intitule, dte, dateech, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, numerodef, dteval) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20})", Jnl, numr, coll, collectif, Intit, .Cdate_Dbase(dtef.Text), .Cdate_Dbase(dtech.Text), Nfac, Libel, Mtd, Mtc, Valid, Prov, Tresor, Pointee, lettree, Cloturee, Relance, numr2, Format$(Now, "yyyymmdd"))
+          Utils.db.Exec("INSERT INTO " & Tab & "(jour, numero, compte, collectif, intitule, dte, dateech, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, numerodef, dteval) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20})", Jnl, numr, coll, collectif, Intit, .Cdate_Dbase(dtef.Text), .Cdate_Dbase(dtech.Text), Nmfac, Libel, Mtd, Mtc, Valid, Prov, Tresor, Pointee, lettree, Cloturee, Relance, numr2, Format$(Now, "yyyymmdd"))
           hresult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", coll)
           If hresult!solde = "" Then
             Sld = Mtd - Mtc
@@ -10808,7 +10816,7 @@ Public Sub Maj_Compta()
           Mtd = Round(Mtd)
           Mtc = Round(Mtc)
         Endif
-        Utils.db.Exec("INSERT INTO " & Tab & "(jour, numero, compte, intitule, dte, dateech, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18})", Jnl, numr, Cpt, Intit, .Cdate_Dbase(dtef.Text), .Cdate_Dbase(dtech.Text), Nfac, Libel, Mtd, Mtc, Valid, Prov, Tresor, Pointee, lettree, Cloturee, Relance, numr2)
+        Utils.db.Exec("INSERT INTO " & Tab & "(jour, numero, compte, intitule, dte, dateech, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18})", Jnl, numr, Cpt, Intit, .Cdate_Dbase(dtef.Text), .Cdate_Dbase(dtech.Text), Nmfac, Libel, Mtd, Mtc, Valid, Prov, Tresor, Pointee, lettree, Cloturee, Relance, numr2)
         hresult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", Cpt)
         If hresult!solde = "" Then
           Sld = Mtd - Mtc
@@ -10849,8 +10857,8 @@ Public Sub Maj_Compta()
             Endif
           Endif
           Libel = "Rglt " & Regmt.Text & " " & $intitule
-          Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Code3.Text, rs2, .Cdate_Dbase(Dtef.Text), Nfac, Nfac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text))
-          Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech, collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, coll, rs2, .Cdate_Dbase(Dtef.Text), Nfac, Nfac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text), 1)
+          Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Code3.Text, rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text))
+          Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech, collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, coll, rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text), 1)
           If Val(Tottc.Text) > 0 Then
             Mtd = Mtc
             Mtc = 0
@@ -10858,7 +10866,7 @@ Public Sub Maj_Compta()
             Mtc = Mtd
             Mtd = 0 
           Endif
-          Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Cptreglt, Regmt.text & " " & rs2, .Cdate_Dbase(Dtef.Text), Nfac, Nfac, Libel, mtd, mtc, 1, 0, 1, 0, cloturee, .Cdate_Dbase(Dtef.Text))
+          Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Cptreglt, Regmt.text & " " & rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, 0, cloturee, .Cdate_Dbase(Dtef.Text))
           
           '*******************************On recalcule les soldes des comptes************************************
           If Val(Tottc.Text) > 0 Then
@@ -10943,8 +10951,8 @@ Public Sub Maj_Compta()
             Endif
           Endif
           Libel = "Règlement " & $intitule & " par " & Regmt2.Text
-          Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Code3.Text, rs2, .Cdate_Dbase(Dtef.Text), Nfac, Nfac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text))
-          Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech, collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, coll, rs2, .Cdate_Dbase(Dtef.Text), Nfac, Nfac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text), 1)
+          Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Code3.Text, rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text))
+          Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech, collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, coll, rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text), 1)
           If Val(Tottc.Text) > 0 Then
             Mtd = Mtc
             Mtc = 0
@@ -10952,7 +10960,7 @@ Public Sub Maj_Compta()
             Mtc = Mtd
             Mtd = 0 
           Endif
-          Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Cptreglt, Regmt2.text & " " & rs2, .Cdate_Dbase(Dtef.Text), Nfac, Nfac, Libel, mtd, mtc, 1, 0, 1, 0, cloturee, .Cdate_Dbase(Dtef.Text))
+          Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Cptreglt, Regmt2.text & " " & rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, 0, cloturee, .Cdate_Dbase(Dtef.Text))
           
           '*******************************On recalcule les soldes des comptes************************************
           
@@ -11201,7 +11209,7 @@ Public Sub Maj_Suivis()
   With utils
     Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabSuivis") & " WRITE")
     rSuivi = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabSuivis") & " WHERE numdev = &1 and code = &2", Num.Text, Code.Text)
-    If rSuivi.Available Then Utils.db.Exec("UPdate  " & Cbase.Table("TabSuivis") & "  SET  numfac= &1, datefac = &2 WHERE numdev = &3 and code = &4", Nfac, .Cdate_Dbase(dtef.Text), num.Text, code.Text)
+    If rSuivi.Available Then Utils.db.Exec("UPdate  " & Cbase.Table("TabSuivis") & "  SET  numfac= &1, datefac = &2 WHERE numdev = &3 and code = &4", Nmfac, .Cdate_Dbase(dtef.Text), num.Text, code.Text)
   End With
   
 End

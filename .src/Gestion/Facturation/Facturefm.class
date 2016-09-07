@@ -107,6 +107,7 @@ Private adr1 As String
 Private adr2 As String
 Private cpcli As String
 Private villecli As String
+Private bnumfac As Boolean = False
 
 '**********************************************************
 '*initialisation écrans et gestion onglet client          *
@@ -931,8 +932,13 @@ Public Sub Impression()
                 Txtleg = " Règlement par " & Regmt.Text & " et " & Regmt2.Text & " au " & Format$(Now, "dd.mm.yyyy")
               Endif
             Endif
-            jour = ty & Format$(Right$(dtef.Text, 4)) & nfac & " du " & dtef.Text
-            numerofac = Format$(Right$(dtef.Text, 4)) & nfac
+            If bnumfac Then
+              Jour = ty & Right$(dtef.Text, 2) & Mid$(dtef.Text, 4, 2) & nfac & " du " & dtef.Text
+              Numerofac = Right$(dtef.Text, 2) & Mid$(dtef.Text, 4, 2) & nfac
+            Else
+              jour = ty & Right$(dtef.Text, 4) & nfac & " du " & dtef.Text
+              numerofac = Right$(dtef.Text, 4) & nfac
+            Endif
             If Entete.Value Then
               pdf.Entete(rs, adr11, adr22, ville, cap, rcs, siret, ape, Tvaintra, Tel, portable, fax, mail, site, Visudoc, Pays, Iban, False, Libre)
               pdf.Entete2(rs2, adr211, adr222, ville2, Pays, "", False)
@@ -1196,7 +1202,7 @@ Public Sub Impression()
               Calc_tva()
               Utils.db.Exec("INSERT INTO " & Tab10 & "(compte, intitule, totalht, codetva) VALUES (&1, &2, &3, &4)", Colbl.Item[0], nom, Mttc, "")
               Verif_solde()
-              Nfac = Right$(Dtef.text, 4) & Nfac
+              Nfac = numerofac
               Maj_Compta()
               Majnum()
               Ventilation()
@@ -1211,7 +1217,7 @@ Public Sub Impression()
           Nom = Replace$(Nom, " ", "")
           Nom = Replace$(Nom, "/", "")
           Nom = Replace$(Nom, "'", "")
-          Stry = Split("F" & nfac & Nom, " ")
+          Stry = Split("F" & numerofac & Nom, " ")
           For Each ty2 In Stry
             ty = ty & ty2
           Next
@@ -1267,6 +1273,7 @@ Public Sub Parametres()
   If rResult.Available Then
     Nfac = rResult!dnfac
     Jnl = rResult!jrnal
+    bnumfac = rResult!nfac
   Endif
   
 End
@@ -1528,7 +1535,7 @@ Public Sub Maj_Compta()
           Else
             Lettree = 0
           Endif
-          Utils.db.Exec("INSERT INTO " & Tmvt & "(jour, numero, compte, collectif, intitule, dte, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18})", Jnl, numr, coll, collectif, Intit, .Cdate_Dbase(dtef.Text), Nfac, Libel, Mtd, Mtc, Valid, Prov, Tresor, pointee, lettree, cloturee, relance, numr2)
+          Utils.db.Exec("INSERT INTO " & Tmvt & "(jour, numero, compte, collectif, intitule, dte, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18})", Jnl, numr, coll, collectif, Intit, .Cdate_Dbase(dtef.Text), numerofac, Libel, Mtd, Mtc, Valid, Prov, Tresor, pointee, lettree, cloturee, relance, numr2)
           rrResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " Where compte_cc = &1", coll)
           If rrResult!solde = "" Then
             Sld = Mtd - Mtc
@@ -1588,7 +1595,7 @@ Public Sub Maj_Compta()
           Mtc = Round(Mtc)
         Endif
         'Utils.db.Exec("INSERT INTO " & Tmvt & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnl, numr, cpt, Intit, .Cdate_Dbase(dtef.Text), Right$(Dtef.text, 2) & Mid$(Dtef.text, 4, 2) & Nfac, Libel, Mtd, Mtc, Valid, Prov, Tresor, pointee, lettree, cloturee, relance, numr2)
-        Utils.db.Exec("INSERT INTO " & Tmvt & "(jour, numero, compte, intitule, dte, dateech, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18})", Jnl, numr, Cpt, Intit, .Cdate_Dbase(dtef.Text), .Cdate_Dbase(dateech2), Nfac, Libel, Mtd, Mtc, Valid, Prov, Tresor, Pointee, lettree, Cloturee, Relance, numr2)
+        Utils.db.Exec("INSERT INTO " & Tmvt & "(jour, numero, compte, intitule, dte, dateech, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18})", Jnl, numr, Cpt, Intit, .Cdate_Dbase(dtef.Text), .Cdate_Dbase(dateech2), numerofac, Libel, Mtd, Mtc, Valid, Prov, Tresor, Pointee, lettree, Cloturee, Relance, numr2)
         rrResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " Where compte_cc = &1", cpt)
         If rrResult!solde = "" Then
           Sld = Mtd - Mtc
@@ -1632,8 +1639,8 @@ Public Sub Maj_Compta()
             Endif
           Endif
           Libel = "Rglt " & Regmt.Text & " " & $intitule 
-          Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Codeclient.Text, rs2, .Cdate_Dbase(Dtef.Text), Nfac, Nfac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text))
-          Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech, collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, coll, rs2, .Cdate_Dbase(Dtef.Text), Nfac, Nfac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text), 1)
+          Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Codeclient.Text, rs2, .Cdate_Dbase(Dtef.Text), Numerofac, Numerofac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text))
+          Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech, collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, coll, rs2, .Cdate_Dbase(Dtef.Text), Numerofac, Numerofac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text), 1)
           If Val(Rglt.Text) > 0 Then
             Mtd = Mtc
             Mtc = 0
@@ -1641,7 +1648,7 @@ Public Sub Maj_Compta()
             Mtc = Mtd
             Mtd = 0 
           Endif
-          Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Cptreglt, Regmt.text & " " & rs2, .Cdate_Dbase(Dtef.Text), Nfac, Nfac, Libel, mtd, mtc, 1, 0, 1, 0, cloturee, .Cdate_Dbase(Dtef.Text))
+          Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Cptreglt, Regmt.text & " " & rs2, .Cdate_Dbase(Dtef.Text), Numerofac, numerofac, Libel, mtd, mtc, 1, 0, 1, 0, cloturee, .Cdate_Dbase(Dtef.Text))
           
           '*******************************On recalcule les soldes des comptes************************************
           If Val(rglt.Text) > 0 Then
@@ -1723,8 +1730,8 @@ Public Sub Maj_Compta()
             Endif
           Endif
           Libel = "Rglt " & Regmt2.Text & " " & $intitule
-          Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Codeclient.Text, rs2, .Cdate_Dbase(Dtef.Text), Nfac, Nfac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text))
-          Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech, collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, coll, rs2, .Cdate_Dbase(Dtef.Text), Nfac, Nfac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text), 1)
+          Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Codeclient.Text, rs2, .Cdate_Dbase(Dtef.Text), Numerofac, numerofac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text))
+          Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech, collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, coll, rs2, .Cdate_Dbase(Dtef.Text), numerofac, Numerofac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text), 1)
           If Val(rglt2.Text) > 0 Then
             Mtd = Mtc
             Mtc = 0
@@ -1732,7 +1739,7 @@ Public Sub Maj_Compta()
             Mtc = Mtd
             Mtd = 0 
           Endif
-          Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Cptreglt, Regmt2.text & " " & rs2, .Cdate_Dbase(Dtef.Text), Nfac, Nfac, Libel, mtd, mtc, 1, 0, 1, 0, cloturee, .Cdate_Dbase(Dtef.Text))
+          Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Cptreglt, Regmt2.text & " " & rs2, .Cdate_Dbase(Dtef.Text), numerofac, numerofac, Libel, mtd, mtc, 1, 0, 1, 0, cloturee, .Cdate_Dbase(Dtef.Text))
           
           '*******************************On recalcule les soldes des comptes************************************
           
@@ -1878,15 +1885,15 @@ Public Sub Calc_tva()
     Endif
     pdf.Level10F(Toteuros, Tva, Mttc2, Txtleg, PosY - 6, "", "", "")
     'PosY = PosY + 3
-    If Settings["/Soc" & Start.Societe & "/Coupon"] Then pdf.Level15F(CCli, Nfac, Mttc2, PosY, Devises)
+    If Settings["/Soc" & Start.Societe & "/Coupon"] Then pdf.Level15F(CCli, numerofac, Mttc2, PosY, Devises)
     PosY = PosY + 8
     pdf.Level11F(Txtleg2, PosY)
     efac = Utils.db.Exec("SELECT * FROM " & efacs & " where cli_code = &1", Colbl.Item[0])
-    If dateech = " à réception." Then dateech = dtef.text
+    If dateech = " à réception." Then dateech = dtef.text 
     If Not Divers.value Then
-      Utils.db.Exec("INSERT INTO " & Entf & "(numfac,datefac,cdclifac,cvclifac, nmclifac, rmofac, rartfac, pnmclifac, adr1fac, adr2fac, cpfac, villefac, Exofac, remmofac, remartfac, totfac, reg, ech, numerobl, acpt, mreg, marge_art, marge_mo, totfacttc) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13},&{14},&{15},&{16},&{17},&{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24})", Right$(dtef.Text, 4) & nfac, .Cdate_Dbase(datej.Text), Colbl.Item[0], efac!cli_rs_soc, efac!cli_nom, 0, 0, efac!cli_pnm, efac!cli_adr1, efac!cli_adr2, efac!cli_cd_ptl, efac!cli_ville, "0", .cpoint(Remmo), .cpoint(Remart), Val(Totht), "", .Cdate_Dbase(dateech), "", 0, "", mgart, mgmo, Val(Mttc))
+      Utils.db.Exec("INSERT INTO " & Entf & "(numfac,datefac,cdclifac,cvclifac, nmclifac, rmofac, rartfac, pnmclifac, adr1fac, adr2fac, cpfac, villefac, Exofac, remmofac, remartfac, totfac, reg, ech, numerobl, acpt, mreg, marge_art, marge_mo, totfacttc) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13},&{14},&{15},&{16},&{17},&{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24})", numerofac, .Cdate_Dbase(datej.Text), Colbl.Item[0], efac!cli_rs_soc, efac!cli_nom, 0, 0, efac!cli_pnm, efac!cli_adr1, efac!cli_adr2, efac!cli_cd_ptl, efac!cli_ville, "0", .cpoint(Remmo), .cpoint(Remart), Val(Totht), "", .Cdate_Dbase(dateech), "", 0, "", mgart, mgmo, Val(Mttc))
     Else
-      Utils.db.Exec("INSERT INTO " & Entf & "(numfac,datefac,cdclifac,cvclifac, nmclifac, rmofac, rartfac, pnmclifac, adr1fac, adr2fac, cpfac, villefac, Exofac, remmofac, remartfac, totfac, reg, ech, numerobl, acpt, mreg, marge_art, marge_mo, totfacttc) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13},&{14},&{15},&{16},&{17},&{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24})", Right$(dtef.Text, 4) & nfac, .Cdate_Dbase(datej.Text), Colbl.Item[0], "", Nom, 0, 0, "", adr1, adr2, cpcli, villecli, "0", .cpoint(Remmo), .cpoint(Remart), Val(Totht), "", .Cdate_Dbase(dateech), "", 0, "", mgart, mgmo, Val(Mttc))
+      Utils.db.Exec("INSERT INTO " & Entf & "(numfac,datefac,cdclifac,cvclifac, nmclifac, rmofac, rartfac, pnmclifac, adr1fac, adr2fac, cpfac, villefac, Exofac, remmofac, remartfac, totfac, reg, ech, numerobl, acpt, mreg, marge_art, marge_mo, totfacttc) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13},&{14},&{15},&{16},&{17},&{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24})", numerofac, .Cdate_Dbase(datej.Text), Colbl.Item[0], "", Nom, 0, 0, "", adr1, adr2, cpcli, villecli, "0", .cpoint(Remmo), .cpoint(Remart), Val(Totht), "", .Cdate_Dbase(dateech), "", 0, "", mgart, mgmo, Val(Mttc))
     Endif
     Nlgn = "0000"
     Totht = "0"
@@ -1910,7 +1917,7 @@ Public Sub Maj_Traite()
   Endif
   Traite = "Fiches_Traites"
   If dateech = " à réception." Then dateech = dtef.text
-  Utils.db.Exec("insert into  " & Traite & "  (code, nom, numfac, montant, datech, date, acceptee, ecartee) value (&1, &2, &3, &4, &5, &6, &7, &8)", CCli, Rs2, Nfac, Mttc, Utils.Cdate_Dbase(dateech), Utils.Cdate_Dbase(dtef.Text), Accept, 0)
+  Utils.db.Exec("insert into  " & Traite & "  (code, nom, numfac, montant, datech, date, acceptee, ecartee) value (&1, &2, &3, &4, &5, &6, &7, &8)", CCli, Rs2, numerofac, Mttc, Utils.Cdate_Dbase(dateech), Utils.Cdate_Dbase(dtef.Text), Accept, 0)
   
 End
 
@@ -1929,7 +1936,7 @@ Public Sub Ent_Archives()
   Dim Dt As String
   Dim TauxTva As String
   
-  Dt = Format$(Right$(dtef.Text, 4)) & nfac
+  Dt = numerofac
   Ligf = "Fiches_HistoLigfac" 
   Entbon = "Fiches_Bl" 
   Ligbon = "Fiches_Ligbl" 
