@@ -20,7 +20,7 @@ Public Sub Button1_Click()
   
   Dim Rarts As Result
   Dim code As String
-  Dim pmp As String
+  Dim pmp, msg As String
   
   If Message.Question("Ce programme va mettre à jour les zones sélectionnées.\nVoulez-vous continuer ?", "Oui", "Non") = 1 Then
     Me.Mouse = Mouse.wait
@@ -46,8 +46,38 @@ Public Sub Button1_Click()
     If Stk2.value Then
       Utils.db.Exec("Update  " & Cbase.Table("TabArt") & "  SET  art_stocke = &1", "1")
     Endif
+    If Chk3.value Then
+      If Not IsNull(TextBox1.Text) Then
+        msg = "Attention! Vous allez effacer tous les codes barres commençant par " & TextBox1.text
+      Else
+        msg = "Attention! Vous allez effacer l'ensemble des codes barres " & TextBox1.text
+      Endif
+      If Message.Question(Msg & "\nVoulez-vous continuer ?", "Oui", "Non") = 1 Then
+        If Not IsNull(TextBox1.Text) Then
+          Utils.db.Exec("Update  Fiches_Art  SET  art_cbarre = &1 where art_cbarre like \"%" & TextBox1.text & "%\"", " ")
+          Utils.db.Exec("DELETE FROM Fiches_CdBarre WHERE codep like \"%" & TextBox1.text & "%\"")
+          Utils.db.Exec("DELETE FROM Fiches_CdBarre WHERE codeb like \"%" & TextBox1.text & "%\"")
+        Else
+          Utils.db.Exec("Update  Fiches_Art  SET  art_cbarre = &1", "")
+          Utils.db.Exec("Truncate Table Fiches_CdBarre")
+        Endif
+      Else
+        Return
+      Endif
+    Endif
   Endif
   Me.mouse = Mouse.Default
   Message.Warning("Traitement terminé !")
+  
+End
+
+Public Sub Chk3_Click()
+  
+  If Not TextBox1.Visible Then
+    TextBox1.visible = True
+    TextBox1.SetFocus
+  Else
+    TextBox1.visible = False
+  Endif
   
 End
