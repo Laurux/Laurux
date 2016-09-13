@@ -76,7 +76,8 @@ Private icpt As String
 Private hfil As File
 Private Hnew As File
 Private pdf As Cdocuments
-Private Pttc As String = "0"
+Private Pttc As String = "0" 'total ttc du document
+Private Ppattc As String = "0" 'total ttc du produit
 Private son As Integer = Start.Son
 
 Public Sub _New()
@@ -1347,6 +1348,8 @@ Public Sub Gencom()
         Colrcp.Item[7] = Format$(Qtecom * rarts!art_pauaht, Nbdec)
         Colrcp.Item[8] = Format$(rarts!art_prvt, Nbdec)
         Colrcp.Item[9] = Format$(rarts!art_frais, Nbdec)
+        Txtva = CPrix.CTva(rarts!art_tva)
+        Colrcp.Item[16] = Format$(Val(Colrcp.Item[7]) + (Val(Colrcp.Item[7]) * Val(Utils.cpoint(Txtva)) / 100), nbdec)
         If Len(Colrcp.Item[7]) - InStr(Colrcp.Item[7], ",") = 2 Then Colrcp.Item[7] = Colrcp.Item[7] & " "
         Cart.text = rarts!art_code
         GestCoul(Cart.text)
@@ -1883,6 +1886,7 @@ Public Sub art_man()
           Txtva = CPrix.CTva(Tva.Text)
           PvTTc.Text = Format$(rarts!art_pvttc, nbdec)
           Pattc.Text = Format$(Val(paht.Text) + (Val(paht.Text) * Val(.cpoint(Txtva)) / 100), nbdec)
+          Ppattc = Pattc.Text
           Ectx = Rarts!art_ect
           Try Ect = Format$(rarts!art_eco, nbdec)
           If Error Then Ect = "0,00"
@@ -1936,7 +1940,10 @@ Public Sub art_man()
               Endif
             Endif
             qtecom.Text = .Cdec(Decm, qtecom.Text)
-            Pattc.Text = Format$(Val(.cpoint(qtecom.Text)) * Val(Pattc.Text), nbdec)
+            If Val(.cpoint(qtecom.Text)) <> 0 Then
+              Pattc.Text = Format$(Val(.cpoint(qtecom.Text)) * Val(Pattc.Text), nbdec)
+              Ppattc = Pattc.Text
+            Endif
           Endif
           Totht.Text = paht.Text
           Calc_Percent()
@@ -2116,7 +2123,7 @@ Public Sub qtecom_LF()
         b = 0
         If Paht.Text Then 
           Totht.Text = Format$(Val(.cpoint(qtecom.Text)) * Val(Paht.Text), nbdec)
-          Pattc.Text = Format$(Val(.cpoint(qtecom.Text)) * Val(Pattc.Text), nbdec)
+          Pattc.Text = Format$(Val(.cpoint(qtecom.Text)) * Val(Ppattc), nbdec)
         Endif
         If Pdprod.text Then Pdx = Format$((Val(.cpoint(qtecom.Text)) * Val(.cpoint(Pdprod.Text))), "0.000")
       Endif
