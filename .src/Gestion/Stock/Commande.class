@@ -118,6 +118,7 @@ Public Sub _New()
   Colrcp.Columns[6].Alignment = 2
   Colrcp.Columns[7].Text = "Total ht"
   Colrcp.Columns[7].Alignment = 2
+  Colrcp.Columns[8].Text = "Code barre"
   lcolrcp()
   Nlgn = "000"
   If Settings["/Soc" & Start.Societe & "/Coef"] Then
@@ -854,6 +855,7 @@ Public Sub Btn_Click()
       Stop Event
       
     Case 8
+      If Colcom.Visible = True Then Colcom.Visible = False
       Button8_Click()
       
     Case 10
@@ -1214,6 +1216,8 @@ Public Sub Genc()
   If Colrcp.count <> 0 Then
     If message.Question("Il y a des lignes en cours de saisie. Que voulez-vous faire ? \n1- Retourner en saisie \n2- Supprimer les lignes et génerer la commande. ", " 1 ", "2 ") = "1" Then
       b = 1
+      Cart.SetFocus
+      Cart.Select
     Else
       Colrcp.Clear
       b = 0
@@ -1317,7 +1321,7 @@ Public Sub Gencom()
         Endif
         If Refart.value = True Then
           Colrcp.Item[1] = rarts!art_code
-          Colrcp.Item[14] = rarts!art_code
+          Colrcp.Item[15] = rarts!art_code
         Else
           If Reffour.Value = True Then
             If Not IsNull(rarts!art_cfour) Then
@@ -1325,7 +1329,7 @@ Public Sub Gencom()
             Else
               Colrcp.Item[1] = rarts!art_code
             Endif
-            Colrcp.Item[14] = rarts!art_code
+            Colrcp.Item[15] = rarts!art_code
           Else
             If Refcentrale.Value = True Then
               If Not IsNull(rarts!art_refcentrale) Then
@@ -1333,7 +1337,7 @@ Public Sub Gencom()
               Else
                 Colrcp.Item[1] = rarts!art_refcentrale
               Endif
-              Colrcp.Item[14] = rarts!art_code
+              Colrcp.Item[15] = rarts!art_code
             Endif
           Endif
         Endif
@@ -1346,11 +1350,12 @@ Public Sub Gencom()
         Colrcp.Item[6] = Utils.Cdec(Decm, Qtecom)
         Colrcp.Item[6] = Utils.cpoint(Colrcp.Item[6])
         Colrcp.Item[7] = Format$(Qtecom * rarts!art_pauaht, Nbdec)
-        Colrcp.Item[8] = Format$(rarts!art_prvt, Nbdec)
-        Colrcp.Item[9] = Format$(rarts!art_frais, Nbdec)
-        Txtva = CPrix.CTva(rarts!art_tva)
-        Colrcp.Item[16] = Format$(Val(Colrcp.Item[7]) + (Val(Colrcp.Item[7]) * Val(Utils.cpoint(Txtva)) / 100), nbdec)
         If Len(Colrcp.Item[7]) - InStr(Colrcp.Item[7], ",") = 2 Then Colrcp.Item[7] = Colrcp.Item[7] & " "
+        Colrcp.Item[16] = Format$(Val(Colrcp.Item[7]) + (Val(Colrcp.Item[7]) * Val(Utils.cpoint(Txtva)) / 100), nbdec)
+        Colrcp.Item[9] = Format$(rarts!art_prvt, Nbdec)
+        Colrcp.Item[10] = Format$(rarts!art_frais, Nbdec)
+        Colrcp.Item[8] = rarts!art_cbarre
+        Txtva = CPrix.CTva(rarts!art_tva)
         Cart.text = rarts!art_code
         GestCoul(Cart.text)
         Colrcp.MoveFirst
@@ -1536,8 +1541,9 @@ Public Sub Gen_Comfac(Ligbl As String)
             Colrcp.Item[6] = .Cdec(Decm, Qtecom)
             Colrcp.Item[6] = .cpoint(Colrcp.Item[6])
             Colrcp.Item[7] = Format$(Qtecom * rarts!art_pauaht, Nbdec)
-            Colrcp.Item[8] = Format$(rarts!art_prvt, Nbdec)
-            Colrcp.Item[9] = Format$(rarts!art_frais, Nbdec)
+            Colrcp.Item[9] = Format$(rarts!art_prvt, Nbdec)
+            Colrcp.Item[10] = Format$(rarts!art_frais, Nbdec)
+            Colrcp.Item[8] = rarts!art_cbarre
             If Len(Colrcp.Item[7]) - InStr(Colrcp.Item[7], ",") = 2 Then Colrcp.Item[7] = Colrcp.Item[7] & " "
             Cart.text = rarts!art_code
             GestCoul(Cart.Text)
@@ -1552,7 +1558,7 @@ Public Sub Gen_Comfac(Ligbl As String)
         Try Colrcp.Item.Selected = True
         If Not Error Then
           Totalrcpt.Text = Format$(Val(Totalrcpt.Text) + (Val(.cpoint(Colrcp.Item[6])) * Val(.cpoint(Colrcp.Item[5]))), "0.00")
-          Tfrais.Text = Format$(Val(.cpoint(Tfrais.Text)) + (Val(.cpoint(Colrcp.Item[9])) * Val(.cpoint(Colrcp.Item[6]))), "0.00")
+          Tfrais.Text = Format$(Val(.cpoint(Tfrais.Text)) + (Val(.cpoint(Colrcp.Item[10])) * Val(.cpoint(Colrcp.Item[6]))), "0.00")
         Endif
       Loop Until Colrcp.MoveNext()
     Else
@@ -1604,18 +1610,19 @@ Public Sub GencomRlq()
               Colrcp.Item[5] = LigResult!paht
             Endif
             Colrcp.Item[6] = LigResult!qte
-            Try Colrcp.Item[13] = Format$(Val(LigResult!qte) * ArtResult!art_poids2, "0.000")
-            Colrcp.Item[14] = LigResult!coda
+            Try Colrcp.Item[14] = Format$(Val(LigResult!qte) * ArtResult!art_poids2, "0.000")
+            Colrcp.Item[15] = LigResult!coda
             Colrcp.Item[7] = Format$(Val(.cpoint(LigResult!paht)) * Val(.cpoint(LigResult!qte)), nbdec)
             If Len(Colrcp.Item[7]) - InStr(Colrcp.Item[7], ",") = 2 Then Colrcp.Item[7] = Colrcp.Item[7] & " "
             If Len(LigResult!prvt) - InStr(LigResult!prvt, ",") = 2 Then
-              Colrcp.Item[8] = LigResult!prvt & " "
+              Colrcp.Item[9] = LigResult!prvt & " "
             Else
-              Colrcp.Item[8] = LigResult!prvt
+              Colrcp.Item[9] = LigResult!prvt
             Endif
-            Colrcp.Item[9] = LigResult!frais
-            If IsNull(Colrcp.Item[8]) Then Colrcp.Item[8] = "0"
+            Colrcp.Item[10] = LigResult!frais
             If IsNull(Colrcp.Item[9]) Then Colrcp.Item[9] = "0"
+            If IsNull(Colrcp.Item[10]) Then Colrcp.Item[10] = "0"
+            Colrcp.Item[8] = ArtResult!art_cbarre
             Cart.text = LigResult!code
             GestCoul(Cart.Text)
           Loop Until LigResult.MoveNext()
@@ -1693,7 +1700,7 @@ Public Sub GencomPort()
         Try Colrcp.Item.Selected = True
         If Not Error Then
           Totalrcpt.Text = Format$(Val(Totalrcpt.Text) + (Val(.cpoint(Colrcp.Item[6])) * Val(.cpoint(Colrcp.Item[5]))), "0.00")
-          Tfrais.Text = Format$(Val(.cpoint(Tfrais.Text)) + (Val(.cpoint(Colrcp.Item[9])) * Val(.cpoint(Colrcp.Item[6]))), "0.00")
+          Tfrais.Text = Format$(Val(.cpoint(Tfrais.Text)) + (Val(.cpoint(Colrcp.Item[10])) * Val(.cpoint(Colrcp.Item[6]))), "0.00")
         Endif
       Loop Until Colrcp.MoveNext()
       Me.Mouse = Mouse.Default
@@ -1758,8 +1765,9 @@ Public Sub Import(Code As String, codeb As String, qte As String, Hnew As File)
           Colrcp.Item[6] = .Cdec(Decm, Qte)
           Colrcp.Item[6] = .cpoint(Colrcp.Item[6])
           Colrcp.Item[7] = Format$(Val(.cpoint(Qte)) * rarts!art_pauaht, Nbdec)
-          Colrcp.Item[8] = Format$(rarts!art_prvt, Nbdec)
-          Colrcp.Item[9] = Format$(rarts!art_frais, Nbdec)
+          Colrcp.Item[9] = Format$(rarts!art_prvt, Nbdec)
+          Colrcp.Item[10] = Format$(rarts!art_frais, Nbdec)
+          Colrcp.Item[8] = rarts!art_cbarre
           If Len(Colrcp.Item[7]) - InStr(Colrcp.Item[7], ",") = 2 Then Colrcp.Item[7] = Colrcp.Item[7] & " "
           Inc cpt
         Else
@@ -2700,14 +2708,15 @@ Public Sub Maj_colrcp()
     Colrcp.Item[6] = qtecom.text
     If Len(Totht.Text) - InStr(Totht.Text, ",") = 2 Then Totht.Text = Totht.Text & " "
     Colrcp.Item[7] = Totht.text
-    Colrcp.Item[8] = Prvt.text
-    Colrcp.Item[9] = Frais.text
-    Colrcp.Item[10] = Coef.text
-    Colrcp.Item[11] = Pvht.text
-    Colrcp.Item[12] = Pvttc.text
-    Colrcp.Item[13] = Pdx
-    Colrcp.Item[14] = Cart.text
-    Colrcp.Item[16] = Pattc.text
+    Colrcp.Item[9] = Prvt.text
+    Colrcp.Item[10] = Frais.text
+    Colrcp.Item[11] = Coef.text
+    Colrcp.Item[12] = Pvht.text
+    Colrcp.Item[13] = Pvttc.text
+    Colrcp.Item[14] = Pdx
+    Colrcp.Item[15] = Cart.text
+    Colrcp.Item[17] = Pattc.text
+    Colrcp.Item[8] = rResult!art_cbarre
     Colrcp.Item.Selected = True
     'ob = Colrcp.Children[0]
     'ob[ob.Row, 0].Background = ArtCom.Background
@@ -2764,15 +2773,16 @@ Public Sub Maj_colrcp()
               Patot = Format$(Val(Paht.text) * Val(qtecom.text), nbdec)
               If Len(Patot) - InStr(Patot, ",") = 2 Then Colrcp.Item[7] = Patot & "  "
               Colrcp.Item[7] = Patot
-              Colrcp.Item[8] = Prvt.text
-              Colrcp.Item[9] = Frais.text
-              Colrcp.Item[10] = Coef.text
-              Colrcp.Item[11] = Pvht.text
-              Colrcp.Item[12] = Pvttc.text
-              Colrcp.Item[13] = Pdx
-              Colrcp.Item[14] = Cart.text
+              Colrcp.Item[9] = Prvt.text
+              Colrcp.Item[10] = Frais.text
+              Colrcp.Item[11] = Coef.text
+              Colrcp.Item[12] = Pvht.text
+              Colrcp.Item[13] = Pvttc.text
+              Colrcp.Item[14] = Pdx
+              Colrcp.Item[15] = Cart.text
               Pattc.Text = Format$(Val(Patot) + (Val(Patot) * Val(.cpoint(Txtva)) / 100), nbdec)
-              Colrcp.Item[16] = Pattc.text
+              Colrcp.Item[17] = Pattc.text
+              Colrcp.Item[8] = rResult!art_cbarre
               Break
           End Select
         Endif
@@ -2809,10 +2819,10 @@ Public Sub bas_doc()
         If Not TResult.Available Then TResult = Utils.db.Exec("SELECT * FROM " & Tb_conv & " where art_cfour = &1", Colrcp.Item[1])
         If Not TResult.Available Then TResult = Utils.db.Exec("SELECT * FROM " & Tb_conv & " where art_refcentrale = &1", Colrcp.Item[1])
         Txconv = TResult!art_txconv
-        Tfrais.Text = Format$(Val(Tfrais.Text) + (Val(.cpoint(Colrcp.Item[9])) * Val(.cpoint(Colrcp.Item[6])) * Txconv), "0.00")
+        Tfrais.Text = Format$(Val(Tfrais.Text) + (Val(.cpoint(Colrcp.Item[10])) * Val(.cpoint(Colrcp.Item[6])) * Txconv), "0.00")
         Tcom.Text = Format$(Val(Totalrcpt.Text) + Val(Tfrais.Text), "0.00")
-        If Not IsNull(Colrcp.Item[13]) Then Pcom.text = Format$(Val(.cpoint(Pcom.text)) + Val(.cpoint(Colrcp.Item[13])), "0.000")
-        Try Pttc = Format$(Val(.cpoint(Pttc)) + Val(.cpoint(Colrcp.Item[16])), "0.00")
+        If Not IsNull(Colrcp.Item[14]) Then Pcom.text = Format$(Val(.cpoint(Pcom.text)) + Val(.cpoint(Colrcp.Item[14])), "0.000")
+        Try Pttc = Format$(Val(.cpoint(Pttc)) + Val(.cpoint(Colrcp.Item[17])), "0.00")
       Loop Until Colrcp.MoveNext()
       modif = "0"
       If Not Franco.Text Then Franco.Text = "0,00"
@@ -2849,11 +2859,11 @@ Public Sub Colrcp_Activate()
         Paht.text = Colrcp.Current[5]
         qtecom.text = Colrcp.Current[6]
         Totht.text = Colrcp.Current[7]
-        Prvt.text = Format$(Val(.cpoint(Colrcp.Current[8])), "0.00")
-        Frais.text = Colrcp.Current[9]
-        If Not IsNull(Colrcp.Current[10]) Then Coef.text = Colrcp.Current[10]
-        If Not IsNull(Colrcp.Current[11]) Then Pvht.text = Colrcp.Item[11]
-        If Not IsNull(Colrcp.Current[12]) Then Pvttc.text = Colrcp.Item[12]
+        Prvt.text = Format$(Val(.cpoint(Colrcp.Current[9])), "0.00")
+        Frais.text = Colrcp.Current[10]
+        If Not IsNull(Colrcp.Current[11]) Then Coef.text = Colrcp.Current[11]
+        If Not IsNull(Colrcp.Current[12]) Then Pvht.text = Colrcp.Item[12]
+        If Not IsNull(Colrcp.Current[13]) Then Pvttc.text = Colrcp.Item[13]
         If Settings["/Soc" & Start.Societe & "/Tmq"] Then
           Calc_Percent()
         Endif
@@ -3015,7 +3025,7 @@ Public Sub Enrgcom()
         Repeat
           Colrcp.Item.Selected = True
           Cart.text = Colrcp.Current[1]
-          Utils.db.Exec("INSERT INTO " & Tab & "(code,design,numcom,four,pbht,rm,paht,qte,frais,prvt, datecom, nligne, coda, pattc) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14})", Colrcp.Item[1], Colrcp.Item[2], Ncom.Text, four.Text, Colrcp.Item[3], Colrcp.Item[4], Colrcp.Item[5], Colrcp.Item[6], Colrcp.Item[9], Colrcp.Item[8], .Cdate_Dbase(datej.Text), Colrcp.Item[0], Colrcp.Item[14], Colrcp.Item[16])
+          Utils.db.Exec("INSERT INTO " & Tab & "(code,design,numcom,four,pbht,rm,paht,qte,frais,prvt, datecom, nligne, coda, pattc) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14})", Colrcp.Item[1], Colrcp.Item[2], Ncom.Text, four.Text, Colrcp.Item[3], Colrcp.Item[4], Colrcp.Item[5], Colrcp.Item[6], Colrcp.Item[10], Colrcp.Item[9], .Cdate_Dbase(datej.Text), Colrcp.Item[0], Colrcp.Item[15], Colrcp.Item[17])
         Until Colrcp.Movenext()
       Endif
       'Maj_Quantite2()
@@ -3078,11 +3088,11 @@ Public Sub ToggleButton3_Click()
         Colcom.Columns.count = 5
         Colcom.Columns[0].Width = 74
         Colcom.Columns[1].Width = 280
-        Colcom.Columns[2].Width = 100
-        Colcom.Columns[3].Width = 100
+        Colcom.Columns[2].Width = 75
+        Colcom.Columns[3].Width = 75
         Colcom.Columns[0].Text = "Code"
         Colcom.Columns[1].Text = "Nom"
-        Colcom.Columns[2].Text = "N° BL"
+        Colcom.Columns[2].Text = "N° Commande"
         Colcom.Columns[3].Text = "Date"
         Colcom.Columns[4].Alignment = 2
         Colcom.Columns[4].Text = "Montant"
@@ -3172,23 +3182,24 @@ Public Sub Colcom_Click()
             Colrcp.Item[5] = LigResult!paht
           Endif
           Colrcp.Item[6] = LigResult!qte
-          Try Colrcp.Item[13] = Format$(Val(LigResult!qte) * ArtResult!art_poids2, "0.000")
-          Colrcp.Item[14] = LigResult!coda
+          Try Colrcp.Item[14] = Format$(Val(LigResult!qte) * ArtResult!art_poids2, "0.000")
+          Colrcp.Item[15] = LigResult!coda
           Colrcp.Item[7] = Format$(Val(.cpoint(LigResult!paht)) * Val(.cpoint(LigResult!qte)), nbdec)
           If Len(Colrcp.Item[7]) - InStr(Colrcp.Item[7], ",") = 2 Then Colrcp.Item[7] = Colrcp.Item[7] & " "
           Totalrcpt.Text = Format$(Val(.cpoint(Totalrcpt.Text)) + (Val(.cpoint(Colrcp.Item[7]))), "0.00")
           If Len(LigResult!prvt) - InStr(LigResult!prvt, ",") = 2 Then
-            Colrcp.Item[8] = LigResult!prvt & " "
+            Colrcp.Item[9] = LigResult!prvt & " "
           Else
-            Colrcp.Item[8] = LigResult!prvt
+            Colrcp.Item[9] = LigResult!prvt
           Endif
-          Colrcp.Item[9] = LigResult!frais
-          If IsNull(Colrcp.Item[8]) Then Colrcp.Item[8] = "0"
+          Colrcp.Item[10] = LigResult!frais
           If IsNull(Colrcp.Item[9]) Then Colrcp.Item[9] = "0"
-          Colrcp.Item[16] = Format$(Val(Colrcp.Item[7]) + (Val(Colrcp.Item[7]) * Val(.cpoint(Txtva)) / 100), nbdec)
+          If IsNull(Colrcp.Item[10]) Then Colrcp.Item[10] = "0"
+          Colrcp.Item[17] = Format$(Val(Colrcp.Item[7]) + (Val(Colrcp.Item[7]) * Val(.cpoint(Txtva)) / 100), nbdec)
+          Colrcp.Item[8] = ArtResult!art_cbarre
           Cart.text = LigResult!code
           GestCoul(Cart.Text)
-          'Try pttc = Val(.cpoint(pttc)) + Val(.cpoint(Colrcp.Item[16]))
+          'Try pttc = Val(.cpoint(pttc)) + Val(.cpoint(Colrcp.Item[17]))
           Utils.db.Exec("delete from " & Tab & " WHERE numcom = &1 and four = &2 and code = &3", Ncom.Text, four.Text, LigResult!code)
         Loop Until LigResult.MoveNext()
         bas_doc()
@@ -3469,7 +3480,7 @@ Public Sub Reaff_bl()
       Colrcp.Item.Selected = True
       If Refart.value = True Then
         reaff = Utils.db.Exec("SELECT * FROM " & Tab & " where art_cfour = &1 and art_four = &2", Colrcp.Item[1], Four.Text)
-        If Not IsNull(Colrcp.Item[14]) Then Try Colrcp.Item[1] = Colrcp.Item[14]
+        If Not IsNull(Colrcp.Item[15]) Then Try Colrcp.Item[1] = Colrcp.Item[15]
         If Error Then
           reaff = Utils.db.Exec("SELECT * FROM " & Tab & " where art_refcentrale = &1 and art_four = &2", Colrcp.Item[1], Four.text)
           Try Colrcp.Item[1] = reaff!art_code
