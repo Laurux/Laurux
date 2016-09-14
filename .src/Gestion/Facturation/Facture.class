@@ -6121,11 +6121,12 @@ Public Sub Recup_Pdc()
   Dim Lpdc As String ' libellé du produit
   Dim Qpdc As String ' quantité du produit
   Dim lg As Integer = 0
+  Dim bmo As Boolean
   
   prArt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabPrdComp") & " where codep = &1", Codeart)
   If prArt.Available Then
     Repeat
-      spl.Add(prArt!codec & ";" & prArt!libelle & ";" & prArt!qte)
+      spl.Add(prArt!codec & ";" & prArt!libelle & ";" & prArt!qte & ";" & prArt!mo)
     Until prart.MoveNext()
     Coldetail.MoveLast()
     Try Coldetail.item.Selected = True
@@ -6140,6 +6141,8 @@ Public Sub Recup_Pdc()
               Lpdc = s
             Case 3
               Qpdc = s
+            Case 4
+              bmo = s  
           End Select
         Next
         Coldetail.Add(Nlgart.text, Nlgart.text)
@@ -6153,22 +6156,24 @@ Public Sub Recup_Pdc()
         Enrg_Pdc(Cpdc, Lpdc, qpdc)
         lg = 0
         Nlgart.Text = Format$(Val(Nlgart.text) + 1, "0000")
-        Rartprdc = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", cpdc)
-        qteecot = Val(Utils.cpoint(Qpdc))
-        Ecotaxe = Rartprdc!art_ect
-        If Rartprdc!art_eco Then
-          Try Valeur_Ecotaxe = Rartprdc!art_eco
+        If bmo = "False" Then
+          Rartprdc = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", cpdc)
+          qteecot = Val(Utils.cpoint(Qpdc))
+          Ecotaxe = Rartprdc!art_ect
+          If Rartprdc!art_eco Then
+            Try Valeur_Ecotaxe = Rartprdc!art_eco
+          Endif
+          Ecotaxe2 = Rartprdc!art_ect2
+          If Rartprdc!art_eco2 Then
+            Try Valeur_Ecotaxe2 = Rartprdc!art_eco2
+          Endif
+          Taxepv = Rartprdc!art_cpp
+          If Rartprdc!art_copp Then
+            Try Valeur_Copp = Rartprdc!art_copp
+          Endif
+          If ecotaxe Then Ecot()
+          If Taxepv Then Txpp()
         Endif
-        Ecotaxe2 = Rartprdc!art_ect2
-        If Rartprdc!art_eco2 Then
-          Try Valeur_Ecotaxe2 = Rartprdc!art_eco2
-        Endif
-        Taxepv = Rartprdc!art_cpp
-        If Rartprdc!art_copp Then
-          Try Valeur_Copp = Rartprdc!art_copp
-        Endif
-        If ecotaxe Then Ecot()
-        If Taxepv Then Txpp()
       Next
     Endif
     Coldetail.Clear
