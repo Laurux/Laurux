@@ -129,7 +129,7 @@ Public Sub _New()
   Dsgn = ""
   Totalrcpt.Text = "0,00"
   Datej.Text = Format$(Now, "dd.mm.yyyy")
-  Colrcp.Columns.count = 14
+  Colrcp.Columns.count = 16
   If Not IsNull(WidthCol) Then
     WidthCol = Trim(WidthCol)
     If Right(WidthCol, 1) = ";" Then WidthCol = Left(WidthCol, Len(WidthCol) - 1)
@@ -1987,6 +1987,7 @@ Public Sub Maj_colrcp()
       nbdec = Utils.Find_nbdec(nbd)
       Ref_four = rResult!art_cfour
       Ref_centrale = rResult!art_refcentrale
+      Cbarre = rResult!art_cbarre
       If Format$(Val(paht.Text), Nbdec) <> Format$(rResult!art_pauaht, Nbdec) Or If Format$(Val(pvht.Text), Nbdec) <> Format$(rResult!art_pvht, Nbdec) Or If Format$(Val(Frais.Text), Nbdec) <> Format$(rResult!art_frais, Nbdec) Then
         If son Then
           Music.Play
@@ -2064,15 +2065,16 @@ Public Sub Maj_colrcp()
     Colrcp.Item[7] = qterecue.text
     Colrcp.Item[8] = Format$(Val(Utils.cpoint(Totht.text)), Nbdec)
     If Len(Colrcp.Item[8]) - InStr(Colrcp.Item[8], ",") = 2 Then Colrcp.Item[8] = Colrcp.Item[8] & "  "
-    Colrcp.Item[9] = Frais.Text
-    Colrcp.Item[10] = Format$(Val(Utils.cpoint(prvt.text)), Nbdec)
-    If Len(Colrcp.Item[10]) - InStr(Colrcp.Item[10], ",") = 2 Then Colrcp.Item[10] = Colrcp.Item[10] & "  "
-    Colrcp.Item[12] = PvTTc.Text
+    Colrcp.Item[9] = Cbarre
+    Colrcp.Item[10] = Frais.Text
+    Colrcp.Item[11] = Format$(Val(Utils.cpoint(prvt.text)), Nbdec)
+    If Len(Colrcp.Item[11]) - InStr(Colrcp.Item[11], ",") = 2 Then Colrcp.Item[11] = Colrcp.Item[11] & "  "
+    Colrcp.Item[13] = PvTTc.Text
     Pattc.Text = Format$(Val(Totht.Text) + (Val(Totht.Text) * Val(.cpoint(Txtva)) / 100), nbdec)
     If exo = False Then
-      Colrcp.Item[13] = Pattc.text
+      Colrcp.Item[14] = Pattc.text
     Else
-      Colrcp.Item[13] = Totht.Text
+      Colrcp.Item[14] = Totht.Text
     Endif
     Colrcp.MoveFirst
     Totalrcpt.Text = "0,00"
@@ -2149,15 +2151,16 @@ Public Sub ControlProd()
       Else
         Colrcp.Item[8] = Patot
       Endif
-      Colrcp.Item[9] = Frais.Text
-      Colrcp.Item[10] = Prvt.Text
-      Colrcp.Item[11] = Nlgn
-      Colrcp.Item[12] = Pvttc.Text
+      Colrcp.Item[9] = Cbarre
+      Colrcp.Item[10] = Frais.Text
+      Colrcp.Item[11] = Prvt.Text
+      Colrcp.Item[12] = Nlgn
+      Colrcp.Item[13] = Pvttc.Text
       Pattc.Text = Format$(Val(Totht.Text) + (Val(Totht.Text) * Val(Utils.cpoint(Txtva)) / 100), nbdec)
       If exo = False Then
-        Colrcp.Item[13] = Pattc.text
+        Colrcp.Item[14] = Pattc.text
       Else
-        Colrcp.Item[13] = Patot
+        Colrcp.Item[14] = Patot
       Endif
   End Select
   Modif = "0"
@@ -2176,8 +2179,8 @@ Public Sub bas_doc()
   Do
     Colrcp.Item.Selected = True
     Totalrcpt.Text = Format$(Val(Totalrcpt.Text) + (Val(Colrcp.Item[6]) * Val(Colrcp.Item[7])), "0.00")
-    Tfrais.Text = Format$(Val(Tfrais.Text) + (Val(Colrcp.Item[9]) * Val(Colrcp.Item[7]) * Txconv), "0.00")
-    Try Totalttc.Text = Format$(Val(Totalttc.Text) + (Val(Colrcp.Item[13])), "0.00")
+    Tfrais.Text = Format$(Val(Tfrais.Text) + (Val(Colrcp.Item[10]) * Val(Colrcp.Item[7]) * Txconv), "0.00")
+    Try Totalttc.Text = Format$(Val(Totalttc.Text) + (Val(Colrcp.Item[14])), "0.00")
   Loop Until Colrcp.MoveNext()
   Nbligne.Text = Colrcp.count
   modif = "0"
@@ -2226,9 +2229,10 @@ Public Sub Colrcp_Activate()
             qterecue.Text = Colrcp.Current[7]
           Endif
           Totht.Text = Colrcp.Current[8]
-          Frais.Text = Colrcp.Current[9]
-          Prvt.Text = Colrcp.Current[10]
-          Colrcp.Item[12] = 0
+          Cbarre = Colrcp.Current[9] 
+          Frais.Text = Colrcp.Current[10]
+          Prvt.Text = Colrcp.Current[11]
+          Colrcp.Item[13] = 0
           Totht.text = Format(Val(.cpoint(paht.text)) * Val(.cpoint(qterecue.text)), nbdec)
           Tab = "Fiches_Art"
           montantr = Tr.Text
@@ -2282,7 +2286,7 @@ Public Sub Colrcp_Keypress()
         Music.Play
       Endif
       If Message.Question("Etes-vous sur de vouloir supprimer cette ligne ?", "Oui", "Non") = 1 Then
-        Utils.db.Exec("delete from Fiches_Ligcom WHERE lind = &1", Colrcp.current[11])
+        Utils.db.Exec("delete from Fiches_Ligcom WHERE lind = &1", Colrcp.current[12])
         CleanChamps()
         Colrcp.Current.Delete
         Ren_ligbon()
@@ -2291,7 +2295,7 @@ Public Sub Colrcp_Keypress()
     Endif
     If Key.code = 48 And Colrcp.Count <> 0 Then
       Colrcp.current[7] = 0
-      Colrcp.current[13] = 0
+      Colrcp.current[14] = 0
       bas_doc()
       CleanChamps()
       skey = Colrcp.Key
@@ -2419,7 +2423,7 @@ Public Sub Enrgcoml()
                           Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET art_dpa = &2, art_dfour = &3, art_ddate = &4 WHERE art_code = &1", ArtResult!art_code, Colrcp.Item[6], codefour.text, Datej.text)
                         Endif
                       Endif
-                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigrecpt") & "(code,design,numrecpt,four,daterecpt,qte,pbht,rm,paht,nligne, frais, prvt, pattc) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13})", Colrcp.Item[1], Colrcp.Item[2], numbl.Text, codefour.Text, .Cdate_Dbase(Datej.Text), Colrcp.Item[7], Colrcp.Item[4], Colrcp.Item[5], Colrcp.Item[6], Colrcp.Item[0], Colrcp.Item[9], Colrcp.Item[10], Colrcp.Item[13])
+                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigrecpt") & "(code,design,numrecpt,four,daterecpt,qte,pbht,rm,paht,nligne, frais, prvt, pattc) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13})", Colrcp.Item[1], Colrcp.Item[2], numbl.Text, codefour.Text, .Cdate_Dbase(Datej.Text), Colrcp.Item[7], Colrcp.Item[4], Colrcp.Item[5], Colrcp.Item[6], Colrcp.Item[0], Colrcp.Item[10], Colrcp.Item[11], Colrcp.Item[14])
                       If Materiel And Gmateriel Then Enrgnum()
                     Endif
                   Until Colrcp.Movenext()
@@ -2634,16 +2638,16 @@ Public Sub Maj_Com()
       Repeat
         Colrcp.Item.Selected = True
         If Val(.cpoint(Colrcp.Item[3])) <= Val(.cpoint(Colrcp.Item[7])) Then
-          Utils.db.Exec("delete from " & Tab & " WHERE lind = &1", Colrcp.Item[11])
+          Utils.db.Exec("delete from " & Tab & " WHERE lind = &1", Colrcp.Item[12])
         Else
           qtec = Val(.cpoint(Colrcp.Item[3])) - Val(.cpoint(Colrcp.Item[7]))
           Tab = "Fiches_Art"
           Utils.db.Exec("UPdate  " & tab & "  SET art_com = &2 WHERE art_code = &1", Colrcp.Item[1], qtec)
           Tab = "Fiches_Ligcom"
-          Utils.db.Exec("UPdate  " & tab & "  SET qte = &2 WHERE lind = &1", Colrcp.Item[11], qtec)
+          Utils.db.Exec("UPdate  " & tab & "  SET qte = &2 WHERE lind = &1", Colrcp.Item[12], qtec)
           Totcom2 = Totcom2 + Val(Colrcp.Item[6])
         Endif
-        ncom2 = Colrcp.Item[14]
+        ncom2 = Colrcp.Item[15]
       Until Colrcp.MoveNext()
       If bTotal Then Utils.db.Exec("delete from Fiches_Ligcom WHERE numcom <> &1 and four = &2", ncom2, Codefour.Text)
       If bTotal Then Utils.db.Exec("delete from Fiches_Entcom WHERE numcom <> &1 and four = &2", ncom2, Codefour.Text)
@@ -2722,13 +2726,13 @@ Public Sub Enrgcom()
       If Colrcp.Count <> 0 Then
         Colrcp.MoveFirst
         Colrcp.Item.Selected = True
-        Numcom2 = Colrcp.Item[14]
+        Numcom2 = Colrcp.Item[15]
         If Not bTotal Then numcom2 = Numcom.text
         Utils.db.Exec("INSERT INTO " & Tab & "(four,numcom,ddate,montant, reliquat, anomalie, commentaire) VALUES (&1, &2, &3, &4, &5, &6, &7)", Codefour.text, Numcom2, .Cdate_Dbase(Datej.text), Val(Totalrcpt.text), 1, An.value, Comments.Text)
         Tab = "Fiches_Ligcom"
         Repeat
           Colrcp.Item.Selected = True
-          If bTotal Then Numcom2 = Colrcp.Item[14]
+          If bTotal Then Numcom2 = Colrcp.Item[15]
           LigResult = Utils.db.Exec("select *  from " & Tab & " WHERE numcom = &1 and four = &2 and code = &3", Numcom2, codefour.Text, Colrcp.Item[1])
           If LigResult.Available Then
             If LigResult!qte = Colrcp.Item[7] Then
@@ -2737,7 +2741,7 @@ Public Sub Enrgcom()
               Utils.db.Exec("delete from " & Tab & " WHERE numcom = &1 and four = &2 and code = &3", numcom2, codefour.Text, Colrcp.Item[1])
             Endif
           Else
-            Utils.db.Exec("INSERT INTO " & Tab & "(code,design,numcom,four,pbht,rm,paht,qte,frais,prvt, datecom, nligne) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12})", Colrcp.Item[1], Colrcp.Item[2], Numcom2, Codefour.Text, Colrcp.Item[4], Colrcp.Item[5], Colrcp.Item[6], Colrcp.Item[7], Colrcp.Item[9], Colrcp.Item[10], .Cdate_Dbase(Datej.Text), Colrcp.Item[0])
+            Utils.db.Exec("INSERT INTO " & Tab & "(code,design,numcom,four,pbht,rm,paht,qte,frais,prvt, datecom, nligne) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12})", Colrcp.Item[1], Colrcp.Item[2], Numcom2, Codefour.Text, Colrcp.Item[4], Colrcp.Item[5], Colrcp.Item[6], Colrcp.Item[7], Colrcp.Item[10], Colrcp.Item[11], .Cdate_Dbase(Datej.Text), Colrcp.Item[0])
           Endif
         Until Colrcp.Movenext()
       Endif
@@ -2781,9 +2785,9 @@ Public Sub ToggleButton4_Click()
       Colcom.Columns.count = 6
       Colcom.Columns[0].Width = 74
       Colcom.Columns[1].Width = 260
-      Colcom.Columns[2].Width = 100
-      Colcom.Columns[3].Width = 100
-      Colcom.Columns[4].Width = 100
+      Colcom.Columns[2].Width = 75
+      Colcom.Columns[3].Width = 75
+      Colcom.Columns[4].Width = 90
       Colcom.Columns[0].Text = "Code"
       Colcom.Columns[1].Text = "Nom"
       Colcom.Columns[2].Text = "N° Com"
@@ -2898,17 +2902,18 @@ Public Sub AffColcom()
           If Len(Colrcp.Item[6]) - InStr(Colrcp.Item[6], ",") = 2 Then Colrcp.Item[6] = Colrcp.Item[6] & "  "
           Colrcp.Item[8] = Format(Val(.cpoint(Colrcp.Item[6])) * Val(.cpoint(Colrcp.Item[7])), nbdec)
           If Len(Colrcp.Item[8]) - InStr(Colrcp.Item[8], ",") = 2 Then Colrcp.Item[8] = Colrcp.Item[8] & "  "
-          Colrcp.Item[9] = LigResult!frais
-          Colrcp.Item[10] = Format$(Val(utils.cpoint(LigResult!prvt)), Nbdec)
-          If Len(Colrcp.Item[10]) - InStr(Colrcp.Item[10], ",") = 2 Then Colrcp.Item[10] = Colrcp.Item[10] & "  "
-          Colrcp.Item[11] = LigResult!lind
-          Colrcp.Item[12] = Format$(Val(.cpoint(LigResult!paht)) + (Val(.cpoint(LigResult!paht)) * CPrix.CTva(ArtResult!art_tva) / 100), nbdec)
-          Colrcp.Item[13] = LigResult!pattc
+          Colrcp.Item[9] = ArtResult!art_cbarre
+          Colrcp.Item[10] = LigResult!frais
+          Colrcp.Item[11] = Format$(Val(utils.cpoint(LigResult!prvt)), Nbdec)
+          If Len(Colrcp.Item[11]) - InStr(Colrcp.Item[11], ",") = 2 Then Colrcp.Item[11] = Colrcp.Item[11] & "  "
+          Colrcp.Item[12] = LigResult!lind
+          Colrcp.Item[13] = Format$(Val(.cpoint(LigResult!paht)) + (Val(.cpoint(LigResult!paht)) * CPrix.CTva(ArtResult!art_tva) / 100), nbdec)
+          Colrcp.Item[14] = LigResult!pattc
           Totalrcpt.Text = Format$(Val(Totalrcpt.Text) + (Val(LigResult!paht) * Val(.cpoint(Colrcp.Item[7]))), "0.00")
-          Tfrais.Text = Format$(Val(Tfrais.Text) + (Val(.cpoint(Colrcp.Item[9])) * Val(.cpoint(Colrcp.Item[7])) * ArtResult!art_txconv), "0.00")
-          Totalttc.Text = Format$(Val(Totalttc.Text) + (Val(.cpoint(Colrcp.Item[12])) * Val(.cpoint(Colrcp.Item[7]))), "0.00")
+          Tfrais.Text = Format$(Val(Tfrais.Text) + (Val(.cpoint(Colrcp.Item[10])) * Val(.cpoint(Colrcp.Item[7])) * ArtResult!art_txconv), "0.00")
+          Totalttc.Text = Format$(Val(Totalttc.Text) + (Val(.cpoint(Colrcp.Item[13])) * Val(.cpoint(Colrcp.Item[7]))), "0.00")
           Totcom = Val(Totalrcpt.Text)
-          Try Pttc = Format$(Val(.cpoint(Pttc)) + Val(.cpoint(Colrcp.Item[13])), "0.00")
+          Try Pttc = Format$(Val(.cpoint(Pttc)) + Val(.cpoint(Colrcp.Item[14])), "0.00")
         Loop Until LigResult.MoveNext()
         Nbligne.Text = Colrcp.count
         Nlgn = Format$(Colrcp.count + 1, "000")
@@ -3044,13 +3049,14 @@ Public Sub RecupCom()
               If Len(Colrcp.Item[6]) - InStr(Colrcp.Item[6], ",") = 2 Then Colrcp.Item[6] = Colrcp.Item[6] & "  "
               Colrcp.Item[8] = Format(Val(.cpoint(Colrcp.Item[6])) * Val(.cpoint(Colrcp.Item[7])), nbdec)
               If Len(Colrcp.Item[8]) - InStr(Colrcp.Item[8], ",") = 2 Then Colrcp.Item[8] = Colrcp.Item[8] & "  "
-              Colrcp.Item[9] = LigResult!frais
-              Colrcp.Item[10] = Format$(Val(Utils.cpoint(LigResult!prvt)), Nbdec)
-              If Len(Colrcp.Item[10]) - InStr(Colrcp.Item[10], ",") = 2 Then Colrcp.Item[10] = Colrcp.Item[10] & "  "
-              Colrcp.Item[11] = LigResult!lind
-              Colrcp.Item[12] = Format$(Val(.cpoint(LigResult!paht)) + (Val(.cpoint(LigResult!paht)) * CPrix.CTva(ArtResult!art_tva) / 100), nbdec)
-              Colrcp.Item[13] = LigResult!pattc
-              Colrcp.Item[14] = ComRslt!numcom
+              Colrcp.Item[9] = ArtResult!art_cbarre
+              Colrcp.Item[10] = LigResult!frais
+              Colrcp.Item[11] = Format$(Val(Utils.cpoint(LigResult!prvt)), Nbdec)
+              If Len(Colrcp.Item[11]) - InStr(Colrcp.Item[11], ",") = 2 Then Colrcp.Item[11] = Colrcp.Item[11] & "  "
+              Colrcp.Item[12] = LigResult!lind
+              Colrcp.Item[13] = Format$(Val(.cpoint(LigResult!paht)) + (Val(.cpoint(LigResult!paht)) * CPrix.CTva(ArtResult!art_tva) / 100), nbdec)
+              Colrcp.Item[14] = LigResult!pattc
+              Colrcp.Item[15] = ComRslt!numcom
             Else
               If Rcptman.value = True Then
                 If bsaisie = False Then
@@ -3125,12 +3131,13 @@ Public Sub RecupLig()
           If Len(Colrcp.Item[6]) - InStr(Colrcp.Item[6], ",") = 2 Then Colrcp.Item[6] = Colrcp.Item[6] & "  "
           Colrcp.Item[8] = Format(Val(.cpoint(Colrcp.Item[6])) * Val(.cpoint(Colrcp.Item[7])), nbdec)
           If Len(Colrcp.Item[8]) - InStr(Colrcp.Item[8], ",") = 2 Then Colrcp.Item[8] = Colrcp.Item[8] & "  "
-          Colrcp.Item[9] = LigResult!frais
-          Colrcp.Item[10] = Format$(Val(Utils.cpoint(LigResult!prvt)), Nbdec)
-          If Len(Colrcp.Item[10]) - InStr(Colrcp.Item[10], ",") = 2 Then Colrcp.Item[10] = Colrcp.Item[10] & "  "
-          Colrcp.Item[11] = LigResult!lind
-          Colrcp.Item[12] = Format$(Val(.cpoint(LigResult!paht)) + (Val(.cpoint(LigResult!paht)) * CPrix.CTva(ArtResult!art_tva) / 100), nbdec)
-          Colrcp.Item[13] = LigResult!pattc
+          Colrcp.Item[9] = ArtResult!art_cbarre
+          Colrcp.Item[10] = LigResult!frais
+          Colrcp.Item[11] = Format$(Val(Utils.cpoint(LigResult!prvt)), Nbdec)
+          If Len(Colrcp.Item[11]) - InStr(Colrcp.Item[11], ",") = 2 Then Colrcp.Item[11] = Colrcp.Item[11] & "  "
+          Colrcp.Item[12] = LigResult!lind
+          Colrcp.Item[13] = Format$(Val(.cpoint(LigResult!paht)) + (Val(.cpoint(LigResult!paht)) * CPrix.CTva(ArtResult!art_tva) / 100), nbdec)
+          Colrcp.Item[14] = LigResult!pattc
         Loop Until LigResult.MoveNext()
         bas_doc()
         If bTotal Then 

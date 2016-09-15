@@ -144,9 +144,9 @@ Public Sub _New()
     Colrcp.Columns[5].Width = 100
     Colrcp.Columns[6].Width = 60
     Colrcp.Columns[7].Width = 100
-    Colrcp.Columns[8].Width = 30
+    Colrcp.Columns[8].Width = 50
   Endif
-  Colrcp.Columns[8].Alignment = 2
+  Colrcp.Columns[9].Alignment = 2
   Colrcp.Columns[0].Text = "Nlgn"
   Colrcp.Columns[1].Text = "Code"
   Colrcp.Columns[2].Text = "Designation"
@@ -876,7 +876,7 @@ Public Sub form_close()
       RazBl()
     Endif
   Endif
-  Settings["/Soc" & Start.Societe & "/Col/LcolR"] = "col0:" & Colrcp.Columns[0].Width & ";" & "col1:" & Colrcp.Columns[1].Width & ";" & "col2:" & Colrcp.Columns[2].Width & ";" & "col3:" & Colrcp.Columns[3].Width & ";" & "col4:" & Colrcp.Columns[4].Width & ";" & "col5:" & Colrcp.Columns[5].Width & ";" & "col6:" & Colrcp.Columns[6].Width & ";" & "col7:" & Colrcp.Columns[7].Width & ";" & "col8:" & Colrcp.Columns[8].Width
+  Settings["/Soc" & Start.Societe & "/Col/LcolR"] = "col0:" & Colrcp.Columns[0].Width & ";" & "col1:" & Colrcp.Columns[1].Width & ";" & "col2:" & Colrcp.Columns[2].Width & ";" & "col3:" & Colrcp.Columns[3].Width & ";" & "col4:" & Colrcp.Columns[4].Width & ";" & "col5:" & Colrcp.Columns[5].Width & ";" & "col6:" & Colrcp.Columns[6].Width & ";" & "col7:" & Colrcp.Columns[7].Width & ";" & "col8:" & Colrcp.Columns[9].Width
   Settings.Save
   
 End
@@ -1017,12 +1017,12 @@ Public Sub art_man()
       Endif
       If rarts.Available Then
         Stocke = rarts!art_stocke
-        If Not Stocke Then
-          If son Then
-            Music.Play
-          Endif
-          Balloon.Warning(" Cet article n'est pas stocké ! ", cart)
-        Endif
+        'If Not Stocke Then
+        'If son Then
+        ' Music.Play
+        'Endif
+        'Balloon.Warning(" Cet article n'est pas stocké ! ", cart)
+        'Endif
         If rarts!art_suspendu = False Or If IsNull(rarts!art_suspendu) Then
           Cart.Text = rarts!art_code
           If IsNull(rarts!art_casier) Then
@@ -1638,6 +1638,7 @@ Public Sub Maj_colrcp()
         Ref_four = rResult!art_cfour
         Ref_centrale = rResult!art_refcentrale
         nbdec = Utils.Find_nbdec(nbd)
+        cbarre = rResult!art_cbarre
         If Format$(Val(paht.Text), Nbdec) <> Format$(rResult!art_pauaht, Nbdec) Or If Format$(Val(pvht.Text), Nbdec) <> Format$(rResult!art_pvht, Nbdec) Or If Format$(Val(Frais.Text), Nbdec) <> Format$(rResult!art_frais, Nbdec) Then
           If son Then
             Music.Play
@@ -1706,12 +1707,13 @@ Public Sub Maj_colrcp()
       Patot = Format$(Val(Paht.text) * Val(qterecue.text), nbdec)
       If Len(Patot) - InStr(Patot, ",") = 2 Then Colrcp.Item[7] = Patot & "  "
       Colrcp.Item[7] = Patot
-      Colrcp.Item[8] = Prvt.text
-      Colrcp.Item[9] = Frais.text
+      Colrcp.Item[8] = Cbarre
+      Colrcp.Item[9] = Prvt.text
+      Colrcp.Item[10] = Frais.text
       If exo = False Then
-        Colrcp.Item[10] = Pattc
+        Colrcp.Item[11] = Pattc
       Else
-        Colrcp.Item[10] = Patot
+        Colrcp.Item[11] = Patot
       Endif
       Nbligne.Text = Colrcp.count
       Colrcp.MoveFirst
@@ -1773,12 +1775,13 @@ Public Sub Maj_colrcp()
             Patot = Format$(Val(Paht.text) * Val(qterecue.text), nbdec)
             If Len(Patot) - InStr(Patot, ",") = 2 Then Colrcp.Item[7] = Patot & "  "
             Colrcp.Item[7] = Patot
-            Colrcp.Item[8] = Prvt.text
-            Colrcp.Item[9] = Frais.text
+            Colrcp.Item[8] = Cbarre
+            Colrcp.Item[9] = Prvt.text
+            Colrcp.Item[10] = Frais.text
             If exo = False Then
-              Colrcp.Item[10] = Pattc
+              Colrcp.Item[11] = Pattc
             Else
-              Colrcp.Item[10] = Patot
+              Colrcp.Item[11] = Patot
             Endif
             Break
         End Select
@@ -1802,8 +1805,8 @@ Public Sub bas_doc()
   Do
     Colrcp.Item.Selected = True
     Totalrcpt.Text = Format$(Val(Totalrcpt.Text) + (Val(Colrcp.Item[6]) * Val(Colrcp.Item[5])), "0.00")
-    Tfrais.Text = Format$(Val(Tfrais.Text) + (Val(Colrcp.Item[9]) * Val(Colrcp.Item[6]) * Txconv), "0.00")
-    Totalttc.Text = Format$(Val(Totalttc.Text) + (Val(Colrcp.Item[10]) * Val(Colrcp.Item[6])), "0.00")
+    Tfrais.Text = Format$(Val(Tfrais.Text) + (Val(Colrcp.Item[10]) * Val(Colrcp.Item[6]) * Txconv), "0.00")
+    Totalttc.Text = Format$(Val(Totalttc.Text) + (Val(Colrcp.Item[11]) * Val(Colrcp.Item[6])), "0.00")
   Loop Until Colrcp.MoveNext()
   Nbligne.Text = Colrcp.count
   modif = "0"
@@ -1840,8 +1843,8 @@ Public Sub Colrcp_Activate()
             Paht.text = Colrcp.Current[5]
             Qterecue.text = Colrcp.Current[6]
             Totht.text = Colrcp.Current[7]
-            prvt.text = Colrcp.Current[8]
-            Frais.text = Colrcp.Current[9]
+            prvt.text = Colrcp.Current[9]
+            Frais.text = Colrcp.Current[10]
             montantr = Tr.Text
             If Settings["/Soc" & Start.Societe & "/Tmq"] Then
               Calc_Percent()
@@ -1908,7 +1911,7 @@ Public Sub Colrcp_Keypress()
         Nlgn = Format$(Val(Nlgn) + 1, "000")
         Colrcp.Item[0] = Nlgn
         Totalrcpt.Text = Format$(Val(Totalrcpt.Text) + (Val(Colrcp.Item[5]) * Val(Colrcp.Item[6])), "0.00")
-        Tfrais.Text = Format$(Val(Tfrais.Text) + (Val(Colrcp.Item[9]) * Val(Colrcp.Item[6])), "0.00")
+        Tfrais.Text = Format$(Val(Tfrais.Text) + (Val(Colrcp.Item[10]) * Val(Colrcp.Item[6])), "0.00")
       Loop Until Colrcp.MoveNext()
     Else
       Totalrcpt.Text = "0,00"
@@ -1966,7 +1969,7 @@ Public Sub Enrgbl()
                   Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET art_dpa = &2, art_dfour = &3, art_ddate = &4 WHERE art_code = &1", ArtResult!art_code, Val(.cpoint(Colrcp.Item[5])), four.text, datej.text)
                 Endif
               Endif
-              Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigrecpt") & "(code,design,numrecpt,four,paht,frais,prvt,qte,pbht,rm, daterecpt, nligne, pattc) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11} , &{12} , &{13})", Colrcp.Item[1], Colrcp.Item[2], Nbl.Text, four.Text, Colrcp.Item[5], Colrcp.Item[9], Colrcp.Item[8], Colrcp.Item[6], Colrcp.Item[3], Colrcp.Item[4], .Cdate_Dbase(datej.Text), Colrcp.Item[0], Colrcp.Item[10])
+              Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigrecpt") & "(code,design,numrecpt,four,paht,frais,prvt,qte,pbht,rm, daterecpt, nligne, pattc) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11} , &{12} , &{13})", Colrcp.Item[1], Colrcp.Item[2], Nbl.Text, four.Text, Colrcp.Item[5], Colrcp.Item[10], Colrcp.Item[9], Colrcp.Item[6], Colrcp.Item[3], Colrcp.Item[4], .Cdate_Dbase(datej.Text), Colrcp.Item[0], Colrcp.Item[11])
               If Materiel And Gmateriel Then Enrgnum()
             Until Colrcp.Movenext()
             Utils.db.Exec("UNLOCK TABLES")
