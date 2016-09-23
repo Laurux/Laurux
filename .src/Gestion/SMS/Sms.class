@@ -1,0 +1,211 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Comment.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 04/12/2004
+'# Gestion des commentaires utilisés en facturation
+'################################################
+'
+Private son As Integer = Start.Son
+
+Public Sub _New()
+  
+  Me.Center
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Colcol.Columns.count = 2
+  Colcol.Columns[0].Width = 60
+  Colcol.Columns[1].Alignment = Align.TopLeft
+  Colcol.Columns[1].Width = 560
+  Colcol.Columns[0].Text = "code"
+  Colcol.Columns[1].Text = "Intitulé"
+  numcom.SetFocus
+  numcom.Select
+  
+End
+
+Public Sub Form_Open()
+  
+  Dim sline As String
+  Dim rResult As Result
+  
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabSms") & " order by numcom")
+  If rResult.Available Then
+    Repeat
+      Try Colcol.add(rResult!numcom, rResult!numcom)
+      If Not Error Then
+        For Each sline In Split(rResult!intitule, "\n")
+          Colcol.Item[1] = sline
+          Break
+        Next
+      Endif
+    Until rResult.MoveNext()
+  Endif
+Catch
+  If Son Then
+    Music.Play
+  Endif
+  Message.Error("La table des textes SMS n'existe pas...")  
+  Me.close
+  
+End
+
+Public Sub Maj_Zones()
+  
+  Dim rResult As Result
+  
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabSms") & " where numcom = &1", Colcol.Current[0])
+  numcom.text = Colcol.Current[0]
+  intitule.text = rResult!intitule
+  numcom.SetFocus
+  numcom.Select
+  
+End
+
+Public Sub CleanChamps()
+  
+  numcom.Clear
+  intitule.Clear
+  
+End
+
+Public Sub Refresh()
+  
+  Colcol.Clear
+  form_Open()
+  
+End
+
+Public Sub Lib_KeyPress()
+  
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+        
+      Case 1
+        intitule.SetFocus
+        intitule.Select
+        Stop Event
+        
+      Case 2
+        intitule.Text = Utils.ReplaceLb(intitule.Text)
+        Button2.SetFocus
+        Stop Event
+        
+    End Select
+  Endif
+  
+  If key.code = key.F1 Then
+    Button4_Click()
+    Stop Event
+  Endif
+  
+End
+
+Public Sub Btn_KeyPress()
+  
+  Select Case Last.tag
+      
+    Case 3
+      Button2_Click()
+      
+  End Select
+  
+End
+
+Public Sub Btn_Click()
+  
+  Select Case Last.tag
+      
+    Case 1
+      Button4_Click()
+      
+    Case 2
+      Button1_Click()
+      
+    Case 3
+      Button2_Click()
+      
+    Case 4
+      Me.Close
+      
+  End Select
+  
+End
+
+Public Sub Lib_GotFocus()
+  
+  Utils.SetEditColor(Me, Last)
+  
+End
+
+Public Sub Button1_Click()
+  
+  If numcom.Text <> "" Then
+    If Message.Question("Etes vous sur de vouloir effacer cet enregistrement", "Oui", "Non") = 1 Then
+      Utils.db.Exec("DELETE FROM " & Cbase.Table("TabSms") & " WHERE numcom =&1", colcol.Current[0])
+      Refresh()
+      CleanChamps()
+    Endif
+  Endif
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim rResult As Result
+  Dim collectif As String
+  Dim sKey As String
+  
+  intitule.Text = Utils.ReplaceLb(intitule.Text)
+  If numcom.Text <> "" Then
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabSms") & " WHERE numcom= &1", numcom.Text)
+    If Not rResult.Available Then
+      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabSms") & "(numcom,intitule) VALUES ( &1, &2)", numcom.Text, intitule.Text)
+      sKey = Numcom.Text
+    Else
+      Utils.db.Exec("Update  " & Cbase.Table("TabSms") & "  SET  numcom = &1, intitule = &2 WHERE numcom = &1", numcom.Text, intitule.Text)
+      sKey = Colcol.Current.Key
+    Endif
+    Refresh()
+    Cleanchamps()
+    Colcol.MoveTo(sKey)
+    Colcol.Item.Selected = True
+    Colcol.Item.EnsureVisible
+  Endif
+  
+End
+
+Public Sub Button3_Click()
+  
+  Me.Close()
+  
+End
+
+Public Sub Button4_Click()
+  
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Sms.html"]
+  
+End
+
+Public Sub colcol_Click()
+  
+  Maj_zones()
+  
+End
