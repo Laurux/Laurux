@@ -7,7 +7,6 @@
 'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
 'le modifier selon les termes de la GNU General PUBLIC License publiés par
 'la Free Software Foundation.
-
 'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
 'License pour plus de details.
 
@@ -4900,6 +4899,7 @@ End
 Public Sub ToggleButton5_Click()
   
   Dim Ligcom As Result
+  Dim Rfours As Result
   
   With Utils
     If Colcom.visible Then
@@ -4907,28 +4907,31 @@ Public Sub ToggleButton5_Click()
       Colcom.visible = False
     Else
       Colcom.visible = True
-      Colcom.Columns.count = 4
+      Colcom.Columns.count = 5
       Colcom.Columns[0].Width = 74
-      Colcom.Columns[1].Width = 100
-      Colcom.Columns[2].Width = 100
-      Colcom.Columns[3].Width = 100
-      Colcom.Columns[0].Text = "Code"
-      Colcom.Columns[1].Text = "N° BL"
-      Colcom.Columns[2].Text = "Date"
-      Colcom.Columns[3].Alignment = 2
-      Colcom.Columns[3].Text = "Montant"
+      Colcom.Columns[1].Width = 140
+      Colcom.Columns[2].Width = 80
+      Colcom.Columns[3].Width = 80
+      Colcom.Columns[4].Width = 100
+      Colcom.Columns[0].Text = "Fournisseur"
+      Colcom.Columns[1].Text = "Nom"
+      Colcom.Columns[2].Text = "N° Cde"
+      Colcom.Columns[3].Text = "Date"
+      Colcom.Columns[4].Alignment = 2
+      Colcom.Columns[4].Text = "Montant"
       Ligcom = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigcom") & " where code = &1", code.Text)
       If Ligcom.Available Then
         Do
-          ComResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntcom") & " where numcom = &1 and four = &2", Ligcom!numcom, Ligcom!four)
+          ComResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntcom") & " left join Fiches_Four on fo_code = four Where numcom = &1 and four = &2", Ligcom!numcom, Ligcom!four)
           If ComResult.Available Then
             Do
               Try Colcom.Add(ComResult!four & ComResult!numcom, ComResult!four & ComResult!numcom)
               If Not Error Then
                 Colcom.Item[0] = ComResult!four
-                Colcom.Item[1] = ComResult!numcom
-                Colcom.Item[2] = .Cdate_Aff(ComResult!ddate)
-                Colcom.Item[3] = ComResult!montant
+                Colcom.Item[1] = ComResult!fo_nom
+                Colcom.Item[2] = ComResult!numcom
+                Colcom.Item[3] = .Cdate_Aff(ComResult!ddate)
+                Colcom.Item[4] = Format$(ComResult!montant, "0.00")
               Endif
             Loop Until ComResult.MoveNext()
           Endif

@@ -516,14 +516,13 @@ Public Sub Rcpt_KeyPress()
                               Nl = Colrcp.Current[0]
                               Nlg = 0
                               NlgModif = Colrcp.Current[0]
-                              'art_Man()
-                            Else
-                              'art_Man()
                             Endif
                           Endif
                         Else
                           If Message.Question("Cet article n'existe pas dans la commande ! Voulez-vous ", "1- L'inclure dans la commande", "2- Revenir à la saisie") = 1 Then
-                            'art_Man()
+                            Maj_colrcp()
+                            CleanChamps()
+                            Cart.SetFocus
                           Else
                             Cart.Clear
                             Cart.SetFocus
@@ -900,7 +899,7 @@ Public Sub Vbtn1()
       Num_serie()
       Numero.SetFocus
     Else
-      CleanChamps()
+      If Not bModif Then CleanChamps()
       Cart.SetFocus
       Cart.Select
     Endif
@@ -918,6 +917,7 @@ Public Sub Btn_KeyPress()
         
       Case 1
         Vbtn1()
+        CleanChamps()
         Stop Event
         
       Case 2
@@ -1392,12 +1392,12 @@ Public Sub art_man()
               Message.Warning(" Cet article n'est pas stocké ! ")
             Endif
           Endif
-          If bCbarre Then
-            Vbtn1() 
-          Else
-            qterecue.SetFocus
-            qterecue.Select
-          Endif
+          'If bCbarre Then
+          'Vbtn1() 
+          'Else
+          qterecue.SetFocus
+          qterecue.Select
+          'Endif
         Else
           Message.Warning(" Saisie impossible ! Cet article est suspendu. ")
           b = 1
@@ -2206,6 +2206,8 @@ Public Sub Colrcp_Activate()
       If Numbl.text Then
         Nl = Colrcp.Current[0]
         Nlg = 0
+        Modif = "1"
+        bModif = True
         NlgModif = Colrcp.Current[0]
         Cart.text = Colrcp.Current[1]
         art_man()
@@ -2232,7 +2234,7 @@ Public Sub Colrcp_Activate()
           Cbarre = Colrcp.Current[9] 
           Frais.Text = Colrcp.Current[10]
           Prvt.Text = Colrcp.Current[11]
-          Colrcp.Item[13] = 0
+          Colrcp.Current[13] = 0
           Totht.text = Format(Val(.cpoint(paht.text)) * Val(.cpoint(qterecue.text)), nbdec)
           Tab = "Fiches_Art"
           montantr = Tr.Text
@@ -2649,8 +2651,8 @@ Public Sub Maj_Com()
         Endif
         ncom2 = Colrcp.Item[15]
       Until Colrcp.MoveNext()
-      If bTotal Then Utils.db.Exec("delete from Fiches_Ligcom WHERE numcom <> &1 and four = &2", ncom2, Codefour.Text)
-      If bTotal Then Utils.db.Exec("delete from Fiches_Entcom WHERE numcom <> &1 and four = &2", ncom2, Codefour.Text)
+      'If bTotal Then Utils.db.Exec("delete from Fiches_Ligcom WHERE numcom <> &1 and four = &2", ncom2, Codefour.Text)
+      'If bTotal Then Utils.db.Exec("delete from Fiches_Entcom WHERE numcom <> &1 and four = &2", ncom2, Codefour.Text)
     Endif
     If Not bTotal Then 
       ncom2 = numcom.Text
@@ -2719,6 +2721,7 @@ Public Sub Enrgcom()
   
   Dim LigResult As Result
   Dim Numcom2 As String
+  Dim $qte As String
   
   Tab = "Fiches_Entcom"
   With Utils
@@ -2728,15 +2731,19 @@ Public Sub Enrgcom()
         Colrcp.Item.Selected = True
         Numcom2 = Colrcp.Item[15]
         If Not bTotal Then numcom2 = Numcom.text
-        Utils.db.Exec("INSERT INTO " & Tab & "(four,numcom,ddate,montant, reliquat, anomalie, commentaire) VALUES (&1, &2, &3, &4, &5, &6, &7)", Codefour.text, Numcom2, .Cdate_Dbase(Datej.text), Val(Totalrcpt.text), 1, An.value, Comments.Text)
+        Utils.db.Exec("INSERT INTO Fiches_Entcom (four,numcom,ddate,montant, reliquat, anomalie, commentaire) VALUES (&1, &2, &3, &4, &5, &6, &7)", Codefour.text, Numcom2, .Cdate_Dbase(Datej.text), Val(Totalrcpt.text), 1, An.value, Comments.Text)
         Tab = "Fiches_Ligcom"
         Repeat
           Colrcp.Item.Selected = True
-          If bTotal Then Numcom2 = Colrcp.Item[15]
+          'If bTotal Then Numcom2 = Colrcp.Item[15]
           LigResult = Utils.db.Exec("select *  from " & Tab & " WHERE numcom = &1 and four = &2 and code = &3", Numcom2, codefour.Text, Colrcp.Item[1])
           If LigResult.Available Then
             If LigResult!qte = Colrcp.Item[7] Then
-              Utils.db.Exec("UPdate  " & tab & "  SET qte = &4 WHERE numcom = &1 and four = &2 and code = &3", Numcom2, codefour.Text, Colrcp.Item[1], Colrcp.Item[7])
+              If Left$(Colrcp.Item[1], 4) <> ".DEP" Then
+                Utils.db.Exec("UPdate  " & tab & "  SET qte = &4 WHERE numcom = &1 and four = &2 and code = &3", Numcom2, codefour.Text, Colrcp.Item[1], Colrcp.Item[7])
+              Else
+                Utils.db.Exec("INSERT INTO " & Tab & "(code,design,numcom,four,pbht,rm,paht,qte,frais,prvt, datecom, nligne) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12})", Colrcp.Item[1], Colrcp.Item[2], Numcom2, Codefour.Text, Colrcp.Item[4], Colrcp.Item[5], Colrcp.Item[6], Colrcp.Item[7], Colrcp.Item[10], Colrcp.Item[11], .Cdate_Dbase(Datej.Text), Colrcp.Item[0])
+              Endif
             Else
               Utils.db.Exec("delete from " & Tab & " WHERE numcom = &1 and four = &2 and code = &3", numcom2, codefour.Text, Colrcp.Item[1])
             Endif
@@ -3060,8 +3067,8 @@ Public Sub RecupCom()
             Else
               If Rcptman.value = True Then
                 If bsaisie = False Then
-                  Colrcp.Item[7] = 0
-                  Colrcp.Item[3] = Val(utils.cpoint(Colrcp.current[3])) + Val(utils.cpoint(LigResult!qte))
+                  Try Colrcp.Item[7] = 0
+                  Try Colrcp.Item[3] = Val(utils.cpoint(Colrcp.current[3])) + Val(utils.cpoint(LigResult!qte))
                 Else
                   Colrcp.Item[3] = Val(utils.cpoint(Colrcp.current[3])) + Val(utils.cpoint(LigResult!qte))
                   Colrcp.Item[7] = Val(utils.cpoint(Colrcp.current[7])) + Val(utils.cpoint(LigResult!qte))
