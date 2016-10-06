@@ -102,6 +102,7 @@ Public Sub relances()
   
   Dim rRESULT As RESULT
   Dim rrRESULT As RESULT
+  Dim res As Result
   Dim Tab As String
   Dim Tab2 As String
   Dim Tab3 As String
@@ -135,6 +136,8 @@ Public Sub relances()
   Dim Mtd As String
   Dim Mtc As String
   Dim jour As String
+  Dim totsel As Float
+  
   Dim pdf As Creleve
   
   Tab = "Fiches_relances" 
@@ -194,6 +197,7 @@ Public Sub relances()
             Posy += 30
             pdf.Level6()
             posy += 6
+            totsel = 0
             Repeat
               'dte = (Mid$(rResult!dte, 5, 2) & "." & Right$(rResult!dte, 2) & "." & Left$(rResult!dte, 4))
               dte = .Cdate_Aff(rResult!dte)
@@ -201,6 +205,7 @@ Public Sub relances()
               Lib = rResult!libelle
               Mtd = Format$(rResult!montantd, "0.00")
               Mtc = Format$(rResult!montantc, "0.00")
+              totsel += Val(mtd) - Val(Mtc)
               pdf.Level7(dte, num, Lib, Mtd, Mtc, PosY)
               posy += 4
               Utils.db.Exec("UPdate  " & Tab4 & "  SET  relance = &1 WHERE compte = &2 and numdoc = &3", Niv, compteRel.Item[0], num)
@@ -216,8 +221,23 @@ Public Sub relances()
               Endif
             Until rResult.MoveNext()
           Endif
-          Posy += 8
-          pdf.Level8(Txt2, Posy)
+          Posy += 6
+          If totsel > 0 Then
+            pdf.Level7(" ", " ", "Solde de la sélection ", " ", Format(totsel, "0.00"), PosY)
+          Else
+            pdf.Level7(" ", " ", "Solde de la sélection ", Format(- totsel, "0.00"), " ", PosY)
+          Endif
+          posy += 4
+          res = utils.db.Exec("SELECT solde FROM Fiches_Comptes WHERE compte_cc=&1", compteRel.Item[0])
+          If res.Available Then
+            If res!solde > 0 Then
+              pdf.Level7(" ", " ", "Solde du compte ", " ", Format(res!solde, "0.00"), PosY)
+            Else
+              pdf.Level7(" ", " ", "Solde du compte ", Format(- res!solde, "0.00"), " ", PosY)
+            Endif
+            Posy += 8
+            pdf.Level8(Txt2, Posy)
+          Endif
         Endif
       Until compteRel.Movenext()
       pdf.Output(Filename, False)
