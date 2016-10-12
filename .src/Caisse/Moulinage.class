@@ -1378,45 +1378,47 @@ Private Sub genfac()
             resligfac!fam = resligz!fam
             If IsNull(resligz!marge) Then resligfac!marge = - mremise Else resligfac!marge = resligz!marge - mremise
             'incremente la base de 1 pour voir si remise article ==> recalcul de la remise en 1 article puis globale
-            resligz.MoveNext
-            If resligz!type = "O" Then 
-              resligz.MoveNext
-              Inc J
-            Endif
-            If resligz!type = "S" Then 
-              resligz.MoveNext
-              Inc J
-            Endif
-            If resligz!type = "T" Then
-              'calcul intermediaire des montants remisés
-              pxttc = CFloat(Trim(Replace(resligz!montant, ",", ".")))
-              mttc = pxttc
-              'qte = Val(Utils.cpoint(resligz!qte))
-              'mttc = pxttc * qte
-              'mttc = pxttc
-              'mht = mttc / (1 + ttva)
-              mht = CFloat(Trim(Replace(resligz!mht, ",", ".")))
-              'mremise = (resligfac!montant - mht) + (mht * rem)
-              Try mremise = CFloat(Trim(Replace(resligz!mrem, ",", ".")))
-              If Error Then mremise = 0
-              If IsNull(resligz!mtva) Then
-                mtva = mht * ttva
+            Try resligz.MoveNext
+            If resligz.Available Then
+              If resligz!type = "O" Then 
+                resligz.MoveNext
+                Inc J
+              Endif
+              If resligz!type = "S" Then 
+                resligz.MoveNext
+                Inc J
+              Endif
+              If resligz!type = "T" Then
+                'calcul intermediaire des montants remisés
+                pxttc = CFloat(Trim(Replace(resligz!montant, ",", ".")))
+                mttc = pxttc
+                'qte = Val(Utils.cpoint(resligz!qte))
+                'mttc = pxttc * qte
+                'mttc = pxttc
+                'mht = mttc / (1 + ttva)
+                mht = CFloat(Trim(Replace(resligz!mht, ",", ".")))
+                'mremise = (resligfac!montant - mht) + (mht * rem)
+                Try mremise = CFloat(Trim(Replace(resligz!mrem, ",", ".")))
+                If Error Then mremise = 0
+                If IsNull(resligz!mtva) Then
+                  mtva = mht * ttva
+                Else
+                  mtva = CFloat(Trim(Replace(resligz!mtva, ",", ".")))
+                Endif
+                resligfac!montant = mht
+                Inc j
               Else
-                mtva = CFloat(Trim(Replace(resligz!mtva, ",", ".")))
+                resligz.MovePrevious
+                If resligz!type = "O" Then
+                  resligz.MovePrevious()
+                Endif
               Endif
+              resligfac!remise = mremise
               resligfac!montant = mht
-              Inc j
-            Else
-              resligz.MovePrevious
-              If resligz!type = "O" Then
-                resligz.MovePrevious()
-              Endif
+              '   If IsNull(resligz!marge) Then resligfac!marge = - mremise Else resligfac!marge = resligz!marge - mremise
+              resligfac!tva = mtva
+              resligfac.Update
             Endif
-            resligfac!remise = mremise
-            resligfac!montant = mht
-            '   If IsNull(resligz!marge) Then resligfac!marge = - mremise Else resligfac!marge = resligz!marge - mremise
-            resligfac!tva = mtva
-            resligfac.Update
           Endif
           Try resligz.MoveNext
           Inc j
