@@ -42,9 +42,10 @@ Public Sub _New()
   Label11.text = Settings["/Soc" & Start.Societe & "/Siret"]
   s = 0
   Me.Center
-  Soclist.Columns.count = 2
+  Soclist.Columns.count = 3
   Soclist.Columns[0].Width = 65
-  Soclist.Columns[1].Width = 180
+  Soclist.Columns[1].Width = 320
+  Soclist.Columns[2].Width = 0
   Soclist.Columns[0].Text = "Code"
   Soclist.Columns[1].Text = "Intitule"
   Init_base()
@@ -60,10 +61,10 @@ Public Sub Recup_Soc()
   Repeat
     Soclist.Item.Selected = True
     If Soclist.Item[0] = Settings["/Soc"] Then Break
-  Until soclist.MoveNext()
+  Until Soclist.MoveNext()
 Catch
   Me.Close
-
+  
 End
 
 Public Sub Form_Open()
@@ -81,19 +82,44 @@ Public Sub Init_base()
   Dim rResult As Result
   Dim Tab2 As String
   Dim elements As Variant
+  Dim Lig2 As String[]
+  Dim bBase As Boolean = False
   
   Soclist.Clear
   For Each elements In Utils.db.Databases
     Lig = elements.name
-    If Left$(Lig, 6) = "Laurux" Then 
-      If Len(lig) > 6 Then
-        Tab2 = Lig & "." & "Fiches_Societes"
+    If Settings["/Soc" & Start.Societe & "/Prefixe"] Then
+      Lig2 = Split(Lig, "_")
+      If lig2.Count = 2 Then
+        If Left$(Lig2[1], 6) = "Laurux" Then
+          bBase = True
+        Else
+          bBase = False 
+        Endif
+      Else
+        bBase = False
+      Endif
+    Else    
+      If Left$(Lig, 6) = "Laurux" And If Len(lig) > 6 Then
+        bBase = True
+      Else
+        bBase = False 
+      Endif
+    Endif
+    If bBase Then
+      Tab2 = Lig & "." & "Fiches_Societes"
+      If Settings["/Soc" & Start.Societe & "/Prefixe"] Then
+        Try rResult = Utils.db.Exec("Select * From  " & Tab2 & "")
+      Else
         Try rResult = Utils.db.Exec("Select * From  " & Tab2 & " where cd_sc = &1", Right$(Lig, Len(Lig) - 6))
-        If Not Error Then
-          If rResult.Available Then
-            Soclist.Add(rResult!cd_sc, rResult!cd_sc)
+      Endif
+      If Not Error Then
+        If rResult.Available Then
+          Try Soclist.Add(rResult!cd_sc, rResult!cd_sc)
+          If Not Error Then
             Soclist.Item[0] = rResult!cd_sc
             Soclist.Item[1] = rResult!type_sc & " " & rResult!int_sc
+            Soclist.Item[2] = Lig
           Endif
         Endif
       Endif
@@ -442,7 +468,7 @@ Public Sub Button1_Click()
         Me.mouse = Mouse.wait
         Utils.db.Databases.Add("Laurux" & code.Text)
         Utils.db.Close
-        Utils.db.name = "Laurux" & code.Text
+        Utils.db.name = Settings["/Soc" & Start.Societe & "/Prefixe"] & "Laurux" & code.Text
         Utils.db.Open
         Utils.db.exec("SET NAMES 'latin1'")
         Shell "mysql -h " & Settings["/dbase/Host"] & " " & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " -e \"use Laurux" & code.Text & ";" & "SET @@global.sql_mode= '';\"" Wait
@@ -461,7 +487,7 @@ Public Sub Button1_Click()
     soc = code.Text
     Settings["/Soc"] = soc
     Settings["/intitule"] = intitule.Text
-    Settings["/dbase/Name"] = "Laurux" & Code.Text
+    Settings["/dbase/Name"] = Settings["/dbase/Prefixe"] & "Laurux" & Code.Text
     Settings.Save
     Settings.Reload
     Start.Societe = soc
@@ -535,11 +561,11 @@ Public Sub Button4_Click()
     soc = code.Text
     Settings["/Soc"] = soc
     Settings["/intitule"] = intitule.Text
-    Settings["/dbase/Name"] = "Laurux" & Code.Text
+    Settings["/dbase/Name"] = Settings["/dbase/Prefixe"] & "Laurux" & Code.Text
     Settings.Save
     Settings.Reload
     Utils.db.Close
-    Utils.db.name = "Laurux" & code.Text
+    Utils.db.name = Settings["/Soc" & Start.Societe & "/Prefixe"] & "Laurux" & code.Text
     Utils.db.Open
     Utils.db.exec("SET NAMES 'latin1'")
     Shell "mysql -h " & Settings["/dbase/Host"] & " " & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " -e \"use Laurux" & soc & ";" & "SET @@global.sql_mode= '';\"" Wait
@@ -2839,16 +2865,16 @@ Public Sub Soclist_Click()
   
   If Soclist.Item[0] <> Settings["/Soc"] Then
     Utils.db.Close
-    Utils.db.name = "Laurux" & Soclist.Item[0]
+    Utils.db.name = Soclist.Item[2] 
     Utils.db.Open
     Utils.db.exec("SET NAMES 'latin1'")
     cs = Soclist.Item[0]
-    Shell "mysql -h " & Settings["/dbase/Host"] & " " & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " -e \"use Laurux" & cs & ";" & "SET @@global.sql_mode= '';\"" Wait
+    Shell "mysql -h " & Settings["/dbase/Host"] & " " & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " -e \"use " & Utils.db.Name & ";" & "SET @@global.sql_mode= '';\"" Wait
     Maj_Zones()
     soc = code.Text
     Settings["/Soc"] = soc
     Settings["/intitule"] = intitule.Text
-    Settings["/dbase/Name"] = "Laurux" & Code.Text
+    Settings["/dbase/Name"] = Soclist.Item[2]
     Settings.Save
     Settings.Reload
     Start.Societe = soc

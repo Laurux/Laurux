@@ -58,10 +58,17 @@ Public Sub _new()
   Nbase.text = "Laurux" & Settings["/Soc"]
   If IsNull(Settings["/Soc"]) Then
     Nbase.Text = "Laurux01"
-    Nbase.Enabled = False
+    'Nbase.Enabled = False
     Nouveau = True
     Maj.Value = True
   Endif
+  'If Settings["/Soc" & Start.Societe & "/Prefixe"] Then
+  'TextLabel2.Visible = True
+  'Prefixe.Visible = True
+  'Prefixe.text = Settings["/dbase/Prefixe"]
+  'Else
+  'Prefixe.clear
+  ' Endif
   If Settings["/Soc" & Start.Societe & "/Blocsoc"] = True Then Nbase.Enabled = False
   Try login.Text = Settings["/dbase/Login"]
   Try Port.Text = Settings["/dbase/Port"]
@@ -109,6 +116,7 @@ Public Sub Button1_Click()
   Settings["/Societes/Soc" & Soc] = "Laurux V3.53"
   '# -- Partie commune aux connexions avec ou sans tunnel
   Settings["/dbase/type"] = "mysql"
+  'Settings["/dbase/Prefixe"] = Prefixe.Text
   Settings["/dbase/Name"] = Nbase.Text
   Settings["/dbase/Login"] = login.Text
   Settings["/dbase/Password"] = hexdblKey.crypt("en", Password.Text, "Laurux")
@@ -167,7 +175,7 @@ Public Sub Button1_Click()
     ' le port le port MySQL du serveur
     Utils.db.Port = Settings["/dbase/Port"]
   Endif
-  Soc = Right$(Nbase.Text, Len(Nbase.Text) - 6)
+  Soc = Right$(Nbase.Text, 2)
   
   '# -- lancement si nécessaire du tunnel ssh
   If Bssh.Value Then
@@ -180,17 +188,17 @@ Public Sub Button1_Click()
   
   If $ready_connect Then
     Try Utils.db.Close
-    Utils.db.name = Nbase.Text
+    Utils.db.name = Prefixe.Text & Nbase.Text
     Utils.db.Open
     Try Utils.db.exec("SET NAMES 'latin1'")
     Shell "mysql -h " & Settings["/dbase/Host"] & " " & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " -e \"use Laurux" & soc & ";" & "SET @@global.sql_mode= '';\"" Wait
     If Not Error Then
-      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabSoc") & " where cd_sc = &1", Right$(Nbase.text, Len(Nbase.Text) - 6))
-      Message.Info("Le fichier de configuration a été crée ou modifié !\nLa société " & Right$(Nbase.Text, Len(Nbase.Text) - 6) & " " & rResult!type_sc & " - " & rResult!int_sc & " est la société de travail en cours.")
-      Settings["/Soc"] = Right$(Nbase.text, Len(Nbase.Text) - 6)
+      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabSoc") & " where cd_sc = &1", Right$(Nbase.text, 2))
+      Message.Info("Le fichier de configuration a été crée ou modifié !\nLa société " & Right$(Nbase.Text, 2) & " " & rResult!type_sc & " - " & rResult!int_sc & " est la société de travail en cours.")
+      Settings["/Soc"] = Right$(Nbase.text, 2)
       Settings.Save
       Settings.Reload
-      Start.societe = Right$(Nbase.text, Len(Nbase.Text) - 6)
+      Start.societe = Right$(Nbase.text, 2)
       Fmenu.text = "Société en cours : " & rResult!type_sc & " - " & rResult!int_sc
       Fmenuc.text = "Société en cours : " & rResult!type_sc & " - " & rResult!int_sc
       Fmenuf.text = "Société en cours : " & rResult!type_sc & " - " & rResult!int_sc
@@ -241,7 +249,7 @@ Public Sub createbase()
     hcon.Databases.Add(Nbase.Text)
     hcon.Close
     Settings["/dbase/Con-ssh"] = Bssh.Value
-    Settings["/Soc"] = Right$(Nbase.Text, Len(Nbase.Text) - 6)
+    Settings["/Soc"] = Right$(Nbase.Text, 2)
     Settings["/intitule"] = intitule
     Settings["/son"] = 0
     Settings["/Tips"] = 1

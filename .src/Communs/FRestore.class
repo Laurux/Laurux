@@ -68,19 +68,19 @@ Public Sub Button2_Click()
   Uncp.type = "zlib"
   Me.Mouse = Mouse.Wait
   Utilisateur = Recup.Utilisateur()
-  If Compb Then Try uncp.File(SauveB.Text & "/Laurux" & cs & ".sql.gz", SauveB.Text & "/Laurux" & cs & ".sql")
+  If Compb Then Try uncp.File(SauveB.Text & "/" & Utils.db.Name & ".sql.gz", SauveB.Text & "/" & Utils.db.Name & ".sql")
   If Error Then Compb = False
-  If Not Exist(SauveB.Text & "/Laurux" & cs & ".sql") Then
+  If Not Exist(SauveB.Text & "/" & Utils.db.Name & ".sql") Then
     Me.Mouse = Mouse.Arrow
     If son Then
       Music.Play
     Endif
-    Message.Error("La base " & "/Laurux" & cs & ".sql" & " ne peut pas être restaurée ! \n Veuillez verifier le chemin de la base à restaurer\n ou vérifier le support de sauvegarde.")
+    Message.Error("La base " & Utils.db.Name & ".sql" & " ne peut pas être restaurée ! \n Veuillez verifier le chemin de la base à restaurer\n ou vérifier le support de sauvegarde.")
   Else
     If Compb = False Then
-      Shell "ls -1 -g " & SauveB.text & "/Laurux" & cs & ".sql >" & User.home & "/tmp/resultat 2>&1" Wait
+      Shell "ls -1 -g " & SauveB.text & "/" & Utils.db.Name & ".sql >" & User.home & "/tmp/resultat 2>&1" Wait
     Else
-      Shell "ls -1 -g " & SauveB.text & "/Laurux" & cs & ".sql.gz >" & User.home & "/tmp/resultat 2>&1" Wait
+      Shell "ls -1 -g " & SauveB.text & "/" & Utils.db.Name & ".sql.gz >" & User.home & "/tmp/resultat 2>&1" Wait
     Endif
     If Exist(User.home & "/tmp/resultat") Then txterror = File.Load(User.home & "/tmp/resultat")
     Lig = Trim$(txterror)
@@ -119,16 +119,16 @@ Public Sub Button2_Click()
     Else
       hnew = Open filename For Create 'On vide le fichier
       Syntheses.Message("Attention ! Vous allez effectuer une restauration.")
-      If Message.Question("Vous allez restaurer la base Laurux" & cs & ".sql" & " sauvegardée par " & Utilisateur & " le " & Date_Sauve & " à " & Heure_Sauve & " heures ! ", "Oui", "Non") = 1 Then
+      If Message.Question("Vous allez restaurer la base " & Utils.db.Name & ".sql" & " sauvegardée par " & Utilisateur & " le " & Date_Sauve & " à " & Heure_Sauve & " heures ! ", "Oui", "Non") = 1 Then
         Me.Mouse = Mouse.Wait
-        Shell "mysql -h " & Settings["/dbase/Host"] & " -u " & Utils.db.login & " -p" & Utils.db.Password & " -e \"Drop database Laurux" & cs & ";\" " Wait
-        Shell "mysql -h " & Settings["/dbase/Host"] & " -u " & Utils.db.login & " -p" & Utils.db.Password & " -e \"Create database Laurux" & cs & ";\" " Wait
+        Shell "mysql -h " & Settings["/dbase/Host"] & " -u " & Utils.db.login & " -p" & Utils.db.Password & " -e \"Drop database " & Utils.db.Name & ";\" " Wait
+        Shell "mysql -h " & Settings["/dbase/Host"] & " -u " & Utils.db.login & " -p" & Utils.db.Password & " -e \"Create database " & Utils.db.Name & ";\" " Wait
         If IsNull(Utils.db.Password) Then  'Gère l'absence de mot de passe
-          Shell "mysql -h " & Settings["/dbase/Host"] & " -u " & Utils.db.login & " Laurux" & cs & " < " & SauveB.Text & "/Laurux" & cs & ".sql > /tmp/resultat 2>&1" Wait
+          Shell "mysql -h " & Settings["/dbase/Host"] & " -u " & Utils.db.login & " " & Utils.db.Name & " < " & SauveB.Text & "/" & Utils.db.Name & ".sql > /tmp/resultat 2>&1" Wait
         Else
-          Shell "mysql -h " & Settings["/dbase/Host"] & " -u " & Utils.db.login & " -p" & Utils.db.Password & " Laurux" & cs & " < " & SauveB.Text & "/Laurux" & cs & ".sql > /tmp/resultat 2>&1" Wait
+          Shell "mysql -h " & Settings["/dbase/Host"] & " -u " & Utils.db.login & " -p" & Utils.db.Password & " " & Utils.db.Name & " < " & SauveB.Text & "/" & Utils.db.Name & ".sql > /tmp/resultat 2>&1" Wait
         Endif
-        Shell "mysql -h " & Settings["/dbase/Host"] & " " & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " -e \"use Laurux" & cs & ";" & "SET @@global.sql_mode= '';\"" Wait
+        Shell "mysql -h " & Settings["/dbase/Host"] & " " & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " -e \"use " & Utils.db.Name & ";" & "SET @@global.sql_mode= '';\"" Wait
         If Exist(User.home & "/tmp/resultat") Then txterror = File.Load(User.home & "/tmp/resultat")
         If Txterror Then
           If son Then
@@ -136,12 +136,12 @@ Public Sub Button2_Click()
           Endif
           Me.Mouse = Mouse.Default
           If son Then Music.play
-          Message.Error(Txterror & "La base Laurux" & cs & ".sql" & " n'a pas pu être restaurée ! \n Veuillez verifier l'utilisateur utilisé ainsi que ses droits d'accés.")
+          Message.Error(Txterror & "La base " & Utils.db.Name & ".sql" & " n'a pas pu être restaurée ! \n Veuillez verifier l'utilisateur utilisé ainsi que ses droits d'accés.")
         Else
           If son Then Music.Play
           Try Utils.db.Exec("Truncate " & Tactive & "")
           Me.Mouse = Mouse.Default
-          Message.Info("La base Laurux" & cs & ".sql" & "  a été correctement restaurée.")
+          Message.Info("La base " & Utils.db.Name & ".sql" & "  a été correctement restaurée.")
         Endif
       Endif
     Endif
