@@ -40,23 +40,47 @@ Public Sub _new()
   
   Dim ssh As String
   Dim elements As Variant
+  Dim Lig2 As String[]
+  Dim bBase As Boolean = False
   
   If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
   Me.Center
   Nbase.Clear
   If Settings["/Soc" & Start.Societe & "/Blocsoc"] = False Or If IsNull(Settings["/Soc" & Start.Societe & "/Blocsoc"]) Then
-    Try Utils.db.Databases
-    If Not Error Then 
-      For Each elements In Utils.db.Databases
-        Lig = elements.name
-        If Left$(Lig, 6) = "Laurux" Then 
-          If Len(lig) > 6 Then Nbase.Add(Lig)
+    For Each elements In Utils.db.Databases
+      Lig = elements.name
+      If Settings["/Soc" & Start.Societe & "/Prefixe"] Then
+        Lig2 = Split(Lig, "_")
+        If lig2.Count = 2 Then
+          If Left$(Lig2[1], 6) = "Laurux" Then
+            bBase = True
+          Else
+            bBase = False 
+          Endif
+        Else
+          bBase = False
         Endif
-      Next
-    Endif
+      Else    
+        If Left$(Lig, 6) = "Laurux" And If Len(lig) > 6 Then
+          bBase = True
+        Else
+          bBase = False 
+        Endif
+      Endif
+      If bBase Then
+        If Settings["/Soc" & Start.Societe & "/Prefixe"] Then
+          Nbase.Add(Lig)
+        Else
+          If Left$(Lig, 6) = "Laurux" Then 
+            If Len(lig) > 6 Then Nbase.Add(Lig)
+          Endif
+        Endif
+      Endif
+    Next
   Endif
-  Nbase.text = "Laurux" & Settings["/Soc"]
-  If IsNull(Settings["/Soc"]) Then
+  Nbase.text = Settings["/dbase/Prefixe"] & Settings["/dbase/Name"]
+  'Nbase.text = "Laurux" & Settings["/Soc"]
+  If IsNull(Nbase.Text) Then
     Nbase.Text = "Laurux01"
     'Nbase.Enabled = False
     Nouveau = True
