@@ -1015,6 +1015,13 @@ Public Sub Verif_Version()
     Settings["/dbase/Version"] = "Laurux V3.53"
   Endif
   
+  '************************* Maj 3.54 *********************
+  If Settings["/Societes/Soc" & Start.societe] = "Laurux V3.53" Then
+    If Settings["/dbase/Maj"] Then Maj354()
+    Settings["/Societes/Soc" & Start.societe] = "Laurux V3.54"
+    Settings["/dbase/Version"] = "Laurux V3.54"
+  Endif
+  
   If bMaj Then
     Settings.Save
     Settings.Reload
@@ -4246,4 +4253,28 @@ Public Sub Maj353()
     Until rResult.MoveNext()
   Endif
   
+End
+
+Public Sub Maj354()
+  
+  rResult = Utils.db.Exec("SELECT * FROM Fiches_Caisses ")
+  If rResult.Available Then
+    Repeat
+      Tab = "Fiches_EntTickets" & rResult!code
+      Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (retro TINYINT(1))")
+    Until rResult.MoveNext()
+  Endif
+  
+  Tab = "Fiches_EntTicketz"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (retro TINYINT(1))")
+  
+  Tab = "Fiches_Fam"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (compt5_fam Char(8))")
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by code_fam")
+  If rResult.Available Then
+    Repeat
+      Utils.db.Exec("UPdate  " & tab & "  SET  compt5_fam = &1 WHERE compt_fam = &1", rResult!compt_fam)
+    Until rResult.MoveNext()
+  Endif
+
 End

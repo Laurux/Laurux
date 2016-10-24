@@ -354,6 +354,7 @@ Public Sub Moulinage()
   Dim origine As String
   Dim scli As String
   Dim $intit, resto, Fam, $depot As String
+  Dim bretro As Boolean
   
   Virements()
   numecr = "numecriture"
@@ -394,6 +395,7 @@ Public Sub Moulinage()
             Else
               resto = ""
             Endif
+            bretro = rtck!retro
             Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisEntTck") & " (caisse, numero, date, client, scheque, mcheque, scarte, mcarte, sespeces, mespeces, scredit, mcredit, mht, mtva, mttc, savoir, scavoir, mavoir, vendeur, carte, points, sresto, mresto, nom) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24})", rtck!caisse, rtck!numero, Utils.Cdate_Dbase(Left$(rtck!date, 10)), rtck!client, rtck!scheque, rtck!mcheque, rtck!scarte, rtck!mcarte, rtck!sespeces, rtck!mespeces, rtck!scredit, rtck!mcredit, rtck!mht, rtck!mtva, rtck!mttc, rtck!savoir, rtck!scavoir, rtck!mavoir, rtck!vendeur, rtck!carte, rtck!points, resto, rtck!mresto, rtck!nom)
             If Jnl Then
               If rTck!type = "0" Then
@@ -438,7 +440,11 @@ Public Sub Moulinage()
                       If rDep.Available Then $depot = rdep!depot
                       rcpt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " where code_fam = &1", Fam)
                       If rcpt.Available Then
-                        vente = rcpt!compt_fam
+                        If Not bretro Then
+                          vente = rcpt!compt_fam
+                        Else
+                          vente = rcpt!compt5_fam
+                        Endif
                         If Not IsNull($depot) Then
                           rDep = Utils.db.Exec("SELECT * FROM Fiches_FamDep where fam = &1 and depot = &2", Fam, $depot)
                           If rDep.Available Then vente = rDep!compte
