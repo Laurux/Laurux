@@ -9353,6 +9353,7 @@ Public Sub Impression(Org As String)
   Dim Dateech2 As String
   Dim Datef2 As String
   Dim Nomclient, Tel2, Portable2 As String
+  Dim ftotal, ftotalttc, sRecap As String
   
   variables.typel = ""
   
@@ -9643,10 +9644,10 @@ Public Sub Impression(Org As String)
                   If Len(Brutht) - InStr(Brutht, ",") = 2 Then Brutht = Brutht & " "
                   If Prxdec Then Try Brutht = Round(Val(Brutht))
                   Rem = Coldetail.current[6]
-                  Totalht = Coldetail.current[7]
+                  Totalht = .CPoint(oldetail.current[7])
                   If Prxdec Then Try Totalht = Round(Val(Totalht))
                   typeL = Coldetail.current[9]
-                  Totttc = Coldetail.current[8]
+                  Totttc = .CPoint(Coldetail.current[8])
                   If Prxdec Then Try Totttc = Round(Val(Totttc))
                   If Remmo = "" Then Remmo = "0"
                   If Remart = "" Then Remart = "0"
@@ -10234,6 +10235,15 @@ Public Sub Impression(Org As String)
             Else
               posy = 241
             Endif
+            'sRecap = Sbl(ftotal, ftotalttc)
+            'sRecap = "Total BL a facturer : " & sRecap
+            'If BlA5.Value And Not Bfac.value Then
+            'pdf2.Level6F(sRecap, " ", " ", " ", PosY)
+            'PosY = PosY + 4
+            'Else
+            'pdf.Level6F(sRecap, " ", " ", " ", PosY)
+            'PosY = PosY + 4
+            'Endif
             If tp <> "D" Then
               If Pied.Value And Recap.Value Then
                 If BlA5.Value And Not Bfac.value Then
@@ -10427,6 +10437,25 @@ Catch
   Endif
   Try message.Error(Error.Text & " " & Error.where)
   Me.Mouse = Mouse.Default
+  
+End
+
+Public Function Sbl(ftotal As String, ftotalttc As String) As String
+  
+  Dim Client As Result
+  Dim iNbl As Integer = 0
+  
+  ftotal = 0
+  ftotalttc = 0
+  Client = Utils.db.Exec("SELECT * FROM Fiches_Bl where type = &1 and totalht <> &3 and cdclibl = &4 or type = &2 and totalht <> &3 and cdclibl = &4 order by cdclibl, numbl", "B", "F", 0, Code3.text)
+  If Client.Available Then
+    Repeat
+      fTotal = Format$(Val(Utils.cpoint(ftotal)) + Val(Utils.cpoint(Client!totalht)), "0.00")
+      fTotalttc = Format$(Val(Utils.cpoint(fTotalttc)) + Val(Utils.cpoint(Client!totalttc)), "0.00") 
+      Inc iNbl
+    Until Client.MoveNext()
+    Return iNbl & " : total HT : " & ftotal & " total TTC : " & ftotalttc
+  Endif  
   
 End
 
