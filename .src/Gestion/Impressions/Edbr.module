@@ -2,11 +2,114 @@
 
 PosY As Integer
 Filename As String
+pdf As Cdocuments
+Mttc As String
+Nbpage As Integer
+TotEuros As String = "0"
 son As String
 Private Org As String
 Public Cdocuments As String
 
-Public Function Ed(Nbl As String, codef As String, dater As String, Coulfond As String[], sOrg As String)
+Public Sub Init()
+  Nbpage = 0
+  TotEuros = "0"
+  
+End
+
+
+'**********************************************************
+'*       Calcul de la Tva pour le bas de facture          *
+'**********************************************************
+
+Public Sub Calc_tva()
+  
+  Dim Tab As String
+  Dim Devises As String
+  Dim Ctx As String
+  Dim cpt As String
+  Dim Tab2 As String
+  Dim Mtva As String
+  Dim Mtva2 As String
+  Dim Mttc2 As String
+  Dim Mht As String
+  Dim Ttx As String
+  Dim Tva As String
+  Dim CResult As Result
+  Dim entf As String
+  Dim cptrst As Result
+  Dim NbTx As Integer ' flag pour calcul du nombre de taux de tva utilisé dans la facture
+  Dim ImpAuto As Boolean = False
+  
+  Tab = "Fiches_Tvaav"
+  Tab2 = "Totalisation"
+  Nbtx = 1
+  Tva = "0"
+  If Settings["/Soc" & Start.Societe & "/AutoEnt"] <> 0 Then
+    ImpAuto = True
+  Else
+    ImpAuto = False
+  Endif
+  If IsNull(Settings["/Soc" & Start.Societe & "/AutoEnt"]) Then ImpAuto = False
+  With Utils
+    cptrst = Utils.db.Exec("SELECT * FROM " & Tab & "")
+    If cptrst.Available Then
+      Repeat
+        Ttx = Format$(cptrst!taux_tva, "00.00")
+        Ctx = cptrst!code_tva
+        Cresult = Utils.db.Exec("SELECT * FROM " & Tab2 & " Where codetva = &1", Ctx)
+        If Cresult.Available Then
+          Repeat
+            cpt = CResult!compte
+            If Left$(cpt, 3) = "445" Then
+              Mtva2 = Format$(Val(CResult!totaltva), "0.00")
+              If Mtva2 = "" Then Mtva2 = "0,00"
+              If Val(Mtva2) <> 0 Then
+                If Settings["/Soc" & Start.Societe & "/Prxdec"] Then
+                  Mtva = Format$(Val(Mtva2), "0" & " " & devises)
+                  ctx = Format$(Val(ctx), "0")
+                  Mtva2 = Format$(Val(Mtva2), "0")
+                Else
+                  Mtva = Mtva2 & " " & devises
+                Endif
+                Tva = Val(.cpoint(Tva)) + Val(Mtva2)
+                If ImpAuto = False Then pdf.Level9F(Ctx, Mht, Ttx, Mtva2, Mttc, PosY)
+                PosY = PosY + 5
+                Inc Nbtx
+              Endif
+            Endif
+          Until Cresult.MoveNext()
+        Else
+          Mtva = "0,00"
+        Endif
+      Until cptrst.MoveNext()
+    Endif
+    Posy = 274
+    Mttc = Format$(Val(.cpoint(Toteuros)) + Val(.cpoint(Tva)), "0.00")
+    'Level7(CStr(Toteuros), CStr(Format$(Tva, "0.00")), CStr(Mttc), CStr(Txtleg))
+    'Level7()
+    If Settings["/Soc" & Start.Societe & "/Prxdec"] Then
+      Tva = Format$(Val(Tva), "0")
+    Else
+      Tva = Format$(Tva, "0.00")
+    Endif
+    If Settings["/Soc" & Start.Societe & "/Prxdec"] Then
+      Mttc2 = Format$(Val(Mttc), "0" & " " & devises)
+      Toteuros = Format$(Val(Toteuros), "0")
+    Else
+      Mttc2 = Mttc & " " & devises
+      Toteuros = Format$(Val(Toteuros), "0.00")
+    Endif
+    pdf.Level10F(Toteuros, Tva, Mttc2, "", PosY - 6, "", "", "")
+    'PosY = PosY + 3
+    'If Settings["/Soc" & Start.Societe & "/Coupon"] Then pdf.Level15F(CCli, Nfac, Toteuros, PosY, Devises)
+    PosY = PosY + 8
+    pdf.Level11F("", PosY)
+  End With
+  
+End
+
+
+Public Function Ed(Nbls As String, codef As String, dater As String, Coulfond As String[], sOrg As String)
   
   Dim rResult As Result
   Dim fourResult As Result
@@ -28,83 +131,98 @@ Public Function Ed(Nbl As String, codef As String, dater As String, Coulfond As 
   Dim cp As String
   Dim tel As String
   Dim dte As String
-  Dim Nbpage As Integer
   Dim Fichier As String
   Dim Cfac As Boolean = False
-  Dim pdf As Cdocuments
+  Dim Nbl As String
   
-  Nbpage = 1
   Shell "cd " & User.Home & ""
   Filename = User.home & "/BonReception.pdf"
   Org = sOrg
   pdf = New Cdocuments("Portrait", "mm", "A4")
   pdf.Open()
   pdf.AliasNbPages()
-  pdf.EnteteN("Impression des bl fournisseurs")
   dte = Format$(Now, "dd.mm.yyyy")
   Tab = "Fiches_Ligrecpt"
   Tab2 = "Fiches_Four"
   If Not Exist(User.home & "/BR") Then Try Mkdir User.home & "/BR"
   With Utils
-    Totalbl = "0"
-    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " Left join " & Cbase.Table("TabArt") & " on art_code = code  WHERE numrecpt = &1 and four = &2", Nbl, codef)
-    If rResult.Available Then
-      fourResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE fo_code = &1 ", codef)
-      If fourResult.Available Then
-        intitulef = fourResult!fo_rs_soc & " " & fourResult!fo_nom & " " & fourResult!fo_pnm
-        adr1 = fourResult!fo_adr1
-        adr2 = fourResult!fo_adr2
-        cp = fourResult!fo_cd_ptl & " " & fourResult!fo_ville
-        tel = fourResult!fo_tel_std
-        Cfac = fourResult!fo_copie
-      Endif
-      pdf.Level1br(codef, intitulef, Nbl, dater, adr1, adr2, cp, tel)
-      Posy = 60
-      Repeat
-        code = rResult!code
-        If org = "Valcom" Then
-          famResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " WHERE code_fam = &1 ", rResult!art_fam)
-          intitule = famResult!compt3_fam & " " & rResult!design
-        Else
-          intitule = rResult!design
-        Endif
-        qte = rResult!qte
-        casier = rResult!art_casier
-        pbht = Format$(Val(Utils.cpoint(rResult!pbht)), "0.00")
-        If Len(pbht) - InStr(pbht, ",") = 2 Then pbht = pbht & " "
-        rm = rResult!rm
-        paht = Format$(Val(Utils.cpoint(rResult!paht)), "0.00")
-        If Len(paht) - InStr(paht, ",") = 2 Then paht = paht & " "
-        patotal = Format$(Val(paht) * Val(qte), "0.00")
-        Totalbl = Format$(Val(Totalbl) + Val(Patotal), "0.00")
-        If Len(patotal) - InStr(patotal, ",") = 2 Then patotal = patotal & " "
-        pdf.level2br(code, intitule, qte, pbht, rm, paht, patotal, casier, PosY)
-        Posy = Posy + 4
-        If PosY >= 290 Then
+    For Each Nbl In Split(Nbls, "\n")
+      If Nbl <> "" Then
+        'If Nbpage <> 0 Then
+        '  pdf.newPage()
+        'Endif
+        Inc Nbpage
+        pdf.EnteteN("Impression des bl fournisseurs")
+        Totalbl = "0"
+        rResult = Utils.db.Exec("SELECT * FROM " & Tab & " Left join " & Cbase.Table("TabArt") & " on art_code = code  WHERE numrecpt = &1 and four = &2", Nbl, codef)
+        If rResult.Available Then
+          fourResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE fo_code = &1 ", codef)
+          If fourResult.Available Then
+            intitulef = fourResult!fo_rs_soc & " " & fourResult!fo_nom & " " & fourResult!fo_pnm
+            adr1 = fourResult!fo_adr1
+            adr2 = fourResult!fo_adr2
+            cp = fourResult!fo_cd_ptl & " " & fourResult!fo_ville
+            tel = fourResult!fo_tel_std
+            Cfac = fourResult!fo_copie
+          Endif
+          dte = Mid$(CStr(rResult!daterecpt), 4, 2) & "." & Left$(CStr(rResult!daterecpt), 2) & "." & Right$(CStr(rResult!daterecpt), 4)
+          pdf.Level1br(codef, intitulef, Nbl, dte, adr1, adr2, cp, tel)
+          Posy = 60
+          Repeat
+            code = rResult!code
+            If org = "Valcom" Then
+              famResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " WHERE code_fam = &1 ", rResult!art_fam)
+              intitule = famResult!compt3_fam & " " & rResult!design
+            Else
+              intitule = rResult!design
+            Endif
+            qte = rResult!qte
+            casier = rResult!art_casier
+            pbht = Format$(Val(Utils.cpoint(rResult!pbht)), "0.00")
+            If Len(pbht) - InStr(pbht, ",") = 2 Then pbht = pbht & " "
+            rm = rResult!rm
+            paht = Format$(Val(Utils.cpoint(rResult!paht)), "0.00")
+            If Len(paht) - InStr(paht, ",") = 2 Then paht = paht & " "
+            patotal = Format$(Val(paht) * Val(qte), "0.00")
+            Totalbl = Format$(Val(Totalbl) + Val(Patotal), "0.00")
+            If Len(patotal) - InStr(patotal, ",") = 2 Then patotal = patotal & " "
+            pdf.level2br(code, intitule, qte, pbht, rm, paht, patotal, casier, PosY)
+            Posy = Posy + 4
+            If PosY >= 290 Then
+              pdf.Baspage()
+              Inc Nbpage
+              PosY = 60
+              pdf.EnteteN("Impression des bl fournisseurs")
+              pdf.Level1br(codef, intitulef, Nbl, dater, adr1, adr2, cp, tel)
+            Endif
+          Until rResult.MoveNext()
+          Posy = Posy + 4
+          pdf.Level3br(Totalbl, PosY)
           pdf.Baspage()
-          Inc Nbpage
-          PosY = 60
-          pdf.EnteteN("Impression des bl fournisseurs")
-          pdf.Level1br(codef, intitulef, Nbl, dater, adr1, adr2, cp, tel)
+          TotEuros = Format$(Val(.cpoint(TotEuros)) + Val(.cpoint(Totalbl)), "0.00")
+        Else
+          If son Then
+            Music.Play
+          Endif
+          message(" Aucun mouvement pour cette demande", "OK")
         Endif
-      Until rResult.MoveNext()
-      Posy = Posy + 4
-      pdf.Level3br(Totalbl, PosY)
-      Posy = Posy + 10
-      Pdf.Lines(PosY)
-      pdf.Baspage()
-      pdf.Output(Filename, False)
-      If Org <> "ValidBR" Then Visualiseur.Prog_Editeur(Filename)
-      'Copie.Dupli("BonReception.pdf", "/Impressions", "BonReception", dater)
-      Copie.Dupli4("BonReception.pdf", "", "BR" & codef & "_" & nbl, dater, codef)
-      Fichier = User.home & "/Impressions/" & "BonReception" & ".pdf"
-      'If Cfac Then Copie.Dupli4(Filename, User.home & "/Impressions", "BonReception" & Nbl, dater, Codef)
-    Else
-      If son Then
-        Music.Play
       Endif
-      message(" Aucun mouvement pour cette demande", "OK")
+    Next
+
+    If Org == "ValidBR"
+      PosY = 258
+      pdf.Level7F(Coulfond, PosY, "", "", "")
+      Posy = Posy + 8
+      Calc_tva()
     Endif
+    Posy = Posy + 8
+    pdf.Baspage()
+    pdf.Output(Filename, False)
+    Visualiseur.Prog_Editeur(Filename)
+    'Copie.Dupli("BonReception.pdf", "/Impressions", "BonReception", dater)
+    'Copie.Dupli4("BonReception.pdf", "", "BR" & codef & "_" & nbl, dater, codef)
+    'Fichier = User.home & "/Impressions/" & "BonReception" & ".pdf"
+    'If Cfac Then Copie.Dupli4(Filename, User.home & "/Impressions", "BonReception" & Nbl, dater, Codef)
   End With
   
 End
