@@ -11,7 +11,7 @@ End
 
 Public Sub Button1_Click()
   
-  If Exist(User.home & "/Bordereaux.pdf") Then Kill User.home & "/Bordereaux.pdf"
+  'If Exist(User.home & "/Bordereaux.pdf") Then Kill User.home & "/Bordereaux.pdf"
   Me.close
   
 End
@@ -33,6 +33,7 @@ Public Sub Imp_Bordereaux()
   Dim Montant As String = "0"
   Dim Nbtot As String
   Dim lg As Integer
+  Dim Btype As String = ""
   
   Shell "cd " & User.Home & ""
   Filename = User.home & "/Bordereau.pdf"
@@ -45,13 +46,20 @@ Public Sub Imp_Bordereaux()
     rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where type = &1 or type = &2 order by numlig", "U", "V")
   Else
     If Cheques.Value = True Then
+      Btype = "Cheques_"
       rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where type = &1 order by numlig", "V")
     Else
       If Cartes.Value = True Then
+        Btype = "Cartes_"
         rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where type = &1 order by numlig", "U")
       Endif
     Endif
   Endif
+  If Not Exist(User.home & "/Caisse/") Then Mkdir User.home & "/Caisse/"
+  Filename = User.home & "/Caisse/Bordereau_" & Btype & Format$(Now, "dd.mm.yyyy") & ".pdf"
+  pdf = New Cbordereaux("Portrait", "mm", "A4")
+  pdf.Open()
+  pdf.AliasNbPages()  
   If rResult.Available Then
     type = rResult!type
     If rResult!type = "V" Then

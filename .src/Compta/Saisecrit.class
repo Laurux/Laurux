@@ -2277,6 +2277,9 @@ Public Sub Ecrit1_Keypress()
     Button3_Click()
     Stop Event
   Endif
+  If Key.code = Key.enter Or Key.code = Key.return Then
+    Ecrit1_Activate()
+  Endif
   
 End
 
@@ -2290,9 +2293,9 @@ Public Sub Ecrit1_Activate()
   totalcd = 0
   Totaldb = 0
   'Ecrit1.MoveFirst()
-  If Not ecrit1.Available Then
-    clear()
-  Else
+  If ecrit1.count <> 0 Then
+    'clear()
+    'Else
     numcompte.Text = Ecrit1.Current[1]
     numcpt = numcompte.text
     Recup_Type()
@@ -2309,11 +2312,11 @@ Public Sub Ecrit1_Activate()
     If Val(ecrit1.Current[5]) <> 0 Then
       Debit.Value = True
       Montant.Text = ecrit1.Current[5]
-      montantdb = Val(ecrit1.Item[5])
+      montantdb = Val(ecrit1.Current[5])
     Else
       Credit.Value = True
       Montant.Text = ecrit1.Current[6]
-      montantcd = Val(ecrit1.Item[6])
+      montantcd = Val(ecrit1.Current[6])
     Endif
     Totaldb = Totaldb - montantdb
     Totalcd = Totalcd - montantcd
@@ -2359,7 +2362,7 @@ Public Sub renlig()
   Repeat
     Try ecrit1.Item.Selected = True
     If Not Error Then
-      rlgn = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " WHERE numcol = &1", Ecrit1.Item[0])
+      rlgn = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " WHERE numcol = &1", Ecrit1.current[0])
       ecrit1.Current[0] = nl
       If rlgn.Available Then Utils.db.Exec("UPDATE  " & Cbase.Table("TabMvt") & "  SET numcol = &1 where lind = &2", nl, rlgn!lind)
       Inc nl
@@ -2373,10 +2376,10 @@ Public Sub DelEcr()
   Dim rResult As Result
   Dim collectif As String
   
-  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " WHERE lind = &1", Ecrit1.Item[10])
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " WHERE lind = &1", Ecrit1.current[10])
   If rResult.Available Then
     Repeat
-      Utils.db.Exec("DELETE FROM " & Cbase.Table("TabMvt") & " WHERE lind = &1", Ecrit1.Item[10])
+      Utils.db.Exec("DELETE FROM " & Cbase.Table("TabMvt") & " WHERE lind = &1", Ecrit1.current[10])
       rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " WHERE compte_cc = &1", numcpt)
       If rResult.Available Then
         collectif = rResult!coll_cc
@@ -2612,17 +2615,6 @@ Catch
   message.Error("Votre écriture n'est pas terminée, veuillez la valider \n ou bien cliquer sur Nouvelle écriture SVP  !")
   
 End
-
-'*********************************
-'*  On ferme si on double-clique *
-'*********************************
-'Public Sub jour2_Activate()
-
-'jour2.Visible = False
-'journal.SetFocus
-'journal.Select
-
-'End
 
 '**********************************
 '*  On veut une nouvelle écriture *
