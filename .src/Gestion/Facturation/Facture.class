@@ -2298,8 +2298,8 @@ Public Sub ToggleButton8_Click()
   MyForm2 = New Tricp("Facture", "")
   MyForm2.Showmodal()
   If Variables.Bsel = True Then
-    Cp.text = Codepostal
-    Burd.Text = Bureaudistributeur
+    Cp.text = Variables.Codepostal
+    Burd.Text = Variables.Bureaudistributeur
   Else
     Cp.SetFocus
   Endif
@@ -4219,6 +4219,7 @@ End
 Public Sub Art_man(Prod As String)
   
   Dim Rarts As Result
+  Dim bentretien As Boolean = False
   
   TextLabel60.Hide
   Qte.Hide
@@ -4235,7 +4236,13 @@ Public Sub Art_man(Prod As String)
       Rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", Cart.Text)
     Endif 
     If Rarts.Available Then
-      If Rarts!art_mat = 0 Or If IsNull(Rarts!art_mat) Then
+      If bTypeFacture And Rarts!art_mat = 0 Or If bTypeFacture And IsNull(Rarts!art_mat) Then
+        bentretien = False
+      Else
+        If bTypeFacture And If Rarts!art_mat = 1 Then bentretien = True
+      Endif
+      If Not bTypeFacture Then bentretien = True
+      If bentretien Then
         Stk = Rarts!art_stocke
         Qte.Text = Utils.CPoint(Rarts!art_qte)
         $photo = Rarts!art_photo
@@ -4264,14 +4271,16 @@ Public Sub Art_man(Prod As String)
         Endif
         qte_Cbarre = "0"
       Else
-        If Start.Son Then
-          Music.Play
+        If bTypeFacture Then
+          If Start.Son Then
+            Music.Play
+          Endif
+          Try message.Warning("Vous ne pouvez pas saisir de matériel dans une facture entretien ! ")
+          b = 1
+          Cart.clear
+          Cart.SetFocus
+          Cart.Select
         Endif
-        Try message.Warning("Vous ne pouvez pas saisir de matériel dans une facture entretien ! ")
-        b = 1
-        Cart.clear
-        Cart.SetFocus
-        Cart.Select
       Endif
     Else
       Art_Equ(Cart.Text)
@@ -11214,6 +11223,7 @@ Public Sub Colbl_Activate()
   
   Dim Blarch As Result
   Dim Fbl As String
+  Dim bavoir As Boolean = False
   'Utils.db.Exec("UNLOCK TABLES")
   If bTypeFacture Then
     Fbl = "Fiches_BlM"
@@ -11233,11 +11243,13 @@ Public Sub Colbl_Activate()
         If start.son Then
           Music.Play
         Endif
-        If Message.Question(" Attention ! Vous allez archiver cette facture pour faire un avoir. Etes-vous d'accord ?", "Non", "Oui") = 2 Then
-          Tot_Remises()
-          Ent_Archives()
-          Lig_Archives()
-          Bl_Sup()
+        If Message.Question(" Attention ! Vous allez archiver cette facture. Voulez-vous faire un avoir ?", "Non", "Oui") = 2 Then bavoir = True
+        Tot_Remises()
+        Ent_Archives()
+        Lig_Archives()
+        Bl_Sup()
+        Numerofac = Numfac
+        If bavoir Then
           Button2_Click()
           Numerofac = Numfac
           variables.Numerofac = Numfac
@@ -11269,7 +11281,11 @@ Public Sub Colbl_Activate()
           Coldetail3.Columns[8].Alignment = 4
           Coldetail3.Columns[8].Text = " TL "
           EntFac()
+        Endif
+        If bavoir Then
           Message.Info("La facture N° " & Numerofac & " a été archivée.\nVeuillez sélectionner vos lignes d'avoir SVP...")
+        Else
+          Message.Info("La facture N° " & Numerofac & " a été archivée.")
         Endif
       Endif
     Endif
