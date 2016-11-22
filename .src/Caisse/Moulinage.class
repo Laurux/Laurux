@@ -38,27 +38,28 @@ Private Vic As String
 Private Vichq As String
 Private Viautre As String
 Private jnal As String
+Private jnal3 As String
 Private Tab As String = "Virements"
 
 Public Sub _new()
-  
+
   Parametres()
   Ventilation()
-  
+
 End
 
 Public Sub Button2_Click()
-  
+
   Me.close
-  
+
 End
 
 '**********************************************On effectue le moulinage des tickets**************************************
 Public Sub Button1_Click()
-  
+
   Dim rResult As Result
   Dim chemin As String = "/Sauve"
-  
+
   If Jnal = "" Or If Vic = "" Or If Vichq = "" Or If Viautre = "" Then
     Music.play
     Message.Error("Vous devez completer, dans les parametres, les données relatives au journal de caisse \net aux comptes de virements internes avant de faire le moulinage !")
@@ -88,11 +89,11 @@ Public Sub Button1_Click()
       Endif
     Endif
   Endif
-  
+
 End
 
 Public Sub Livre_caisse()
-  
+
   Dim rTkx, rttva As Result
   Dim rTkFam As Result
   Dim rTkhv As Result
@@ -117,7 +118,7 @@ Public Sub Livre_caisse()
   Dim Enc As Boolean = False
   Dim pdf As Clivre
   Dim Ncaisse, sintitule As String
-  
+
   With Utils
     Filename = "/tmp/Livre.pdf"
     pdf = New Clivre("P", "mm", "A4")
@@ -320,11 +321,11 @@ Public Sub Livre_caisse()
       Message.Info("Aucune donnée n'est a traiter !")
     Endif
   End With
-  
+
 End
 
 Public Sub Moulinage()
-  
+
   Dim rTck As Result
   Dim rlTck As Result
   Dim rlTck2 As Result
@@ -355,7 +356,7 @@ Public Sub Moulinage()
   Dim scli As String
   Dim $intit, resto, Fam, $depot As String
   Dim bretro As Boolean
-  
+
   Virements()
   numecr = "numecriture"
   numr = Ecritures(numecr)
@@ -380,17 +381,17 @@ Public Sub Moulinage()
       Else
         rTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where left(date,10) = &1 order by numero", Format$(DateChooser1.Value, "dd-mm-yyyy"))
         If rTck.Available Then
-          
+
           'création du fichier temporaire pour récuperer les lignes de facture
           creatmp
           ' On gère d'abord les clients caisse
           Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabParam") & " WRITE, " & Cbase.Table("TabEntTck") & " WRITE, " & Cbase.Table("TabLigTck") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("Totalisation") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabArt") & " WRITE, " & Cbase.Table("TabHisEntTck") & " WRITE, " & Cbase.Table("TabHisLigTck") & " WRITE, " & Cbase.Table("TabJour") & " WRITE,  " & Cbase.Table("TabCli") & " WRITE, " & Cbase.Table("TabBl") & " WRITE, " & Cbase.Table("TabLigbl") & " WRITE, " & Tab & " WRITE, Fiches_Caisses WRITE, Fiches_FamDep WRITE")
-          
-          '         Génération de la facture 
+
+          '         Génération de la facture
           genfac()
-          
+
           Repeat
-            If rtck!sresto = "1" Then 
+            If rtck!sresto = "1" Then
               resto = "R"
             Else
               resto = ""
@@ -422,13 +423,13 @@ Public Sub Moulinage()
                       Fam = rlTck!fam
                     Endif
                     If IsNull(Fam) Then Fam = rlTck!fam
-                    If rlTck.index < rlTck.count - 1 Then 
+                    If rlTck.index < rlTck.count - 1 Then
                       $intit = rlTck!intitule
                       rlTck.MoveNext()
                       If rlTck!type = "O" Then
                         rlTck.MoveNext()
                       Endif
-                      If rlTck!type <> "S" And If rlTck!type <> "T" Then 
+                      If rlTck!type <> "S" And If rlTck!type <> "T" Then
                         rlTck.MovePrevious()
                         If rlTck!type = "O" Then
                           rlTck.MovePrevious()
@@ -483,9 +484,9 @@ Public Sub Moulinage()
                         Endif
                       Endif
                       If IsNull(montant) Then montant = 0
-                      If rlTck!type = "S" Then 
+                      If rlTck!type = "S" Then
                         rlTck.MoveNext()
-                        If rlTck!type <> "T" Then 
+                        If rlTck!type <> "T" Then
                           rlTck.MovePrevious()
                           If rlTck!type = "O" Then
                             rlTck.MovePrevious()
@@ -590,11 +591,11 @@ Public Sub Moulinage()
     Endif
   End With
   Me.Mouse = mouse.Default
-  
+
 End
 
 Public Sub Raz_Tables()
-  
+
   Try Utils.db.EXEC("CREATE TABLE " & Cbase.Table("TabReglt") &
     "(lInd INT NOT NULL AUTO_INCREMENT," &
     "intitule Char(30)," &
@@ -604,7 +605,7 @@ Public Sub Raz_Tables()
     "caisse Char(2)," &
     "date Char(17)," &
     "PRIMARY KEY (lInd))" & "ENGINE = MYISAM")
-  
+
   Try Utils.db.EXEC("CREATE TABLE " & Cbase.Table("TabEntTck") &
     "(lInd INT NOT NULL AUTO_INCREMENT," &
     "caisse Char(2)," &
@@ -640,7 +641,7 @@ Public Sub Raz_Tables()
     "carte Char(13)," &
     "points Decimal(12,3)," &
     "PRIMARY KEY (lInd))" & "ENGINE = MYISAM")
-  
+
   Try Utils.db.EXEC("CREATE TABLE " & Cbase.Table("TabLigTck") &
     "(lInd INT NOT NULL AUTO_INCREMENT," &
     "numero Char(7)," &
@@ -655,14 +656,14 @@ Public Sub Raz_Tables()
     "mrem Char(12)," &
     "mtva Char(12)," &
     "PRIMARY KEY (lInd))" & "ENGINE = MYISAM")
-  
+
 End
 
 Public Sub Recup_Art(code As String, qtea As String, mht As String)
-  
+
   Dim Remtypec As Result
   Dim Rarts As Result
-  
+
   With utils
     Rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", Code)
     If Rarts.Available Then
@@ -723,18 +724,18 @@ Public Sub Recup_Art(code As String, qtea As String, mht As String)
       Endif
       Calc_Marge()
     Endif
-    
+
   End With
-  
+
 End
 
 '*****************************************
 '* On récupère les remises quantitatives *
 '*****************************************
 Public Sub Remises_quantitatives()
-  
+
   Dim i As Integer
-  
+
   With Utils
     For i = 0 To Rms.Bounds[0] - 1
       If IsNull(Rms[i, 2]) Then
@@ -747,7 +748,7 @@ Public Sub Remises_quantitatives()
         Endif
       Endif
     Next
-    If Val(Artrm) <> 100 Then
+    If Val(Artrm) <> 100 And Not IsNull(Artrm) Then
       ArtNet = Format$(Val(.CPoint(Artbrut)) - (Val(.CPoint(Artbrut)) * Val(.CPoint(Artrm)) / 100), Nbdec)
       Calcttc()
     Else
@@ -755,43 +756,43 @@ Public Sub Remises_quantitatives()
       Arttc = "0"
     Endif
   End With
-  
+
 End
 
 '*********************************
 '* Calcul du TTC du produit      *
 '*********************************
 Public Sub CalcTTC()
-  
+
   Recup_Tva()
   Arttc = Val(Utils.CPoint(Artnet)) + (Val(Utils.CPoint(Artnet)) * Ttva / 100)
   arrondi()
   tx = 1 + (Ttva / 100)
   Artnet = Format$(Val(Utils.CPoint(Arttc)) / Tx, Nbdec)
   If Val(Artrm) = 0 Then Artnet = Artbrut
-  
+
 End
 
 '************************
 '* Recup de la Tva      *
 '************************
 Public Sub Recup_Tva()
-  
+
   Dim hResult As Result
-  
+
   Ttva = 0
   hResult = Utils.db.Exec("select * from " & Cbase.Table("TabTvav") & " where code_tva = &1 ", Arttx)
   If hResult.Available Then
     Ttva = hResult!taux_tva
   Endif
-  
+
 End
 
 '*********************************
 '* Calcul du nombre de decimal   *
 '*********************************
 Public Sub Decimal()
-  
+
   With Utils
     qte = .CPoint(qte)
     If Decq = "0" Then
@@ -806,14 +807,14 @@ Public Sub Decimal()
       Endif
     Endif
   End With
-  
+
 End
 
 '***********************************
 '*        On gère l' arrondi       *
 '***********************************
 Public Sub arrondi()
-  
+
   Try Arttc = Format$(Val(Utils.CPoint(Arttc)), "0.00")
   If Not Arttc Then Arttc = "0,00"
   If arr = "0,05" Then
@@ -823,11 +824,11 @@ Public Sub arrondi()
       Arttc = Round(Val(Arttc), -1)
     Endif
   Endif
-  
+
   If arr = "0,10" Then
     Arttc = Round(Val(Arttc), -1)
   Endif
-  
+
   If arr = "0,50" Then
     If Abs(Val(Arttc)) <= Abs(Val(Left$(Arttc, (Len(Arttc) - 2)) & 25)) Then
       Arttc = Left$(Arttc, (Len(Arttc) - 2)) & "00"
@@ -840,17 +841,17 @@ Public Sub arrondi()
       Endif
     Endif
   Endif
-  
+
   If arr = "1,00" Then
     Arttc = Round(Val(Arttc))
   Endif
-  
+
 End
 
 Public Sub Calc_Marge()
-  
+
   Dim rMrg As Result
-  
+
   With utils
     If Pmp = 0 Then
       rMrg = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " WHERE code_fam = &1", ArtFam)
@@ -859,14 +860,14 @@ Public Sub Calc_Marge()
       Try Marge = Val(.cpoint(marge)) + Val(.cpoint(Artnet)) - (Pmp * Val(.cpoint(qte)))
     Endif
   End With
-  
+
 End
 '**********************************************************
 '*      Creation table temporaire pour totalisation       *
 '**********************************************************
 
 Public Sub Ventilation()
-  
+
   Utils.db.Exec("DROP TABLE IF EXISTS  Totalisation ")
   Utils.db.Exec("CREATE TABLE " & Cbase.Table("Totalisation") &
     "(compte Char(8) NOT NULL," &
@@ -875,14 +876,14 @@ Public Sub Ventilation()
     "totalht Char(25)," &
     "totaltva Char(25)," &
     "PRIMARY KEY (compte))" & "ENGINE = MYISAM")
-  
+
 End
 
 '**********************************************************
 '*  Creation table temporaire pour virements internes     *
 '**********************************************************
 Public Sub Virements()
-  
+
   Utils.db.Exec("DROP TABLE IF EXISTS  Virements ")
   Utils.db.Exec("CREATE TABLE " & Tab &
     "(compte Char(8) NOT NULL," &
@@ -890,17 +891,17 @@ Public Sub Virements()
     "type Char(1)," &
     "montant Decimal(12,2)," &
     "PRIMARY KEY (compte, type))" & "ENGINE = MYISAM")
-  
+
 End
 
 '*****************************************************
 '*  Récuperation du dernier numéro d'écriture        *
 '*****************************************************
 Public Function Ecritures(numecr2 As String) As String
-  
+
   Dim Params As Result
   Dim nro As String
-  
+
   Params = Utils.db.Exec("SELECT " & numecr & " FROM " & Cbase.Table("TabParam") & " ")
   If Params.Available Then
     If IsNull(Params["" & numecr2 & ""]) Then
@@ -910,23 +911,23 @@ Public Function Ecritures(numecr2 As String) As String
     Endif
   Endif
   Return nro
-  
+
 End
 
 '************************************************
 '*  Mise a jour du dernier numéro d'écriture    *
 '************************************************
 Public Sub Majnum()
-  
+
   Utils.db.Exec("UPDATE " & Cbase.Table("TabParam") & " set numecriture = &1, numecriture2 = &2", numr, numr2)
-  
+
 End
 
 '**********************************************************
 '*                   Recup parametres                     *
 '**********************************************************
 Public Sub Parametres()
-  
+
   Dim rJnl As Result
   Dim rcli As Result
   Dim rcol As Result
@@ -936,6 +937,8 @@ Public Sub Parametres()
   If rJnl.Available Then
     Jnl = rJnl!jrnal4
     If IsNull(Jnl) Then Jnl = rJnl!jrnal
+    Jnal3 = rJnl!jrnal3
+    If IsNull(Jnal3) Then Jnal3 = rJnl!jrnal
   Endif
   'On recupère les données pour la trésorerie.
   If rJnl.Available Then
@@ -959,17 +962,17 @@ Public Sub Parametres()
       Endif
     Until rcol.MoveNext()
   Endif
-  
+
 End
 
 '**********************************************************
 '*                   Maj Totalisation                     *
 '**********************************************************
 Public Sub Maj_Totalisation(cpt As String, intit As String, montant As String)
-  
+
   Dim hResult As Result
   Dim Mtnt As String
-  
+
   With utils
     hResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("Totalisation") & " Where compte = &1", Cpt)
     'Si le compte existe dans la table temporaire
@@ -995,17 +998,17 @@ Public Sub Maj_Totalisation(cpt As String, intit As String, montant As String)
       Endif
     Endif
   End With
-  
+
 End
 
 Public Sub Verif()
-  
+
   Dim hResult As Result
   Dim sCompte As String
   Dim sTotalD As String = "0"
   Dim sTotalC As String = "0"
   Dim sdif As Float
-  
+
   With utils
     hResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("Totalisation") & " order by compte")
     If hResult.Available Then
@@ -1033,14 +1036,14 @@ Public Sub Verif()
       Endif
     Endif
   End With
-  
+
 End
 
 '**********************************************************
 '*                   Maj comptabilité                     *
 '**********************************************************
 Public Sub Maj_Compta()
-  
+
   Dim Cpt As String
   Dim coll As String
   Dim Libel As String
@@ -1059,7 +1062,7 @@ Public Sub Maj_Compta()
   Dim rResult As Result
   Dim hResult As Result
   Dim numlt As String
-  
+
   Valid = 1
   Prov = 0
   Tresor = 0
@@ -1144,28 +1147,30 @@ Public Sub Maj_Compta()
         Try Utils.db.Exec("delete FROM " & Cbase.Table("Totalisation") & " where compte = &1", Cpt)
       Until rResult.MoveNext()
       If SldTot <> 0 Then
-        
+
       Endif
       Majnum()
     Endif
   End With
-  
+
 End
 
 Public Sub Maj_Tresorerie()
-  
+
   Dim rResult As Result
   Dim hResult As Result
   Dim MtTot As Float = 0
   Dim CptCli As String
-  Dim libel As String
+  Dim libel, nom As String
   Dim Nfac As String = Format$(Now, "ddmmyyyy")
-  Dim Nom As String
+  Dim Snom As String
+  Dim Nm As String[]
   Dim Mtd As Float
-  
+  Dim x As Integer
+
   rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabJour") & " where code_jo = &1", jnal)
   CptCaisse = rResult!cde_banque
-  
+
   ' On fait le total des especes
   hResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where sespeces = &1", "N")
   If hResult.Available Then
@@ -1205,7 +1210,21 @@ Public Sub Maj_Tresorerie()
       Endif
     Until hResult.MoveNext()
   Endif
-  
+
+  ' On mouvemente la table des bordereaux de chèques.
+  '  hResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where scheque = &1", "V")
+  '  If hResult.Available Then
+  '    Repeat
+  '      If Mid(hResult!date, 7, 4) & Mid(hResult!date, 4, 2) & Left(hResult!date, 2) = Format$(DateChooser1.Value, "yyyy") & Format$(DateChooser1.Value, "mm") & Format$(DateChooser1.Value, "dd") Then
+  '        nm = Split(hresult!nmcheque, " ")
+  '        For x = 1 To nm.Count - 1
+  '        Snom &= nm[x] & " "
+  '        Next
+  '        Utils.db.Exec("INSERT INTO " & "Fiches_BordereauxC" & "(code, nom, montant,dateremise,banque  ) VALUES (&1, &2, &3, &4, &5)", hresult!client, Snom, Val(Utils.cpoint(hResult!mcheque)), Utils.Cdate_Dbase(datem), jnal3)
+  '     Endif
+  '    Until hResult.MoveNext()
+  '  Endif
+
   ' On fait le total des cartes
   MtTot = 0
   hResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where scarte = &1", "U")
@@ -1226,7 +1245,7 @@ Public Sub Maj_Tresorerie()
       Endif
     Until hResult.MoveNext()
   Endif
-  
+
   ' On génère l'écriture de trésorerie pour les especes
   hResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
   If hResult.Available Then
@@ -1293,18 +1312,18 @@ Public Sub Maj_Tresorerie()
     Until hresult.MoveNext()
   Endif
   Majnum()
-  
+
 End
 
 Public Sub Maj_Collectif(Cpt As String, intit As String, libel As String, Mnt As Float)
-  
+
   Dim Coll As String
   Dim Mtc As Float
   Dim Mtd As Float
   Dim Sld As Float
   Dim cResult As Result
   Dim Numlt As String = Format$(DateChooser1.Value, "ddmmyyyy")
-  
+
   cResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", Cpt)
   coll = cResult!coll_cc
   cResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " Where compte = &1 and numero = &2 and numerodef = &3", Coll, numr, numr2)
@@ -1328,25 +1347,25 @@ Public Sub Maj_Collectif(Cpt As String, intit As String, libel As String, Mnt As
     Sld = cResult!solde + Mtd - Mtc
   Endif
   Utils.db.Exec("UPDATE " & Cbase.Table("TabComptes") & " set solde = &2 Where compte_cc = &1", coll, Sld)
-  
+
 End
 
 '*****************************************
 '*  Génération de la facture magasin     *
 '*****************************************
 Private Sub genfac()
-  
+
   Dim res, resentz, resligz, resentfac, resligfac, respar, reslig As Result
   Dim i, j As Integer
   Dim rem As Float
   Dim pu, qte, pxttc, mttc, mht, mtva, ttva, mremise As Float
   Dim snfac, snumlig As String
-  
+
   'recuperation et maj du n° facture
   respar = utils.db.Edit("Fiches_Parametres", "ind='0'")
   snfac = Str(Year(DateChooser1.Value)) & Format(Val(respar!dnfac) + 1, "000000")
   respar!dnfac = Format(Val(respar!dnfac) + 1, "000000")
-  
+
   'selection des entetes fichier z
   resentz = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where left(date,10) = &1 and client = &2 group by numero", Format$(DateChooser1.Value, "dd-mm-yyyy"), client)
   If resentz.Available Then
@@ -1356,17 +1375,17 @@ Private Sub genfac()
       'selection des lignes z
       resligz = utils.db.Exec("SELECT * FROM Fiches_LigTicketz WHERE numero=&1  ORDER BY lInd", resentz!numero)
       If resligz.Available Then
-        
+
         'calcul de la remise global en %
         rem = remglob(resligz)
-        
+
         'creation des lignes articles dans fichier temporaire
         resligz.MoveFirst
         j = 0
         Repeat
           If resligz!type = "A" Then
             resligfac = utils.db.Create("Tmp_Caisse")
-            'calculs intermediaires 
+            'calculs intermediaires
             ttva = CFloat(Trim(resligz!tva)) / 100
             pxttc = CFloat(Trim(Replace(resligz!montant, ",", ".")))
             qte = Val(Utils.cpoint(resligz!qte))
@@ -1388,11 +1407,11 @@ Private Sub genfac()
             'incremente la base de 1 pour voir si remise article ==> recalcul de la remise en 1 article puis globale
             Try resligz.MoveNext
             If resligz.Available Then
-              If resligz!type = "O" Then 
+              If resligz!type = "O" Then
                 resligz.MoveNext
                 Inc J
               Endif
-              If resligz!type = "S" Then 
+              If resligz!type = "S" Then
                 resligz.MoveNext
                 Inc J
               Endif
@@ -1437,7 +1456,7 @@ Private Sub genfac()
     Try resligfac.Update
     If Not Error Then
       utils.db.Commit
-      
+
       'mise a jour entete facture
       utils.db.Begin
       res = Utils.db.Exec("SELECT SUM(montant) AS montht, SUM(tva) AS tottva, SUM(marge) AS totmarge,SUM(remise) as remise FROM Tmp_Caisse")
@@ -1469,7 +1488,7 @@ Private Sub genfac()
         resentfac!datefac = DateChooser1.Value
         resentfac.Update
         respar.Update
-        
+
         'mise a jour des lignes de facture
         reslig = utils.db.Exec("SELECT SUM(pu) as pu, SUM(montant) as montant, SUM(remise) as remise, SUM(quantite) as quantite, SUM(tva) as mtva, SUM(marge) as marge, fam,code FROM Tmp_Caisse GROUP BY code")
         snumlig = "0001"
@@ -1480,7 +1499,7 @@ Private Sub genfac()
         resligfac!typel_ligfac = "C"
         resligfac!com_ligfac = "Facture caisse du : " & Format(DateChooser1.Value, "dd-mm-yyyy")
         resligfac.Update
-        
+
         reslig.MoveFirst
         For j = 0 To reslig.Max
           resligfac = Utils.db.Create("Fiches_HistoLigfac")
@@ -1490,7 +1509,7 @@ Private Sub genfac()
           resligfac!code_ligfac = reslig!code
           resligfac!pu_ligfac = Format(reslig!pu, "0.00")
           'resligfac!brut_ligfac = Format(reslig!montant, "0.00")
-          resligfac!brut_ligfac = Format(reslig!pu * reslig!quantite, "0.00") 
+          resligfac!brut_ligfac = Format(reslig!pu * reslig!quantite, "0.00")
           resligfac!rem_ligfac = Format(reslig!remise, "0.00")
           'resligfac!netht_ligfac = Format(reslig!montant - reslig!remise, "0.00")
           'resligfac!nettc_ligfac = Format((reslig!montant - reslig!remise) + reslig!mtva, "0.00")
@@ -1507,12 +1526,12 @@ Private Sub genfac()
             resligfac!tx_ligfac = res!art_tva
             resligfac!qte_ligfac = Format(reslig!quantite, utils.Find_nbdec(res!art_dec))
             'resligfac!pu_ligfac = Format(reslig!montant / reslig!quantite, utils.Find_nbdec(res!art_nbd))
-            res = utils.db.Exec("SELECT * FROM Fiches_Tvaav WHERE code_tva=&1", resligfac!tx_ligfac) 
+            res = utils.db.Exec("SELECT * FROM Fiches_Tvaav WHERE code_tva=&1", resligfac!tx_ligfac)
             If res.Available Then resligfac!mtx_ligfac = res!taux_tva
           Else
             resligfac!libel_ligfac = "Article inconnu"
             resligfac!qte_ligfac = Format(reslig!quantite, "0.000")
-            'resligfac!pu_ligfac = Format((reslig!montant / reslig!quantite), "0.00") 
+            'resligfac!pu_ligfac = Format((reslig!montant / reslig!quantite), "0.00")
             resligfac!fam_ligfac = reslig!fam
           Endif
           resligfac.Update
@@ -1522,15 +1541,15 @@ Private Sub genfac()
       utils.db.Commit
     Endif
   Endif
-  
+
 End
 
 Private Function remglob(res As Result) As Float    'calcul de la remise global sur 1 ticket
-  
+
   Dim rem As Float
   Dim i As Integer
   Dim ftotbr, ftotnet As Float
-  
+
   rem = 0
   res.MoveFirst
   For I = 0 To res.Max
@@ -1547,14 +1566,14 @@ Private Function remglob(res As Result) As Float    'calcul de la remise global 
     res.MoveNext
   Next
   Return rem
-  
+
 End
 
 Private Function extraction(intilule As String) As Float
-  
+
   Dim fmont As Float
   Dim smont As String = ""
-  
+
   intilule = Trim(intilule)
   While Right(intilule, 1) Like "[0-9]" Or Right(intilule, 1) Like "[,]"
     smont = Right(intilule, 1) & smont
@@ -1562,11 +1581,11 @@ Private Function extraction(intilule As String) As Float
   Wend
   Try fmont = CFloat(Replace(smont, ",", "."))
   Return fmont
-  
+
 End
 
 Private Sub creatmp()
-  
+
   Try utils.db.Exec("DROP TABLE Tmp_Caisse")
   Utils.db.EXEC("CREATE TABLE Tmp_Caisse" &
     "(lInd INT NOT NULL AUTO_INCREMENT," &
@@ -1579,14 +1598,14 @@ Private Sub creatmp()
     "marge Decimal(8,2)," &
     "fam Char(5)," &
     "PRIMARY KEY (lInd))")
-  
+
 End
 
 '**********************************
 '*    Appel de la doc html        *
 '**********************************
 Public Sub Button3_Click()
-  
+
   Exec ["xdg-open", Application.Path &/ "Doc_Caisse/Moulinage.html"]
-  
+
 End
