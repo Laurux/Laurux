@@ -1,0 +1,125 @@
+' Gambas class file
+
+Private itn As Integer = 0
+
+Public Sub Form_Open()
+
+  Dim rBanque As Result
+
+  Dateb.text = Format$(Now, "dd.mm.yyyy")
+  Rbanque = Utils.db.Exec("select * from Fiches_Journaux where  type_jo = &1order by code_jo", "TR")
+  If Rbanque.Available Then
+    Repeat
+      If Left$(Rbanque!code_jo, 2) <> "53" Then Bq.Add(Rbanque!code_jo & "-" & Rbanque!libelle_jo)
+    Until Rbanque.MoveNext()
+  Endif
+  Recup_Cheques()
+
+End
+
+Public Sub Recup_Cheques()
+
+  Dim rCheque As Result
+  Dim n As Integer = 0
+
+  Grd1.Rows.Count = 0
+  Grd1.Refresh()
+  Grd1.Columns.Count = 4
+  Grd1.Columns[0].Width = 100
+  Grd1.Columns[1].Width = 100
+  Grd1.Columns[1].Alignment = 2
+  Grd1.Columns[2].Width = 100
+  Grd1.Columns[2].Alignment = 3
+  Grd1.Columns[3].Width = 330
+  Grd1.Columns[0].Text = "Date chèque"
+  Grd1.Columns[1].Text = "Montant"
+  Grd1.Columns[2].Text = "Code client"
+  Grd1.Columns[3].Text = "Nom client"
+  Grd2.Rows.Count = 0
+  Grd2.Refresh()
+  Grd2.Columns.Count = 4
+  Grd2.Columns[0].Width = 100
+  Grd2.Columns[1].Width = 100
+  Grd2.Columns[1].Alignment = 2
+  Grd2.Columns[2].Width = 100
+  Grd2.Columns[2].Alignment = 3
+  Grd2.Columns[3].Width = 330
+  Grd2.Columns[0].Text = "Date chèque"
+  Grd2.Columns[1].Text = "Montant"
+  Grd2.Columns[2].Text = "Code client"
+  Grd2.Columns[3].Text = "Nom client"
+  rCheque = Utils.db.Exec("select * from Fiches_BordereauxC order by dateremise")
+  If rCheque.Available Then
+    Repeat
+      Grd2.Rows.count = n + 1
+      Grd2[n, 0].Text = Format$(rCheque!dateremise, "dd.mm.yyy")
+      Grd2[n, 1].Text = rCheque!montant
+      Grd2[n, 2].Text = rCheque!code
+      Grd2[n, 3].Text = rCheque!nom
+      Inc n
+    Until rCheque.MoveNext()
+  Endif
+
+End
+
+Public Sub Grd2_Activate()
+
+  Grd1.Rows.count = Grd1.Rows.count + 2
+  itn = Grd1.Rows.count - 2
+  Grd1[itn, 0].Text = Grd2[Grd2.row, 0].Text
+  Grd2[Grd2.row, 0].Font.Strikeout = True
+  Grd1[itn, 1].Text = Grd2[Grd2.row, 1].Text
+  Grd1[itn, 2].Text = Grd2[Grd2.row, 2].Text
+  Grd1[itn, 3].Text = Grd2[Grd2.row, 3].Text
+  Grd2.Rows.Remove(Grd2.row)
+  Grd1.Rows.count = Grd1.Rows.count - 1
+  Grd1.Refresh
+  Grd2.Refresh
+  Inc itn
+
+End
+
+Public Sub Grd1_Activate()
+
+  Dim itn As Integer
+
+  Grd2.Rows.count = Grd2.Rows.count + 2
+  Grd2.Refresh
+  itn = Grd2.Rows.count - 2
+  Grd2[itn, 0].Text = Grd1[Grd1.row, 0].Text
+  Grd1[Grd1.row, 0].clear
+  Grd2[itn, 1].Text = Grd1[Grd1.row, 1].Text
+  Grd1[Grd1.row, 1].clear
+  Grd2[itn, 2].Text = Grd1[Grd1.row, 2].Text
+  Grd1[Grd1.row, 2].clear
+  Grd2[itn, 3].Text = Grd1[Grd1.row, 3].Text
+  Grd1[Grd1.row, 3].clear
+  Grd1.Rows.Remove(Grd1.row)
+  Grd2.Rows.count = Grd2.Rows.count - 1
+  Grd2.Refresh
+  Grd1.Refresh
+
+End
+
+Public Sub Dateb_DblClick()
+
+  If DateChooser1.Visible = False Then
+    DateChooser1.visible = True
+  Else
+    DateChooser1.Visible = False
+  Endif
+
+End
+
+Public Sub DateChooser1_Activate()
+
+  Dateb.text = Format$(DateChooser1.Value, "dd.mm.yyyy")
+  DateChooser1.Visible = False
+
+End
+
+Public Sub Button1_Click()
+
+  Me.Close
+
+End
