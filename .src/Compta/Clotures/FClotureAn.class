@@ -43,17 +43,17 @@ Private Jrl As String
 Private son As Integer = Start.Son
 
 Public Sub _New()
-  
+
   If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
   Music.Load(Start.Musique)
   Me.Center
-  
+
 End
 
 Public Sub Form_Open()
-  
+
   Dim rResult As Result
-  
+
   Tab = "Fiches_Parametres"
   With Utils
     If Settings["/Soc" & Start.Societe & "/Gestion"] Then TextLabel1.Text = "Attention!ce programme va fermer l 'exercice proposé.\n Après cela vous ne pourrez plus exporter d'écritures sur cet exercice. "
@@ -76,11 +76,11 @@ Public Sub Form_Open()
   jour = Format$(Now, "dd.mm.yyyy")
   Rp = "Report a nouveau"
   Rslt = "Resultat"
-  
+
 End
 
 Public Sub Aff_date()
-  
+
   dtepc = Format(Val(dtepc) + 1, "00")
   If Val(dtepc) > 12 Then
     dtepc = "01"
@@ -90,11 +90,11 @@ Public Sub Aff_date()
   datecl.Text = Format$(Date(datec3), "dd mmmm  yyyy")
   dtepc = Format$(Val(dtepc), "00")
   dateprc.Text = Format$(Date(Right(dpc, 4), dtepc, 01), "dd mmmm  yyyy")
-  
+
 End
 
 Public Sub Calc_Daterpt(Dtpc2 As String)
-  
+
   dtepc = Left(Dtpc2, 2)
   dtepc = Format(Val(dtepc) + 1, "00")
   If Val(dtepc) > 12 Then
@@ -106,17 +106,17 @@ Public Sub Calc_Daterpt(Dtpc2 As String)
   Dtpc = Format$(Date(Right(dpc, 4), dtepc, 01), "mmmm  yyyy")
   dtepc = Format$(Val(dtepc), "00")
   dterpt = Format$(Date(dpc, dtepc, 01), "yyyymmdd")
-  
+
 End
 
 Public Sub Button3_Click()
-  
+
   Me.Close
-  
+
 End
 
 Public Sub Button1_Click()
-  
+
   Dim rResult As Result
   Dim rrResult As Result
   Dim cResult As Result
@@ -171,7 +171,7 @@ Public Sub Button1_Click()
   Dim Sbfournisseur As String
   Dim Col As String
   Dim cloturee As Boolean
-  
+
   Tab0 = "Fiches_Parametres"
   'On récupère les numéros d'écritures
   rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & "")
@@ -186,7 +186,7 @@ Public Sub Button1_Click()
     If son Then
       Music.Play
     Endif
-    
+
     Dclient = "0,00"
     Cclient = "0,00"
     Sclient = "0,00"
@@ -210,7 +210,7 @@ Public Sub Button1_Click()
     Sbfournisseur = "0,00"
     Tab = "Fiches_Mvt"
     Tab2 = "Fiches_Comptes"
-    
+
     Me.Mouse = Mouse.Wait
     rrResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " order by cast(compte_cc AS char)")
     If Message.Question("La legislation prévoit d'archiver les sauvegardes avant cloture annuelle pendant cinq ans.\n Avez-vous correctement fait votre sauvegarde ?", "Oui", "Non") = "1" Then
@@ -228,43 +228,43 @@ Public Sub Button1_Click()
               credit = rResult!montantc
               If debit = Null Then debit = 0
               If credit = Null Then credit = 0
-              
+
               If type = "C" Then
                 Dbclient = Format$(Val(.cpoint(Dbclient)) + debit, "0.00")
                 Cbclient = Format$(Val(.cpoint(Cbclient)) + credit, "0.00")
                 Sbclient = Format$(Val(.cpoint(Dbclient)) - Val(.cpoint(Cbclient)), "0.00")
               Endif
-              
+
               If type = "F" Then
                 Dbfournisseur = Format$(Val(.cpoint(Dbfournisseur)) + debit, "0.00")
                 Cbfournisseur = Format$(Val(.cpoint(Cbfournisseur)) + credit, "0.00")
                 Sbfournisseur = Format$(Val(.cpoint(Dbfournisseur)) - Val(.cpoint(Cbfournisseur)), "0.00")
               Endif
-              
+
               If type = "G" Then
                 Dgestion = Format$(Val(.cpoint(Dgestion)) + debit, "0.00")
                 Cgestion = Format$(Val(.cpoint(Cgestion)) + credit, "0.00")
                 Sgestion = Format$(Val(.cpoint(Dgestion)) - Val(.cpoint(Cgestion)), "0.00")
               Endif
-              
+
               If type = "B" Then
                 Dbilan = Format$(Val(.cpoint(Dbilan)) + debit, "0.00")
                 Cbilan = Format$(Val(.cpoint(Cbilan)) + credit, "0.00")
                 Sbilan = Format$(Val(.cpoint(Dbilan)) - Val(.cpoint(Cbilan)), "0.00")
               Endif
-              
+
               If type = "B" And Col = "1" And Left$(Compt, 2) = "41" Then
                 Dclient = Format$(Val(.cpoint(Dclient)) + debit, "0.00")
                 Cclient = Format$(Val(.cpoint(Cclient)) + credit, "0.00")
                 Sclient = Format$(Val(.cpoint(Dclient)) - Val(.cpoint(Cclient)), "0.00")
               Endif
-              
+
               If type = "B" And Col = "1" And Left$(Compt, 2) = "40" Then
                 Dfournisseur = Format$(Val(.cpoint(Dfournisseur)) + debit, "0.00")
                 Cfournisseur = Format$(Val(.cpoint(Cfournisseur)) + credit, "0.00")
                 Sfournisseur = Format$(Val(.cpoint(Dfournisseur)) - Val(.cpoint(Cfournisseur)), "0.00")
               Endif
-              
+
               Inc i
               rResult.MoveNext
             Wend
@@ -286,13 +286,13 @@ Public Sub Button1_Click()
             Me.Mouse = Mouse.Wait
             dateprc.Text = Left$(dateprc.Text, 6) & Right$(datecl.Text, 4)
             Sauve()
-            
+
             ' On remet tous les soldes à zéro
             rrResult = Utils.db.Exec("SELECT * FROM " & Tab7 & "")
             Repeat
               Utils.db.Exec("UPdate  " & Tab7 & "  SET  solde = &2 where compte_cc = &1", rrResult!compte_cc, 0)
             Until rrResult.MoveNext()
-            
+
             ' On recalcule les soldes pour l'exercice en cours de bilan
             rrResult = Utils.db.Exec("SELECT * FROM " & Tab7 & " order by cast(compte_cc AS char)")
             If rrResult.Available Then
@@ -344,9 +344,9 @@ Public Sub Button1_Click()
             Utils.db.Exec("alter Table " & TabA2 & " Rename " & TabA3 & "")
             Utils.db.Exec("alter Table " & TabA1 & " Rename " & TabA2 & "")
             Utils.db.Exec("alter Table " & TabA & " Rename " & TabA1 & "")
-            
+
             TabA = "Fiches_MvtA"
-            Utils.db.Exec("CREATE TABLE " & TabA & 
+            Utils.db.Exec("CREATE TABLE " & TabA &
               " (numero Integer(6) NOT NULL," &
               "compte CHAR(8) NOT NULL," &
               "intitule Char(30)," &
@@ -361,7 +361,7 @@ Public Sub Button1_Click()
               "validee TINYINT(1)," &
               "lind INT NOT NULL AUTO_INCREMENT," &
               "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
-            
+
             Utils.db.Exec("CREATE TABLE " & Tab &
               " (jour Char(2)," &
               "numero Integer(11) NOT NULL," &
@@ -392,7 +392,7 @@ Public Sub Button1_Click()
               "export Char(1)," &
               "lind INT NOT NULL AUTO_INCREMENT," &
               "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
-            
+
             Utils.db.Exec("drop Table IF exists " & Tab6 & "")
             Utils.db.Exec("CREATE TABLE " & Tab6 &
               " (jour Char(2)," &
@@ -422,9 +422,9 @@ Public Sub Button1_Click()
               "export Char(1)," &
               "lind INT NOT NULL AUTO_INCREMENT," &
               "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
-            
+
             ' On recupere les écritures analytiques
-            
+
             rResult = Utils.db.Exec("SELECT * FROM " & TabA1 & "")
             If rResult.Available Then
               Repeat
@@ -434,9 +434,9 @@ Public Sub Button1_Click()
                 Endif
               Until rResult.MoveNext()
             Endif
-            
+
             ' On recupere les comptes clients et fournisseurs
-            
+
             rResult = Utils.db.Exec("SELECT * FROM " & Tab1 & "")
             If rResult.Available Then
               Repeat
@@ -468,7 +468,7 @@ Public Sub Button1_Click()
                     Endif
                   Endif
                   ' On recupere les comptes de bilan
-                  
+
                   If cResult!type_cc = "B" Then ' Si compte de bilan
                     If .Cdate_Comp(rResult!dte) > Datec2 And .Cdate_Comp(rResult!dte) <= datec3 Then
                       rrResult = Utils.db.Exec("SELECT * FROM " & Tab6 & " WHERE  compte = &1", rResult!compte)
@@ -493,9 +493,9 @@ Public Sub Button1_Click()
                       Endif
                     Endif
                   Endif
-                  
+
                   ' On totalise les comptes de gestion
-                  
+
                   If cResult!type_cc = "G" Then
                     If .Cdate_Comp(rResult!dte) > Datec2 And .Cdate_Comp(rResult!dte) <= datec3 Then
                       num = rResult!numero
@@ -521,7 +521,7 @@ Public Sub Button1_Click()
                 Endif
               Until rResult.MoveNext()
             Endif
-            
+
             'On mouvemente la table des mouvements pour les reports
             rrResult = Utils.db.Exec("SELECT * FROM " & Tab6 & "")
             If rrResult.Available Then
@@ -549,11 +549,11 @@ Public Sub Button1_Click()
                 Endif
               Until rrResult.MoveNext()
             Endif
-            
+
             ' On remet tous les soldes à zéro
             rrResult = Utils.db.Exec("SELECT * FROM " & Tab7 & "")
             Utils.db.Exec("UPdate  " & Tab7 & "  SET  solde = &1", 0)
-            
+
             ' On recalcule les soldes
             Utils.db.Exec("UPdate  " & tab & "  SET  validee = &1", 1) 'Toutes les écritures sont validées.
             rrResult = Utils.db.Exec("SELECT * FROM " & Tab7 & " order by cast(compte_cc AS char)")
@@ -580,7 +580,7 @@ Public Sub Button1_Click()
                 totsld = 0
               Until rrResult.MoveNext()
             Endif
-            
+
             ' On change les dates et on déplace les numéros d'écritures
             rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & "")
             datec2 = rResult!dteclec
@@ -589,7 +589,7 @@ Public Sub Button1_Click()
             Inc Numecr1
             Inc Numecr3
             Utils.db.Exec("UPdate  " & Tab0 & "  SET  dteclec = &1, dteclec1 = &2, dteclec2 = &3, dteclec3= &4, dteclec4 = &5, dteclec5 = &6, dtetdec= &7, dtefedec = &8, numecriture = &9, numecriture1 = &{10}, numecriture2 = &{11} ", .Cdate_Dbase(datec2), rResult!dteclec, rResult!dteclec1, rResult!dteclec2, rResult!dteclec3, rResult!dteclec4, .Cdate_Dbase(jour), rResult!dteclec, numecr1, 0, numecr3)
-            
+
             'On mouvemente les écritures
             Tab = "Fiches_Mvt"
             rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by numero")
@@ -599,7 +599,7 @@ Public Sub Button1_Click()
                 Utils.db.Exec("UPdate  " & Tab & "  SET numerop = &1 where numero = &1", rResult!numero)
               Until rResult.MoveNext()
             Endif
-            
+
             ' On renumérote les écritures
             numecr3 = 0
             numecr1 = 0
@@ -619,7 +619,7 @@ Public Sub Button1_Click()
                 Repeat
                   If CheckBox1.value Then
                     If EResult!cloturee = True Then Utils.db.Exec("UPdate  " & Tab & "  SET numerodef =  &1, numero = &2 where lind = &3", numecr3, numecr1, Eresult!lind)
-                    If EResult!cloturee = False Then 
+                    If EResult!cloturee = False Then
                       Utils.db.Exec("UPdate  " & Tab & "  SET numero =  &1, numerodef = &3 where lind = &2", numecr1, Eresult!lind, 0)
                     Endif
                   Else
@@ -636,9 +636,9 @@ Public Sub Button1_Click()
             Else
               Utils.db.Exec("UPdate  " & Tab0 & "  SET  numecriture1 = &1, numecriture2 = &2 ", 0, numecr3)
             Endif
-            
+
             ' On lettre les écritures
-            
+
             Try Me.Mouse = Mouse.Default
             If son Then
               Music.Play
@@ -655,15 +655,15 @@ Public Sub Button1_Click()
       Endif
     Endif
   End With
-  
+
 End
 
 Public Sub Sauve()
-  
+
   Dim cp As New Compress
   Dim dte As String
   Dim SauveRep As String
-  
+
   Try SauveRep = user.Home & "/Sauve"
   If Not Exist(SauveRep) Then Mkdir SauveRep
   cp.type = "zlib"
@@ -679,11 +679,11 @@ Public Sub Sauve()
     Message.Error("Sauvegarde avant clôture impossible !\nLa cloture annuelle ne peut pas être faite")
     Me.Close
   Endif
-  
+
 End
 
 Public Sub Button2_Click()
-  
+
   Exec ["xdg-open", Application.Path &/ "Ecrans/ClotureAn.html"]
-  
+
 End
