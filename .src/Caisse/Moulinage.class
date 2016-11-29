@@ -333,6 +333,7 @@ Public Sub Moulinage()
   Dim rcpt As Result
   Dim rResult As Result
   Dim rFam, rDep As Result
+  Dim Bl As Result
   Dim vente As String
   Dim ivente As String
   Dim tva As String
@@ -356,6 +357,9 @@ Public Sub Moulinage()
   Dim origine As String
   Dim scli As String
   Dim code As String
+  Dim Remart As String
+  Dim totalht As Float
+  Dim totalttc As Float
   Dim $intit, resto, Fam, $depot As String
   Dim bretro As Boolean
 
@@ -417,6 +421,17 @@ Public Sub Moulinage()
               rlTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigTck") & " where numero = &1 order by lInd", rTck!numero)
               If rlTck.Available Then
                 Repeat
+                  If rlTck!type = "BL" Then
+                    'rlTck!mrem est utilisé pour récupéré le numéro de Bl
+                    Bl = Utils.db.Exec(" select * from " & Cbase.Table("TabBl") & " where type = \"B\" and numtick = &1 and numbl = &2", rlTck!numero, Format$(rlTck!mrem, "000000"))
+                    If Bl.Available Then
+                      'aucun mouvement n'est a inscrire pour le BL, le BL passe cependant en type facture et déclaré règlé et imprimé
+                      Utils.db.Exec("UPDATE " & Cbase.Table("TabBl") & " set type = \"F\", numtick = NULL, imp = 1, reg = \"Caisse\", mtreg = &2, numfac = &3, dtefac = &4, ech = &4 where numbl = &1", Format$(rlTck!mrem, "000000"), rlTck!montant, (Right$(rlTck!numero, 7) & Format$(Right(rlTck!numlig, 3), "000")), Utils.Cdate2_Dbase(Left$(rtck!date, 10)))
+                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, rltck!numlig, rlTck!code, rlTck!intitule, rltck!montant, rlTck!qte, rltck!type, Fam, rltck!mht, Format$(rlTck!mrem, "000000"), rltck!tva)
+                    Else
+                      Message.Warning("Le BL " & Format$(rlTck!mrem, "000000") & " est noté règlé dans le ticket " & rlTck!numero & " mais n'est pas associé a ce ticket, il sera ignoré") 
+                    Endif
+                  Endif
                   If rlTck!type = "A" Or If rlTck!type = "M" Or If rlTck!type = "S" Or If rlTck!type = "T" Or If rlTck!type = "L" Then
                     If rlTck!type = "A" And IsNull(rlTck!fam) Then
                       rFam = Utils.db.Exec(" select * from " & Cbase.Table("TabArt") & " where art_code = &1", rltck!code)
@@ -533,8 +548,11 @@ Public Sub Moulinage()
                 rmobl = rResult!cli_rmo
                 Exo = rResult!cli_exo
               Endif
+              Remart = "0.00"
+              totalht = 0
+              totalttc = 0
               'On met à jour le fichier des entetes de bl
-              Utils.db.Exec("INSERT INTO " & Cbase.Table("TabBl") & "(numbl,datebl,cdclibl, nmclibl, rmobl, rartbl, type, pnmclibl, adr1bl, adr2bl, cpbl, villebl, exobl, cvclibl, tvar, imp, acpt, mreg, totalht, totalttc, retro, marge_art, remmobl, remartbl, marge_mo) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13},&{14},&{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24}, &{25})", numbon, Utils.Cdate_Dbase(Datem), scli, nmclibl, rmobl, Artrm, "B", Pnmclibl, adr1bl, adr2bl, cpbl, villebl, Exo, Cvclibl, 0, 0, 0, "", .PointBase(rTck!mht), .PointBase(rTck!mttc), 0, 0, .PointBase(rmobl), .PointBase(artrm), 0)
+              Utils.db.Exec("INSERT INTO " & Cbase.Table("TabBl") & "(numbl,datebl,cdclibl, nmclibl, rmobl, rartbl, type, pnmclibl, adr1bl, adr2bl, cpbl, villebl, exobl, cvclibl, tvar, imp, acpt, mreg, totalht, totalttc, retro, marge_art, remmobl, remartbl, marge_mo) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13},&{14},&{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24}, &{25})", numbon, Utils.Cdate_Dbase(Datem), scli, nmclibl, rmobl, Artrm, "B", Pnmclibl, adr1bl, adr2bl, cpbl, villebl, Exo, Cvclibl, 0, 0, 0, "", .PointBase(totalht), .PointBase(totalttc), 0, 0, 0, 0, 0)
               'On met à jour les lignes de bl
               'On s'occupe des articles
               rlTck.MoveFirst()
@@ -547,10 +565,13 @@ Public Sub Moulinage()
               Repeat
                 If rlTck!type = "A" Then
                   qte = rlTck!qte
-                  Recup_Art(rlTck!code, qte, rlTck!mht)
+                  Recup_Art(rlTck!code, qte, rlTck!mht, rlTck!montant, rlTck!tva)
                   Inc numlig
                   nmlig = Format$(Str(numlig), "0000")
                   Bloc = nmlig
+                  Remart = Val(.cpoint(Remart)) + Val(.cpoint(artbrut)) - Val(.cpoint(artnet))
+                  totalht = totalht + Val(.cpoint(artnet))
+                  totalttc = totalttc + Val(.cpoint(Arttc))
                   Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigbl") & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15})", numbon, nmlig, rlTck!code, artdsg, artfam, artpu, qte, artbrut, Artrm, artnet, Arttx, Arttc, "A", Nbd, Bloc)
                 Endif
                 If rlTck!type = "O" Then
@@ -558,11 +579,13 @@ Public Sub Moulinage()
                   If rlTck!intitule = " Dont Eco-taxe" Then
                     Inc numlig
                     nmlig = Format$(Str(numlig), "0000")
+                    totalht = totalht + Val(.cpoint(rlTck!montant))
+                    totalttc = totalttc + Val(.cpoint(rlTck!montant))
                     Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigbl") & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15})", numbon, nmlig, rlTck!code, rlTck!intitule, "", Format$(Val(rlTck!montant), "0.00"), "1", Format$(Val(rlTck!montant), "0.00"), 0, Format$(Val(rlTck!montant), "0.00"), Arttx, Format$(Val(rlTck!montant), "0.00"), "E", "0", Bloc)
                   Endif
                 Endif
               Until rlTck.MoveNext()
-              Utils.db.Exec("UPdate  " & Cbase.Table("TabBl") & "  SET marge_art =&2 WHERE cdclibl = &1", scli, marge)
+              Utils.db.Exec("UPdate  " & Cbase.Table("TabBl") & "  SET marge_art = &2, remartbl = &3, totalht = &4, totalttc = &5 where numbl = &1", numbon, marge, Remart, totalht, totalttc)
             Endif
           Until rTck.MoveNext()
           Verif()
@@ -665,10 +688,12 @@ Public Sub Raz_Tables()
 
 End
 
-Public Sub Recup_Art(code As String, qtea As String, mht As String)
+Public Sub Recup_Art(code As String, qtea As String, mht As String, mttc As String, tva As String)
 
   Dim Remtypec As Result
   Dim Rarts As Result
+  'Dim prix_ht As String
+  'Dim prix_ttc As String
 
   With utils
     Rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", Code)
@@ -683,7 +708,9 @@ Public Sub Recup_Art(code As String, qtea As String, mht As String)
       Pmp = Rarts!art_pmp
       Artpu = Format$(Rarts!art_pvht, Nbdec)
       Artbrut = Format(Val(Artpu), Nbdec)
-      If Val(.cpoint(artpu)) = 0 Then
+      'Article sans prix défini, on utilise le montant défini en caisse
+      'Meme chose si le prix de l'article à été modifié depuis la caisse
+      If (Val(.cpoint(artpu)) = 0 Or (Artpu <> mht)) Then
         Artbrut = Format(Val(mht), Nbdec)
       Endif
       If IsNull(artrm) Then
@@ -716,13 +743,20 @@ Public Sub Recup_Art(code As String, qtea As String, mht As String)
       Try Rms[5, 0] = Str(Rarts!qte11)
       Try Rms[5, 1] = Str(Rarts!qte12)
       Try Rms[5, 2] = Str(Rarts!rem6)
-      If Val(.cpoint(artpu)) <> 0 Then
+      If ((Val(.cpoint(artpu)) <> 0) And (Artpu = Format$((Val(.CPoint(mht)) / Val(.CPoint(Qtea))), "0.00"))) Then
         Artbrut = Format$(Val(.CPoint(Artpu)) * Val(.CPoint(Qtea)), Nbdec)
       Else
         artpu = Format$(Val(.CPoint(Artbrut)) / Val(.CPoint(Qtea)), Nbdec)
       Endif
       Remises_quantitatives()
       Decimal()
+      'Si le calcul de l'article ttc et le montant ttc de la ligne du ticket correspondant diffère c'est
+      'que le prix de l'article a été modifié et non vu depuis le HT ou que l'arrondi ne fonctionne pas en caisse
+      'prix_ht = Format$((Val(.CPoint(mht)) - (Val(.CPoint(mht)) * Val(.CPoint(Artrm)) / 100)), "0.00")
+      'prix_ttc = arrondi((.cpoint(Val(.CPoint(prix_ht)) + (Val(.CPoint(prix_ht)) * Val(.CPoint(tva)) / 100))), arr)
+      'If ((Val(.cpoint(artpu)) <> 0) And (Val(.cpoint(Arttc)) <> Val(.CPoint(prix_ttc)))) Then
+      '  Message.Warning("Le prix de vente ttc de l'article\n" & Code & " : " & Artdsg & "\nen caisse (" & mttc & ",remise:" & Artrm & "%) et en gestion (" & Arttc & ") sont incoherent")
+      'Endif
       If Val(Artrm) <> 0 Then
         Try Artnet = Format$(Val(.CPoint(Artbrut)) - (Val(.CPoint(Artbrut)) * Val(.CPoint(Artrm)) / 100), Nbdec)
       Else
@@ -772,7 +806,7 @@ Public Sub CalcTTC()
 
   Recup_Tva()
   Arttc = Val(Utils.CPoint(Artnet)) + (Val(Utils.CPoint(Artnet)) * Ttva / 100)
-  arrondi()
+  Arttc = arrondi(Arttc, arr)
   tx = 1 + (Ttva / 100)
   Artnet = Format$(Val(Utils.CPoint(Arttc)) / Tx, Nbdec)
   If Val(Artrm) = 0 Then Artnet = Artbrut
@@ -819,38 +853,40 @@ End
 '***********************************
 '*        On gère l' arrondi       *
 '***********************************
-Public Sub arrondi()
+Public Sub arrondi(montant As String, arrondi As String) As String
 
-  Try Arttc = Format$(Val(Utils.CPoint(Arttc)), "0.00")
-  If Not Arttc Then Arttc = "0,00"
-  If arr = "0,05" Then
-    If Right$(Arttc) Like "[34567]*" Then
-      Arttc = Left$(Arttc, (Len(Arttc) - 1)) & "5"
+  Try montant = Format$(Val(Utils.CPoint(montant)), "0.00")
+  If Not montant Then montant = "0,00"
+  If arrondi = "0,05" Then
+    If Right$(montant) Like "[34567]*" Then
+      montant = Left$(montant, (Len(montant) - 1)) & "5"
     Else
-      Arttc = Round(Val(Arttc), -1)
+      montant = Round(Val(montant), -1)
     Endif
   Endif
 
-  If arr = "0,10" Then
-    Arttc = Round(Val(Arttc), -1)
+  If arrondi = "0,10" Then
+    montant = Round(Val(montant), -1)
   Endif
 
-  If arr = "0,50" Then
-    If Abs(Val(Arttc)) <= Abs(Val(Left$(Arttc, (Len(Arttc) - 2)) & 25)) Then
-      Arttc = Left$(Arttc, (Len(Arttc) - 2)) & "00"
+  If arrondi = "0,50" Then
+    If Abs(Val(montant)) <= Abs(Val(Left$(montant, (Len(montant) - 2)) & 25)) Then
+      montant = Left$(montant, (Len(montant) - 2)) & "00"
     Else
-      If Abs(Val(Arttc)) <= Abs(Val(Left$(Arttc, (Len(Arttc) - 2)) & 75)) Then
-        Arttc = Left$(Arttc, (Len(Arttc) - 2)) & "50"
+      If Abs(Val(montant)) <= Abs(Val(Left$(montant, (Len(montant) - 2)) & 75)) Then
+        montant = Left$(montant, (Len(montant) - 2)) & "50"
       Endif
-      If Abs(Val(Arttc)) >= Abs(Val(Left$(Arttc, (Len(Arttc) - 2)) & 76)) Then
-        Arttc = Round(Val(Arttc))
+      If Abs(Val(montant)) >= Abs(Val(Left$(montant, (Len(montant) - 2)) & 76)) Then
+        montant = Round(Val(montant))
       Endif
     Endif
   Endif
 
-  If arr = "1,00" Then
-    Arttc = Round(Val(Arttc))
+  If arrondi = "1,00" Then
+    montant = Round(Val(montant))
   Endif
+  
+  Return montant
 
 End
 

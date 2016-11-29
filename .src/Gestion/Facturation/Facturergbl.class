@@ -189,7 +189,7 @@ Public Sub recup_bl()
   dteN = Right$(datej.Text, 4) & Mid$(datej.Text, 4, 2) & Left$(datej.Text, 2)
   'If Radiobutton1.Value = True Then
   'codeclient.Background = &HD4D0C8& '&HF9F9BD&
-  Client = Utils.db.Exec("SELECT * FROM " & Tab & " where type = &1 and datebl <= &3 or type = &2 and datebl <= &3 and imp <> &4  order by cdclibl", "B", "F", dteN, 1)
+  Client = Utils.db.Exec("SELECT * FROM " & Tab & " where type = &1 and datebl <= &3 and numtick is Null or type = &2 and datebl <= &3 and imp <> &4  order by cdclibl", "B", "F", dteN, 1)
   'Else
   'Client = Utils.db.Exec("SELECT * FROM " & Tab & " where cdclibl = &1 and type = &2 and totalht <> &4 and datebl <= &5  and imp <> &6 or cdclibl = &1 and type = &3 and totalht <> &4 and datebl <= &5  and imp <> &6 order by cdclibl", codeclient.Text, "B", "F", 0, dteN, 1)
   'Endif
@@ -1232,7 +1232,7 @@ Public Sub Ent_Bl()
   Dim Entbon As String
   Dim Ligbon As String
   Dim TauxTva As String
-  Dim qte, brut, netht, nettc As Float
+  Dim qte, brut, netht, nettc, rem As Float
   Dim tht As String = "0.00"
   Dim ttc As String = "0.00"
 
@@ -1251,23 +1251,30 @@ Public Sub Ent_Bl()
         Entbonl = Utils.db.Exec("SELECT * FROM " & Entbon & " where numbl = &1", Bonl!num)
         tht = Val(Utils.cpoint(tht)) + Val(Utils.cpoint(Entbonl!totalht))
         ttc = Val(Utils.cpoint(ttc)) + Val(Utils.cpoint(Entbonl!totalttc))
-        Ligbonl = Utils.db.Exec("SELECT * FROM " & Ligbon & " where num_ligbl = &1 and typel_ligbl = &2", Bonl!num, "A")
+        'Ligbonl = Utils.db.Exec("SELECT * FROM " & Ligbon & " where num_ligbl = &1 and typel_ligbl = &2", Bonl!num, "A")
+        Ligbonl = Utils.db.Exec("SELECT * FROM " & Ligbon & " where num_ligbl = &1 and (typel_ligbl = &2 or typel_ligbl = &3)", Bonl!num, "A", "C")
         If Ligbonl.Available Then
           Repeat
             Nlgn = Format$(Val(Nlgn) + 1, "0000")
+            'Si on ne fusionne pas les articles il est possible de conserver l'historique des tickets
+            If Ligbonl!typel_ligbl = "C" And Not Fusion_art.Value Then
+              Utils.db.Exec("INSERT INTO " & Ligbon & "(num_ligbl, numlig_ligbl, typel_ligbl, com_ligbl, block_ligbl) VALUES (&1,&2,&3,&4,&5)", Nbon, Nlgn, Ligbonl!typel_ligbl, Ligbonl!com_ligbl, Nlgn)
+            Else
+              Ligart = Utils.db.Exec("SELECT * FROM " & Ligbon & " where num_ligbl = &1 and code_ligbl = &2 and typel_ligbl = &3 and rem_ligbl = &4 and pu_ligbl = &5", Nbon, Ligbonl!code_ligbl, "A", Ligbonl!rem_ligbl, Ligbonl!pu_ligbl)
+              If Fusion_art.Value And Ligart.Available Then
+                qte = Val(utils.cpoint(Ligart!qte_ligbl)) + Val(utils.cpoint(Ligbonl!qte_ligbl))
+                brut = Val(utils.cpoint(Ligart!brut_ligbl)) + Val(utils.cpoint(Ligbonl!brut_ligbl))
+                netht = Val(utils.cpoint(Ligart!netht_ligbl)) + Val(utils.cpoint(Ligbonl!netht_ligbl))
+                nettc = Val(utils.cpoint(Ligart!nettc_ligbl)) + Val(utils.cpoint(Ligbonl!nettc_ligbl))
+                ' On ne fusionne que les articles identiques avec des remises identiques (la remise reste donc en %)
+                ' rem = Val(.CPoint(brut)) - Val(.CPoint(netht))
+                Utils.db.Exec("UPdate " & LigBon & " SET qte_ligbl = &1, brut_ligbl = &2, rem_ligbl = &3, netht_ligbl = &4, nettc_ligbl = &5 WHERE num_ligbl = &6 and code_ligbl = &7 and rem_ligbl = &8 and pu_ligbl = &9", Left$(utils.cpoint(qte), 6), Left$(utils.cpoint(brut), 10), Left$(Ligbonl!rem_ligbl, 6), Left$(utils.cpoint(netht), 10), Left$(utils.cpoint(nettc), 10), Nbon, Ligbonl!code_ligbl, Left$(Ligbonl!rem_ligbl, 6), Ligbonl!pu_ligbl)
+              Else
+                Utils.db.Exec("INSERT INTO " & Ligbon & "(num_ligbl,numlig_ligbl,code_ligbl,libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, tm_ligbl, com_ligbl, block_ligbl, mtx_ligfac) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13},&{14},&{15},&{16}, &{17})", Nbon, Nlgn, Ligbonl!code_ligbl, Ligbonl!libel_ligbl, Ligbonl!fam_ligbl, Ligbonl!pu_ligbl, Ligbonl!qte_ligbl, Ligbonl!brut_ligbl, Ligbonl!rem_ligbl, Ligbonl!netht_ligbl, Ligbonl!tx_ligbl, Ligbonl!nettc_ligbl, Ligbonl!typel_ligbl, Ligbonl!tm_ligbl, Ligbonl!com_ligbl, Nlgn, TauxTva)
+              Endif
+            Endif
             Try rTva = Utils.db.Exec("select * from " & Cbase.Table("TabTvav") & " where code_tva = &1", Ligbonl!tx_ligbl)
             If rTva.available Then TauxTva = rTva!taux_tva
-            Ligart = Utils.db.Exec("SELECT * FROM " & Ligbon & " where num_ligbl = &1 and code_ligbl = &2 and typel_ligbl = &3", Nbon, Ligbonl!code_ligbl, "A")
-            If Ligart.Available Then
-              qte = Val(utils.cpoint(Ligart!qte_ligbl)) + Val(utils.cpoint(Ligbonl!qte_ligbl))
-              brut = Val(utils.cpoint(Ligart!brut_ligbl)) + Val(utils.cpoint(Ligbonl!brut_ligbl))
-              netht = Val(utils.cpoint(Ligart!netht_ligbl)) + Val(utils.cpoint(Ligbonl!netht_ligbl))
-              nettc = Val(utils.cpoint(Ligart!nettc_ligbl)) + Val(utils.cpoint(Ligbonl!nettc_ligbl))
-              rem = Val(.CPoint(brut)) - Val(.CPoint(netht))
-              Utils.db.Exec("UPdate " & LigBon & " SET qte_ligbl = &1, brut_ligbl = &2, rem_ligbl = &3, netht_ligbl = &4, nettc_ligbl = &5 WHERE num_ligbl = &6 and code_ligbl = &7", Left$(utils.cpoint(qte), 6), Left$(utils.cpoint(brut), 10), Left$(rem, 6), Left$(utils.cpoint(netht), 10), Left$(utils.cpoint(nettc), 10), Nbon, Ligbonl!code_ligbl)
-            Else
-              Utils.db.Exec("INSERT INTO " & Ligbon & "(num_ligbl,numlig_ligbl,code_ligbl,libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, tm_ligbl, com_ligbl, block_ligbl, mtx_ligfac) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13},&{14},&{15},&{16}, &{17})", Nbon, Nlgn, Ligbonl!code_ligbl, Ligbonl!libel_ligbl, Ligbonl!fam_ligbl, Ligbonl!pu_ligbl, Ligbonl!qte_ligbl, Ligbonl!brut_ligbl, Ligbonl!rem_ligbl, Ligbonl!netht_ligbl, Ligbonl!tx_ligbl, Ligbonl!nettc_ligbl, Ligbonl!typel_ligbl, Ligbonl!tm_ligbl, Ligbonl!com_ligbl, Ligbonl!block_ligbl, TauxTva)
-            Endif
           Until Ligbonl.MoveNext()
         Endif
         Utils.db.Exec("DELETE FROM " & Ligbon & " where num_ligbl = &1", Bonl!num)

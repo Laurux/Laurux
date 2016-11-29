@@ -28,6 +28,7 @@ Nv As Integer
 Nbl As Integer
 T As Integer ' Flag qui determine le message a afficher en cas de modif de prix
 Tp As String
+Numtk As String
 Tp2 As String
 Tri As String
 Tribl As String
@@ -1818,6 +1819,7 @@ Public Sub Colbl_Click()
           Numserie.Text = rResult!numserie
           CodeP.Text = rResult!codep
           Tp = rResult!type
+          Numtk = rResult!numtick
           Try Exo.Value = rResult!exobl
           If Impauto Or If Franchise Then
             Exo.Value = True
@@ -3414,7 +3416,7 @@ End
 '*****************************************************************
 Public Sub Bcomde_Click()
 
-  If Impfac <> 1 Then
+  If Impfac <> 1 And (Numtk == Null) Then
     Atype = Tp
     Tp = "C"
     Button13.Visible = True
@@ -3429,14 +3431,14 @@ Public Sub Bcomde_Click()
     'TextLabel41.Text = "Fournisseur"
     Maj_typeBL()
   Else
-    Wrg()
+    Wrg(Numtk)
   Endif
 
 End
 
 Public Sub Bbon_Click()
 
-  If Impfac <> 1 Then
+  If (Impfac <> 1) And (Numtk == Null) Then
     Atype = Tp
     Tp = "B"
     Button13.Visible = True
@@ -3459,14 +3461,14 @@ Public Sub Bbon_Click()
     Endif
     Maj_typeBL()
   Else
-    Wrg()
+    Wrg(Numtk)
   Endif
 
 End
 
 Public Sub Bdevis_Click()
 
-  If Impfac <> 1 Then
+  If Impfac <> 1 And (Numtk == Null) Then
     Atype = Tp
     Tp = "D"
     Button13.Visible = True
@@ -3481,14 +3483,14 @@ Public Sub Bdevis_Click()
     'TextLabel41.Text = "Fournisseur"
     Maj_typeBL()
   Else
-    Wrg()
+    Wrg(Numtk)
   Endif
 
 End
 
 Public Sub Bprof_Click()
 
-  If Impfac <> 1 Then
+  If Impfac <> 1 And (Numtk == Null) Then
     Atype = Tp
     Tp = "P"
     Button13.Visible = True
@@ -3503,94 +3505,106 @@ Public Sub Bprof_Click()
     'TextLabel41.Text = "Famille"
     Maj_typeBL()
   Else
-    Wrg()
+    Wrg(Numtk)
   Endif
 
 End
 
 Public Sub Bfac_Click()
 
-  Atype = Tp
-  Tp = "F"
-  Button13.Visible = True
-  Button24.visible = True
-  If Atype = "D" Or Atype = "P" Or Atype = "C" Then
-    If Panel8.visible = False Then
-      Maj_Quantite()
-    Else
-      Maj_QteDep()
+  If (Numtk == Null) Then
+    Atype = Tp
+    Tp = "F"
+    Button13.Visible = True
+    Button24.visible = True
+    If Atype = "D" Or Atype = "P" Or Atype = "C" Then
+      If Panel8.visible = False Then
+        Maj_Quantite()
+      Else
+        Maj_QteDep()
+      Endif
     Endif
-  Endif
-  If Gmateriel = True And nv <> 1 And Not IsNull(num.Text) Then
-    If start.son Then
-      Music.Play
+    If Gmateriel = True And nv <> 1 And Not IsNull(num.Text) Then
+      If start.son Then
+        Music.Play
+      Endif
+      If Atype = "D" Then message.Warning("Attention, transformer un devis en facture impose de \n rappeler les lignes de matériel pour saisir les numéros de série")
+      If Atype = "P" Then message.Warning("Attention, transformer une proforma en facture impose de \n rappeler les lignes de matériel pour saisir les numéros de série")
+      If Atype = "C" Then message.Warning("Attention, transformer une commande en facture impose de \n rappeler les lignes de matériel pour saisir les numéros de série")
     Endif
-    If Atype = "D" Then message.Warning("Attention, transformer un devis en facture impose de \n rappeler les lignes de matériel pour saisir les numéros de série")
-    If Atype = "P" Then message.Warning("Attention, transformer une proforma en facture impose de \n rappeler les lignes de matériel pour saisir les numéros de série")
-    If Atype = "C" Then message.Warning("Attention, transformer une commande en facture impose de \n rappeler les lignes de matériel pour saisir les numéros de série")
+    'TextLabel41.Text = "Famille"
+    Maj_typeBL()
+  Else
+    Wrg(Numtk)
   Endif
-  'TextLabel41.Text = "Famille"
-  Maj_typeBL()
 
 End
 
 Public Sub BfacA_Click()
 
-  Atype = Tp
-  Tp = "A"
-  If Not bTypeFacture Then
-    If Not IsNull(Dtab) And Not IsNull(Aban) Then
-      If Impfac <> 1 Then
-        If Atype = "D" Or Atype = "P" Or Atype = "C" Then
-          If Panel8.visible = False Then
-            Maj_Quantite()
-          Else
-            Maj_QteDep()
+  If (Numtk == Null) Then
+    Atype = Tp
+    Tp = "A"
+    If Not bTypeFacture Then
+      If Not IsNull(Dtab) And Not IsNull(Aban) Then
+        If Impfac <> 1 Then
+          If Atype = "D" Or Atype = "P" Or Atype = "C" Then
+            If Panel8.visible = False Then
+              Maj_Quantite()
+            Else
+              Maj_QteDep()
+            Endif
           Endif
+          'Maj_libelle()
+          Maj_typeBL()
+        Else
+          Wrg()
         Endif
-        'Maj_libelle()
-        Maj_typeBL()
       Else
-        Wrg()
+        If Message.Question("Ce client n'est pas un client abonnement! Voulez-vous completer sa fiche ?", "Oui", "Non") = 1 Then
+          tp = atype
+          Maj_typeBL()
+          FClient.ShowModal()
+          Maj_typeBL()
+        Else
+          tp = atype
+        Maj_typeBL()
+        Endif
       Endif
     Else
-      If Message.Question("Ce client n'est pas un client abonnement! Voulez-vous completer sa fiche ?", "Oui", "Non") = 1 Then
-        tp = atype
+
+      If Impfac <> 1 Then
+        Atype = Tp
+        Tp = "T"
         Maj_typeBL()
-        FClient.ShowModal()
-        Maj_typeBL()
+        Numserie.ReadOnly = False
+        Desg.ReadOnly = False
+        Desg2.ReadOnly = False
+        Marque.ReadOnly = False
+        Typemat.ReadOnly = False
+        Button13.Visible = False
+        Button24.visible = False
       Else
-        tp = atype
-        Maj_typeBL()
+        Wrg(Numtk)
       Endif
     Endif
   Else
-
-    If Impfac <> 1 Then
-      Atype = Tp
-      Tp = "T"
-      Maj_typeBL()
-      Numserie.ReadOnly = False
-      Desg.ReadOnly = False
-      Desg2.ReadOnly = False
-      Marque.ReadOnly = False
-      Typemat.ReadOnly = False
-      Button13.Visible = False
-      Button24.visible = False
-    Else
-      Wrg()
-    Endif
+    Wrg(Numtk)
   Endif
-
 End
 
-Public Sub Wrg()
+Public Sub Wrg(numtick As String)
 
   If start.son Then
     Music.Play
   Endif
-  Bfac.value = True
-  Balloon.Warning("Modification du type de document impossible, la facture a été imprimée !", Bfac)
+  If numtick == Null Then
+    Bfac.value = True
+    Balloon.Warning("< Font Color = #000000 > Modification du type de document impossible, la facture a été imprimée ! < / font >", Bfac)
+  Else
+    Bbon.value = True
+    Balloon.Warning("< Font Color = #000000 > Modification du type de document impossible\n En attente de moulinage ...\n le BL est noté règlé par le ticket " & numtick & "! < / font > ", Bfac)
+  Endif
 
 End
 
@@ -4225,7 +4239,7 @@ Public Sub Art_man(Prod As String)
   Tab = "Fiches_Art"
   chkfocus = 1
   Equ = False
-  If Impfac <> 1 Then
+  If (Impfac <> 1) And (Numtk == Null) Then
     If Left$(Cart.Text, 1) = "*" Then
       Cart.Text = Mid$(Cart.Text, 2, Len(Cart.Text))
       Rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", Cart.Text)
@@ -4302,7 +4316,11 @@ Public Sub Art_man(Prod As String)
     If start.son Then
       Music.Play
     Endif
-    Try Message.Warning(" La facture a été imprimée ! Ajout d'article impossible.")
+    If Numtk == Null Then
+      Message.Warning(" La facture a été imprimée ! Ajout d'article impossible.")
+    Else
+      Message.Warning(" Le Bon est noté règlé par le ticket " & Numtk & "! Ajout d'article impossible.")
+    Endif
     b = 1
     Cart.Clear
     Cart.SetFocus
@@ -7414,7 +7432,7 @@ Public Sub Coldetail_Activate()
 
       '* On rappelle les lignes de main d'oeuvre
       If typel = "M" Then
-        If Impfac <> "1" Then
+        If (Impfac <> "1") And (Numtk == Null) Then
           Motm.Value = True
           Panel2.visible = True
           Panel3.Visible = False
@@ -7453,13 +7471,17 @@ Public Sub Coldetail_Activate()
           If start.son Then
             Music.Play
           Endif
-          Try Message.Warning("Modification impossible, la facture a été imprimée ?")
+          If Numtk == Null Then
+            Try Message.Warning("Modification impossible, la facture a été imprimée ?")
+          Else
+            Try Message.Warning("Modification impossible, le bon est règlé par le ticket " & Numtk & "!")
+          Endif
         Endif
       Endif
 
       '* On rappelle les lignes de produits
       If typel = "A" Then
-        If Impfac <> "1" Then
+        If (Impfac <> "1") And (Numtk == Null) Then
           sTTC.value = False
           Panel2.visible = False
           Panel3.Visible = True
@@ -7564,7 +7586,11 @@ Public Sub Coldetail_Activate()
           If start.son Then
             Music.Play
           Endif
-          Try Message.Warning("Modification impossible, la facture a été imprimée ?")
+          If Numtk == Null Then
+            Try Message.Warning("Modification impossible, la facture a été imprimée !")
+          Else
+            Try Message.Warning("Modification impossible, le bon est règlé par le ticket " & Numtk & "!")
+          Endif
         Endif
       Endif
       '* On rappelle les lignes de commentaires
@@ -7656,7 +7682,7 @@ Public Sub Coldetail_Keypress()
     Wend
     If Key.code = Key.Delete And Coldetail.Count <> 0 Then
       If Coldetail.current[9] = "M" Or Coldetail.current[9] = "A" Or Coldetail.current[9] = "C" Or Coldetail.current[9] = "O" Or Coldetail.current[9] = "R" Or If Coldetail.current[9] = "T" Or Coldetail.current[9] = "P" Or Coldetail.current[9] = "O" Or Coldetail.current[9] = "R" Or If Coldetail.current[9] = "T" Or Coldetail.current[9] = "E" Then
-        If Impfac <> 1 Or If Coldetail.current[9] = "C" Then
+        If ((Impfac <> 1) And (numtk == Null)) Or If Coldetail.current[9] = "C" Then
           If start.son Then
             Music.Play
           Endif
@@ -7714,13 +7740,13 @@ Public Sub Coldetail_Keypress()
             If start.son Then
               Music.Play
             Endif
-            Try Message.Warning(" La facture a été imprimée ! Suppression d'une ligne d'article impossible.")
+            Try Message.Warning(" La facture a été imprimée ou le bon règlé en caisse!\nSuppression d'une ligne d'article impossible.")
           Else
             If Coldetail.current[9] = "M"
               If start.son Then
                 Music.Play
               Endif
-              Try Message.Warning(" La facture a été imprimée ! Suppression d'une ligne de MO impossible.")
+              Try Message.Warning(" La facture a été imprimée ou le bon règlé en caisse!\nSuppression d'une ligne de MO impossible.")
             Endif
           Endif
         Endif
@@ -8685,11 +8711,15 @@ Public Sub Bl_Suppr()
     Endif
     Blrslt = Utils.db.Exec("SELECT * FROM " & tab & " where numbl = &1", num.Text)
     If Blrslt.Count > 0 Then
-      If Blrslt!imp = "1" Then
+      If (Blrslt!imp = "1") Or (Blrslt!numtick <> Null) Then
         If start.son Then
           Music.Play
         Endif
-        Try Message.Warning("Suppression impossible, la facture a été imprimée !")
+        If (Blrslt!imp = "1")
+          Try Message.Warning("Suppression impossible, la facture a été imprimée !")
+        Else
+          Try Message.Warning("Suppression impossible, le bon est règlé en caisse... attente de moulinage!")
+        Endif
       Else
         If start.son Then
           Music.Play
