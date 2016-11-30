@@ -26,7 +26,7 @@ Private ConnZbr As Boolean = False
 Private MySock As Socket
 
 Public Sub _New()
-  
+
   If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
   If Settings["/Soc" & Start.Societe & "/Impetiq"] = "2- Zebra" Then Zbra.Value = True
   If Settings["/Soc" & Start.Societe & "/Impetiq"] = "1- A4" Then A4.Value = True
@@ -43,13 +43,13 @@ Public Sub _New()
   ColPromo.Columns[2].Text = "Début"
   ColPromo.Columns[3].Text = "Fin"
   init_ComboBox()
-  
+
 End
 
 Public Sub Form_Open()
-  
+
   Dim rResult As Result
-  
+
   rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabPromo") & " order by code")
   If rResult.Available Then
     Repeat
@@ -60,14 +60,14 @@ Public Sub Form_Open()
       ColPromo.Item[3] = Utils.Cdate_Aff(rResult!datefin)
     Until rResult.MoveNext()
   Endif
-  
+
 End
 
 Public Sub init_ComboBox()
-  
+
   Dim retiq As Result
   Dim Tab As String = "Fiches_Etiquettes"
-  
+
   Codetiq.clear
   Try rEtiq = Utils.db.Exec("SELECT * FROM " & Tab & " ")
   If Not Error Then
@@ -78,24 +78,24 @@ Public Sub init_ComboBox()
     Endif
     Codetiq.Text = ""
   Endif
-  
+
 End
 
 Public Sub Colpromo_Click()
-  
+
   If ColPromo.Count > 0 Then
     Code.Text = ColPromo.Current[0]
     Date1.text = ColPromo.current[2]
     date2.Text = ColPromo.current[3]
   Endif
-  
+
 End
 
 Public Sub Button2_Click()
-  
+
   Dim Etiqr As Result
   Dim i As Integer
-  
+
   If IsNull(codetiq.text) Then
     Message.Warning("Veuillez selectionner un modèle d'étiquettes SVP !")
     Return
@@ -148,15 +148,15 @@ Public Sub Button2_Click()
     Endif
   Endif
   Me.Mouse = Mouse.Pointing
-  
+
 End
 
 Public Sub Init()
-  
+
   Dim Etiqr As Result
   Dim i As Integer = 1
   Dim Tab As String
-  
+
   Tab = "Fiches_Etiquettes"
   Etiqr = Utils.db.Exec("SELECT * FROM " & tab & " WHERE code = &1", Left$(Codetiq.Text, 1))
   If Etiqr.Available Then
@@ -179,11 +179,11 @@ Public Sub Init()
   Endif
   If nblargeur = 2 Then rect = String$(70, " ")
   If nblargeur = 3 Then rect = String$(55, " ")
-  
+
 End
 
 Public Sub fin_impression()
-  
+
   pdf.Output(Filename, False)
   Visualiseur.Prog_Editeur(Filename)
   If son Then
@@ -191,12 +191,12 @@ Public Sub fin_impression()
   Endif
   message(" Traitement terminé.", "OK")
   Codetiq.Text = ""
-  
+
 End
 
 ' on imprime
 Public Sub Imprime(Cpos As String, pht As String, pttc As String, nb As Boolean)
-  
+
   Dim barcode As String
   Dim Fami As String
   Dim fourn As String
@@ -212,7 +212,7 @@ Public Sub Imprime(Cpos As String, pht As String, pttc As String, nb As Boolean)
   Dim Casier As String
   Dim cfourn As String
   Dim volm As String
-  
+
   volm = ""
   With Utils
     If A4.Value Then
@@ -285,12 +285,12 @@ Public Sub Imprime(Cpos As String, pht As String, pttc As String, nb As Boolean)
       'Next
     Endif
   End With
-  
+
 End
 
 Public Sub pos_Etiq()
-  
-  If A4.Value Then 
+
+  If A4.Value Then
     If Nbetiq = 1 Then
       txtPosX = 2 + Mrgauche
     Else
@@ -317,19 +317,19 @@ Public Sub pos_Etiq()
       txtPosX = 2 + Mrgauche
       txtPosY = Mrghaut
     Endif
-  Endif  
-  
+  Endif
+
 End
 
 Public Sub Connect()
-  
+
   MySock = New Socket
   Try MySock.Connect(IpZebra, 9100)
   If Not Error Then
     Do While (MySock.Status <> 7) And (MySock.Status > 0)
       Wait 0.1
     Loop
-    
+
     If MySock.Status <> 7 Then
       Message.Error("Connexion impossible de l'imprimante Zebra a l'IP " & IpZebra)
       ConnZbr = False
@@ -339,20 +339,20 @@ Public Sub Connect()
   Else
     Message.Warning("L'adresse " & IpZebra & " n'existe pas dans votre réseau ! Connexion impossible.")
   Endif
-  
+
 End
 
 Public Sub Button3_Click()
-  
+
   Me.close
-  
+
 End
 
 '********************
 '* On lance la doc  *
 '********************
 Public Sub Button1_Click()
-  
+
   Exec ["xdg-open", Application.Path &/ "Ecrans/Promo.html"]
-  
+
 End

@@ -30,16 +30,19 @@ Private jour As String
 Private dte1 As String
 Private dte2 As String
 Private Txt As String
+Private devises As String
 Private Enr As Integer
 Private son As Integer = Start.Son
 Private PosY As Integer
 Private Coulfond As New String[]
 
 Public Sub _New()
-  
+
+  Dim rResult As Result
+
   Coulfond = Utils.Coulfd()
   If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
-  
+
   Music.Load(Start.Musique)
   Me.Center
   compteRel.Columns.count = 7
@@ -66,11 +69,14 @@ Public Sub _New()
   dte2 = dteN1.Text
   dteN0_GotFocus()
   Enr = 1
-  
+  rResult = Utils.db.Exec("SELECT * FROM  Fiches_Parametres")
+  If rResult.Available Then devises = rResult!devise
+  If IsNull(devises) Then devises = "Euro"
+
 End
 
 Public Sub MajTab()
-  
+
   Dim rResult As Result
   Dim rrResult As Result
   Dim rrrResult As Result
@@ -84,14 +90,14 @@ Public Sub MajTab()
   Dim Dn0 As String
   Dim Dn1 As String
   Dim Jal As String
-  
-  Tab = "Fiches_RelFacture" 
-  Tab2 = "Fiches_Mvt" 
-  Tab3 = "Fiches_Journaux" 
-  Tab4 = "Fiches_Cli" 
+
+  Tab = "Fiches_RelFacture"
+  Tab2 = "Fiches_Mvt"
+  Tab3 = "Fiches_Journaux"
+  Tab4 = "Fiches_Cli"
   compteRel.clear
   Utils.db.Exec("DROP TABLE if exists " & Tab & "")
-  Utils.db.EXEC("CREATE TABLE " & Tab & 
+  Utils.db.EXEC("CREATE TABLE " & Tab &
     " (compte Char(8) NOT NULL," &
     "rs char(10) ," &
     "intitule char(30) ," &
@@ -153,13 +159,13 @@ Public Sub MajTab()
     dteN1_GotFocus()
     dteN1.SetFocus
   Endif
-  
+
 End
 
 Public Sub dte_KeyPress()
-  
+
   Select Case Last.tag
-      
+
     Case 1
       If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
         dteN0_LostFocus()
@@ -168,7 +174,7 @@ Public Sub dte_KeyPress()
         dten1.Select
         Stop Event
       Endif
-      
+
     Case 2
       If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
         dten1_LostFocus()
@@ -183,42 +189,42 @@ Public Sub dte_KeyPress()
         Endif
       Endif
   End Select
-  
+
   If key.code = key.F1 Then
     Button7_Click()
     Stop Event
   Endif
-  
+
 End
 
 Public Sub Btn_Click()
-  
+
   Select Case Last.tag
-      
+
     Case 1
       Button7_Click()
-      
+
     Case 2
       Button1_Click()
-      
+
     Case 3
       If Exist(filename) Then Try Kill filename
       Me.Close
-      
+
   End Select
-  
+
 End
 
 Public Sub dteN0_GotFocus()
-  
+
   dteN0.Background = &HAAFF7F&
   dteN0.SetFocus
   dteN0.Select
-  
+
 End
 
 Public Sub dteN0_LostFocus()
-  
+
   dteN0.Background = Color.TextBackground
   With utils
     dteN0.text = .Cdate_calc(dteN0.text)
@@ -230,17 +236,17 @@ Public Sub dteN0_LostFocus()
 Catch
   dteN0_GotFocus()
   dteN0.setfocus
-  
+
 End
 
 Public Sub dteN1_GotFocus()
-  
+
   dteN1.Background = &HAAFF7F&
-  
+
 End
 
 Public Sub dteN1_LostFocus()
-  
+
   Enr = 1
   dteN0.Background = Color.TextBackground
   With utils
@@ -256,11 +262,11 @@ Public Sub dteN1_LostFocus()
 Catch
   dteN1_GotFocus()
   dteN1.setfocus
-  
+
 End
 
 Public Sub Compdate()
-  
+
   If son Then
     Music.Play
   Endif
@@ -268,11 +274,11 @@ Public Sub Compdate()
     dteN0_GotFocus()
     dteN0.setfocus
   Endif
-  
+
 End
 
 Public Sub Compdate2()
-  
+
   If son Then
     Music.Play
   Endif
@@ -281,11 +287,11 @@ Public Sub Compdate2()
     dteN1_GotFocus()
     dteN1.setfocus
   Endif
-  
+
 End
 
 Public Sub Releves()
-  
+
   Dim rRESULT As RESULT
   Dim Tab As String
   Dim Tab2 As String
@@ -320,14 +326,14 @@ Public Sub Releves()
   Dim Afflog As Boolean
   Dim pdf As Creleve
   Dim Sens As Boolean = False
-  
+
   Afflog = False
   Shell "cd " & User.Home & ""
   Filename = "/tmp/RelFac.pdf"
   pdf = New Creleve("Portrait", "mm", "A4")
   pdf.Open()
   pdf.AliasNbPages()
-  Tab = "Fiches_RelFacture" 
+  Tab = "Fiches_RelFacture"
   Tab2 = "Fiches_Societes"
   Me.Mouse = Mouse.Wait
   jour = Format$(Now, "dd.mm.yyyy")
@@ -402,7 +408,8 @@ Public Sub Releves()
             Else
               sens = False
             Endif
-            Soldes = Solde(Soldes)
+            ' Soldes = Solde(Soldes)
+            Soldes = Numtostring.Convertir(Val(.cpoint(Soldes)), devises)
             If sens Then Soldes = "-" & Soldes
             Soldes = " Arrété le présent relevé à la somme de " & Soldes
             pdf.Level9(Soldes, PosY)
@@ -417,17 +424,17 @@ Public Sub Releves()
   End With
   Me.Mouse = Mouse.Custom
   MajTab()
-  
+
 End
 
 Public Sub Solde(Entier As String) As String
-  
+
   Dim sEntier As String
   Dim sDizaine As String
   Dim ipos As Integer
   Dim $Monnaie As String = " euros "
   Dim $Centimes As String = " centimes"
-  
+
   With Utils
     sEntier = Entier
     sDizaine = sEntier
@@ -453,36 +460,36 @@ Public Sub Solde(Entier As String) As String
     If sEntier = "un" Or If sEntier = "zéro" Then $Monnaie = " Euro "
     sEntier = sEntier & $Monnaie & sDizaine & $centimes
     Return sEntier
-  End With   
-  
+  End With
+
 End
 
 Public Sub Button1_Click()
-  
+
   Releves()
-  
+
 End
 
 Public Sub Button2_Click()
-  
+
   MajTab()
-  
+
 End
 
 Public Sub RB1_Click()
-  
+
   MajTab()
-  
+
 End
 
 Public Sub RB2_Click()
-  
+
   MajTab()
-  
+
 End
 
 Public Sub Button7_Click()
-  
+
   Exec ["xdg-open", Application.Path &/ "Ecrans/Relfact.html"]
-  
+
 End

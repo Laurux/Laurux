@@ -10,7 +10,7 @@ Private lowcost As String
 Private $Txt As String
 
 Public Sub _New(Tel As String)
-  
+
   Me.Center
   If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
   Colcol.Columns.count = 2
@@ -27,17 +27,17 @@ Public Sub _New(Tel As String)
   Endif
   TextBox1.text = Tel
   If Exist("/tmp/sms.txt") Then Kill "/tmp/sms.txt"
-  
+
 End
 
 Public Sub Form_Show()
-  
+
   TextLabel1.SetFocus
-  
+
 End
 
 Public Sub TextLabel1_GotFocus()
-  
+
   If Exist("/tmp/sms.txt") Then Kill "/tmp/sms.txt"
   If IsNull(Settings["/Smtp"]) Or If IsNull(Settings["Port"]) Or If IsNull(Settings["/Adrmail"]) Then
     Message.Error("Veuillez vérifier la configuration de vos coordonnées mail dans les préférences SVP !")
@@ -47,7 +47,7 @@ Public Sub TextLabel1_GotFocus()
   Api = Settings["/Soc" & Start.Societe & "/Api"]
   $contrat = Right$(Settings["/Soc" & Start.Societe & "/Type"], -3)
   Expediteur = Settings["/Soc" & Start.Societe & "/Expediteur"]
-  Shell "curl " & "\"http://www.spot-hit.fr/api/credits/?key=" & Api & "\"" & " >" & User.home & "/tmp/sms.txt 2>&1" Wait 
+  Shell "curl " & "\"http://www.spot-hit.fr/api/credits/?key=" & Api & "\"" & " >" & User.home & "/tmp/sms.txt 2>&1" Wait
   If Exist(User.Home & "/tmp/sms.txt") Then
     $txt = Trim$(File.Load(User.Home & "/tmp/sms.txt"))
     If InStr($txt, "erreur") = 0 Then
@@ -58,7 +58,7 @@ Public Sub TextLabel1_GotFocus()
       Else
         If lowcost = 0 Then
           Message.Info("Il vous reste " & premium & " sms premium\n" & "Votre crédit lowcost est épuisé !")
-        Else 
+        Else
           Message.Info("Il vous reste " & premium & " sms premium\n" & "il vous reste " & lowcost & " sms lowcost")
         Endif
       Endif
@@ -69,17 +69,17 @@ Public Sub TextLabel1_GotFocus()
   Endif
   comcode.Select
   comcode.SetFocus
-  
+
 End
 
 '**********************************************************
 '*           Gestion onglet Saisie Commentaires           *
 '**********************************************************
 Public Sub ToggleButton4_Click()
-  
+
   Dim rResult As Result
   Dim sline As String
-  
+
   With Colcol
     Colcol.Clear
     Colcol.Visible = True
@@ -87,11 +87,11 @@ Public Sub ToggleButton4_Click()
     .Columns[0].Width = 70
     .Columns[1].Alignment = Align.TopLeft
     .Columns[1].Width = 350
-    
+
     .Columns[0].Text = "Code"
     .Columns[1].Text = "Intitulé"
     rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabSms") & " order by numcom")
-    
+
     If rResult.Available Then
       Repeat
         Try .Add(rResult!numcom, rResult!numcom)
@@ -111,14 +111,14 @@ Public Sub ToggleButton4_Click()
       Try Message.Warning("Il n'existe aucun Texte sms\n veuillez d'abord créer vos Textes SVP ! ")
       Colcol.Clear
       Colcol.visible = False
-      
+
     Endif
     If Colcol.Count Then
       Colcol.MoveFirst
       Colcol.SetFocus
       Colcol.Item.Selected = True
     Endif
-    
+
   End With
 Catch
   Colcol.visible = False
@@ -126,35 +126,35 @@ Catch
     Music.Play
   Endif
   Message.Error("La table des textes SMS n'existe pas...")
-  
+
 End
 
 '**********************************************
 '* Selection d'un commentaire a la souris     *
 '**********************************************
 Public Sub Colcol_Click()
-  
+
   Dim rResult As Result
-  
+
   rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabSms") & " where numcom = &1", Colcol.Current[0])
   Comcode.Text = Colcol.Current[0]
   intitule.Text = rResult!intitule
   Colcol.Visible = False
   intitule.setfocus
   intitule.select
-  
+
 End
 
 '***********************************************
 '* Saisie d'un commentaire manuellement        *
 '***********************************************
 Public Sub Colcol_KeyPress()
-  
+
   If Key.code = Key.Enter Or Key.code = Key.Return Then
     Colcol_click()
     Stop Event
   Endif
-  
+
   If Key.Code = Key.Escape Or Key.Code = Key.F2 Then
     Colcol.visible = False
     Colcol.clear
@@ -162,17 +162,17 @@ Public Sub Colcol_KeyPress()
     Comcode.SetFocus
     Stop Event
   Endif
-  
+
 End
 
 Public Sub Button3_Click()
-  
+
   Me.Close
-  
+
 End
 
 Public Sub Button2_Click()
-  
+
   Dim Tel As String = Replace$(TextBox1.Text, " ", "")
   Dim mesg As String = Quote(Intitule.Text)
   Dim $Txt As String
@@ -180,17 +180,17 @@ Public Sub Button2_Click()
   Dim Api As String = Settings["/Soc" & Start.Societe & "/Api"]
   Dim Type As String = Right$(Settings["/Soc" & Start.Societe & "/Type"], -3)
   Dim Expediteur As String = Settings["/Soc" & Start.Societe & "/Expediteur"]
-  
-  If Left$(Support, 1) = "1" Then 
+
+  If Left$(Support, 1) = "1" Then
     mesg = Replace$(mesg, "\\n", " ")
     mesg &= "."
   Else
     mesg = Replace$(mesg, "\\n", " ")
-    mesg = Replace$(mesg, " ", "+") 
+    mesg = Replace$(mesg, " ", "+")
   Endif
   If Not IsNull(TextBox1.text) And Not IsNull(TextLabel1.Text) Then
     Me.Mouse = Mouse.Wait
-    If Left$(Support, 1) = "1" Then 
+    If Left$(Support, 1) = "1" Then
       Shell "gammu sendsms TEXT " & Tel & " -text " & mesg & " >" & User.home & "/tmp/sms.txt 2>&1" Wait
       Me.mouse = Mouse.Default
       If Exist(User.Home & "/tmp/sms.txt") Then
@@ -214,14 +214,14 @@ Public Sub Button2_Click()
       Endif
     Endif
   Endif
-  
+
 End
 
 '********************
 '* On lance la doc  *
 '********************
 Public Sub Button1_Click()
-  
+
   Exec ["xdg-open", Application.Path &/ "Ecrans/Sms.html"]
-  
+
 End

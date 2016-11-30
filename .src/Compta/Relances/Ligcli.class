@@ -1,0 +1,421 @@
+' Gambas class file
+
+Property selection As Boolean       'si ce client est selectionné
+Property traitement As Boolean      'si cette lettre a ete traité individuelement
+Property Read numero As Integer     'N° client
+Property Read lib As String         'Nom client
+Property Read rellet As Boolean     'releve de compte ou lettre de rapel
+Property Read imp As Boolean        'lettre à imprimée
+Property numlet As Integer          'numero de à lettre à editer
+Property Read sold As Float         'solde du compte
+
+Event Up(nlig As Integer)
+Event Down(nlig As Integer)
+Event Gotf(nlig As Integer)
+
+Private $oobser As Observer
+Private $bselection As Boolean
+Private $btraitement As Boolean = False
+Private $inumcli As Integer
+Private $lsld As Float
+Private $rescli As Result
+
+Private $scr As ScrollView
+Private $icompteur As Integer
+Private $resxt As Result
+
+Public Sub _new(numcli As Integer, numtag As Integer, devises As String, Scr As ScrollView)
+
+  Dim res As Result
+  Dim i, j As Integer
+
+  $inumcli = numcli
+  Me.tag = numtag
+  $scr = Scr
+  Checkimp.Value = True
+  Radiolet.Value = True
+  ' If Even(numtag) Then
+  ' couleur(Color.Background - 50)
+  ' Else
+  ' couleur(Color.Background)
+  '  Endif
+
+  $oobser = New Observer(Checkselec) As "obs"
+  $oobser = New Observer(Num) As "obs"
+  $oobser = New Observer(nom) As "obs"
+  $oobser = New Observer(cp) As "obs"
+  $oobser = New Observer(ville) As "obs"
+  $oobser = New Observer(solde) As "obs"
+  $oobser = New Observer(panel1) As "obs"
+  $oobser = New Observer(RadioRel) As "obs"
+  $oobser = New Observer(Radiolet) As "obs"
+  $oobser = New Observer(Combolettre) As "obs"
+  $oobser = New Observer(Checkimp) As "obs"
+  $oobser = New Observer(Buttonedit) As "obs"
+
+  Checkselec.SetFocus
+  $rescli = Utils.db.Exec("SELECT * FROM Fiches_Cli WHERE cli_code=&1", $inumcli)
+  If $rescli.Available Then
+    Num.Text = $rescli!cli_code
+    nom.Text = $rescli!cli_nom
+    cp.Text = $rescli!cli_cd_ptl
+    ville.Text = $rescli!cli_ville
+    res = Utils.db.Exec("SELECT solde FROM Fiches_Comptes WHERE compte_cc=&1", $inumcli)
+    solde.Text = Format(res!solde, "0.00 ")
+    $lsld = res!solde
+    For i = 0 To 3
+      Combolettre.Add(Str(i))
+    Next
+    i = 0
+    res = Utils.db.Exec("SELECT niveau FROM Fiches_relances WHERE compte=&1", $inumcli)
+    If res.Available Then
+      res.MoveFirst
+      For j = 0 To res.Max
+        If Not IsNull(res!niveau) Then
+          If res!niveau > i Then i = res!niveau
+        Else
+          i = 0
+        Endif
+        res.MoveNext
+      Next
+      Combolettre.Text = Str(i)
+      '    Combolettre.ReadOnly = True
+    Endif
+  Endif
+
+End
+
+' selection d'une ligne a la souris
+Public Sub obs_MouseDown()
+
+  If Mouse.Left Then Raise Gotf(Me.Tag)
+
+End
+
+'selection ligne au clavier
+Public Sub obs_keypress()
+
+  If Key.Code = Key.Up Then
+    Raise up(Me.Tag)
+  Endif
+
+  If Key.Code = Key.Down Then
+    Raise Down(Me.tag)
+  Endif
+
+End
+
+Public Sub Checkselec_Click()
+
+  If Checkselec.Value Then
+    activation(True)
+  Else
+    activation(False)
+    Utils.db.Delete("Fiches_relances", "compte=&1", $inumcli)
+    visext
+  Endif
+
+End
+
+Public Sub couleur(coul As Integer)
+
+  Checkselec.Background = coul
+  Checkimp.Background = coul
+  Num.Background = coul
+  nom.Background = coul
+  cp.Background = coul
+  ville.Background = coul
+  solde.Background = coul
+  Radiolet.Background = coul
+  RadioRel.Background = coul
+  panel1.Background = coul
+  Panel2.Background = coul
+  Combolettre.Background = coul
+
+End
+
+Private Sub activation(value As Boolean)
+
+  panel1.Enabled = value
+  Panel2.Enabled = value
+  Combolettre.Enabled = value
+  Buttonedit.Enabled = value
+
+End
+
+''            Gestion des lignes d'extrait de compte
+Public Sub visext()
+
+  Dim Ext As Ligext
+  Dim resrel, resext As Result
+  Dim i As Integer
+  Dim tab As Variant
+
+  tab = $scr.Children
+  If tab.count > 0 Then
+    Repeat
+      i = tab.count - 1
+      tab[i].delete
+    Until i = 0
+
+  Endif
+  resext = Utils.db.Exec("SELECT * FROM Fiches_Mvt WHERE compte=&1 AND NOT lettree ORDER BY dte", $rescli!cli_code)
+  If resext.Available Then
+    resext.MoveFirst
+    For i = 0 To resext.Max
+      Ext = New Ligext($rescli, resext!lind, resext.Index, $scr)
+      Ext.Tag = i
+      Ext.Show
+      resext.MoveNext
+    Next
+  Endif
+
+  $scr.Refresh
+  Wait 0.01
+Catch
+
+End
+
+Public Sub Buttonedit_Click()
+
+  Dim rRESULT As RESULT
+  Dim rrRESULT As RESULT
+  Dim Tab As String
+  Dim Tab2 As String
+  Dim Tab3 As String
+  Dim Tab4 As String
+  Dim adr1 As String
+  Dim adr2 As String
+  Dim adr21 As String
+  Dim adr22 As String
+  Dim ville As String
+  Dim ville2 As String
+  Dim Pays As String
+  Dim Mail, MailC As String
+  Dim Rcs As String
+  Dim Siret As String
+  Dim Tvaintra As String
+  Dim Cap As String
+  Dim Ape As String
+  Dim Iban As String
+  Dim Tel As String
+  Dim portable As String
+  Dim Fax As String
+  Dim Site As String
+  Dim Rs As String
+  Dim Rs2 As String
+  Dim Niv As String
+  Dim Txt1 As String
+  Dim Txt2 As String
+  Dim dte As String
+  Dim num As String
+  Dim Lib As String
+  Dim Mtd As String
+  Dim Mtc As String
+  Dim jour As String
+  Dim pdf As Creleve
+  Dim totsel As Float
+  Dim res As Result
+  Dim Filename As String
+  Dim Filetxt As String
+  Dim PosY As Integer
+
+  Tab = "Fiches_relances"
+  Tab2 = "Fiches_Societes"
+  Tab3 = "Fiches_Txt_Relances"
+  Tab4 = "Fiches_Mvt"
+  filetxt = User.home & "/Relances.txt"
+  Me.Mouse = Mouse.wait
+  jour = Format$(Now, "dd.mm.yyyy")
+  Filename = "/tmp/Relances.pdf"
+  With utils
+    Shell "cd " & User.Home & ""
+    pdf = New Creleve("Portrait", "mm", "A4")
+    pdf.Open()
+    pdf.AliasNbPages()
+    rResult = Utils.db.Exec("SELECT * FROM " & tab2 & " where cd_sc = &1", Start.Societe)
+    Rs = rResult!type_sc & " " & rResult!int_sc
+    adr1 = rResult!adr1_sc
+    adr2 = rResult!adr2_sc
+    ville = rResult!cp_sc & "  " & rResult!burdis_sc
+    jour = rResult!burdis_sc & "  le  " & jour
+    If rResult!villerc_sc Then Rcs = "Rcs : " & rResult!rcs_sc & " " & rResult!villerc_sc
+    If rResult!siret_sc Then Siret = Settings["/Soc" & Start.Societe & "/Siret"] & " : " & rResult!siret_sc
+    If rResult!tvaintra_sc Then Tvaintra = "Tva intra : " & rResult!tvaintra_sc
+    If rResult!cap_sc Then Cap = "Capital : " & rResult!cap_sc
+    If rResult!ape_sc Then Ape = "Naf : " & rResult!ape_sc
+    If rResult!tel_sc Then Tel = "Tel : " & rResult!tel_sc
+    If rResult!port_sc Then Portable = "Portable : " & rResult!port_sc
+    If rResult!fax_sc Then Fax = "Fax : " & rResult!fax_sc
+    If rResult!email_sc Then Mail = "Courriel : " & rResult!email_sc
+    If rResult!site Then Site = "Site : " & rResult!site
+    If rResult!banq Then Iban = "Iban : " & rResult!banq & " Bic : " & rResult!bic
+
+    '   Edition des lettres de relance
+    If Checkselec.Value And Checkimp.Value Then
+      rResult = Utils.db.Exec("SELECT * FROM " & tab & " where compte = &1 order by dte", $inumcli)
+      If rResult.Available Then
+        Rs2 = rResult!rs & " " & rResult!intitule
+        adr21 = rResult!adr1
+        adr22 = rResult!adr2
+        ville2 = rResult!cp & "  " & rResult!ville
+        Pays = rResult!pays
+        If Pays = "France" Then Pays = ""
+        Niv = rResult!niveau
+        pdf.Entete(rs, adr1, adr2, ville, cap, rcs, siret, ape, Tvaintra, Tel, portable, fax, mail, site, Pays, Iban, False)
+        pdf.Entete2(rs2, adr21, adr22, ville2, Pays, "", False)
+        pdf.Level5(Jour)
+        posy = 110
+        If Radiolet.Value Then
+          rrResult = Utils.db.Exec("select * from " & Tab3 & " where niveau = &1", Val(Combolettre.Current.Text))
+          If rrResult.Available Then
+            Txt1 = rrResult!libell1
+            Txt2 = rrResult!libell2
+          Endif
+        Else
+          Txt1 = "          Relevé de compte"
+          txt2 = "  "
+        Endif
+        pdf.Level8(Txt1, Posy)
+        Posy += 30
+        pdf.Level6()
+        posy += 6
+        totsel = 0
+        Repeat
+          'dte = (Mid$(rResult!dte, 5, 2) & "." & Right$(rResult!dte, 2) & "." & Left$(rResult!dte, 4))
+          dte = .Cdate_Aff(rResult!dte)
+          num = rResult!numdoc
+          Lib = rResult!libelle
+          Mtd = Format$(rResult!montantd, "0.00")
+          Mtc = Format$(rResult!montantc, "0.00")
+          totsel += Val(mtd) - Val(Mtc)
+          pdf.Level7(dte, num, Lib, Mtd, Mtc, PosY)
+          posy += 4
+          Utils.db.Exec("UPdate  " & Tab4 & "  SET  relance = &1 WHERE compte = &2 and numdoc = &3", Niv, $inumcli, num)
+          If PosY >= 273 Then
+            pdf.Entete(rs, adr1, adr2, ville, cap, rcs, siret, ape, Tvaintra, Tel, portable, fax, mail, site, Pays, Iban, False)
+            pdf.Entete2(rs2, adr21, adr22, ville2, Pays, "", False)
+            pdf.Level5(Jour)
+            posy = 110
+            pdf.Level8(Txt1, Posy)
+            Posy += 30
+            pdf.Level6()
+            posy += 6
+          Endif
+        Until rResult.MoveNext()
+
+        Posy += 6
+        If totsel > 0 Then
+          pdf.Level7(" ", " ", "Solde de la sélection ", " ", Format(totsel, "0.00"), PosY)
+        Else
+          pdf.Level7(" ", " ", "Solde de la sélection ", Format(- totsel, "0.00"), " ", PosY)
+        Endif
+        posy += 4
+        res = utils.db.Exec("SELECT solde, cli_email FROM Fiches_Comptes left join Fiches_Cli on cli_code = &1 WHERE compte_cc=&1", $inumcli)
+        If res.Available Then
+          MailC = res!cli_email
+          If Val(Utils.cpoint(res!solde)) > 0 Then
+            pdf.Level7(" ", " ", "Solde du compte ", " ", Format(res!solde, "0.00"), PosY)
+          Else
+            pdf.Level7(" ", " ", "Solde du compte ", Format(- res!solde, "0.00"), " ", PosY)
+          Endif
+
+        Endif
+        posy += 8
+        pdf.Level8(Txt2, Posy)
+      Endif
+    Endif
+    pdf.Output(Filename, False)
+    If Checkmail.value = False Then
+      Impression.Prog_Editeur(Filename)
+    Else
+      EnvMail.Envoi2(MailC, "Votre compte", "", Filename)
+    Endif
+    FEditrel.Button1_Click()
+  End With
+
+  $btraitement = True
+
+  Try Me.Mouse = Mouse.Custom
+
+End
+
+'Envoi mail
+Public Sub EnvMail()
+
+  Dim AdrMail As String = ""
+  Dim mel As Result
+
+  mel = utils.db.Exec("SELECT cli_email FROM Fiches_Cli WHERE cli_code=&1", $inumcli)
+  AdrMail = mel!cli_email
+  EnvMail.Envoi2(AdrMail, "", "", "/tmp/Relances.pdf")
+
+End
+
+Private Function selection_Read() As Boolean
+
+  Return Checkselec.Value
+
+End
+
+Private Sub selection_Write(Value As Boolean)
+
+  Checkselec.Value = Value
+
+End
+
+Private Function traitement_Read() As Boolean
+
+  Return $btraitement
+
+End
+
+Private Sub traitement_Write(Value As Boolean)
+
+  $btraitement = value
+
+End
+
+Private Function numero_Read() As Integer
+
+  Return $inumcli
+
+End
+
+Private Function rellet_Read() As Boolean
+
+  If Radiolet.Value Then
+    Return True
+  Else
+    Return False
+  Endif
+
+End
+
+Private Function imp_Read() As Boolean
+
+  Return Checkimp.Value
+
+End
+
+Private Function numlet_Read() As Integer
+
+  Return Val(Combolettre.Current.Text)
+
+End
+
+Private Sub numlet_Write(Value As Integer)
+
+End
+
+Private Function sold_Read() As Float
+
+  Return $lsld
+
+End
+
+Private Function lib_Read() As String
+
+  Return nom.Text
+
+End

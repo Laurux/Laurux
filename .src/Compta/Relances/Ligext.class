@@ -1,0 +1,81 @@
+' Gambas class file
+
+Property selection As Boolean
+
+Private $rescli As Result
+Private $resext As Result
+
+Public Sub _new(rescli As Result, lind As Long, ind As Integer)
+
+  Dim res As Result
+
+  $rescli = rescli
+  $resext = Utils.db.Exec("SELECT * FROM Fiches_Mvt WHERE lind=&1", lind)
+  '  If Even(ind) Then
+  ' Me.Background = Color.Background - 50
+  ' Else
+  'Me.Background = Color.Background
+  ' Endif
+
+  datef.Text = Format($resext!dte, "dd.mm.yyyy")
+  Try datee.Text = Format($resext!dateech, "dd.mm.yyyy")
+  libelle.Text = $resext!libelle
+  document.Text = $resext!numdoc
+  lot.Text = $resext!numlot
+  debit.Text = Format($resext!montantd, "0.00")
+  credit.Text = Format($resext!montantc, "0.00")
+  num.Text = $resext!numero
+  journ.Text = $resext!jour
+  res = Utils.db.Exec("SELECT * FROM Fiches_relances WHERE lind=&1", $resext!lind)
+  If res.Available Then CheckBox1.Value = True
+
+End
+
+Public Sub CheckBox1_Click()
+
+  Dim res As Result
+
+  Utils.db.Begin
+  If CheckBox1.Value Then
+    res = Utils.db.Create("Fiches_relances")
+    res!compte = $resext!compte
+    res!rs = $rescli!cli_rs_soc
+    res!intitule = $resext!intitule
+    res!adr1 = $rescli!cli_adr1
+    res!adr2 = $rescli!cli_adr2
+    res!cp = $rescli!cli_cd_ptl
+    res!ville = $rescli!cli_ville
+    res!pays = $rescli!cli_pays
+    Try res!dte = $resext!dateech
+    res!numdoc = $resext!numdoc
+    res!numlot = $resext!numlot
+    res!libelle = $resext!libelle
+    res!montantc = $resext!montantc
+    res!montantd = $resext!montantd
+    res!numero = $resext!numero
+    res!journal = $resext!jour
+    res!niveau = $resext!relance
+    res!lind = $resext!lind
+    res.Update
+  Else
+    Utils.db.Delete("Fiches_relances", "lind=&1", $resext!lind)
+  Endif
+  Utils.db.Commit
+
+End
+
+Private Function selection_Read() As Boolean
+
+  Return CheckBox1.Value
+
+End
+
+Private Sub selection_Write(Value As Boolean)
+
+  Dim av As Boolean
+
+  av = Value
+  CheckBox1.Value = Value
+  If av <> Value Then CheckBox1_Click
+
+End

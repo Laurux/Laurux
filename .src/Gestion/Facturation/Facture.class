@@ -37,7 +37,6 @@ Tab2 As String
 Tab3 As String
 Tab4 As String
 Tab5 As String
-Tab6 As String
 tabmo As String
 sel As String
 arr As String
@@ -10348,6 +10347,10 @@ Public Sub Impression(Org As String)
               For Each intitule In Split(File.Load(Settings["/Soc" & Start.Societe & "/FactcheminV"]), "\n")
                 pdf.Level4V(intitule, Posy)
                 Posy = Posy + 3
+                If Posy > 280 Then
+                  pdf.EnteteV()
+                  Posy = 5
+                Endif
               Next
             Else
               Message.Error("le fichier des conditions de ventes défini dans les préférences n'existe pas !")
@@ -10785,7 +10788,7 @@ Public Sub Maj_Compta()
   Dim Libel As String
   Dim Mtc As Float
   Dim Mtd As Float
-  Dim Sld As Float
+  Dim Sld, Montantcheque As Float
   Dim Valid As Integer
   Dim Prov As Integer
   Dim Tresor As Integer
@@ -10800,6 +10803,7 @@ Public Sub Maj_Compta()
   Dim Vichq As String
   Dim Viautre As String
   Dim Cptreglt As String
+  Dim Tab6 As String
 
   Tab = "Fiches_Mvt"
   Tab2 = "Totalisation"
@@ -10828,7 +10832,7 @@ Public Sub Maj_Compta()
   Cloturee = 1
   Relance = 0
   With Utils
-    Utils.db.Exec("LOCK TABLES " & Tab & " WRITE, " & Tab2 & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Tab4 & " WRITE, " & Tab5 & " WRITE , " & Tab6 & " WRITE")
+    Utils.db.Exec("LOCK TABLES " & Tab & " WRITE, " & Tab2 & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Tab4 & " WRITE, " & Tab5 & " WRITE , " & Tab6 & " WRITE, Fiches_BordereauxC  WRITE")
     jr = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabParam") & "")
     If Regmt.text = "Espèces" Then
       Jnal = jr!jrnal2
@@ -10922,6 +10926,8 @@ Public Sub Maj_Compta()
       ' On gère la première écriture de trésorerie
       If Regmt.text = "Espèces" Or If Regmt.text = "Carte" Or If Regmt.text = "Chèque" Or If Regmt.text = "Paypal" Then
         If Not IsNull(Rglt.Text) And Rgmt.value = True Then
+
+          'On recupère les données des journaux
           Param = Utils.db.Exec("SELECT * FROM " & Tab5 & " where code_jo = &1", jnal)
           Numr = numr + 1
           cloturee = 1
@@ -10932,24 +10938,24 @@ Public Sub Maj_Compta()
             Mtd = Val(rglt.Text)
             Mtc = 0
           Endif
-          If Regmt.text = "Espèces" Then
+          If Regmt.text = "Espèces" Or If Regmt.text = "Carte" Then
             Cptreglt = Param!cde_banque
           Else
-            If Regmt.text = "Carte" Then
-              Cptreglt = Vic
-            Else
-              If Regmt.text = "Chèque" Then
-                Cptreglt = Vichq
-              Else
-                If Regmt.text = "Paypal" Then
-                  Cptreglt = Viautre
-                Endif
-              Endif
+            If Regmt.text = "Paypal" Then
+              Cptreglt = Viautre
             Endif
           Endif
           Libel = "Rglt " & Regmt.Text & " " & $intitule
-          Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Code3.Text, rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text))
-          Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech, collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, coll, rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text), 1)
+          If Regmt.text = "Espèces" Or If Regmt.text = "Carte" Or If Regmt.text = "Paypal" Then
+            Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Code3.Text, rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text))
+            Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech, collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, coll, rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text), 1)
+          Else
+            If Regmt.text = "Chèque" Then
+              If Val(Tottc.Text) > 0 Then Montantcheque = Val(rglt.Text)
+              'On mouvemente la table des bordereaux de chèques.
+              Utils.db.Exec("INSERT INTO " & "Fiches_BordereauxC" & "(code, nom, montant,dateremise,banque,nfacture ) VALUES (&1, &2, &3, &4, &5,&6)", Code3.Text, Rs2, Montantcheque, .Cdate_Dbase(Dtef.Text), jnal, Nmfac)
+            Endif
+          Endif
           If Val(Tottc.Text) > 0 Then
             Mtd = Mtc
             Mtc = 0
@@ -10957,57 +10963,58 @@ Public Sub Maj_Compta()
             Mtc = Mtd
             Mtd = 0
           Endif
-          Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Cptreglt, Regmt.text & " " & rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, 0, cloturee, .Cdate_Dbase(Dtef.Text))
+          If Regmt.text <> "Chèque" Then
+            Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Cptreglt, Regmt.text & " " & rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, 0, cloturee, .Cdate_Dbase(Dtef.Text))
 
-          '*******************************On recalcule les soldes des comptes************************************
-          If Val(Tottc.Text) > 0 Then
-            Mtc = Val(rglt.Text)
+            '*******************************On recalcule les soldes des comptes************************************
+            If Val(Tottc.Text) > 0 Then
+              Mtc = Val(rglt.Text)
+              Mtd = 0
+            Else
+              Mtd = Val(rglt.Text)
+              Mtc = 0
+            Endif
+            'Pour le compte client
+            hresult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", Code3.Text)
+            If hresult!solde = "" Then
+              Sld = Mtd - Mtc
+            Else
+              Sld = hresult!solde + Mtd - Mtc
+            Endif
+            Utils.db.Exec("UPDATE " & Cbase.Table("TabComptes") & " set solde = &2 Where compte_cc = &1", Code3.Text, Sld)
             Mtd = 0
-          Else
+            'Pour le collectif
+            hresult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", coll)
+            If hresult!solde = "" Then
+              Sld = Mtd - Mtc
+            Else
+              Sld = hresult!solde + Mtd - Mtc
+            Endif
+            Utils.db.Exec("UPDATE " & Cbase.Table("TabComptes") & " set solde = &2 Where compte_cc = &1", coll, Sld)
+            Mtd = 0
+            Mtc = 0
+            'Pour le compte de trésorerie
             Mtd = Val(rglt.Text)
+            If Val(Tottc.Text) > 0 Then
+              Mtd = Val(rglt.Text)
+              Mtc = 0
+            Else
+              Mtc = Val(rglt.Text)
+              Mtd = 0
+            Endif
+            hresult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", Cptreglt)
+            If hresult!solde = "" Then
+              Sld = Mtd - Mtc
+            Else
+              Sld = hresult!solde + Mtd - Mtc
+            Endif
+            Utils.db.Exec("UPDATE " & Cbase.Table("TabComptes") & " set solde = &2 Where compte_cc = &1", Cptreglt, Sld)
+            Mtd = 0
             Mtc = 0
           Endif
-          'Pour le compte client
-          hresult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", Code3.Text)
-          If hresult!solde = "" Then
-            Sld = Mtd - Mtc
-          Else
-            Sld = hresult!solde + Mtd - Mtc
-          Endif
-          Utils.db.Exec("UPDATE " & Cbase.Table("TabComptes") & " set solde = &2 Where compte_cc = &1", Code3.Text, Sld)
-          Mtd = 0
-          'Pour le collectif
-          hresult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", coll)
-          If hresult!solde = "" Then
-            Sld = Mtd - Mtc
-          Else
-            Sld = hresult!solde + Mtd - Mtc
-          Endif
-          Utils.db.Exec("UPDATE " & Cbase.Table("TabComptes") & " set solde = &2 Where compte_cc = &1", coll, Sld)
-          Mtd = 0
-          Mtc = 0
-          'Pour le compte de trésorerie
-          Mtd = Val(rglt.Text)
-          If Val(Tottc.Text) > 0 Then
-            Mtd = Val(rglt.Text)
-            Mtc = 0
-          Else
-            Mtc = Val(rglt.Text)
-            Mtd = 0
-          Endif
-          hresult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", Cptreglt)
-          If hresult!solde = "" Then
-            Sld = Mtd - Mtc
-          Else
-            Sld = hresult!solde + Mtd - Mtc
-          Endif
-          Utils.db.Exec("UPDATE " & Cbase.Table("TabComptes") & " set solde = &2 Where compte_cc = &1", Cptreglt, Sld)
-          Mtd = 0
-          Mtc = 0
         Endif
+        Utils.db.Exec("UPDATE " & Tab4 & " set numecriture = &1, numecriture2 = &2", numr, numr2)
       Endif
-      Utils.db.Exec("UPDATE " & Tab4 & " set numecriture = &1, numecriture2 = &2", numr, numr2)
-
       ' On gère la seconde écriture de trésorerie
       If Regmt2.text = "Espèces" Then
         Jnal = jr!jrnal2
@@ -11026,24 +11033,24 @@ Public Sub Maj_Compta()
             Mtd = Abs(Val(rglt2.Text))
             Mtc = 0
           Endif
-          If Regmt2.text = "Espèces" Then
+          If Regmt2.text = "Espèces" Or If Regmt.text = "Cartes" Then
             Cptreglt = Param!cde_banque
           Else
-            If Regmt2.text = "Carte" Then
-              Cptreglt = Vic
-            Else
-              If Regmt2.text = "Chèque" Then
-                Cptreglt = Vichq
-              Else
-                If Regmt2.text = "Paypal" Then
-                  Cptreglt = Viautre
-                Endif
-              Endif
+            If Regmt2.text = "Paypal" Then
+              Cptreglt = Viautre
             Endif
           Endif
           Libel = "Règlement " & $intitule & " par " & Regmt2.Text
-          Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Code3.Text, rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text))
-          Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech, collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, coll, rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text), 1)
+          If Regmt2.text = "Espèces" Or If Regmt2.text = "Carte" Or If Regmt2.text = "Paypal" Then
+            Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Code3.Text, rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text))
+            Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech, collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, coll, rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text), 1)
+          Else
+            If Regmt2.text = "Chèque" Then
+              If Val(Tottc.Text) > 0 Then Montantcheque = Val(rglt2.Text)
+              'On mouvemente la table des bordereaux de chèques.
+              Utils.db.Exec("INSERT INTO " & "Fiches_BordereauxC" & "(code, nom, montant,dateremise,banque,nfacture ) VALUES (&1, &2, &3, &4, &5,&6)", Code3.Text, Rs2, Montantcheque, .Cdate_Dbase(Dtef.Text), jnal, Nmfac)
+            Endif
+          Endif
           If Val(Tottc.Text) > 0 Then
             Mtd = Mtc
             Mtc = 0
@@ -11051,56 +11058,58 @@ Public Sub Maj_Compta()
             Mtc = Mtd
             Mtd = 0
           Endif
-          Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Cptreglt, Regmt2.text & " " & rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, 0, cloturee, .Cdate_Dbase(Dtef.Text))
+          If Regmt.text <> "Chèque" Then
+            Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Cptreglt, Regmt2.text & " " & rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, 0, cloturee, .Cdate_Dbase(Dtef.Text))
 
-          '*******************************On recalcule les soldes des comptes************************************
+            '*******************************On recalcule les soldes des comptes************************************
 
-          If Val(Tottc.Text) > 0 Then
-            Mtc = Val(rglt2.Text)
+            If Val(Tottc.Text) > 0 Then
+              Mtc = Val(rglt2.Text)
+              Mtd = 0
+            Else
+              Mtd = Abs(Val(rglt2.Text))
+              Mtc = 0
+            Endif
+            'Pour le compte client
+            hresult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", Code3.Text)
+            If hresult!solde = "" Then
+              Sld = Mtd - Mtc
+            Else
+              Sld = hresult!solde + Mtd - Mtc
+            Endif
+            Utils.db.Exec("UPDATE " & Cbase.Table("TabComptes") & " set solde = &2 Where compte_cc = &1", Code3.Text, Sld)
             Mtd = 0
-          Else
-            Mtd = Abs(Val(rglt2.Text))
+            'Pour le collectif
+            hresult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", coll)
+            If hresult!solde = "" Then
+              Sld = Mtd - Mtc
+            Else
+              Sld = hresult!solde + Mtd - Mtc
+            Endif
+            Utils.db.Exec("UPDATE " & Cbase.Table("TabComptes") & " set solde = &2 Where compte_cc = &1", coll, Sld)
+            Mtd = 0
+            Mtc = 0
+            'Pour le compte de trésorerie
+            If Val(Tottc.Text) > 0 Then
+              Mtd = Val(rglt2.Text)
+              Mtc = 0
+            Else
+              Mtc = Val(rglt2.Text)
+              Mtd = 0
+            Endif
+            hresult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", Cptreglt)
+            If hresult!solde = "" Then
+              Sld = Mtd - Mtc
+            Else
+              Sld = hresult!solde + Mtd - Mtc
+            Endif
+            Utils.db.Exec("UPDATE " & Cbase.Table("TabComptes") & " set solde = &2 Where compte_cc = &1", Cptreglt, Sld)
+            Mtd = 0
             Mtc = 0
           Endif
-          'Pour le compte client
-          hresult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", Code3.Text)
-          If hresult!solde = "" Then
-            Sld = Mtd - Mtc
-          Else
-            Sld = hresult!solde + Mtd - Mtc
-          Endif
-          Utils.db.Exec("UPDATE " & Cbase.Table("TabComptes") & " set solde = &2 Where compte_cc = &1", Code3.Text, Sld)
-          Mtd = 0
-          'Pour le collectif
-          hresult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", coll)
-          If hresult!solde = "" Then
-            Sld = Mtd - Mtc
-          Else
-            Sld = hresult!solde + Mtd - Mtc
-          Endif
-          Utils.db.Exec("UPDATE " & Cbase.Table("TabComptes") & " set solde = &2 Where compte_cc = &1", coll, Sld)
-          Mtd = 0
-          Mtc = 0
-          'Pour le compte de trésorerie
-          If Val(Tottc.Text) > 0 Then
-            Mtd = Val(rglt2.Text)
-            Mtc = 0
-          Else
-            Mtc = Val(rglt2.Text)
-            Mtd = 0
-          Endif
-          hresult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", Cptreglt)
-          If hresult!solde = "" Then
-            Sld = Mtd - Mtc
-          Else
-            Sld = hresult!solde + Mtd - Mtc
-          Endif
-          Utils.db.Exec("UPDATE " & Cbase.Table("TabComptes") & " set solde = &2 Where compte_cc = &1", Cptreglt, Sld)
-          Mtd = 0
-          Mtc = 0
         Endif
+        Utils.db.Exec("UPDATE " & Tab4 & " set numecriture = &1, numecriture2 = &2", numr, numr2)
       Endif
-      Utils.db.Exec("UPDATE " & Tab4 & " set numecriture = &1, numecriture2 = &2", numr, numr2)
     Endif
     'Utils.db.Exec("UNLOCK TABLES")
   End With

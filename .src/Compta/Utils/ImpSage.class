@@ -80,34 +80,34 @@ Private Coulfond As New String[]
 Private pdf As Cclients
 
 Public Sub _New()
-  
+
   Coulfond = Utils.Coulfd()
   If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
   Music.Load(Start.Musique)
   Try Chmimport.Text = Settings["/Soc" & Start.Societe & "/Chemin-import"]
   Me.Center
-  
+
 End
 
 Public Sub Btn_Click()
-  
+
   Select Case Last.tag
-      
+
     Case 1
       Button3_Click()
-      
+
     Case 2
       Import_Sage()
-      
+
     Case 3
       If Exist(filename) Then Try Kill filename
       Me.Close
   End Select
-  
+
 End
 
 Public Sub Svs2_Click()
-  
+
   Dialog.Title = "Choisir un repertoire"
   Dialog.Path = User.home
   If Not Dialog.SelectDirectory() Then
@@ -115,11 +115,11 @@ Public Sub Svs2_Click()
   Else
     'Chmimport.Text = User.Home
   Endif
-  
+
 End
 
 Public Sub Import_Sage()
-  
+
   Dim hfile As File
   Dim Lig As String
   Dim Filetxt As String
@@ -133,7 +133,7 @@ Public Sub Import_Sage()
   Dim Nbc As Integer
   Dim bcpt As String = 0
   Dim coll_compte As String
-  
+
   Nbc = 0
   Tab2 = "Corsage"
   Shell "cd " & User.Home & ""
@@ -145,14 +145,14 @@ Public Sub Import_Sage()
   pdf.Level1()
   Posy = 30
   dte = Format$(Now, "dd.mm.yyyy")
-  Tab1 = "Fiches_Cli" 
-  Tab = "Fiches_Parametres" 
+  Tab1 = "Fiches_Cli"
+  Tab = "Fiches_Parametres"
   Tab3 = "Fiches_Comptes"
   Filetxt = Chmimport.Text & "/clients.pnc"
   Filetxt2 = Chmimport.Text & "/ecritures" & ".pnm"
   Filetxt3 = Chmimport.Text & "/Nvcomptes.txt"
   Sauve()
-  
+
   ' On recupere le dernier numero client et fournisseur
   rNum = Utils.db.Exec("SELECT * FROM " & Tab & " ")
   If rNum.Available Then
@@ -168,7 +168,7 @@ Public Sub Import_Sage()
       Colcpt = rnum!compte_cc
       If Left$(Colcpt, 2) = "41" Then Break
     Until rnum.MoveNext()
-  Endif 
+  Endif
   ' On recupere le collectif fournisseur
   rnum = Utils.db.Exec("SELECT * FROM " & Tab3 & " where coll = '1' order by cast(compte_cc AS char)")
   If rnum.Available Then
@@ -176,7 +176,7 @@ Public Sub Import_Sage()
       Colcptf = rnum!compte_cc
       If Left$(Colcptf, 2) = "40" Then Break
     Until rnum.MoveNext()
-  Endif  
+  Endif
   If Exist(filetxt) And Exist(filetxt2) Then
     hFile = Open filetxt For Read
     If Exist(filename) Then Try Kill filename
@@ -203,7 +203,7 @@ Public Sub Import_Sage()
               pdf.Level2S(num, nom, adr1, adr2, cp, ville, "", "", "", code, posy)
             Endif
           Endif
-          
+
           If Coll_compte = "401" Then
             Try Utils.db.Exec("insert into " & tab2 & " (acode, ncode) values ( &1,&2)", code, numf)
             CliResult = Utils.db.Exec("SELECT * FROM " & Tab1 & " where cli_code = &1", numf)
@@ -212,7 +212,7 @@ Public Sub Import_Sage()
               pdf.Level2S(numf, nom, adr1, adr2, cp, ville, "", "", "", code, posy)
             Endif
           Endif
-          
+
           If Coll_compte = "403" Then
             Try Utils.db.Exec("insert into " & tab2 & " (acode, ncode) values ( &1,&2)", code, numf)
             CliResult = Utils.db.Exec("SELECT * FROM " & Tab1 & " where cli_code = &1", numf)
@@ -221,7 +221,7 @@ Public Sub Import_Sage()
               pdf.Level2S(numf, nom, adr1, adr2, cp, ville, "", "", "", code, posy)
             Endif
           Endif
-          
+
           Inc Nbc
           Posy = Posy + 10
           pdf.Lines(PosY)
@@ -267,28 +267,28 @@ Public Sub Import_Sage()
     Message("Le fichier client ou écritures n'existe pas ! Veuillez verifier vos fichiers SVP")
   Endif
   Me.close
-  
+
 End
 
 Public Sub Sauve()
-  
+
   Dim dte4 As String
-  
+
   dte4 = Format$(Now, "ddmmyyyy")
   Me.Mouse = Mouse.Wait
   If Exist(Chmimport.Text & "/Laurux_dump.sql") Then Kill Chmimport.Text & "/Laurux_dump.sql"
   Shell "mysqldump -h " & Settings["/dbase/Host"] & " -u " & Utils.db.Login & " " & "-p" & Utils.db.Password & " " & Utils.db.Name & " " & "--add-drop-table" & " " & ">" & " " & Chmimport.Text & "/Laurux_dump.sql" & dte4 Wait
-  
+
 End
 
 Public Sub Creation_Fournisseur()
-  
+
   Dim Tabf As String
   Dim Tabd As String
-  
-  Tab = "Fiches_Parametres" 
-  Tabf = "Fiches_Four" 
-  Tabd = "Fiches_Comptes" 
+
+  Tab = "Fiches_Parametres"
+  Tabf = "Fiches_Four"
+  Tabd = "Fiches_Comptes"
   ParaResult = Utils.db.Exec("SELECT dnf FROM " & Tab & "")
   With Utils
     Utils.db.Exec("INSERT INTO " & tabf & " (fo_code,fo_rs_soc,fo_nom,fo_pnm,fo_adr1,fo_adr2,fo_cd_ptl,fo_ville,fo_email,fo_tel_std,fo_tel_bur,fo_tel_post,fo_pble,fo_fx1,fo_fx2,fo_obs,fo_cd_bq,fo_cd_gch,fo_num_cpt,fo_cle_rib,fo_dom,fo_id_tva,fo_cd_cli,fo_collectif, fo_site, fo_cdech, fo_pays, fo_franco, fo_centrale, fo_ccentrale, fo_copie) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13},&{14},&{15},&{16},&{17},&{18},&{19},&{20},&{21},&{22},&{23},&{24},&{25}, &{26}, &{27}, &{28}, &{29}, &{30}, &{31})", numf, cv, nom, prenom, adr1, adr2, cp, ville, "", "", "", "", "", "", "", code, "", "", "", "", "", "", "", colcptf, "", "", "", 0, 0, "", 0)
@@ -298,17 +298,17 @@ Public Sub Creation_Fournisseur()
     Endif
     Inc numf
   End With
-  
+
 End
 
 Public Sub Creation_Client()
-  
+
   Dim Tabc As String
   Dim Tabd As String
-  
-  Tab = "Fiches_Parametres" 
-  Tabc = "Fiches_Cli" 
-  Tabd = "Fiches_Comptes" 
+
+  Tab = "Fiches_Parametres"
+  Tabc = "Fiches_Cli"
+  Tabd = "Fiches_Comptes"
   ParaResult = Utils.db.Exec("SELECT dnc FROM " & Tab & "")
   With Utils
     Try .db.Exec("INSERT INTO " & Tabc & " (cli_code,cli_rs_soc,cli_nom,cli_pnm,cli_adr1,cli_adr2,cli_cd_ptl,cli_ville,cli_email,cli_tel_bur,cli_tel_dom,cli_tel_poste,cli_pble,cli_fx1,cli_fx2,cli_plaf_ecrs,cli_cd_bq,cli_cd_gch,cli_dmln,cli_cle_rib,cli_num_cpt,cli_cd_ent,cli_cd_acc,cli_ref_tir,cli_id_tva,cli_rlvc,cli_rlvf,cli_obs,cli_collectif,cli_rmo,cli_rart, cli_copie, cli_actif, cli_div) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24}, &{25}, &{26}, &{27}, &{28}, &{29}, &{30}, &{31}, &{32}, &{33}, &{34})", num, CV, nom, Prenom, adr1, adr2, cp, ville, Email, Telbur, Teldom, Poste, Portable, Fax1, Fax2, Encours, codebanque, codeguichet, Cle, numcompte, dom, Cent, Cacc, Tire, Idtva, Relcompte, Relfacture, code, colcpt, rmo, rart, 0, 0, 0)
@@ -318,16 +318,16 @@ Public Sub Creation_Client()
     Endif
     Inc num
   End With
-  
+
 End
 
 Public Sub Maj_Client()
-  
+
   Dim Tabc As String
   Dim Tabd As String
-  
-  Tabc = "Fiches_Cli" 
-  Tabd = "Fiches_Comptes" 
+
+  Tabc = "Fiches_Cli"
+  Tabd = "Fiches_Comptes"
   With Utils
     If Not collectif Then
       rResult = Utils.db.Exec("SELECT * FROM " & Tabd & " where coll = &1 order by cast(compte_cc AS char)", 1)
@@ -342,11 +342,11 @@ Public Sub Maj_Client()
     Utils.db.Exec("Update " & Tabc & " set cli_rmo = &1, cli_rart = &2 where cli_code = &3", rmo, rart, code)
     Utils.db.Exec("UPdate " & Tabd & " SET compte_cc = &1, intitule_cc = &2, type_cc = &3, coll = &4, coll_cc = &5, cent_cc = &6, comptr_cc = &7, gen_tv = &8, gen_ta = &9 WHERE compte_cc = &1", code, nom, "C", 0, collectif, 0, 0, 0, 0, 0, 0)
   End With
-  
+
 End
 
 Public Function Controle(Ctrl2 As String) As String
-  
+
   Dim i As Integer
   Dim hfile2 As File
   Dim Filetxt2 As String
@@ -362,18 +362,18 @@ Public Function Controle(Ctrl2 As String) As String
   Dim hfil As File
   Dim Filetxt3 As String
   Dim Tabcent As String
-  
-  Tabd = "Fiches_Comptes" 
+
+  Tabd = "Fiches_Comptes"
   Filetxt3 = Chmimport.Text & "/Nvcomptes.txt"
   TabCent = "Nvcompte"
-  
+
   HFil = Open Filetxt3 For Write Create
   Utils.db.Exec("drop Table IF exists " & Tabcent & "")
   Utils.db.Exec("CREATE  TABLE IF NOT EXISTS " & Tabcent &
     "(cd Char(8) NOT NULL," &
     "intitule Char(25)," &
     "PRIMARY KEY (cd))" & "ENGINE = MYISAM")
-  
+
   ' on controle que tous les comptes existent dans la compta
   If Exist(filetxt2) Then
     hFile2 = Open filetxt2 For Read
@@ -426,11 +426,11 @@ Public Function Controle(Ctrl2 As String) As String
   Endif
   Close #HFil
   Return (Ctrl)
-  
+
 End
 
 Public Function ControleS(Ctrl2 As String) As String
-  
+
   Dim i As Integer
   Dim hfile2 As File
   Dim Filetxt2 As String
@@ -440,23 +440,23 @@ Public Function ControleS(Ctrl2 As String) As String
   Dim CentResult As Result
   Dim Tabd As String
   Dim hfil As File
-  Dim Filetxt3 As String      
-  
+  Dim Filetxt3 As String
+
   Dim Tabcent As String
   Dim Tresorerie, Type As String
-  
-  Tabd = "Fiches_Comptes" 
+
+  Tabd = "Fiches_Comptes"
   Filetxt2 = Chmimport.Text & "/ecritures.pnm"
   Filetxt3 = Chmimport.Text & "/Nvcomptes.txt"
   TabCent = "Nvcompte"
-  
+
   HFil = Open Filetxt3 For Write Create
   Utils.db.Exec("drop Table IF exists " & Tabcent & "")
   Utils.db.Exec("CREATE  TABLE IF NOT EXISTS " & Tabcent &
     "(cd Char(8) NOT NULL," &
     "intitule Char(25)," &
     "PRIMARY KEY (cd))" & "ENGINE = MYISAM")
-  
+
   ' on controle que tous les comptes existent dans la compta
   If Exist(filetxt2) Then
     hFile2 = Open filetxt2 For Read
@@ -503,11 +503,11 @@ Public Function ControleS(Ctrl2 As String) As String
   Close #HFil
   Editeur.Prog_Editeur(Filetxt3)
   Return (Ctrl)
-  
+
 End
 
 Public Sub ComptaS()
-  
+
   Dim Tabc As String
   Dim Tabd As String
   Dim Tabe As String
@@ -541,11 +541,11 @@ Public Sub ComptaS()
   Dim Nbe2 As Integer
   Dim Nbe2txt As String
   Dim tiers As Boolean = False
-  
-  Tab = "Fiches_Parametres" 
-  Tabc = "Fiches_Cli" 
-  Tabd = "Fiches_Comptes" 
-  Tabe = "Fiches_Mvt" 
+
+  Tab = "Fiches_Parametres"
+  Tabc = "Fiches_Cli"
+  Tabd = "Fiches_Comptes"
+  Tabe = "Fiches_Mvt"
   Nbetxt = "Aucune écriture n'a été importée"
   Nbe2txt = " écriture(s) a (ont) été rejetée(s) car le numéro de facture existe déjà."
   Valid = 1
@@ -616,7 +616,7 @@ Public Sub ComptaS()
         dte1 = Mid$(Lig, 4, 6)
         dte1 = "20" & Right$(dte1, 2) & Mid$(dte1, 3, 2) & Left$(dte1, 2)
         sens = Mid$(Lig, 84, 1)
-        If sens = "D" Then 
+        If sens = "D" Then
           Mtd = Mid$(Lig, 85, 20)
           Mtc = "0"
         Else
@@ -631,7 +631,7 @@ Public Sub ComptaS()
         'Endif
         If Not rResult.available Then
           If Left$(compte, 3) = "411" And typecpt = "X" Or If Left$(compte, 3) = "401" And typecpt = "X" Then
-            
+
             rResult = Utils.db.Exec("SELECT * FROM " & Tabd & " Where compte_cc = &1", compte)
             coll = rResult!coll_cc
             collectif = "1"
@@ -687,25 +687,25 @@ Public Sub ComptaS()
     Endif
   End With
   Editeur.Prog_Editeur(Filetxt4)
-  
+
 End
 
 '**************************Controle compte tiers************************
 Public Sub Controle_tiers(cpt As String) As String
-  
+
   Dim rtiers As Result
   Dim Tabt As String = "Corsage"
-  
+
   rtiers = Utils.db.Exec("SELECT * FROM " & Tabt & " Where acode = &1", cpt)
   If rtiers.Available Then Return rtiers!ncode
-  
+
 End
 
 '**************************Controle journal************************
 Public Sub Controle_journal(jnal As String) As String
-  
+
   Dim journal As String
-  
+
   Select Case jnal
     Case "ACH"
       journal = "60"
@@ -715,73 +715,73 @@ Public Sub Controle_journal(jnal As String) As String
       journal = "50"
     Case "RAN"
       journal = "90"
-    Case "OD " 
+    Case "OD "
       journal = "10"
-    Case "CAI" 
+    Case "CAI"
       journal = "53"
   End Select
   Return journal
-  
+
 End
 
 '**********************************************************
 '*                   Recup parametres                     *
 '**********************************************************
 Public Sub Parametres()
-  
-  Tab = "Fiches_Parametres" 
+
+  Tab = "Fiches_Parametres"
   rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
   If rResult.Available Then
     'Nfac = rResult!dnfac
     Jnl = rResult!jrnal
   Endif
   'Nfac = Format$(Val(Nfac) + 1, "000000")
-  
+
 End
 
 '*****************************************************
 '*  Récuperation du dernier numéro d'écriture        *
 '*****************************************************
 Public Function Ecritures(numecr2 As String) As String
-  
+
   Dim Params As Result
-  
-  Tab = "Fiches_Parametres" 
+
+  Tab = "Fiches_Parametres"
   Params = Utils.db.Exec("SELECT " & numecr2 & " FROM " & Tab & " ")
   If Params.Available Then
     numr = Params["" & numecr2 & ""]
   Endif
   Return numr
-  
+
 End
 
 '**********************************************************
 '*                   Maj parametres                     *
 '**********************************************************
 Public Sub Maj_Parametres()
-  
-  Tab = "Fiches_Parametres" 
+
+  Tab = "Fiches_Parametres"
   With Utils
     'Nfac = Val(Nfac)
     'Nfac = Format$(Nfac, "000000")
     rResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
     Utils.db.Exec("UPdate  " & Tab & "  SET  dnfac = &1", Nfac)
   End With
-  
+
 End
 
 '************************************************
 '*  Mise a jour du dernier numéro d'écriture    *
 '************************************************
 Public Sub Majnum(numecr2 As String, numr2 As Integer)
-  
-  Tab = "Fiches_Parametres" 
+
+  Tab = "Fiches_Parametres"
   Utils.db.Exec("UPdate " & Tab & " set " & numecr2 & " = &1", numr2)
-  
+
 End
 
 Public Sub header()
-  
+
   Print #hFile3, "<!DOCTYPE KugarData ["
   Print #hFile3, "  <!ELEMENT KugarData (Row* )>"
   Print #hFile3, "  <!ATTLIST KugarData"
@@ -790,38 +790,38 @@ Public Sub header()
   Print #hFile3, "  <!ATTLIST Row>"
   Print #hFile3, " ]>"
   Print #hFile3, " <KugarData Template=" & "\"" & "Ednvcli.ktf" & "\"" & ">"
-  
+
 End
 
 Public Sub content1(p1 As String, p2 As String, p3 As String, p4 As String, p5 As String, p6 As String, p7 As String, p8 As String, p9 As String, p10 As String, p11 As String)
-  
+
   Print #hFile3, " <Row " & " level=" & "\"" & "1" & "\"" & "code=" & "\"" & p1 & "\"" & "intitule=" & "\"" & p2 & "\"" & "prenom=" & "\"" & p3 & "\"" & "adr1=" & "\"" & p4 & "\"" & "adr2=" & "\"" & p5 & "\"" & " cp=" & "\"" & p6 & "\"" & "ville=" & "\"" & p7 & "\"" & "telbur=" & "\"" & p8 & "\"" & "telpble=" & "\"" & p9 & "\"" & "rmo=" & "\"" & p10 & "\"" & "rart=" & "\"" & p11 & "\"" "/>"
-  
+
 End
 
 Public Sub content0(p1 As String)
-  
+
   Print #hFile3, " <Row " & " level=" & "\"" & "0" & "\"" & "date=" & "\"" & p1 & "\"" & "/>"
-  
+
 End
 
 Public Sub footer()
-  
+
   Print #hFile3, "</KugarData>"
-  
+
 End
 
 Public Sub Button3_Click()
-  
+
   Exec ["xdg-open", Application.Path &/ "Ecrans/Export.html"]
-  
+
 End
 
 '***************************************************
 '*                 Compteur clients                *
 '***************************************************
 Public Sub Compteur()
-  
+
   If IsNull(Num) Or If Val(Num) <= 411000 Then
     Num = "411001"
   Else
@@ -835,14 +835,14 @@ Public Sub Compteur()
       Endif
     Endif
   Endif
-  
+
 End
 
 '***************************************************
 '*                 Compteur fournisseurs               *
 '***************************************************
 Public Sub Compteurf()
-  
+
   If IsNull(Numf) Or If Val(Numf) <= 401000 Then
     Numf = "401001"
   Else
@@ -856,5 +856,5 @@ Public Sub Compteurf()
       Endif
     Endif
   Endif
-  
+
 End

@@ -1,6 +1,21 @@
 ' Gambas class file
 
+Private Jnal As String
+Private numecr As String
+Private numr As String
+Private numr2 As String
+Private colcpt As String
+Private Client As String
+Private Nclient As String
+Private Collectif As String
 Private itn As Integer = 0
+Private inew As Integer = 0
+Private icol As Integer = 0
+Private bnew As Boolean = False
+Private ilastrow As Integer = 0
+Private ilastcolumn As Integer = 0
+Private Posy As Integer = 0
+Private pdf As Cbordereaux
 
 Public Sub Form_Open()
 
@@ -22,82 +37,146 @@ Public Sub Recup_Cheques()
   Dim rCheque As Result
   Dim n As Integer = 0
 
-  Grd1.Rows.Count = 0
-  Grd1.Refresh()
-  Grd1.Columns.Count = 4
-  Grd1.Columns[0].Width = 100
-  Grd1.Columns[1].Width = 100
-  Grd1.Columns[1].Alignment = 2
-  Grd1.Columns[2].Width = 100
-  Grd1.Columns[2].Alignment = 3
-  Grd1.Columns[3].Width = 330
-  Grd1.Columns[0].Text = "Date chèque"
-  Grd1.Columns[1].Text = "Montant"
-  Grd1.Columns[2].Text = "Code client"
-  Grd1.Columns[3].Text = "Nom client"
   Grd2.Rows.Count = 0
   Grd2.Refresh()
-  Grd2.Columns.Count = 4
-  Grd2.Columns[0].Width = 100
-  Grd2.Columns[1].Width = 100
-  Grd2.Columns[1].Alignment = 2
-  Grd2.Columns[2].Width = 100
-  Grd2.Columns[2].Alignment = 3
-  Grd2.Columns[3].Width = 330
-  Grd2.Columns[0].Text = "Date chèque"
-  Grd2.Columns[1].Text = "Montant"
-  Grd2.Columns[2].Text = "Code client"
-  Grd2.Columns[3].Text = "Nom client"
+  Grd2.Columns.Count = 8
+  Grd2.Columns[0].Width = 0
+  Grd2.Columns[1].Width = 0
+  Grd2.Columns[2].Width = 20
+  Grd2.Columns[3].Width = 100
+  Grd2.Columns[4].Width = 100
+  Grd2.Columns[4].Alignment = 2
+  Grd2.Columns[5].Width = 100
+  Grd2.Columns[5].Alignment = 3
+  Grd2.Columns[6].Width = 330
+  Grd2.Columns[3].Text = "Date chèque"
+  Grd2.Columns[4].Text = "Montant"
+  Grd2.Columns[5].Text = "Code client"
+  Grd2.Columns[6].Text = "Nom client"
+  Grd2.Columns[7].Text = "N° facture"
   rCheque = Utils.db.Exec("select * from Fiches_BordereauxC order by dateremise")
   If rCheque.Available Then
     Repeat
       Grd2.Rows.count = n + 1
-      Grd2[n, 0].Text = Format$(rCheque!dateremise, "dd.mm.yyy")
-      Grd2[n, 1].Text = rCheque!montant
-      Grd2[n, 2].Text = rCheque!code
-      Grd2[n, 3].Text = rCheque!nom
+      Grd2[n, 0].Text = rCheque!lind
+      Grd2[n, 1].Text = "1"
+      Grd2[n, 2].Picture = Picture["icon:/16/apply"]
+      Grd2[n, 3].Text = Format$(rCheque!dateremise, "dd.mm.yyy")
+      Grd2[n, 4].Text = rCheque!montant
+      Grd2[n, 5].Text = rCheque!code
+      Grd2[n, 6].Text = rCheque!nom
+      Grd2[n, 7].Text = rCheque!nfacture
       Inc n
     Until rCheque.MoveNext()
   Endif
 
 End
 
-Public Sub Grd2_Activate()
+Public Sub Grd2_KeyPress()
 
-  Grd1.Rows.count = Grd1.Rows.count + 2
-  itn = Grd1.Rows.count - 2
-  Grd1[itn, 0].Text = Grd2[Grd2.row, 0].Text
-  Grd2[Grd2.row, 0].Font.Strikeout = True
-  Grd1[itn, 1].Text = Grd2[Grd2.row, 1].Text
-  Grd1[itn, 2].Text = Grd2[Grd2.row, 2].Text
-  Grd1[itn, 3].Text = Grd2[Grd2.row, 3].Text
-  Grd2.Rows.Remove(Grd2.row)
-  Grd1.Rows.count = Grd1.Rows.count - 1
-  Grd1.Refresh
-  Grd2.Refresh
-  Inc itn
+  itn = Grd2.Rows.count - 1
+  If Key.code = Key.Del Or If Key.code = Key.Delete Then
+    Grd2[Grd2.Row, Grd2.Column].Clear
+    Grd2.refresh
+  Else
+    If key.code = key.BackSpace Then
+      Grd2[Grd2.Row, Grd2.Column].text = Left$(Grd2[Grd2.Row, Grd2.Column].text, Len(Grd2[Grd2.Row, Grd2.Column].text) - 1)
+    Else
+      If Key.Code <> Key.tab And Key.Code <> Key.Delete And Key.code <> Key.enter And Key.code <> Key.return Then
+        Grd2[Grd2.Row, Grd2.Column].text &= Key.Text
+      Endif
+    Endif
+  Endif
 
 End
 
-Public Sub Grd1_Activate()
+Public Sub Grd2_MouseUp()
 
-  Dim itn As Integer
+  Dim i, x As Integer = 0
+  Dim coulr, coulb As New Border
+  Dim Coulfd As New String[]
+  Dim Coulfond As String
 
-  Grd2.Rows.count = Grd2.Rows.count + 2
-  Grd2.Refresh
-  itn = Grd2.Rows.count - 2
-  Grd2[itn, 0].Text = Grd1[Grd1.row, 0].Text
-  Grd1[Grd1.row, 0].clear
-  Grd2[itn, 1].Text = Grd1[Grd1.row, 1].Text
-  Grd1[Grd1.row, 1].clear
-  Grd2[itn, 2].Text = Grd1[Grd1.row, 2].Text
-  Grd1[Grd1.row, 2].clear
-  Grd2[itn, 3].Text = Grd1[Grd1.row, 3].Text
-  Grd1[Grd1.row, 3].clear
-  Grd1.Rows.Remove(Grd1.row)
-  Grd2.Rows.count = Grd2.Rows.count - 1
-  Grd2.Refresh
-  Grd1.Refresh
+  Coulfd = Utils.FColr(Settings["/Coul/Focus"])
+  Coulfond = Val(Coulfd[0])
+  coulr.Color = Color.Black
+  coulb.Color = Grd2.Background
+
+  If Grd2.Rows.count > 0 Then
+    Try ilastrow = Grd2.Row
+    Try ilastcolumn = Grd2.Column
+    If ilastcolumn And ilastrow > -1 Then
+      Grd2[ilastrow, ilastcolumn].Background = Grd2.Background
+      If Mouse.Right Then
+        If Message.Question("Voulez-vous ajouter une ligne ?", "Oui ", "Non") = 1 Then
+          bnew = True
+          Grd2.Rows.count = Grd2.Rows.count + 1
+          itn = Grd2.Rows.count - 1
+          inew = itn
+          icol = 2
+          Grd2[itn, 2].Picture = Picture["icon:/16/apply"]
+          Grd2[itn, 3].Text = Dateb.text
+          Grd2[itn, 1].Text = "1"
+          Try Grd2[itn, 4].Border = coulr
+          Try Grd2[itn, 4].Background = Coulfond
+          Try Grd2[itn, 4].EnsureVisible
+        Endif
+      Else
+        icol = Grd2.Column
+      Endif
+      If icol = 2 And Not bnew Then
+        If Grd2[Grd2.Row, 2].Picture = Picture["icon:/16/apply"] Then
+          Grd2[Grd2.Row, 2].Picture = Picture["icon:/16/close"]
+          Grd2[Grd2.Row, 1].Text = "0"
+          For i = 2 To 7
+            Grd2[Grd2.Row, i].Font.Italic = True
+            Grd2[Grd2.Row, i].Font.StrikeOut = True
+            Grd2[Grd2.Row, Grd2.Column].Border = coulb
+          Next
+          Grd2.Refresh
+        Else
+          Grd2[Grd2.Row, 2].Picture = Picture["icon:/16/apply"]
+          Grd2[Grd2.Row, 1].Text = "1"
+          For i = 2 To 7
+            Grd2[Grd2.Row, i].Font.Italic = False
+            Grd2[Grd2.Row, i].Font.StrikeOut = False
+          Next
+          Grd2.Refresh
+        Endif
+      Else
+        Try Grd2[Grd2.Row, Grd2.Column].Background = Coulfond
+        For x = 0 To Grd2.Rows.Count - 1
+          For i = 2 To 7
+            Grd2[x, i].Border = coulb
+          Next
+        Next
+        Try Grd2[Grd2.Row, Grd2.Column].Border = coulr
+        If bnew Then
+          For x = 0 To Grd2.Rows.Count - 1
+            For i = 2 To 7
+              Grd2[x, i].Border = coulb
+              Grd2[x, i].Background = Grd2.Background
+            Next
+          Next
+          Grd2.Row = itn
+          Grd2.Column = 4
+          Try Grd2[Grd2.Row, Grd2.Column].Border = coulr
+          Try Grd2[Grd2.Row, Grd2.Column].Background = Coulfond
+          Try Grd2[Grd2.Row, Grd2.Column].EnsureVisible
+        Else
+
+        Endif
+        bnew = False
+        inew = 0
+      Endif
+    Endif
+  Endif
+
+End
+
+Public Sub Grd2_LostFocus()
+
+  Try Grd2[ilastrow, ilastcolumn].Background = Grd2.Background
 
 End
 
@@ -121,5 +200,232 @@ End
 Public Sub Button1_Click()
 
   Me.Close
+
+End
+
+Public Sub Button2_Click()
+
+  If Grd2.Rows.count > 0 Then
+    If IsNull(Nbordereau.text) Then
+      Message.Warning("Veuillez saisir un numéro de bordereau SVP !")
+      Nbordereau.SetFocus
+    Else
+      If IsNull(Bq.text) Then
+        Message.Warning("Veuillez saisir un numéro de banque SVP !")
+      Else
+        Imp_Bordereaux()
+      Endif
+    Endif
+  Endif
+
+End
+
+Public Sub Imp_Bordereaux()
+
+  Dim Tab As String
+  Dim Filename As String
+  Dim TxtB As String
+  Dim Cptcli, libel, Cptcaisse, Cptbanque As String
+  Dim libelCaisse As String
+  Dim nbreg As Integer = 0
+  Dim Montant As Float = 0
+  Dim Nbtot As String
+  Dim lg, inlg As Integer
+  Dim Btype As String = ""
+  Dim rBanque As Result
+  Dim Nlot As String
+
+  Parametres()
+  'On recupère le code client caisse
+  rBanque = Utils.db.Exec("select * from Fiches_ClientCaisse")
+  If rBanque.Available Then
+    CptCaisse = rBanque!code
+    LibelCaisse = rBanque!nom
+    ' on recupère le nom du journal
+    rBanque = Utils.db.Exec("select * from Fiches_Journaux where  code_jo = &1", Left$(Bq.text, 2))
+    If Rbanque.Available Then
+      Txtb = "Bordereaux de chèques du " & Format$(Now, "dd.mm.yyyy") & " ( " & Rbanque!libelle_jo & " )"
+      Cptbanque = rBanque!cde_banque
+    Endif
+    Filename = "/tmp/Bordereau.pdf"
+    pdf = New Cbordereaux("Portrait", "mm", "A4")
+    pdf.Open()
+    pdf.AliasNbPages()
+    Tab = "Fiches_LigTicketz"
+    posy = 0
+    Filename = User.home & "/Caisse/Bordereau_" & Btype & Format$(Now, "dd.mm.yyyy") & ".pdf"
+    pdf = New Cbordereaux("Portrait", "mm", "A4")
+    pdf.Open()
+    pdf.AliasNbPages()
+    lg = 8
+    PosY = 5
+    Pdf.Entete()
+    Pdf.TitreB(TxtB, PosY)
+    PosY = 15
+    Pdf.Ligne(PosY)
+    PosY += 5
+    Pdf.Level6()
+    PosY += 5
+    For inlg = 0 To Grd2.Rows.count - 1
+      If Grd2[inlg, 1].Text = "1" Then
+        Pdf.Level7(Grd2[inlg, 3].text, Grd2[inlg, 4].text, Grd2[inlg, 5].text, Grd2[inlg, 6].text, PosY)
+        Montant += Val(Utils.cpoint(Grd2[inlg, 4].text))
+        PosY = PosY + 5
+        Inc nbreg
+      Endif
+    Next
+    Pdf.Ligne(PosY)
+    Posy = Posy + 2
+    Nbtot = "Nombre de chèques    " & nbreg & "            Total bordereau   "
+    Posy = Posy + 5
+    Pdf.Level8(nbtot, Format$(Val(Utils.cpoint(Montant)), "0.00"), PosY)
+    Posy = Posy + 6
+    Pdf.Ligne(PosY)
+    nbreg = 0
+    Montant = "0"
+    pdf.Output(Filename, False)
+    Visualiseur.Prog_Editeur(Filename)
+    If Message.Question("Voulez-vous effacer les chèques remis à la banque ?", "Oui", "Non") = 1 Then
+
+      ' On génère l'écriture de trésorerie pour les chèques caisse
+      For inlg = 0 To Grd2.Rows.count - 1
+        If Grd2[inlg, 1].Text = "1" Then
+          Cptcli = Grd2[inlg, 5].Text
+          If Cptcli = Cptcaisse Then Montant += Val(Utils.cpoint(Grd2[inlg, 4].text))
+        Endif
+      Next
+      If Cptcli = Cptcaisse And montant > 0 Then
+        Libel = "Chèques caisse "
+        Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, Client, Libel, Utils.Cdate_Dbase(Dateb.Text), Nbordereau.Text, Nbordereau.Text, Libel, 0, montant, 1, 0, 1, 1, 1, Utils.Cdate_Dbase(Dateb.text), numr2)
+        Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, Cptbanque, libel, Utils.Cdate_Dbase(Dateb.Text), Nbordereau.Text, Nbordereau.Text, Libel, montant, 0, 1, 0, 1, 1, 1, Utils.Cdate_Dbase(Dateb.text), numr2)
+        Csolde.Solde_caisse(Cptcaisse)
+        Csolde.Solde_caisse(Cptbanque)
+        Maj_Collectif(cptcli, LibelCaisse, "Chèques caisse " & Dateb.text, montant)
+      Endif
+      ' On génère l'écriture de trésorerie pour les chèques client compte
+      For inlg = 0 To Grd2.Rows.count - 1
+        If Grd2[inlg, 1].Text = "1" Then
+          Cptcli = Grd2[inlg, 5].Text
+          If Not IsNull(Grd2[inlg, 7].text) Then
+            Nlot = Grd2[inlg, 7].text
+          Else
+            Nlot = Nbordereau.Text
+          Endif
+          If Cptcli <> Cptcaisse And Not IsNull(Cptcli) Then
+            Montant = Val(Utils.cpoint(Grd2[inlg, 4].text))
+            Libel = Grd2[inlg, 6].text
+            If montant > 0 Then
+              Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, CptCli, Libel, Utils.Cdate_Dbase(Dateb.Text), Nlot, Nlot, Libel & " (B" & Nbordereau.Text & ")", 0, montant, 1, 0, 1, 1, 1, Utils.Cdate_Dbase(Dateb.text), numr2)
+              Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, Cptbanque, libel, Utils.Cdate_Dbase(Dateb.Text), Nlot, Nlot, Libel & " (B" & Nbordereau.Text & ")", montant, 0, 1, 0, 1, 1, 1, Utils.Cdate_Dbase(Dateb.text), numr2)
+              Csolde.Solde_caisse(Cptcli)
+              Csolde.Solde_caisse(Cptbanque)
+              Maj_Collectif(cptcli, Libel, "Chèque " & Libel & Dateb.text, montant)
+            Endif
+          Else
+            Message.Error("Le chèque d'un montant de " & Montant & "ne peux pas être traité!\ncar il ne possède pas de code client!")
+          Endif
+        Endif
+      Next
+      For inlg = 0 To Grd2.Rows.count - 1
+        If Grd2[inlg, 1].Text = "1" Then Utils.db.Exec("DELETE FROM  Fiches_BordereauxC  WHERE lind = &1", Grd2[inlg, 0].Text)
+      Next
+      Recup_Cheques()
+    Endif
+  Endif
+
+End
+
+Public Sub Maj_Collectif(Cpt As String, intit As String, libel As String, Mnt As Float)
+
+  Dim Coll As String
+  Dim Mtc As Float
+  Dim Mtd As Float
+  Dim Sld As Float
+  Dim cResult As Result
+  Dim Numlt As String = Format$(DateChooser1.Value, "ddmmyyyy")
+
+  cResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", Cpt)
+  coll = cResult!coll_cc
+  cResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " Where compte = &1 and numero = &2 and numerodef = &3", Coll, numr, numr2)
+  If cResult.Available Then
+    If Mnt > 0 Then
+      Mtd = 0
+      Mtc = Mnt + cResult!montantc
+    Else
+      Mtc = 0
+      Mtd = Mnt + cResult!montantd
+    Endif
+    Utils.db.Exec("UPDATE " & Cbase.Table("TabMvt") & " set montantc = &4 Where compte = &1 and numero = &2 and numerodef = &3", Coll, numr, numr2, mtc)
+  Else
+    Mtc = Mnt
+    Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour, numero, compte, collectif, intitule, dte, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, numerodef, numdoc, numlot) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19})", Jnal, numr, coll, 1, Intit, Utils.Cdate_Dbase(Dateb.Text), Libel, Mtd, Mtc, 1, 0, 1, 0, 0, 1, 0, numr2, Numlt, numlt)
+  Endif
+  cResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", coll)
+  If cResult!solde = "" Then
+    Sld = Mtd - Mtc
+  Else
+    Sld = cResult!solde + Mtd - Mtc
+  Endif
+  Utils.db.Exec("UPDATE " & Cbase.Table("TabComptes") & " set solde = &2 Where compte_cc = &1", coll, Sld)
+
+End
+
+'**********************************************************
+'*                                     Recup parametres                                            *
+'**********************************************************
+Public Sub Parametres()
+
+  Dim rcli As Result
+  Dim rcol As Result
+
+  'On recupère les numéros d'écritures
+  numecr = "numecriture"
+  numr = Ecritures(numecr)
+  numr = numr + 1
+  numecr = "numecriture2"
+  numr2 = Ecritures(numecr)
+  numr2 = numr2 + 1
+  Utils.db.Exec("UPDATE Fiches_Parametres set numecriture = &1,numecriture2 = &2 ", numr, numr2)
+  'On récupère le journal des ventes
+  Jnal = Left$(Bq.Text, 2)
+
+  'On recupère le compte caisse
+  rcli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCliCaisse") & "")
+  If rcli.Available Then
+    Client = rcli!code
+    Nclient = rcli!nom
+  Endif
+
+  ' On récupère le collectif
+  rcol = Utils.db.Exec("SELECT compte_cc FROM " & Cbase.Table("TabComptes") & " where coll = &1 order by cast(compte_cc AS char)", "1")
+  If rcol.Available Then
+    Repeat
+      Colcpt = rcol!compte_cc
+      If Left$(Colcpt, 2) = Left$(Client, 2) Then
+        collectif = Colcpt
+        Break
+      Endif
+    Until rcol.MoveNext()
+  Endif
+
+End
+
+'*****************************************************
+'*  Récuperation du dernier numéro d'écriture        *
+'*****************************************************
+Public Function Ecritures(numecr2 As String) As String
+
+  Dim Params As Result
+  Dim nro As String
+
+  Params = Utils.db.Exec("SELECT " & numecr & " FROM " & Cbase.Table("TabParam") & " ")
+  If Params.Available Then
+    If IsNull(Params["" & numecr2 & ""]) Then
+      nro = 0
+    Else
+      nro = Params["" & numecr2 & ""]
+    Endif
+  Endif
+  Return nro
 
 End

@@ -1,108 +1,427 @@
 ' Gambas class file
 
-'----------------------------------------------------------------------------
-'
-
-'
-'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
-'le modifier selon les termes de la GNU General PUBLIC License publiés par
-'la Free Software Foundation.
-
-'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
-'License pour plus de details.
-
-'Vous devez lire la GNU General PUBLIC Licence.
-'Si vous ne disposez pas d'un exemplaire, veuillez écrire
-'à " The Free Software Foundation
-'INC, 59 Temple place - Suite 33, Boston
-'MA 02111-1307 USA
-'----------------------------------------------------------------------------
-'################################################
-'# nom du fichier           : FEditrel.class
-'# Auteur                   : Jacky Tripoteau
-'# date de création         : 01/11/2004
-'# Edition des relances
-'################################################
-'
-
-Private Filename As String
-Private Filetxt As String
-Private Coulfond As New String[]
-Private PosY As Integer
+Private $blargeur As Boolean = True
+Private $icompteur As Integer
+Private Devises As String
+Private son As Integer = Start.Son
+Private Coulfd As New String[]
+Private Coulfond As String
 
 Public Sub _New()
-  
-  Coulfond = Utils.Coulfd()
+
+  Dim rParam As Result
+
   If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
-  
   Music.Load(Start.Musique)
-  filetxt = "/tmp/Relances.txt"
   Me.Center
-  compteRel.Columns.count = 7
-  compteRel.Columns[0].Alignment = 4
-  compteRel.Columns[0].Width = 70
-  compteRel.Columns[1].Width = 60
-  compteRel.Columns[2].Width = 220
-  compteRel.Columns[3].Width = 80
-  compteRel.Columns[4].Width = 220
-  compteRel.Columns[5].Width = 100
-  compteRel.Columns[6].Width = 100
-  compteRel.Columns[0].Text = "Code"
-  compteRel.Columns[1].Text = "RS"
-  compteRel.Columns[2].Text = "Nom"
-  compteRel.Columns[3].Text = "CP"
-  compteRel.Columns[4].Text = "Ville"
-  compteRel.Columns[5].Alignment = 2
-  compteRel.Columns[5].Text = "Débit"
-  compteRel.Columns[6].Alignment = 2
-  compteRel.Columns[6].Text = "Crédit"
-  MajTab()
-  
+  Coulfd = Utils.FColr(Settings["/Coul/Focus"])
+  Coulfond = Val(Coulfd[0])
+  dteN1.Text = Format$(Now, "dd.mm.yyyy")
+  rParam = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabParam") & "")
+  If rParam.Available Then
+    devises = rParam!devise
+    If IsNull(devises) Then devises = "Euros"
+  Endif
+  If Devises = "Euros" Then
+    devises = "€"
+  Else
+    Devises = Left(Devises, 1)
+  Endif
+
+  Me.Arrangement = Arrange.Vertical
+  Me.AutoResize = True
+  ScrollView2.w = 1024
+  affiche()
+  Checktout_Click
+  $icompteur = 1
+  lig_GotF(0)
+  dteN1_Gotfocus()
+
 End
 
-Public Sub MajTab()
-  
+Public Sub lig_GotF(nlig As Integer)
+
+  Dim tab As Variant
+  Dim i As Integer
+
+  If $icompteur = nlig Then Return
+  tab = ScrollView1.Children
+  For i = 0 To tab.count - 1
+    tab[i].couleur(Me.Background)
+  Next
+  Try tab[nlig].couleur(Coulfond)
+  Try tab[nlig].visext
+  'CheckBox2.Value = False
+  $icompteur = nlig
+
+End
+
+Public Sub Lig_up(nlig As Integer)
+
+  Dim tab As Variant
+  Dim i As Integer
+
+  If nlig = 0 Then Return
+  tab = ScrollView1.Children
+  For i = 0 To tab.count - 1
+    tab[i].couleur(Me.Background)
+  Next
+  tab[nlig].couleur(Coulfond)
+  $icompteur -= 1
+  ' tab[$icompteur].couleur(&H00FFFF)
+  tab[$icompteur].visext
+  CheckBox2.Value = False
+
+End
+
+Public Sub lig_Down(nlig As Integer)
+
+  Dim tab As Variant
+  Dim i As Integer
+
+  tab = ScrollView1.Children
+  If nlig = tab.count - 1 Then Return
+  For i = 0 To tab.count - 1
+    tab[i].couleur(Me.Background)
+  Next
+
+  ' tab[$icompteur].couleur(&H00FFFF)
+  tab[$icompteur].visext
+  CheckBox2.Value = False
+
+End
+
+Public Sub ScrollView1_KeyPress()
+
+  If Key.code = Key.Up Then Lig_up($icompteur)
+  If Key.Code = Key.Down Then lig_Down($icompteur)
+
+End
+
+Public Sub Checktout_Click()
+
+  Dim tab As Variant
+  Dim i As Integer
+  Dim sel As Boolean
+
+  If Checktout.Value Then
+    sel = True
+  Else
+    sel = False
+  Endif
+  tab = ScrollView1.Children
+  For i = 0 To tab.count - 1
+    tab[i].selection = sel
+  Next
+  Try tab[$icompteur].setfocus
+
+End
+
+Public Sub CheckBox2_Click()
+
+  Dim tab As Variant
+  Dim i As Integer
+
+  tab = ScrollView2.Children
+  For i = 0 To tab.count - 1
+    tab[i].selection = CheckBox2.Value
+  Next
+
+End
+
+Private Sub affiche()
+
+  Dim res As Result
+  Dim niv As Integer
+  Dim i, j As Integer
+  Dim lig As Ligcli
+  Dim Totc As Float
+
+  res = Utils.db.Exec("SELECT compte FROM Fiches_relances GROUP BY compte ORDER BY compte ASC")
+  If res.Available Then
+    res.MoveFirst
+    Totc = 0
+    For i = 0 To res.Max
+      lig = New Ligcli(res!compte, i, Devises, ScrollView2, ScrollView1) As "lig"
+      lig.Show
+      Totc += lig.sold
+      res.MoveNext
+    Next
+    Label1.Text = " " & res.count & " clients vous doivent un total de " & Format(Totc, "0.00 " & devises)
+    If $blargeur Then
+      ScrollView1.Width = lig.Width + 30
+      $blargeur = False
+    Endif
+  Endif
+
+End
+
+Private Sub efface()
+
+  Dim tab As Variant
+  Dim i As Integer
+  Dim lig As Ligcli
+
+  tab = ScrollView1.Children
+  If tab.count = 0 Then Return
+  Repeat
+    i = tab.count - 1
+    tab[i].Delete
+  Until i = 0
+  ScrollView1.Refresh
+
+End
+
+Public Sub Buttontrnom_Click()
+
+  Dim tab As Variant
+  Dim i, j As Integer
+
+  tab = ScrollView1.Children
+  j = Buttontrnom.Tag
+  Select Case j
+
+    Case 2
+      Buttontrnom.Tag = 1
+      Buttontrnom.Picture = Picture["Icones/down2.png"]
+      For i = 0 To tab.count - 1
+        j = i
+        Repeat
+          If tab[i].numero > tab[j].numero Then
+            tab[j].next = tab[i]
+          Endif
+          Inc j
+        Until j >= tab.count
+      Next
+
+    Case 1
+      Buttontrnom.Tag = 2
+      Buttontrnom.Picture = Picture["Icones/up2.png"]
+      For i = 0 To tab.count - 1
+        j = i
+        Repeat
+          If tab[i].numero < tab[j].numero Then
+            tab[j].next = tab[i]
+          Endif
+          Inc j
+        Until j >= tab.count
+      Next
+
+  End Select
+
+  ligtag
+  'selcouleur
+  'tab[$icompteur].couleur(&H00FFFF)
+  ScrollView1.Refresh
+  Wait 0.01
+
+End
+
+Public Sub Buttontrn_Click()
+
+  Dim tab As Variant
+  Dim i, j As Integer
+
+  tab = ScrollView1.Children
+  j = Buttontrn.Tag
+  Select Case j
+
+    Case 1
+      Buttontrn.Tag = 2
+      Buttontrn.Picture = Picture["Icones/down2.png"]
+      For i = 0 To tab.count - 1
+        j = i
+        Repeat
+          If tab[i].lib < tab[j].lib Then
+            tab[j].next = tab[i]
+          Endif
+          Inc j
+        Until j >= tab.count
+      Next
+
+    Case 2
+      Buttontrn.Tag = 1
+      Buttontrn.Picture = Picture["Icones/up2.png"]
+      For i = 0 To tab.count - 1
+        j = i
+        Repeat
+          If tab[i].lib > tab[j].lib Then
+            tab[j].next = tab[i]
+          Endif
+          Inc j
+        Until j >= tab.count
+      Next
+
+  End Select
+
+  ' selcouleur
+  ligtag
+  ' tab[$icompteur].couleur(&H00FFFF)
+  ScrollView1.Refresh
+  Wait 0.01
+
+End
+
+Private Sub ligtag()
+
+  Dim Tab As Variant
+  Dim i As Integer
+
+  tab = ScrollView1.Children
+  For i = 0 To tab.count - 1
+    tab[i].tag = i
+  Next
+
+End
+
+Private Sub selcouleur()
+
+  Dim tab As Variant
+  Dim i As Integer
+
+  tab = ScrollView1.Children
+  For i = 0 To tab.count - 1
+    tab[i].couleur(couleur(i))
+  Next
+
+End
+
+Private Function couleur(coul As Integer) As Integer
+
+  If Even(coul) Then
+    Return Coulfond
+  Else
+    Return Color.Background
+  Endif
+
+End
+
+Public Sub Button1_Click()
+
   Dim rResult As Result
+  Dim rrResult As Result
   Dim Tab As String
-  Dim cpt As String
-  Dim Totdeb As Float
-  Dim Totcred As Float
-  
-  Tab = "Fiches_relances" 
-  compteRel.clear
-  With utils
-    rResult = Utils.db.Exec("SELECT * FROM " & tab & " order by compte ")
+  Dim Tab2 As String
+  Dim Tab3 As String
+  Dim dteN As String
+  Dim Niv As Integer
+
+  Tab = "Fiches_Mvt"
+  Tab2 = "Fiches_relances"
+  Tab3 = "Fiches_Cli"
+  '  relances.clear
+  '  compteRel.Clear
+  Label1.Text = ""
+  ' TextLabel2.Text = ""
+  Utils.db.Exec("DROP TABLE if exists " & Tab2 & "")
+  Utils.db.EXEC("CREATE TABLE " & Tab2 &
+    " (compte Char(8) NOT NULL," &
+    "rs char(10) ," &
+    "intitule char(50) ," &
+    "adr1 char(35) ," &
+    "adr2 char(35) ," &
+    "cp char(10) ," &
+    "ville char(35) ," &
+    "pays char(35) ," &
+    "dte date ," &
+    "numdoc char(10)," &
+    "numlot char(10) ," &
+    "libelle char(50) ," &
+    "montantd Decimal(12,2) ," &
+    "montantc Decimal(12,2) ," &
+    "numero char(8) ," &
+    "journal char(2) ," &
+    "niveau integer(1)," &
+    "lind char(10) ," &
+    "PRIMARY KEY (compte, lind))" & "ENGINE = MYISAM")
+  If dteN1.Text <> "" Then
+    dteN = Right$(dteN1.Text, 4) & Mid$(dteN1.Text, 4, 2) & Left$(dteN1.Text, 2)
+    rResult = Utils.db.Exec("SELECT * FROM " & tab & " where left(compte,3) = &1 and dateech <= &2 and tresorerie = &3 and collectif is null and lettree = &4 or left(compte,3) = &1 and dateech is null and tresorerie = &3 and collectif is null and lettree = &4  or left(compte,3) = &1 and dte <= &2 and tresorerie = &5 and collectif is null and lettree = &4", "411", dteN, 0, 0, 1)
     If rResult.Available Then
+      Me.mouse = Mouse.Wait
       Repeat
-        If cpt <> rResult!compte Then
-          Totdeb = rResult!montantd
-          Totcred = rResult!montantc
-          compteRel.Add(rResult!compte, rResult!compte)
-          compteRel.Item[0] = rResult!compte
-          compteRel.Item[1] = rResult!rs
-          compteRel.Item[2] = rResult!intitule
-          compteRel.Item[3] = rResult!cp
-          compteRel.Item[4] = rResult!ville
-          cpt = rResult!compte
-          compteRel.Item[5] = Format$(Totdeb, "0.00")
-          compteRel.Item[6] = Format$(Totcred, "0.00")
+        If rResult!relance = "" Then
+          Niv = 1
         Else
-          Totdeb = Totdeb + rResult!montantd
-          Totcred = Totcred + rResult!montantc
-          compteRel.Item[5] = Format$(Totdeb, "0.00")
-          compteRel.Item[6] = Format$(Totcred, "0.00")
+          If rResult!relance < 3 Then
+            Niv = rResult!relance + 1
+          Else
+            Niv = 3
+          Endif
+        Endif
+        rrResult = Utils.db.Exec("SELECT * from " & Tab3 & " where cli_code = &1", rResult!compte)
+        If rrResult.Available Then
+          Try Utils.db.Exec("INSERT INTO " & Tab2 & " (compte, rs, intitule, adr1, adr2, cp, ville, pays, dte, numdoc, numlot, libelle, montantd, montantc, numero, journal, niveau, lind) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18})", rResult!compte, rrResult!cli_rs_soc, rrResult!cli_nom & " " & rrResult!cli_pnm, rrResult!cli_adr1, rrResult!cli_adr2, rrResult!cli_cd_ptl, rrResult!cli_ville, rrResult!cli_pays, rResult!dateech, rResult!numdoc, rResult!numlot, rResult!libelle, rResult!montantd, rResult!montantc, rResult!numero, rResult!jour, Niv, rResult!lind)
+          'If Error Then Message.Error("Il y a un problème sur l'écriture n° " & rResult!numero & " Veuillez vérifier que le numéro de document existe bien !")
+          If Error Then Utils.db.Exec("INSERT INTO " & Tab2 & " (compte, rs, intitule, adr1, adr2, cp, ville, pays, dte, numdoc, numlot, libelle, montantd, montantc, numero, journal, niveau, lind) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18})", rResult!compte, rrResult!cli_rs_soc, rrResult!cli_nom & " " & rrResult!cli_pnm, rrResult!cli_adr1, rrResult!cli_adr2, rrResult!cli_cd_ptl, rrResult!cli_ville, rrResult!cli_pays, rResult!dateech, rResult!compte & rResult!lind, rResult!numlot, rResult!libelle, rResult!montantd, rResult!montantc, rResult!numero, rResult!jour, Niv, rResult!lind)
         Endif
       Until rResult.MoveNext()
+      efface
+      affiche()
+      $icompteur = 0
+      Checktout.Value = True
+      Checktout_Click
+      $icompteur = 1
+      lig_GotF(0)
+
+      Me.mouse = Mouse.Default
     Endif
-  End With
-  
+  Else
+    If son Then
+      Music.Play
+    Endif
+    Message.Info("Veuillez saisir votre date SVP")
+    dteN1_GotFocus()
+    dteN1.SetFocus
+  Endif
+
 End
 
-Public Sub relances()
-  
+Public Sub dte_KeyPress()
+
+  If Key.code = Key.Enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    Select Case Last.tag
+
+      Case 1
+        dteN1_LostFocus()
+        Stop Event
+    End Select
+
+  Endif
+  '  If key.code = key.F1 Then
+  '    Button7_Click()
+  '    Stop Event
+  '  Endif
+
+End
+
+Public Sub dteN1_GotFocus()
+
+  Utils.SetEditColor(Me, dteN1)
+  dteN1.SetFocus
+  dteN1.Select
+
+End
+
+Public Sub dteN1_LostFocus()
+
+  With utils
+    dteN1.Text = .Cdate_calc(dteN1.text)
+    dteN1.Text = .Cdate_aff(dteN1.Text)
+    If dteN1.text = "00.00.0:00" Then
+      dteN1.text = Format$(Now, "dd.mm.yyyy")
+    Else
+      Button1.SetFocus
+    Endif
+    dteN1.Background = Color.TextBackground
+  End With
+
+End
+
+Public Sub Impressionr(Org As String)
+
   Dim rRESULT As RESULT
   Dim rrRESULT As RESULT
-  Dim res As Result
   Dim Tab As String
   Dim Tab2 As String
   Dim Tab3 As String
@@ -114,7 +433,7 @@ Public Sub relances()
   Dim ville As String
   Dim ville2 As String
   Dim Pays As String
-  Dim Mail As String
+  Dim Mail, MailC As String
   Dim Rcs As String
   Dim Siret As String
   Dim Tvaintra As String
@@ -136,17 +455,23 @@ Public Sub relances()
   Dim Mtd As String
   Dim Mtc As String
   Dim jour As String
-  Dim totsel As Float
-  
   Dim pdf As Creleve
-  
-  Tab = "Fiches_relances" 
+  Dim totsel As Float
+  Dim res As Result
+  Dim Filename As String
+  Dim Filetxt As String
+  Dim PosY As Integer
+  Dim tabl As Variant
+  Dim i As Integer
+
+  Tab = "Fiches_relances"
   Tab2 = "Fiches_Societes"
-  Tab3 = "Fiches_Txt_Relances" 
-  Tab4 = "Fiches_Mvt" 
+  Tab3 = "Fiches_Txt_Relances"
+  Tab4 = "Fiches_Mvt"
+  filetxt = User.home & "/Relances.txt"
   Me.Mouse = Mouse.wait
   jour = Format$(Now, "dd.mm.yyyy")
-  Filename = "/tmp/Relances.pdf"
+  Filename = User.home & "/Relances.pdf"
   With utils
     Shell "cd " & User.Home & ""
     pdf = New Creleve("Portrait", "mm", "A4")
@@ -169,58 +494,63 @@ Public Sub relances()
     If rResult!email_sc Then Mail = "Courriel : " & rResult!email_sc
     If rResult!site Then Site = "Site : " & rResult!site
     If rResult!banq Then Iban = "Iban : " & rResult!banq & " Bic : " & rResult!bic
-    If compteRel.Available Then
-      compteRel.MoveFirst
-      Repeat
-        If RB2.Value And Not compteRel.Item.selected Then
-        Else
-          If RB2.Value And compteRel.Item.selected Then rResult = Utils.db.Exec("SELECT * FROM " & tab & " where compte = &1 order by dte", compteRel.Item[0])
-          If RB1.Value Then rResult = Utils.db.Exec("SELECT * FROM " & tab & " where compte = &1 order by dte", compteRel.Item[0])
-          If rResult.Available Then
-            Rs2 = rResult!rs & " " & rResult!intitule
-            adr21 = rResult!adr1
-            adr22 = rResult!adr2
-            ville2 = rResult!cp & "  " & rResult!ville
-            Pays = rResult!pays
-            If Pays = "France" Then Pays = ""
-            Niv = rResult!niveau
-            pdf.Entete(rs, adr1, adr2, ville, cap, rcs, siret, ape, Tvaintra, Tel, portable, fax, mail, site, Pays, Iban, False)
-            pdf.Entete2(rs2, adr21, adr22, ville2, Pays, "", False)
-            pdf.Level5(Jour)
-            posy = 110
-            rrResult = Utils.db.Exec("select * from " & Tab3 & " where niveau = &1", Niv)
+
+    '   Edition des lettres de relance
+    i = 0
+    tabl = ScrollView1.Children
+    Repeat
+      If tabl[i].selection And tabl[i].imp And Not tabl[i].traitement Then
+        rResult = Utils.db.Exec("SELECT * FROM " & tab & " where compte = &1 order by dte", tabl[i].numero)
+        If rResult.Available Then
+          Rs2 = rResult!rs & " " & rResult!intitule
+          adr21 = rResult!adr1
+          adr22 = rResult!adr2
+          ville2 = rResult!cp & "  " & rResult!ville
+          Pays = rResult!pays
+          If Pays = "France" Then Pays = ""
+          Niv = rResult!niveau
+          pdf.Entete(rs, adr1, adr2, ville, cap, rcs, siret, ape, Tvaintra, Tel, portable, fax, mail, site, Pays, Iban, False)
+          pdf.Entete2(rs2, adr21, adr22, ville2, Pays, "", False)
+          pdf.Level5(Jour)
+          posy = 110
+          If tabl[i].rellet Then
+            rrResult = Utils.db.Exec("select * from " & Tab3 & " where niveau = &1", tabl[i].numlet)
             If rrResult.Available Then
               Txt1 = rrResult!libell1
               Txt2 = rrResult!libell2
             Endif
-            pdf.Level8(Txt1, Posy)
-            Posy += 30
-            pdf.Level6()
-            posy += 6
-            totsel = 0
-            Repeat
-              'dte = (Mid$(rResult!dte, 5, 2) & "." & Right$(rResult!dte, 2) & "." & Left$(rResult!dte, 4))
-              dte = .Cdate_Aff(rResult!dte)
-              num = rResult!numdoc
-              Lib = rResult!libelle
-              Mtd = Format$(rResult!montantd, "0.00")
-              Mtc = Format$(rResult!montantc, "0.00")
-              totsel += Val(mtd) - Val(Mtc)
-              pdf.Level7(dte, num, Lib, Mtd, Mtc, PosY)
-              posy += 4
-              Utils.db.Exec("UPdate  " & Tab4 & "  SET  relance = &1 WHERE compte = &2 and numdoc = &3", Niv, compteRel.Item[0], num)
-              If PosY >= 283 Then
-                pdf.Entete(rs, adr1, adr2, ville, cap, rcs, siret, ape, Tvaintra, Tel, portable, fax, mail, site, Pays, Iban, False)
-                pdf.Entete2(rs2, adr21, adr22, ville2, Pays, "", False)
-                pdf.Level5(Jour)
-                posy = 110
-                pdf.Level8(Txt1, Posy)
-                Posy += 30
-                pdf.Level6()
-                posy += 6
-              Endif
-            Until rResult.MoveNext()
+          Else
+            Txt1 = "          Relevé de compte"
+            txt2 = "  "
           Endif
+          pdf.Level8(Txt1, Posy)
+          Posy += 30
+          pdf.Level6()
+          posy += 6
+          totsel = 0
+          Repeat
+            'dte = (Mid$(rResult!dte, 5, 2) & "." & Right$(rResult!dte, 2) & "." & Left$(rResult!dte, 4))
+            dte = .Cdate_Aff(rResult!dte)
+            num = rResult!numdoc
+            Lib = rResult!libelle
+            Mtd = Format$(rResult!montantd, "0.00")
+            Mtc = Format$(rResult!montantc, "0.00")
+            totsel += Val(mtd) - Val(Mtc)
+            pdf.Level7(dte, num, Lib, Mtd, Mtc, PosY)
+            posy += 4
+            Utils.db.Exec("UPdate  " & Tab4 & "  SET  relance = &1 WHERE compte = &2 and numdoc = &3", Niv, tabl[i].numero, num)
+            If PosY >= 273 Then
+              pdf.Entete(rs, adr1, adr2, ville, cap, rcs, siret, ape, Tvaintra, Tel, portable, fax, mail, site, Pays, Iban, False)
+              pdf.Entete2(rs2, adr21, adr22, ville2, Pays, "", False)
+              pdf.Level5(Jour)
+              posy = 110
+              pdf.Level8(Txt1, Posy)
+              Posy += 30
+              pdf.Level6()
+              posy += 6
+            Endif
+          Until rResult.MoveNext()
+
           Posy += 6
           If totsel > 0 Then
             pdf.Level7(" ", " ", "Solde de la sélection ", " ", Format(totsel, "0.00"), PosY)
@@ -228,55 +558,43 @@ Public Sub relances()
             pdf.Level7(" ", " ", "Solde de la sélection ", Format(- totsel, "0.00"), " ", PosY)
           Endif
           posy += 4
-          res = utils.db.Exec("SELECT solde FROM Fiches_Comptes WHERE compte_cc=&1", compteRel.Item[0])
+          res = utils.db.Exec("SELECT solde FROM Fiches_Comptes WHERE compte_cc=&1", tabl[i].numero)
           If res.Available Then
-            If res!solde > 0 Then
+
+            If Val(.cpoint(res!solde)) > 0 Then
               pdf.Level7(" ", " ", "Solde du compte ", " ", Format(res!solde, "0.00"), PosY)
             Else
               pdf.Level7(" ", " ", "Solde du compte ", Format(- res!solde, "0.00"), " ", PosY)
             Endif
-            Posy += 8
-            pdf.Level8(Txt2, Posy)
+
           Endif
+          posy += 8
+          pdf.Level8(Txt2, Posy)
         Endif
-      Until compteRel.Movenext()
-      pdf.Output(Filename, False)
-      Impression.Prog_Editeur(Filename)
-    Endif
+      Endif
+      Inc i
+    Until i = tabl.count - 1
+    pdf.Output(Filename, False)
+    Impression.Prog_Editeur(Filename)
+    ' Endif
   End With
-  
+
+  '     envoie des mails
+  '  i = 0
+  '  Repeat
+  ' If tabl[i].mail And Not tabl[i].traitement Then
+
+  ' EnvMail.Envoi2(MailC, "Votre compte", "", Filename)
+  ' Endif
+  '  Inc i
+  '  Until i = tabl.count - 1
+
   Me.Mouse = Mouse.Custom
-  MajTab()
-  
+
 End
 
-Public Sub Button6_Click()
-  
-  If Exist(filename) Then Try Kill filename
-  Me.Close
-  
-End
+Public Sub Buttonedit_Click()
 
-Public Sub Button1_Click()
-  
-  relances()
-  
-End
+  Impressionr("")
 
-Public Sub RB1_Click()
-  
-  MajTab()
-  
-End
-
-Public Sub RB2_Click()
-  
-  MajTab()
-  
-End
-
-Public Sub Button7_Click()
-  
-  Exec ["xdg-open", Application.Path &/ "Ecrans/Edrelances.html"]
-  
 End
