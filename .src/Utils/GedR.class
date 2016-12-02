@@ -3,30 +3,30 @@
 Private Tableau As String[]
 
 Public Sub _New()
-  
+
   Me.center
-  
-End  
+
+End
 
 Public Sub Button2_Click()
-  
+
   Me.close
-  
+
 End
 
 Public Sub TextBox1_KeyPress()
-  
+
   If Key.code = Key.enter Or Key.code = Key.return Then P5_MouseDown()
-  
+
 End
 '********************************** Gestion des documents liès ***************************************************
 
 Public Sub P5_MouseDown()
-  
+
   Dim rDoc As Result
   Dim Tag As String[]
   Dim n As Integer = 0
-  
+
   Dssr.Clear
   Dssr.Columns.Count = 4
   Dssr.Columns[0].Width = 100
@@ -66,35 +66,35 @@ Public Sub P5_MouseDown()
     tableau = New String[rDoc.Count, 4]
     Dssr.Rows.count = rDoc.Count
     Repeat
-      Tableau[n, 0] = rDoc!code 
+      Tableau[n, 0] = rDoc!code
       Tableau[n, 1] = rDoc!doc
       Tag = Split(rDoc!doc, "/")
       Tableau[n, 2] = Tag[Tag.count - 1]
       Tableau[n, 3] = rDoc!doc2
       Inc n
     Until rDoc.MoveNext()
-  Endif 
-Catch 
-  
+  Endif
+Catch
+
 End
 
 Public Sub Dssr_Data(Row As Integer, Column As Integer)
-  
+
   Try Dssr.Data.Text = tableau[Row, Column]
-  
+
 End
 
 Public Sub Dssr_Activate()
-  
+
   Dim Attente As Boolean = False
-  
+
   Try Desktop.Open(Dssr[Dssr.row, 1].Text, Attente)
   If Error Then Message.Info("Ce fichier n'existe pas ! Peut-être devriez-vous le supprimer de cette liste. ")
-  
+
 End
 
 Public Sub Dssr_MouseDown()
-  
+
   If Me.mouse = Mouse.Right Then
     Tbxrem.Clear
     If Mouse.Right Then
@@ -111,12 +111,12 @@ Public Sub Dssr_MouseDown()
       If Tbxrem.Visible Then Tbxrem.Visible = False
     Endif
   Endif
-  
+
 End
 
 ' Affichage du Textbox Tbxrem
 Public Function ShowTextBox()
-  
+
   With Dssr.Current
     Tbxrem.Text = .Text
     Tbxrem.Width = Dssr.Columns.Width
@@ -124,14 +124,14 @@ Public Function ShowTextBox()
     Tbxrem.Text = Dssr[Dssr.row, 3].Text
     Tbxrem.Visible = True
   End With
-  
+
 End
 
 'Masquage du Textbox Tbxrem
 Public Function HideTextBox()
-  
+
   Dim Tab As String
-  
+
   With Utils
     If Bclient.value Then Tab = Cbase.Table("TabCdocs")
     If Bfour.value Then Tab = Cbase.Table("TabFdocs")
@@ -140,29 +140,29 @@ Public Function HideTextBox()
     Try Dssr[Dssr.row, 3].Text = Tbxrem.Text
     Utils.db.Exec("Update " & Tab & " set doc2 = &3 where code = &1 AND doc = &2", Dssr[Dssr.row, 0].Text, Dssr[Dssr.row, 1].Text, Dssr[Dssr.row, 3].Text)
     Tbxrem.Visible = False
-    
+
   End With
-  
+
 End
 
 Public Sub Tbxrem_KeyPress()
-  
+
   If Key.code = Key.Enter Or Key.code = Key.Return Then
     HideTextBox()
   Endif
-  
+
 End
 
 Public Sub Tbxrem2_MouseDown()
-  
+
   If Tbxrem.Visible Then Tbxrem.Visible = False
-  
+
 End
 
 Public Sub Dssr_KeyPress()
-  
+
   Dim Tab As String
-  
+
   If Not Btous.value Then
     If key.code = key.Delete Then
       If Bclient.value Then Tab = Cbase.Table("TabCdocs")
@@ -172,7 +172,7 @@ Public Sub Dssr_KeyPress()
       If Bcompta.value Then Tab = Cbase.Table("TabCPTdocs")
       If Message.Question("Vous allez supprimer le lien sélectionné.", "Oui", "Non") = 1 Then
         Try Utils.db.Exec("DELETE FROM " & Tab & " WHERE code = &1 and doc = &2", Dssr[Dssr.row, 0].Text, Dssr[Dssr.row, 1].Text)
-        If Error Then 
+        If Error Then
           Message.Error("Impossible de supprimer ce document ...")
         Else
           If Message.Question("Le lien a été supprimé !\nVoulez-vous supprimer le fichier ?", "Oui", "Non") = 1 Then Try Kill Dssr[Dssr.row, 1].Text
@@ -185,74 +185,74 @@ Public Sub Dssr_KeyPress()
       Tab = Cbase.Table("TabCdocs")
       Try Utils.db.Exec("DELETE FROM " & Tab & " WHERE code = &1 and doc = &2", Dssr[Dssr.row, 0].Text, Dssr[Dssr.row, 1].Text)
       Tab = Cbase.Table("TabFdocs")
-      Try Utils.db.Exec("DELETE FROM " & Tab & " WHERE code = &1 and doc = &2", Dssr[Dssr.row, 0].Text, Dssr[Dssr.row, 1].Text) 
+      Try Utils.db.Exec("DELETE FROM " & Tab & " WHERE code = &1 and doc = &2", Dssr[Dssr.row, 0].Text, Dssr[Dssr.row, 1].Text)
       Tab = Cbase.Table("TabPdocs")
       Try Utils.db.Exec("DELETE FROM " & Tab & " WHERE code = &1 and doc = &2", Dssr[Dssr.row, 0].Text, Dssr[Dssr.row, 1].Text)
       Tab = Cbase.Table("TabAdocs")
       Try Utils.db.Exec("DELETE FROM " & Tab & " WHERE code = &1 and doc = &2", Dssr[Dssr.row, 0].Text, Dssr[Dssr.row, 1].Text)
       Tab = Cbase.Table("TabCPTdocs")
       Try Utils.db.Exec("DELETE FROM " & Tab & " WHERE code = &1 and doc = &2", Dssr[Dssr.row, 0].Text, Dssr[Dssr.row, 1].Text)
-      If Error Then 
+      If Error Then
         Message.Error("Impossible de supprimer ce lien...")
       Else
         If Message.Question("Le lien a été supprimé !\nVoulez-vous supprimer le fichier ?", "Oui", "Non") = 1 Then Try Kill Dssr[Dssr.row, 1].Text
       Endif
       P5_MouseDown()
     Endif
-  Endif  
+  Endif
   If Key.code = Key.F3 Then
     Message.Info(Dssr[Dssr.row, 1].Text)
   Endif
-  
+
 End
 
 Public Sub Bart_Click()
-  
+
   Dssr.Rows.Count = 0
   P5_MouseDown()
-  
+
 End
 
 Public Sub Bautre_Click()
-  
+
   Dssr.Rows.Count = 0
   P5_MouseDown()
-  
+
 End
 
 Public Sub Btous_Click()
-  
+
   Dssr.Rows.Count = 0
   P5_MouseDown()
-  
+
 End
 
 Public Sub Bclient_Click()
-  
+
   Dssr.Rows.Count = 0
   P5_MouseDown()
-  
+
 End
 
 Public Sub Bfour_Click()
-  
+
   Dssr.Rows.Count = 0
   P5_MouseDown()
-  
+
 End
 
 Public Sub Bcompta_Click()
-  
+
   Dssr.Rows.Count = 0
   P5_MouseDown()
-  
+
 End
 
 '***************************
 '*  On affiche la doc htML *
 '***************************
 Public Sub Button1_Click()
-  
+
   Exec ["xdg-open", Application.Path &/ "Ecrans/Ged.html"]
-  
+
 End
