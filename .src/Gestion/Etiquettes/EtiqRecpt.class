@@ -44,6 +44,7 @@ Esplargeur As Integer
 Esphauteur As Integer
 Filename As String
 Private pdf As Cetiquettes
+Page As String
 
 Public Sub _New()
 
@@ -78,7 +79,7 @@ Public Sub init_ComboBox()
   If Not Error Then
     If rEtiq.Available Then
       Do
-        Codetiq.Add(rEtiq!code & "- " & rEtiq!libelle)
+        Codetiq.Add(rEtiq!code & " - " & rEtiq!libelle & " (" & rEtiq!page & ")")
       Loop Until rEtiq.MoveNext()
     Endif
     Codetiq.Text = ""
@@ -120,6 +121,7 @@ End
 Public Sub Button2_Click()
 
   Dim rarts As Result
+  Dim rTvav As Result
   Dim etiqr As Result
   Dim retiq As Result
   Dim Tab As String
@@ -139,6 +141,7 @@ Public Sub Button2_Click()
   Dim rect As String
   Dim i As Integer
   Dim stock As Float
+  Dim PageA As String[]
 
   If IsNull(codetiq.text) Then
     Message.Warning("Veuillez selectionner un modèle d'étiquettes SVP !")
@@ -160,6 +163,8 @@ Public Sub Button2_Click()
       Mrgauche = Etiqr!mrgauche / 10
       Esplargeur = Etiqr!esplargeur / 10
       Esphauteur = Etiqr!esphauteur / 10
+      Page = Etiqr!page
+      PageA = Split(Page, " ")
     Endif
     txtPosX = 2 + Mrgauche
     txtPosY = Mrghaut
@@ -173,7 +178,7 @@ Public Sub Button2_Click()
     Shell "cd " & User.Home & ""
     Filename = User.Home & "/tmp/EtiqRecpt.pdf"
     Try Kill Filename
-    If A4.Value Then pdf = New CEtiquettes("Portrait", "mm", "A4")
+    If A4.Value Then pdf = New CEtiquettes(PageA[1], "mm", PageA[0])
     If Dymo.Value And Etigond.value Then pdf = New CEtiquettes("Portrait", "mm", "dymog")
     If Dymo.Value And Eticas.value Then pdf = New CEtiquettes("Portrait", "mm", "dymoc")
     pdf.Open()
@@ -205,6 +210,8 @@ Public Sub Button2_Click()
         casier = rarts!art_casier
         If Len(pvht) - InStr(pvht, ",") = 2 Then pvht = pvht & " "
         tva = rarts!art_tva
+        rTvav = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTvav") & " WHERE code_tva = &1", tva)
+        tva = rTvav!taux_tva & " %"
         pvttc = Format$(rarts!art_pvttc, nbdec)
         If Len(pvttc) - InStr(pvttc, ",") = 2 Then pvttc = pvttc & " "
         'On imprime
@@ -222,7 +229,7 @@ Public Sub Button2_Click()
               pdf.Intitule(Intitule, txtPosX, txtPosY + 3)
               pdf.Intitule(Intitule2, txtPosX, txtPosY + 6)
               If Not IsNull(txtBarcode) And If Len(TxtBarcode) = 13 Then pdf.Barcode(txtBarcode, txtPosX + 2, txtPosY + 11)
-              pdf.Tva("Tva " & Tva, txtPosX, txtPosY + 17)
+              pdf.Tva(Tva, txtPosX, txtPosY + 17)
               pdf.Rectangle(txtPosX + 1, txtPosY + 26)
               pdf.PrixHt(Pvht, txtPosX + 2, txtPosY + 26)
               pdf.PrixTTC(Pvttc, txtPosX + 38, txtPosY + 26)

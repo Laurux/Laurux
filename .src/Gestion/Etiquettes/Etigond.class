@@ -63,10 +63,20 @@ Private MySock As Socket
 Private cd As String
 Private sel As String
 Private nombretiq As Integer
+Private Page As String
+Private PageA As String[]
 
 Public Sub _new(cod As String)
 
   cd = cod
+  Gridbart.Columns.Count = 3
+  Gridbart.Columns[0].Title = "code"
+  Gridbart.Columns[0].Width = 125
+  Gridbart.Columns[1].Title = "intitule"
+  Gridbart.Columns[1].Expand = True
+  Gridbart.Columns[2].Title = "quantite"
+  Gridbart.Columns[2].Width = 50
+  Gridbart.Rows.Count = 4
 
 End
 
@@ -117,7 +127,7 @@ Public Sub init_ComboBox()
   If Not Error Then
     If rEtiq.Available Then
       Do
-        Codetiq.Add(rEtiq!code & "- " & rEtiq!libelle)
+        Codetiq.Add(rEtiq!code & " - " & rEtiq!libelle & " (" & rEtiq!page & ")")
       Loop Until rEtiq.MoveNext()
     Endif
     Codetiq.Text = ""
@@ -601,16 +611,15 @@ Public Sub liste_Click()
 
   Tab = "Etiquettes"
   If Liste.Value = False Then
-    listBart.visible = False
-    listBart.Text = ""
+    Gridbart.visible = False
     Label5.Visible = True
     Art2.Visible = True
     ToggleButton2.Visible = True
     Label1.text = "Du code article"
     Utils.db.Exec("drop Table IF exists " & Tab & "")
   Else
-    listBart.visible = True
-    'ListBart.BackColor = &F9F9BD&
+    Gridbart.visible = True
+    Gridbart.BackGround = &F9F9BD&
     Label5.Visible = False
     Art2.Visible = False
     ToggleButton2.Visible = False
@@ -642,6 +651,8 @@ End
 '**************************************
 Public Sub Art_man()
 
+  Dim i As Integer
+  
   Tab2 = "Etiquettes"
   With utils
     Nbre = 0
@@ -675,7 +686,6 @@ Public Sub Art_man()
               Return
           End Select
         Else
-          listBart.Text = listBart.Text & " " & Rarts!art_code
           Art.Clear
         Endif
         'ENDIF
@@ -690,6 +700,8 @@ Public Sub Art_man()
     Endif
   End With
 
+  Gridbart_Update()
+  
 End
 
 Public Sub Art1_man()
@@ -761,15 +773,17 @@ Public Sub Button2_Click()
     Message.Warning("Veuillez selectionner un modèle d'étiquettes SVP !")
     Return
   Endif
+  
   i = 1
   i2 = 0
   Nbetiq = 1
   code = ""
   Shell "cd " & User.Home & ""
   Filename = User.Home & "/tmp/EtiqGond.pdf"
+  Init()
   Try Kill Filename
   If A4.Value Then
-    pdf = New CEtiquettes("Portrait", "mm", "A4")
+    pdf = New CEtiquettes(PageA[1], "mm", PageA[0])
   Else
     If Dymo.Value Then
       pdf = New CEtiquettes("Portrait", "mm", "dymog")
@@ -782,50 +796,49 @@ Public Sub Button2_Click()
   Tab2 = "Fiches_Tvaav"
   Tab3 = "Etiquettes"
   Me.Mouse = Mouse.Wait
-  If Codetiq.Text <> "" Then
-    Init()
-    If Liste.Value = False Then
-      If Radiobutton1.Value Then
-        rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_code >= &1  and art_code <= &2 and art_fam >= &3 and art_fam <= &4 and art_four >= &5 and art_four <= &6 order by CAST(art_code AS char)", Art.Text, Art2.Text, Fam.Text, Fam2.Text, four.Text, four2.Text)
+  
+  If Liste.Value = False Then
+    If Radiobutton1.Value Then
+      rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_code >= &1  and art_code <= &2 and art_fam >= &3 and art_fam <= &4 and art_four >= &5 and art_four <= &6 order by CAST(art_code AS char)", Art.Text, Art2.Text, Fam.Text, Fam2.Text, four.Text, four2.Text)
+    Else
+      If Radiobutton2.Value Then
+        rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_code >= &1  and art_code <= &2 and art_fam >= &3 and art_fam <= &4 and art_four >= &5 and art_four <= &6 order by art_fam, art_code", Art.Text, Art2.Text, Fam.Text, Fam2.Text, four.Text, four2.Text)
       Else
-        If Radiobutton2.Value Then
-          rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_code >= &1  and art_code <= &2 and art_fam >= &3 and art_fam <= &4 and art_four >= &5 and art_four <= &6 order by art_fam, art_code", Art.Text, Art2.Text, Fam.Text, Fam2.Text, four.Text, four2.Text)
+        If Radiobutton3.Value Then
+          rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_code >= &1  and art_code <= &2 and art_fam >= &3 and art_fam <= &4 and art_four >= &5 and art_four <= &6 order by art_four, art_code", Art.Text, Art2.Text, Fam.Text, Fam2.Text, four.Text, four2.Text)
         Else
-          If Radiobutton3.Value Then
-            rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_code >= &1  and art_code <= &2 and art_fam >= &3 and art_fam <= &4 and art_four >= &5 and art_four <= &6 order by art_four, art_code", Art.Text, Art2.Text, Fam.Text, Fam2.Text, four.Text, four2.Text)
+          If Radiobutton4.Value Then
+            rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_code >= &1  and art_code <= &2 and art_fam >= &3 and art_fam <= &4 and art_four >= &5 and art_four <= &6 order by art_design, art_code", Art.Text, Art2.Text, Fam.Text, Fam2.Text, four.Text, four2.Text)
           Else
-            If Radiobutton4.Value Then
-              rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_code >= &1  and art_code <= &2 and art_fam >= &3 and art_fam <= &4 and art_four >= &5 and art_four <= &6 order by art_design, art_code", Art.Text, Art2.Text, Fam.Text, Fam2.Text, four.Text, four2.Text)
-            Else
-              If Radiobutton7.Value Then
-                rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_code >= &1  and art_code <= &2 and art_fam >= &3 and art_fam <= &4 and art_four >= &5 and art_four <= &6 order by art_casier, art_code", Art.Text, Art2.Text, Fam.Text, Fam2.Text, four.Text, four2.Text)
-              Endif
+            If Radiobutton7.Value Then
+              rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_code >= &1  and art_code <= &2 and art_fam >= &3 and art_fam <= &4 and art_four >= &5 and art_four <= &6 order by art_casier, art_code", Art.Text, Art2.Text, Fam.Text, Fam2.Text, four.Text, four2.Text)
             Endif
           Endif
         Endif
       Endif
     Endif
-    If Liste.Value = True Then
-      rarts2 = Utils.db.Exec("SELECT * FROM " & Tab3 & "")
+  Endif
+  If Liste.Value = True Then
+    rarts2 = Utils.db.Exec("SELECT * FROM " & Tab3 & "")
+    Repeat
+      Try rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_code = &1", rarts2!code)
+      If Not Error Then Imprime(nb)
+    Until rarts2.MoveNext()
+    fin_impression()
+  Else
+    If rarts.Available Then
       Repeat
-        Try rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_code = &1", rarts2!code)
-        If Not Error Then Imprime(nb)
-      Until rarts2.MoveNext()
+        Imprime(nb)
+      Until rarts.MoveNext()
       fin_impression()
     Else
-      If rarts.Available Then
-        Repeat
-          Imprime(nb)
-        Until rarts.MoveNext()
-        fin_impression()
-      Else
-        If son Then
-          Music.Play
-        Endif
-        message(" Aucun article pour cette demande", "OK")
+      If son Then
+        Music.Play
       Endif
+      message(" Aucun article pour cette demande", "OK")
     Endif
   Endif
+  
   Me.Mouse = Mouse.Pointing
   txtPosX = 0
   txtPosY = 0
@@ -840,8 +853,8 @@ Public Sub fin_impression()
     Music.Play
   Endif
   message(" Traitement terminé.", "OK")
-  'Etigond.visible = True
-  ListBart.Text = ""
+  Gridbart.Clear
+  Gridbart.Rows.Count = 4
   liste_Click()
 
 End
@@ -863,7 +876,7 @@ Public Sub Imprime(nb As Boolean)
   Dim i As Integer
   Dim Casier As String
   Dim barcode As String
-
+  Dim FontRatio As Float
   volm = ""
   With Utils
     If Liste.Value = True Then
@@ -900,28 +913,36 @@ Public Sub Imprime(nb As Boolean)
     If RadioButton5.value = True Then Try volm = Format$(Val(Utils.cpoint(pvht)) / Val(Utils.cpoint(rarts!art_poids)), nbdec)
     If RadioButton6.value = True Then Try volm = Format$(Val(.cpoint(pvttc)) / Val(.cpoint(rarts!art_poids)), nbdec)
     If IsNull(volm) Then volm = "0"
-    If A4.Value And Left$(Codetiq.text, 1) = "2" Or If Dymo.value Then
+    If A4.Value And InStr(Codetiq.text, "Gondole") <> 0 Or If Dymo.value Then
       For i = 1 To nombretiq
         If nb = False Then pos_Etiq()
-        pdf.Code(code, txtPosX, txtPosY)
-        pdf.IntituleA(Intitule, txtPosX, txtPosY + 3)
-        pdf.IntituleA(Intitule2, txtPosX, txtPosY + 5)
-        If Not IsNull(Barcode) Then
-          pdf.Barcode(Barcode, txtPosX + 2, txtPosY + 10)
+        FontRatio = Largeur / 80.0
+        pdf.Rectangle2(txtPosX, txtPosY, Largeur, Hauteur)
+        pdf.Code(code, txtPosX, txtPosY, FontRatio)
+        pdf.IntituleA(Intitule, txtPosX, txtPosY + Round(2 * FontRatio), FontRatio)
+        If CheckBox4.Value Then pdf.Refour(fourn, txtPosX, txtPosY + Round(7 * FontRatio), FontRatio)
+        If CheckBox3.Value Then pdf.Refour(cfourn, txtPosX + (Largeur - 10), txtPosY + Round(7 * FontRatio), FontRatio)
+        If (Not CheckBox4.Value) And (Not CheckBox3.Value) Then
+          pdf.IntituleA(Intitule2, txtPosX, txtPosY + Round(7 * FontRatio), FontRatio)
         Endif
-        pdf.Tva("Tva " & Tva, txtPosX, txtPosY + 14)
+        If Not IsNull(Barcode) Then
+          pdf.Barcode(Barcode, txtPosX + 2, txtPosY + Round(14 * FontRatio), Round(Hauteur / 3), (Largeur - 6), FontRatio)
+        Endif
         'If RadioButton5.Value = True And Not IsNull(volm) Then pdf.volm(volm, unite, 1, txtPosX + 28, txtPosY + 14)
         If RadioButton5.Value = True And Val(Utils.cpoint(Volm)) > 0 Then
-          pdf.volm(Volm, unite, 1, txtPosX + 28, txtPosY + 14)
+          pdf.volm(Volm, unite, 1, txtPosX + (Largeur - 8), txtPosY + (Hauteur - Round(10 * FontRatio)), FontRatio)
         Endif
         If RadioButton6.Value = True And Val(Utils.cpoint(Volm)) > 0 Then
-          pdf.volm(Volm, unite, 0, txtPosX + 28, txtPosY + 14)
+          pdf.volm(Volm, unite, 0, txtPosX + (Largeur - 8), txtPosY + (Hauteur - Round(10 * FontRatio)), FontRatio)
         Endif
-        If CheckBox4.Value Then pdf.Refour(fourn, txtPosX, txtPosY + 17)
-        If CheckBox3.Value Then pdf.Refour(cfourn, txtPosX + 28, txtPosY + 17)
-        pdf.Rectangle(txtPosX + 1, txtPosY + 22)
-        If CheckBox1.Value Then pdf.PrixHt(Pvht, txtPosX + 2, txtPosY + 22)
-        If CheckBox2.Value Then pdf.PrixTTC(Pvttc, txtPosX + 28, txtPosY + 22)
+
+        pdf.Rectangle2(txtPosX + 1, txtPosY + (Hauteur - Round(10 * FontRatio)), (Largeur - 2), Round(9 * FontRatio))
+        If CheckBox1.Value Then
+          pdf.PrixHt(Pvht, txtPosX + 2, txtPosY + (Hauteur - Round(9 * FontRatio)), FontRatio)
+        Else
+          pdf.Tva(Tva, txtPosX + 2, txtPosY + (Hauteur - Round(9 * FontRatio)), FontRatio)
+        Endif
+        If CheckBox2.Value Then pdf.PrixTTC(Pvttc, txtPosX + ((Largeur / 2) + 1), txtPosY + (Hauteur - Round(9 * FontRatio)), FontRatio)
         Inc Nbetiq
         If nb = True Then
           pos_Etiq()
@@ -929,12 +950,12 @@ Public Sub Imprime(nb As Boolean)
         Endif
       Next
     Endif
-    If A4.Value And Left$(Codetiq.text, 1) = "5" Then
+    If A4.Value And InStr(Codetiq.text, "Article") <> 0 Then
       For i = 1 To nombretiq
         If nb = False Then pos_Etiq()
         'pdf.Code(code, txtPosX, txtPosY)
         pdf.IntituleB(Intitule, txtPosX, txtPosY)
-        pdf.Tva("Tva " & Tva, txtPosX, txtPosY + 14)
+        pdf.Tva(Tva, txtPosX, txtPosY + 14)
         If RadioButton5.Value = True And Val(Utils.cpoint(Volm)) > 0 Then
           pdf.Poids(rarts!art_poids, unite, txtPosX, txtPosY + 5)
           pdf.volm(Volm, unite, 1, txtPosX + 19, txtPosY + 5)
@@ -977,7 +998,7 @@ Public Sub pos_Etiq()
       txtPosY = Mrghaut
       txtPosX = 2 + Mrgauche
     Else
-      txtPosX = 2 + Mrgauche + (Largeur * (Nbetiq - 1)) + Esplargeur
+      txtPosX = 2 + Mrgauche + ((Largeur + Esplargeur) * (Nbetiq - 1))
     Endif
     If Nbetiq > Val(Nblargeur) Then
       Nbetiq = 1
@@ -1050,7 +1071,7 @@ Public Sub Init()
   Dim Tab As String
 
   Tab = "Fiches_Etiquettes"
-  Etiqr = Utils.db.Exec("SELECT * FROM " & tab & " WHERE code = &1", Left$(Codetiq.Text, 1))
+  Etiqr = Utils.db.Exec("SELECT * FROM " & tab & " WHERE code = &1 and page = &2", Left$(Codetiq.Text, 1), Scan(Codetiq.Text, "*(*)")[1])
   If Etiqr.Available Then
     Nblargeur = Etiqr!nblargeur
     Nbhauteur = Etiqr!nbhauteur
@@ -1060,6 +1081,8 @@ Public Sub Init()
     Mrgauche = Etiqr!mrgauche / 10
     Esplargeur = Etiqr!esplargeur / 10
     Esphauteur = Etiqr!esphauteur / 10
+    Page = Etiqr!page
+    PageA = Split(Page, " ")
   Endif
   If Val(Posetiq.Text) > 1 Then
     code = ""
@@ -1077,5 +1100,61 @@ End
 Public Sub Button1_Click()
 
   Exec ["xdg-open", Application.Path &/ "Ecrans/Etiqart.html"]
+
+End
+
+Public Sub Gridbart_Update()
+  
+  Dim i As Integer
+  
+  Tab2 = "Etiquettes"
+  Gridbart.Clear
+  Gridbart.Rows.Count = 4
+  i = 0
+  Rarts = Utils.db.Exec("SELECT * FROM " & Tab2 & " order by code")
+  If Rarts.Available Then
+    Gridbart.Rows.Count = Rarts.count
+    Repeat
+      Rarts2 = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", Rarts!code)
+      Gridbart[i, 0].Text = Rarts!code
+      If Rarts2.Available Then Gridbart[i, 1].Text = Rarts2!art_design
+      Gridbart[i, 2].Text = Rarts!nombre
+      i += 1 
+    Until Rarts.MoveNext()
+  Endif
+  
+  End
+
+Public Sub Gridbart_Click()
+  
+  Dim Code As String
+  
+  Tab2 = "Etiquettes"
+  Code = Gridbart[Gridbart.Row, 0].Text
+  Rarts2 = Utils.db.Exec("SELECT * FROM " & Tab2 & " where code = &1", Code)
+  If Rarts2.Available Then
+    Select Message.Question("Que voulez-vous faire ?", "Cumuler", "Remplacer", "Supprimer")
+      Case 1
+        Nbre = Rarts2!nombre + Val(Nbtiq.text)
+        Utils.db.Exec("UPdate  " & Tab2 & "  SET  code = &1 , nombre = &2 WHERE code = &1", Code, Nbre)
+      Case 2
+        Nbre = Val(Nbtiq.text)
+        Utils.db.Exec("UPdate  " & Tab2 & "  SET  code = &1 , nombre = &2 WHERE code = &1", Code, Nbre)
+      Case 3
+        Utils.db.Exec("Delete From " & Tab2 & "  where  code = &1", Code)
+    End Select
+  Endif
+  
+  Gridbart_Update()
+
+End
+
+Public Sub CheckBox1_Click()
+
+  If CheckBox1.Value
+    CheckBox1.Text = "Impression du PV HT"
+  Else
+    CheckBox1.Text = "Impression du Taux de TVA"
+  Endif
 
 End

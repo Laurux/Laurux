@@ -49,6 +49,7 @@ Mrghaut As Integer
 Mrgauche As Integer
 Esplargeur As Integer
 Esphauteur As Integer
+Page As String
 Filename As String = "EtiqArt.ps"
 Tri As String = "art_code"
 Private Origine As String = ""
@@ -63,6 +64,14 @@ Private sel As String
 Public Sub _new(cod As String)
 
   cd = cod
+  Gridbart.Columns.Count = 3
+  Gridbart.Columns[0].Title = "code"
+  Gridbart.Columns[0].Width = 125
+  Gridbart.Columns[1].Title = "intitule"
+  Gridbart.Columns[1].Expand = True
+  Gridbart.Columns[2].Title = "quantite"
+  Gridbart.Columns[2].Width = 50
+  Gridbart.Rows.Count = 4
 
 End
 
@@ -113,7 +122,7 @@ Public Sub init_ComboBox()
   If Not Error Then
     If rEtiq.Available Then
       Do
-        Codetiq.Add(rEtiq!code & "- " & rEtiq!libelle)
+        Codetiq.Add(rEtiq!code & " - " & rEtiq!libelle & "(" & rEtiq!page & ")")
       Loop Until rEtiq.MoveNext()
     Endif
     Codetiq.Text = ""
@@ -589,16 +598,15 @@ Public Sub liste_Click()
 
   Tab = "Etiquettes"
   If Liste.Value = False Then
-    listBart.visible = False
-    listBart.Text = ""
+    Gridbart.visible = False
     Label5.Visible = True
     Art2.Visible = True
     ToggleButton2.Visible = True
     Label1.text = "Du code article"
     Utils.db.Exec("drop Table IF exists " & Tab & "")
   Else
-    listBart.visible = True
-    ListBart.BackGround = &F9F9BD&
+    Gridbart.visible = True
+    Gridbart.BackGround = &F9F9BD&
     Label5.Visible = False
     Art2.Visible = False
     ToggleButton2.Visible = False
@@ -647,14 +655,15 @@ Public Sub Art_man()
             If Son Then
               Music.Play
             Endif
-            Select Message.Warning("Ce produit a déjà été saisit ! Que voulez-vous faire ?", "cumuler", "Remplacer", "Annuler")
+            Select Message.Warning("Ce produit a déjà été saisit ! Que voulez-vous faire ?", "Cumuler", "Remplacer", "Annuler")
               Case 1
                 Nbre = Rarts2!nombre + Val(Nbtiq.text)
                 Utils.db.Exec("UPdate  " & Tab2 & "  SET  code = &1 , nombre = &2 WHERE code = &1", Rarts!art_code, Nbre)
                 Art.Clear
                 Me.Raise
               Case 2
-                Utils.db.Exec("UPdate  " & Tab2 & "  SET  code = &1 , nombre = &2 WHERE code = &1", Rarts!art_code, Val(Nbtiq.text))
+                Nbre = Val(Nbtiq.text)
+                Utils.db.Exec("UPdate  " & Tab2 & "  SET  code = &1 , nombre = &2 WHERE code = &1", Rarts!art_code, Nbre)
                 Art.Clear
                 Me.Raise
               Case 3
@@ -662,9 +671,6 @@ Public Sub Art_man()
                 Me.Raise
                 Return
             End Select
-          Else
-            listBart.Text = listBart.Text & " " & Rarts!art_code
-            Art.Clear
           Endif
         Else
           If Son Then
@@ -683,6 +689,8 @@ Public Sub Art_man()
     Endif
   End With
 
+  Gridbart_Update()
+  
 End
 
 Public Sub Art1_man()
@@ -750,6 +758,7 @@ Public Sub Button2_Click()
   Dim Etiqr As Result
   Dim dte As String
   Dim i As Integer
+  Dim PageA As String[]
 
   If IsNull(codetiq.text) Then
     Message.Warning("Veuillez selectionner un modèle d'étiquettes SVP !")
@@ -762,7 +771,7 @@ Public Sub Button2_Click()
   Tab = "Fiches_Etiquettes"
   Tab2 = "Etiquettes"
   If Codetiq.Text <> "" Then
-    Etiqr = Utils.db.Exec("SELECT * FROM " & tab & " WHERE code = &1", Left$(Codetiq.Text, 1))
+    Etiqr = Utils.db.Exec("SELECT * FROM " & tab & " WHERE code = &1 and page = &2", Left$(Codetiq.Text, 1), Scan(Codetiq.Text, "*(*)")[1])
     If Etiqr.Available Then
       Nblargeur = Etiqr!nblargeur
       Nbhauteur = Etiqr!nbhauteur
@@ -772,12 +781,14 @@ Public Sub Button2_Click()
       Mrgauche = Etiqr!mrgauche / 10
       Esplargeur = Etiqr!esplargeur / 10
       Esphauteur = Etiqr!esphauteur / 10
+      Page = Etiqr!page
+      PageA = Split(Page, " ")
     Endif
     txtPosY = Mrghaut
     Shell "cd " & User.Home & ""
     Filename = User.Home & "/tmp/EtiqArt.pdf"
     Try Kill Filename
-    If A4.Value Then pdf = New CEtiquettes("Portrait", "mm", "A4")
+    If A4.Value Then pdf = New CEtiquettes(PageA[1], "mm", PageA[0])
     If Dymo.Value Then pdf = New CEtiquettes("Portrait", "mm", "dymog")
     pdf.Open()
     pdf.NewPage()
@@ -849,7 +860,8 @@ Public Sub fin_impression()
     Music.Play
   Endif
   message(" Traitement terminé.", "OK")
-  ListBart.Text = ""
+  Gridbart.Clear
+  Gridbart.Rows.Count = 4
   liste_Click()
   Codetiq.Text = ""
   'Etiqart.Close
@@ -872,6 +884,7 @@ Public Sub Imprime()
   Dim nbd As String
   Dim i As Integer
   Dim nombretiq As Integer
+  Dim FontRatio As Float
 
   If Liste.Value = True Then
     nombretiq = rarts2!nombre
@@ -900,6 +913,7 @@ Public Sub Imprime()
   tva = rarts!art_tva
   pvttc = Format$(rarts!art_pvttc, nbdec)
   If Len(pvttc) - InStr(pvttc, ",") = 2 Then pvttc = pvttc & " "
+  FontRatio = Largeur / 80.0
   'On imprime
   If Not ConnZbr Then
     For i = 1 To nombretiq
@@ -908,11 +922,16 @@ Public Sub Imprime()
       Else
         pos_Etiq2()
       Endif
-      pdf.Code(code, txtPosX, txtPosY)
-      pdf.IntituleA(Left$(Intitule, 30), txtPosX, txtPosY + 3)
-      pdf.IntituleA(Left$(Intitule2, 30), txtPosX, txtPosY + 6)
+      pdf.Rectangle2(txtPosX, txtPosY, Largeur, Hauteur)
+      pdf.Code(code, txtPosX, txtPosY + Round(1 * FontRatio), FontRatio)
+      pdf.IntituleA(Left$(Intitule, 30), txtPosX, txtPosY + Round(3 * FontRatio), FontRatio)
+      pdf.IntituleA(Left$(Intitule2, 30), txtPosX, txtPosY + Round(6 * FontRatio), FontRatio)
       If Not IsNull(Barcode) Then
-        pdf.Barcode(Barcode, txtPosX + 2, txtPosY + 12)
+        pdf.Barcode(Barcode, txtPosX + 2, txtPosY + Round(12 * FontRatio), Round(Hauteur / 3), (Largeur - 6), FontRatio)
+      Endif
+      If EtiqPrix.Value Then
+        'On booste un peu le Prix TTC sur les etiquettes articles (logiquement petite)
+        pdf.PrixTTC(Pvttc, txtPosX + ((Largeur / 4) + 1), txtPosY + (Hauteur - Round(12 * FontRatio)), FontRatio + 0.3)
       Endif
       Inc Nbetiq
     Next
@@ -932,7 +951,7 @@ Public Sub pos_Etiq()
     txtPosY = Mrghaut
     txtPosX = 2 + Mrgauche
   Else
-    txtPosX = 2 + Mrgauche + (Largeur * (Nbetiq - 1)) + Esplargeur
+    txtPosX = 2 + Mrgauche + ((Largeur + Esplargeur) * (Nbetiq - 1))
   Endif
   If Nbetiq > Val(Nblargeur) Then
     Nbetiq = 1
@@ -1003,5 +1022,51 @@ End
 Public Sub Button1_Click()
 
   Exec ["xdg-open", Application.Path &/ "Ecrans/Etiqart.html"]
+
+End
+
+Public Sub Gridbart_Update()
+  
+  Dim i As Integer
+  
+  Tab2 = "Etiquettes"
+  Gridbart.Clear
+  Gridbart.Rows.Count = 4
+  i = 0
+  Rarts = Utils.db.Exec("SELECT * FROM " & Tab2 & " order by code")
+  If Rarts.Available Then
+    Gridbart.Rows.Count = Rarts.count
+    Repeat
+      Rarts2 = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", Rarts!code)
+      Gridbart[i, 0].Text = Rarts!code
+      If Rarts2.Available Then Gridbart[i, 1].Text = Rarts2!art_design
+      Gridbart[i, 2].Text = Rarts!nombre
+      i += 1 
+    Until Rarts.MoveNext()
+  Endif
+  
+  End
+
+Public Sub Gridbart_Click()
+  
+  Dim Code As String
+  
+  Tab2 = "Etiquettes"
+  Code = Gridbart[Gridbart.Row, 0].Text
+  Rarts2 = Utils.db.Exec("SELECT * FROM " & Tab2 & " where code = &1", Code)
+  If Rarts2.Available Then
+    Select Message.Question("Que voulez-vous faire ?", "Cumuler", "Remplacer", "Supprimer")
+      Case 1
+        Nbre = Rarts2!nombre + Val(Nbtiq.text)
+        Utils.db.Exec("UPdate  " & Tab2 & "  SET  code = &1 , nombre = &2 WHERE code = &1", Code, Nbre)
+      Case 2
+        Nbre = Val(Nbtiq.text)
+        Utils.db.Exec("UPdate  " & Tab2 & "  SET  code = &1 , nombre = &2 WHERE code = &1", Code, Nbre)
+      Case 3
+        Utils.db.Exec("Delete From " & Tab2 & "  where  code = &1", Code)
+    End Select
+  Endif
+  
+  Gridbart_Update()
 
 End

@@ -30,6 +30,8 @@ CoulZns As Integer ' Variable pour la couleur du background des zones de saisie 
 CoulZnaf As Integer ' Variable pour la couleur du background des columnviews
 CoulFc As Integer ' Variable pour la couleur du focus
 Err As String
+idx As Integer
+
 
 Public Sub _New()
   
@@ -53,6 +55,8 @@ End
 Public Sub init_ComboBox()
   
   Dim retiq As Result
+  Dim pfs As String[]
+  Dim pf As String
   
   Tab = "Fiches_Etiquettes"
   
@@ -61,11 +65,20 @@ Public Sub init_ComboBox()
   If Not Error Then
     If rEtiq.Available Then
       Do
-        Code_etiq.Add(rEtiq!code & "- " & rEtiq!libelle)
+        If (Code_etiq.Find(rEtiq!code & "- " & rEtiq!libelle) == -1) Then
+          Code_etiq.Add(rEtiq!code & "- " & rEtiq!libelle)
+        Endif
       Loop Until rEtiq.MoveNext()
     Endif
     Code_etiq.Text = ""
   Endif
+  
+  PageFormat.clear
+  pfs = Utils.PageFormatSupported()
+  For Each pf In pfs
+    PageFormat.Add(pf)
+  Next
+  PageFormat.Index = -1
   
 End
 
@@ -124,13 +137,14 @@ Public Sub Button3_Click()
   Observers2(Param)
   If err <> "1" Then
     Tab = "Fiches_Etiquettes"
-    Etiqr = Utils.db.Exec("SELECT * FROM " & tab & " WHERE code = &1", Left$(Code_etiq.Text, 1))
+    Etiqr = Utils.db.Exec("SELECT * FROM " & tab & " WHERE code = &1 and page = &2", Left$(Code_etiq.Text, 1), PageFormat.Text)
     If Etiqr.Available Then
-      Utils.db.Exec("UPdate  " & tab & "  SET  code = &1 , nblargeur = &2 , nbhauteur = &3, largeur = &4, hauteur = &5, mrghaut = &6, mrgauche = &7 , esplargeur = &8 , esphauteur = &9, libelle = &{10} WHERE code = &1", Left$(Code_etiq.Text, 1), nblargeur.Text, nbhauteur.Text, largeur.Text, hauteur.Text, mrghaut.Text, mrgauche.Text, esplargeur.Text, esphauteur.Text, Mid$(Code_etiq.Text, 4, Len(Code_etiq.Text)))
+      Utils.db.Exec("UPdate  " & tab & "  SET  code = &1 , nblargeur = &2 , nbhauteur = &3, largeur = &4, hauteur = &5, mrghaut = &6, mrgauche = &7 , esplargeur = &8 , esphauteur = &9, libelle = &{10} WHERE code = &1 and page = &{11}", Left$(Code_etiq.Text, 1), nblargeur.Text, nbhauteur.Text, largeur.Text, hauteur.Text, mrghaut.Text, mrgauche.Text, esplargeur.Text, esphauteur.Text, Mid$(Code_etiq.Text, 4, Len(Code_etiq.Text)), PageFormat.Text)
     Else
-      Utils.db.Exec("INSERT INTO " & tab & "(code, nblargeur, nbhauteur, largeur, hauteur, mrghaut, mrgauche, esplargeur, esphauteur, libelle) VALUES(&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10})", Left$(Code_etiq.Text, 1), nblargeur.Text, nbhauteur.Text, largeur.Text, hauteur.Text, mrghaut.Text, mrgauche.Text, esplargeur.Text, esphauteur.TexT, Mid$(Code_etiq.Text, 4, Len(Code_etiq.Text)))
+      Utils.db.Exec("INSERT INTO " & tab & " (code, nblargeur, nbhauteur, largeur, hauteur, mrghaut, mrgauche, esplargeur, esphauteur, libelle, page) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", Left$(Code_etiq.Text, 1), nblargeur.Text, nbhauteur.Text, largeur.Text, hauteur.Text, mrghaut.Text, mrgauche.Text, esplargeur.Text, esphauteur.TexT, Mid$(Code_etiq.Text, 4, Len(Code_etiq.Text)), PageFormat.Text)
     Endif
     Code_etiq.Clear
+    PageFormat.Clear
     init_ComboBox()
     Button2_Click()
   Else
@@ -139,13 +153,13 @@ Public Sub Button3_Click()
   
 End
 
-Public Sub Code_etiq_Click()
-  
+Public Sub PageFormat_Click()
+
   Button2_Click()
   Nblargeur.SetFocus
   Nblargeur.Select
   Tab = "Fiches_Etiquettes"
-  Etiqr = Utils.db.Exec("SELECT * FROM " & tab & " WHERE code = &1", Left$(Code_etiq.Text, 1))
+  Etiqr = Utils.db.Exec("SELECT * FROM " & tab & " WHERE code = &1 and page = &2", Left$(Code_etiq.Text, 1), PageFormat.Text)
   If Etiqr.Available Then
     Nblargeur.Text = Etiqr!nblargeur
     Nbhauteur.Text = Etiqr!nbhauteur
@@ -153,8 +167,19 @@ Public Sub Code_etiq_Click()
     Hauteur.Text = Etiqr!hauteur
     Mrghaut.Text = Etiqr!mrghaut
     Mrgauche.Text = Etiqr!mrgauche
-    Esplargeur.Text = Etiqr!esphauteur
+    Esplargeur.Text = Etiqr!esplargeur
     Esphauteur.Text = Etiqr!esphauteur
+    idx = PageFormat.Find(Etiqr!page)
+  Endif
+End
+
+Public Sub Code_etiq_Click()
+  
+  PageFormat_Click()
+  If idx <> -1 Then
+    PageFormat.Index = idx
+  Else
+    PageFormat.Index = PageFormat.Find("A4 Portrait")
   Endif
   
 End
@@ -306,3 +331,5 @@ Public Sub Button1_Click()
   Exec ["xdg-open", Application.Path &/ "Ecrans/Etiquette.html"]
   
 End
+
+
