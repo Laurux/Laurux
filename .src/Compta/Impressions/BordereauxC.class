@@ -83,7 +83,7 @@ Public Sub Grd2_KeyPress()
       Grd2[Grd2.Row, Grd2.Column].text = Left$(Grd2[Grd2.Row, Grd2.Column].text, Len(Grd2[Grd2.Row, Grd2.Column].text) - 1)
     Else
       If Key.Code <> Key.tab And Key.Code <> Key.Delete And Key.code <> Key.enter And Key.code <> Key.return Then
-        Grd2[Grd2.Row, Grd2.Column].text &= Key.Text
+        Try Grd2[Grd2.Row, Grd2.Column].text &= Key.Text
       Endif
     Endif
   Endif
@@ -102,6 +102,21 @@ Public Sub Grd2_MouseUp()
   coulr.Color = Color.Black
   coulb.Color = Grd2.Background
 
+  If Mouse.Right Then
+    If Message.Question("Voulez-vous ajouter une ligne ?", "Oui ", "Non") = 1 Then
+      bnew = True
+      Grd2.Rows.count = Grd2.Rows.count + 1
+      itn = Grd2.Rows.count - 1
+      inew = itn
+      icol = 2
+      Grd2[itn, 2].Picture = Picture["icon:/16/apply"]
+      Grd2[itn, 3].Text = Dateb.text
+      Grd2[itn, 1].Text = "1"
+      Try Grd2[itn, 4].Border = coulr
+      Try Grd2[itn, 4].Background = Coulfond
+      Try Grd2[itn, 4].EnsureVisible
+    Endif
+  Endif
   If Grd2.Rows.count > 0 Then
     Try ilastrow = Grd2.Row
     Try ilastcolumn = Grd2.Column
@@ -241,97 +256,100 @@ Public Sub Imp_Bordereaux()
   If rBanque.Available Then
     CptCaisse = rBanque!code
     LibelCaisse = rBanque!nom
-    ' on recupère le nom du journal
-    rBanque = Utils.db.Exec("select * from Fiches_Journaux where  code_jo = &1", Left$(Bq.text, 2))
-    If Rbanque.Available Then
-      Txtb = "Bordereaux de chèques du " & Format$(Now, "dd.mm.yyyy") & " ( " & Rbanque!libelle_jo & " )"
-      Cptbanque = rBanque!cde_banque
+  Else
+    Cptcaisse = ""
+  Endif
+  ' on recupère le nom du journal
+  rBanque = Utils.db.Exec("select * from Fiches_Journaux where  code_jo = &1", Left$(Bq.text, 2))
+  If Rbanque.Available Then
+    Txtb = "Bordereaux de chèques du " & Format$(Now, "dd.mm.yyyy") & " ( " & Rbanque!libelle_jo & " )"
+    Cptbanque = rBanque!cde_banque
+  Endif
+  Filename = User.Home & "/tmp/Bordereau.pdf"
+  pdf = New Cbordereaux("Portrait", "mm", "A4")
+  pdf.Open()
+  pdf.AliasNbPages()
+  Tab = "Fiches_LigTicketz"
+  posy = 0
+  Filename = User.home & "/Caisse/Bordereau_" & Btype & Format$(Now, "dd.mm.yyyy") & ".pdf"
+  pdf = New Cbordereaux("Portrait", "mm", "A4")
+  pdf.Open()
+  pdf.AliasNbPages()
+  lg = 8
+  PosY = 5
+  Pdf.Entete()
+  Pdf.TitreB(TxtB, PosY)
+  PosY = 15
+  Pdf.Ligne(PosY)
+  PosY += 5
+  Pdf.Level6()
+  PosY += 5
+  For inlg = 0 To Grd2.Rows.count - 1
+    If Grd2[inlg, 1].Text = "1" Then
+      Pdf.Level7(Grd2[inlg, 3].text, Grd2[inlg, 4].text, Grd2[inlg, 5].text, Grd2[inlg, 6].text, PosY)
+      Montant += Val(Utils.cpoint(Grd2[inlg, 4].text))
+      PosY = PosY + 5
+      Inc nbreg
     Endif
-    Filename = User.Home & "/tmp/Bordereau.pdf"
-    pdf = New Cbordereaux("Portrait", "mm", "A4")
-    pdf.Open()
-    pdf.AliasNbPages()
-    Tab = "Fiches_LigTicketz"
-    posy = 0
-    Filename = User.home & "/Caisse/Bordereau_" & Btype & Format$(Now, "dd.mm.yyyy") & ".pdf"
-    pdf = New Cbordereaux("Portrait", "mm", "A4")
-    pdf.Open()
-    pdf.AliasNbPages()
-    lg = 8
-    PosY = 5
-    Pdf.Entete()
-    Pdf.TitreB(TxtB, PosY)
-    PosY = 15
-    Pdf.Ligne(PosY)
-    PosY += 5
-    Pdf.Level6()
-    PosY += 5
+  Next
+  Pdf.Ligne(PosY)
+  Posy = Posy + 2
+  Nbtot = "Nombre de chèques    " & nbreg & "            Total bordereau   "
+  Posy = Posy + 5
+  Pdf.Level8(nbtot, Format$(Val(Utils.cpoint(Montant)), "0.00"), PosY)
+  Posy = Posy + 6
+  Pdf.Ligne(PosY)
+  nbreg = 0
+  Montant = "0"
+  pdf.Output(Filename, False)
+  Visualiseur.Prog_Editeur(Filename)
+  If Message.Question("Voulez-vous effacer les chèques remis à la banque ?", "Oui", "Non") = 1 Then
+
+    ' On génère l'écriture de trésorerie pour les chèques caisse
     For inlg = 0 To Grd2.Rows.count - 1
       If Grd2[inlg, 1].Text = "1" Then
-        Pdf.Level7(Grd2[inlg, 3].text, Grd2[inlg, 4].text, Grd2[inlg, 5].text, Grd2[inlg, 6].text, PosY)
-        Montant += Val(Utils.cpoint(Grd2[inlg, 4].text))
-        PosY = PosY + 5
-        Inc nbreg
+        Cptcli = Grd2[inlg, 5].Text
+        If Cptcli = Cptcaisse Then Montant += Val(Utils.cpoint(Grd2[inlg, 4].text))
       Endif
     Next
-    Pdf.Ligne(PosY)
-    Posy = Posy + 2
-    Nbtot = "Nombre de chèques    " & nbreg & "            Total bordereau   "
-    Posy = Posy + 5
-    Pdf.Level8(nbtot, Format$(Val(Utils.cpoint(Montant)), "0.00"), PosY)
-    Posy = Posy + 6
-    Pdf.Ligne(PosY)
-    nbreg = 0
-    Montant = "0"
-    pdf.Output(Filename, False)
-    Visualiseur.Prog_Editeur(Filename)
-    If Message.Question("Voulez-vous effacer les chèques remis à la banque ?", "Oui", "Non") = 1 Then
-
-      ' On génère l'écriture de trésorerie pour les chèques caisse
-      For inlg = 0 To Grd2.Rows.count - 1
-        If Grd2[inlg, 1].Text = "1" Then
-          Cptcli = Grd2[inlg, 5].Text
-          If Cptcli = Cptcaisse Then Montant += Val(Utils.cpoint(Grd2[inlg, 4].text))
-        Endif
-      Next
-      If Cptcli = Cptcaisse And montant > 0 Then
-        Libel = "Chèques caisse "
-        Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, Client, Libel, Utils.Cdate_Dbase(Dateb.Text), Nbordereau.Text, Nbordereau.Text, Libel, 0, montant, 1, 0, 1, 1, 1, Utils.Cdate_Dbase(Dateb.text), numr2)
-        Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, Cptbanque, libel, Utils.Cdate_Dbase(Dateb.Text), Nbordereau.Text, Nbordereau.Text, Libel, montant, 0, 1, 0, 1, 1, 1, Utils.Cdate_Dbase(Dateb.text), numr2)
-        Csolde.Solde_caisse(Cptcaisse)
-        Csolde.Solde_caisse(Cptbanque)
-        Maj_Collectif(cptcli, LibelCaisse, "Chèques caisse " & Dateb.text, montant)
-      Endif
-      ' On génère l'écriture de trésorerie pour les chèques client compte
-      For inlg = 0 To Grd2.Rows.count - 1
-        If Grd2[inlg, 1].Text = "1" Then
-          Cptcli = Grd2[inlg, 5].Text
-          If Not IsNull(Grd2[inlg, 7].text) Then
-            Nlot = Grd2[inlg, 7].text
-          Else
-            Nlot = Nbordereau.Text
-          Endif
-          If Cptcli <> Cptcaisse And Not IsNull(Cptcli) Then
-            Montant = Val(Utils.cpoint(Grd2[inlg, 4].text))
-            Libel = Grd2[inlg, 6].text
-            If montant > 0 Then
-              Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, CptCli, Libel, Utils.Cdate_Dbase(Dateb.Text), Nlot, Nlot, Libel & " (B" & Nbordereau.Text & ")", 0, montant, 1, 0, 1, 1, 1, Utils.Cdate_Dbase(Dateb.text), numr2)
-              Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, Cptbanque, libel, Utils.Cdate_Dbase(Dateb.Text), Nlot, Nlot, Libel & " (B" & Nbordereau.Text & ")", montant, 0, 1, 0, 1, 1, 1, Utils.Cdate_Dbase(Dateb.text), numr2)
-              Csolde.Solde_caisse(Cptcli)
-              Csolde.Solde_caisse(Cptbanque)
-              Maj_Collectif(cptcli, Libel, "Chèque " & Libel & Dateb.text, montant)
-            Endif
-          Else
-            Message.Error("Le chèque d'un montant de " & Montant & "ne peux pas être traité!\ncar il ne possède pas de code client!")
-          Endif
-        Endif
-      Next
-      For inlg = 0 To Grd2.Rows.count - 1
-        If Grd2[inlg, 1].Text = "1" Then Utils.db.Exec("DELETE FROM  Fiches_BordereauxC  WHERE lind = &1", Grd2[inlg, 0].Text)
-      Next
-      Recup_Cheques()
+    If Cptcli = Cptcaisse And montant > 0 Then
+      Libel = "Chèques caisse "
+      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, Client, Libel, Utils.Cdate_Dbase(Dateb.Text), Nbordereau.Text, Nbordereau.Text, Libel, 0, montant, 1, 0, 1, 1, 1, Utils.Cdate_Dbase(Dateb.text), numr2)
+      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, Cptbanque, libel, Utils.Cdate_Dbase(Dateb.Text), Nbordereau.Text, Nbordereau.Text, Libel, montant, 0, 1, 0, 1, 1, 1, Utils.Cdate_Dbase(Dateb.text), numr2)
+      Csolde.Solde_caisse(Cptcaisse)
+      Csolde.Solde_caisse(Cptbanque)
+      Maj_Collectif(cptcli, LibelCaisse, "Chèques caisse " & Dateb.text, montant)
     Endif
+    ' On génère l'écriture de trésorerie pour les chèques client compte
+    For inlg = 0 To Grd2.Rows.count - 1
+      If Grd2[inlg, 1].Text = "1" Then
+        Cptcli = Grd2[inlg, 5].Text
+        If Not IsNull(Grd2[inlg, 7].text) Then
+          Nlot = Grd2[inlg, 7].text
+        Else
+          Nlot = Nbordereau.Text
+        Endif
+        If Cptcli <> Cptcaisse And Not IsNull(Cptcli) Then
+          Montant = Val(Utils.cpoint(Grd2[inlg, 4].text))
+          Libel = Grd2[inlg, 6].text
+          If montant > 0 Then
+            Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, CptCli, Libel, Utils.Cdate_Dbase(Dateb.Text), Nlot, Nlot, Libel & " (B" & Nbordereau.Text & ")", 0, montant, 1, 0, 1, 1, 1, Utils.Cdate_Dbase(Dateb.text), numr2)
+            Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, Cptbanque, libel, Utils.Cdate_Dbase(Dateb.Text), Nlot, Nlot, Libel & " (B" & Nbordereau.Text & ")", montant, 0, 1, 0, 1, 1, 1, Utils.Cdate_Dbase(Dateb.text), numr2)
+            Csolde.Solde_caisse(Cptcli)
+            Csolde.Solde_caisse(Cptbanque)
+            Maj_Collectif(cptcli, Libel, "Chèque " & Libel & Dateb.text, montant)
+          Endif
+        Else
+          Message.Error("Le chèque d'un montant de " & Montant & "ne peux pas être traité!\ncar il ne possède pas de code client!")
+        Endif
+      Endif
+    Next
+    For inlg = 0 To Grd2.Rows.count - 1
+      If Grd2[inlg, 1].Text = "1" Then Utils.db.Exec("DELETE FROM  Fiches_BordereauxC  WHERE lind = &1", Grd2[inlg, 0].Text)
+    Next
+    Recup_Cheques()
   Endif
+  ' Endif
 
 End
 
