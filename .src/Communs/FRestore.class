@@ -70,9 +70,11 @@ Public Sub Button2_Click()
   Me.Mouse = Mouse.Wait
   Utilisateur = Recup.Utilisateur()
   Shell "mysql -h " & Settings["/dbase/Host"] & " -u " & Utils.db.login & " -p" & Utils.db.Password & " -e " & "\"" & "show variables Like " & "\\" & "\"" & "version" & "\\" & "\"" & ";\"" & "> /tmp/resultat 2>&1 " Wait
-  $version = File.Load("/tmp/rs2")
+  $version = File.Load("/tmp/resultat")
   sversion = Split($version, "\n")
-  If InStr(sversion[6], "MariaDB") = 37 Then bmariadb = True
+  'If sversion.Count > 4 Then
+  If InStr(sversion[3], "MariaDB") = 37 Then bmariadb = True
+  'Endif
   If Compb Then Try uncp.File(SauveB.Text & "/" & Utils.db.Name & ".sql.gz", SauveB.Text & "/" & Utils.db.Name & ".sql")
   If Error Then Compb = False
   If Not Exist(SauveB.Text & "/" & Utils.db.Name & ".sql") Then
@@ -135,7 +137,7 @@ Public Sub Button2_Click()
         Endif
         Shell "mysql -h " & Settings["/dbase/Host"] & " " & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " -e \"use " & Utils.db.Name & ";" & "SET @@global.sql_mode= NO_ENGINE_SUBSTITUTION " & "; \"" Wait
         If Exist("/tmp/resultat") Then txterror = File.Load("/tmp/resultat")
-        If InStr(txterror, "Using a password") <> 18 And Not bmariadb Or If InStr(txterror, "Using a password") = 0 And bmariadb Then
+        If InStr(txterror, "Using a password") <> 18 And Not bmariadb Or If Not IsNull(txterror) And bmariadb Then
           If son Then
             Music.Play
           Endif
