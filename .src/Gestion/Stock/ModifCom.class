@@ -2066,13 +2066,20 @@ Public Sub bas_doc()
 
   Dim Tresult As Result
   Dim Tb_conv As String
+  Dim Tb_tvaac As String
+  Dim Rtva As Result
+  Dim Tva As Float
+  Dim Thc As Float
 
   Tb_conv = "Fiches_Art"
+  Tb_tvaac = "Fiches_Tvaac"
   Totalrcpt.Text = "0,00"
   Tfrais.Text = "0,00"
   Tcom.text = "0,00"
   Pcom.text = "0,000"
   totalttc.text = "0,00"
+  Thc = 0
+  Tva = 0
   With utils
     Colrcp.MoveFirst
     Do
@@ -2085,8 +2092,11 @@ Public Sub bas_doc()
       Tfrais.Text = Format$(Val(.cpoint(Tfrais.Text)) + (Val(.cpoint(Colrcp.Item[9])) * Val(.cpoint(Colrcp.Item[6])) * Txconv), "0.00")
       Tcom.Text = Format$(Val(Totalrcpt.Text) + Val(Tfrais.Text), "0.00")
       If Not IsNull(Colrcp.Item[13]) Then Pcom.text = Format$(Val(.cpoint(Pcom.text)) + Val(.cpoint(Colrcp.Item[13])), "0.000")
-      Try Totalttc.Text = Format$(Val(.cpoint(Totalttc.Text)) + (Val(.cpoint(Colrcp.Item[12])) * Val(.cpoint(Colrcp.Item[6]))), "0.00")
+      Rtva = Utils.db.Exec("select * from " & Tb_tvaac & " where code_tva = &1", TResult!art_tva)
+      Tva = Tva + (Val(.cpoint(Colrcp.Item[6])) * (Val(.cpoint(Colrcp.Item[5])) * Rtva!taux_tva / 100))
+      Thc = Thc + (Val(.cpoint(Colrcp.Item[6])) * Val(.cpoint(Colrcp.Item[5])))
     Loop Until Colrcp.MoveNext()
+    Totalttc.Text = Format$((Thc + Tva), "0.00")
     modif = "0"
     If Not Franco.Text Then Franco.Text = "0,00"
     If Val(Utils.cpoint(Franco.Text)) > 0 Then
@@ -2222,7 +2232,7 @@ Public Sub Maj_Quantite()
           If Error Then Qtec = 0
           If rResult!art_stocke = True Then
             Qline = Val(Colrcp.Item[6])
-            Qtec = Qtec - Qline
+            Qtec = Qtec - (Qline * rResult!art_txconv)
             Utils.db.Exec("UPDATE  " & tab & "  SET art_qte = &2 WHERE art_code = &1", Colrcp.Item[1], Qtec)
           Endif
         Endif
@@ -2256,7 +2266,7 @@ Public Sub Maj_Quantite2()
           If Error Then Qtec = 0
           If rResult!art_stocke = True Then
             Qline = Val(Colrcp.Item[6])
-            Qtec = Qtec + Qline
+            Qtec = Qtec + (Qline * rResult!art_txconv)
             Utils.db.Exec("UPDATE  " & tab & "  SET art_qte = &2 WHERE art_code = &1", Colrcp.Item[1], Qtec)
           Endif
         Endif

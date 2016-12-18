@@ -290,7 +290,7 @@ End
 
 Public Sub Button2_Click()
 
-  Dim rarts, cart As Result
+  Dim rarts, cart, tikh As Result
   Dim Tabl, Tab2, Tab3 As String
   Dim code, codec, rupt, rupt2, numcom As String
   Dim intitule, intitulea, intitulec As String
@@ -307,8 +307,10 @@ Public Sub Button2_Click()
   Dim Fourn, Fourn2 As String
   Dim stk As String
   Dim stkmini, stkmaxi As Float = 0
+  Dim stkact As Float = 0
   Dim pdf As Carticles
   Dim Stocke As Boolean = False
+  Dim datej, dates As String
 
   Me.Mouse = Mouse.Wait
   Nbpage = 1
@@ -515,6 +517,67 @@ Public Sub Button2_Click()
         Until rarts.MoveNext()
       Endif
     Endif
+    
+    '******************************
+    'impression des ventes
+    '******************************
+    If CheckBox3.Value = True Then
+      datej = Format$(Now, "yyyy-mm-dd")
+      dates = Format$(DateAdd(Now, gb.Day, - Val(Jours.Text)), "yyyy-mm-dd")
+      
+      pdf.Entete("Impression des ventes sur les derniers " & Jours.Text & " jours")
+      pdf.Level13V()
+      PosY = 24
+
+      tikh = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisLigTck") & " left join " & Cbase.Table("TabHisEntTck") & " on " & Cbase.Table("TabHisLigTck") & ".numero = " & Cbase.Table("TabHisEntTck") & ".numero " & " left join " & Cbase.Table("TabArt") & " on art_design = intitule" & " where date >= &1 and date <= &2 and art_code >= &3 and art_code <= &4 and art_four >= &5 and art_four <= &6 order by art_qte,art_code", dates, datej, Art.Text, Art2.Text, Four.Text, Four2.Text) 
+      intitulec = Null
+      Qtecom = 0
+      Stocke = 0
+      stkmini = 0
+      stkmaxi = 0
+      Stk = ""
+      fourn = ""
+      If tikh.Available Then
+        Repeat
+          If (intitulec <> tikh!intitule)
+            If CheckBox1.Value Or Stocke Then
+              PosY += 4
+              If PosY >= 275 Then
+                pdf.Footer()
+                pdf.Entete("Impression des ventes sur les derniers " & Jours.Text & " jours")
+                pdf.Level13V()
+                PosY = 24
+              Endif
+              pdf.level14V(code, intitulec, stk, fourn, CStr(Qtecom), CStr(stkmini), CStr(stkmaxi), CStr(stkact), PosY)
+            Endif
+            Qtecom = 0
+            Stocke = 0
+            stkmini = 0
+            stkmaxi = 0
+            Stk = ""
+            fourn = ""
+          Endif
+          code = tikh!art_code
+          Stocke = tikh!art_stocke
+          intitulec = tikh!intitule
+          fourn = tikh!art_four
+          If Stocke Then
+            stkmini = tikh!art_stkmin
+            stkmaxi = tikh!art_stkmax
+            stkact = tikh!art_qte
+            Stk = String$(6, " ") & "X"
+          Endif
+            If (tikh!qte <> Null) Then
+              Qtecom += tikh!qte
+            Else
+              Try Qtecom += Val(tikh!montant) / tikh!art_pvttc
+              If Error Then Qtecom += 1 'Produit sans prix de vente défini... probablement un seul
+            Endif
+        Until tikh.MoveNext()
+      Endif
+    Endif
+
+    PosY += 4
     pdf.ligne(PosY)
     pdf.Footer()
     pdf.Output(Filename, False)
@@ -533,5 +596,11 @@ End
 Public Sub Button1_Click()
 
   Exec ["xdg-open", Application.Path &/ "Ecrans/Prodcom.html"]
+
+End
+
+Public Sub CheckBox3_Click()
+
+  
 
 End

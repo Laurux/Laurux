@@ -4,26 +4,28 @@ Private PosY As Integer = 6
 Private pdf As Cbordereaux
 
 Public Sub _new()
-
+  
   Me.Center
-
+  
 End
 
 Public Sub Button1_Click()
-
-  'If Exist(User.home & "/Bordereaux.pdf") Then Kill User.home & "/Bordereaux.pdf"
+  
+  'If Exist(User.home & "/Caisse/Bordereau_" & Format$(Now, "dd.mm.yyyy") & ".pdf") Then Kill User.home & "/Caisse/Bordereau_" & Format$(Now, "dd.mm.yyyy") & ".pdf"
+  'If Exist(User.home & "/Caisse/Bordereau_Cheques_" & Format$(Now, "dd.mm.yyyy") & ".pdf") Then Kill User.home & "/Caisse/Bordereau_Cheques_" & Format$(Now, "dd.mm.yyyy") & ".pdf"
+  'If Exist(User.home & "/Caisse/Bordereau_Cartes_" & Format$(Now, "dd.mm.yyyy") & ".pdf") Then Kill User.home & "/Caisse/Bordereau_Cartes_" & Format$(Now, "dd.mm.yyyy") & ".pdf"
   Me.close
-
+  
 End
 
 Public Sub Button2_Click()
-
+  
   Imp_Bordereaux()
-
+  
 End
 
 Public Sub Imp_Bordereaux()
-
+  
   Dim rResult As Result
   Dim Tab As String
   Dim Filename As String
@@ -34,13 +36,9 @@ Public Sub Imp_Bordereaux()
   Dim Nbtot As String
   Dim lg As Integer
   Dim Btype As String = ""
-
+  
   Shell "cd " & User.Home & ""
-  Filename = User.Home & "/tmp/Bordereau.pdf"
-  pdf = New Cbordereaux("Portrait", "mm", "A4")
-  pdf.Open()
-  pdf.AliasNbPages()
-  Tab = "Fiches_LigTicketz"
+  Tab = "Fiches_LigTicketz" 
   posy = 0
   If Tous.Value = True Then
     rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where type = &1 or type = &2 order by numlig", "U", "V")
@@ -55,15 +53,17 @@ Public Sub Imp_Bordereaux()
       Endif
     Endif
   Endif
+
   If Not Exist(User.home & "/Caisse/") Then Mkdir User.home & "/Caisse/"
   Filename = User.home & "/Caisse/Bordereau_" & Btype & Format$(Now, "dd.mm.yyyy") & ".pdf"
   pdf = New Cbordereaux("Portrait", "mm", "A4")
   pdf.Open()
-  pdf.AliasNbPages()
+  pdf.AliasNbPages()  
+
   If rResult.Available Then
-    type = "O"
+    type = rResult!type
     If rResult!type = "V" Then
-      Txtb = "Bordereaux de chèques du " & Format$(Now, "dd.mm.yyyy")
+      Txtb = "Bordereaux de remise de chèques du " & Format$(Now, "dd.mm.yyyy")
       lg = 8
     Else
       If rResult!type = "U" Then
@@ -71,9 +71,8 @@ Public Sub Imp_Bordereaux()
         lg = 7
       Endif
     Endif
-    PosY = 5
-    Pdf.Entete2(TxtB, PosY)
-    posy = 50
+    Imp_Entete(TxtB)
+    posy = 80
     Repeat
       If rResult!type <> type Then
         Nbtot = "Total " & Mid$(Txtb, 25, Len(Txtb) - 24) & Space$(90) & nbreg
@@ -84,19 +83,19 @@ Public Sub Imp_Bordereaux()
         Posy = Posy + 7
         Pdf.Ligne(PosY)
         If rResult!type = "V" Then
-          Txtb = "Bordereaux de chèques du " & Format$(Now, "dd.mm.yyyy")
+          Txtb = "Bordereaux de remise de chèques du " & Format$(Now, "dd.mm.yyyy")
           lg = 8
         Else
-          If rResult!type = "U" Then
+          If rResult!numlig = "U" Then
             Txtb = "Bordereaux de remise de cartes du " & Format$(Now, "dd.mm.yyyy")
             lg = 7
           Endif
         Endif
         nbreg = 0
         Montant = "0"
-        PosY = 5
+        PosY = 6
         Imp_Entete(TxtB)
-        PosY = 50
+        PosY = 80
       Endif
       If Imptk.Value = True Then
         Pdf.Level5(" Ticket N° " & rResult!numero & " " & Mid$(rResult!intitule, lg, Len(rResult!intitule)), rResult!montant, PosY)
@@ -108,9 +107,9 @@ Public Sub Imp_Bordereaux()
       Inc nbreg
       Montant = Val(Utils.cpoint(Montant)) + Val(Utils.cpoint(rResult!montant))
       If PosY >= 240 Then
-        PosY = 5
+        PosY = 6
         Imp_Entete(TxtB)
-        PosY = 50
+        PosY = 80
       Endif
     Until rResult.MoveNext()
     Nbtot = "Total " & Mid$(Txtb, 25, Len(Txtb) - 24) & Space$(50) & nbreg
@@ -118,7 +117,7 @@ Public Sub Imp_Bordereaux()
     Pdf.Ligne(PosY)
     Posy = Posy + 2
     Pdf.Level5(nbtot, Format$(Val(Utils.cpoint(Montant)), "0.00"), PosY)
-    Posy = Posy + 6
+    Posy = Posy + 7
     Pdf.Ligne(PosY)
     nbreg = 0
     Montant = "0"
@@ -128,11 +127,11 @@ Public Sub Imp_Bordereaux()
     Music.Play
     Message.Info("Il n'existe pas de donnée pour cette demande !")
   Endif
-
+  
 End
 
 Public Sub Imp_Entete(Txtb As String)
-
+  
   Dim Adr As String
   Dim Siret As String
   Dim Tel As String
@@ -140,7 +139,7 @@ Public Sub Imp_Entete(Txtb As String)
   Dim eResult As Result
   Dim Entet As String
   Dim sline As String
-
+  
   Pdf.Entete()
   eResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabSoc") & " where cd_sc = &1", Start.Societe)
   Adr = eResult!type_sc & " " & eResult!int_sc & "\n" & eResult!adr1_sc & "\n" & eResult!adr2_sc & "\n" & eResult!cp_sc & " " & eResult!burdis_sc
@@ -164,14 +163,14 @@ Public Sub Imp_Entete(Txtb As String)
   Pdf.TitreB(TxtB, PosY)
   Posy = Posy + 7
   Pdf.Ligne(PosY)
-
+  
 End
 
 '**********************************
 '*    Appel de la doc html        *
 '**********************************
 Public Sub Button3_Click()
-
+  
   Exec ["xdg-open", Application.Path &/ "Doc_Caisse/Bordereaux.html"]
-
+  
 End

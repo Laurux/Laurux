@@ -51,6 +51,7 @@ Totalrem As String
 totalht As String
 Totht As String
 Totalttc As String
+Txconv As Float
 typeL As String
 Fam As String
 Ardi As String
@@ -535,7 +536,7 @@ Public Sub Togglebutton1_Click()
 
 End
 
-Public Sub Gen_ecr()
+Public Sub Gen_ecr(View As Boolean)
 
   Dim Tab As String
   Dim Tab0 As String
@@ -564,6 +565,7 @@ Public Sub Gen_ecr()
   Dim Mfacttc As Float = 0
   Dim NumeroBl As String
   Dim hFormc As GedC
+  Dim numrecpts As String = ""
 
   P = 31
   Pge = 1
@@ -594,13 +596,15 @@ Public Sub Gen_ecr()
   Ventilation()
   Filename = User.Home & "/tmp/BonReception.pdf"
   If Not Exist(User.home & "/BR") Then Try Mkdir User.home & "/BR"
-  Try Hnew = Open User.home & "/BR/" & "Valbr" & Datej.Text & ".txt" For Write Create
-  Print #Hnew, " "
-  Print #Hnew, "*************************************   Liste des BR validés au " & Datej.Text & " *****************************************************"
-  Print #Hnew, " "
-  Print #Hnew, " Code                    Nom               Montant HT   Montant TTC    Libellé écriture          N° ecr. provisoire  N° ecr. définitive  "
-  Print #Hnew, " "
-  Print #Hnew, " "
+  If Not View Then
+    Try Hnew = Open User.home & "/BR/" & "Valbr" & Datej.Text & ".txt" For Write Create
+    Print #Hnew, " "
+    Print #Hnew, "*************************************   Liste des BR validés au " & Datej.Text & " *****************************************************"
+    Print #Hnew, " "
+    Print #Hnew, " Code                    Nom               Montant HT   Montant TTC    Libellé écriture          N° ecr. provisoire  N° ecr. définitive  "
+    Print #Hnew, " "
+    Print #Hnew, " "
+  Endif
   Raz_Ventilation()
   Utils.db.Exec("LOCK TABLES " & Tab & " WRITE, " & Tab0 & " WRITE, " & Tab1 & " WRITE, " & Tab2 & " WRITE, " & Tab4 & " WRITE, " & Tab5 & " WRITE, " & Tab6 & " WRITE, " & Tab7 & " WRITE, " & Tab8 & " WRITE, " & Tab9 & " WRITE, " & Tab10 & " WRITE, " & Tab11 & " WRITE," & Cbase.Table("TabTleg") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, " & Cbase.Table("TabHisFac") & " WRITE, " & "Fiches_Tvaac" & " Write, " & Cbase.Table("TabCPTdocs") & " write, " & Cbase.Table("TabFdocs") & " write ")
   Parametres()
@@ -631,6 +635,7 @@ Public Sub Gen_ecr()
       Endif
       Coldetail.MoveFirst()
       Coldetail.Item.Selected = True
+      Edbr.Init()
       Repeat
         Numbl = Utils.db.Exec("SELECT * FROM " & tab0 & " where four = &1 and validee = &2 and numrecpt = &3 order by numrecpt", CodeFour.Text, False, Coldetail.Item[0])
         Try NumeroBl = numbl!numrecpt
@@ -640,6 +645,7 @@ Public Sub Gen_ecr()
           If Ligbl.Count <> 0 Then
             Repeat
               Txtva = Ligbl!art_tva
+              Txconv = Ligbl!art_txconv
               Brutht = Ligbl!prvt
               totalht = Val(Brutht) * Val(Ligbl!qte)
               Fam = Ligbl!art_fam
@@ -650,41 +656,53 @@ Public Sub Gen_ecr()
               Maj_Totalisation()
             Until Ligbl.MoveNext()
           Endif
-          Utils.db.Exec("UPdate " & Tab0 & " set validee = &3 Where four = &1 and numrecpt = &2", Colbl.Item[0], numbl!numrecpt, 1)
-          If Apdf Then
-            Edbr.Ed(numbl!numrecpt, Colbl.Item[0], datej.Text, coulfond, "ValidBR")
-            Copie.Dupli4(Filename, "", "BR" & Colbl.Item[0] & "_" & numerobl, datej.Text, Colbl.Item[0])
+          
+          If Not View Then
+            Utils.db.Exec("UPdate " & Tab0 & " set validee = &3 Where four = &1 and numrecpt = &2", Colbl.Item[0], numbl!numrecpt, 1)
           Endif
+          
+          numrecpts = numrecpts & "\n" & numbl!numrecpt
+          'Edbr.Ed(numbl!numrecpt, Colbl.Item[0], datej.Text, coulfond, "ValidBR")
+
         Endif
       Until Coldetail.MoveNext()
-      'Until numbr.MoveNext()
-      Mttc = Colbl.Item[2]
-      If exo Then Totalttc = Colbl.Item[3]
-      Utils.db.Exec("INSERT INTO " & Tab10 & "(compte, intitule, totalht, codetva) VALUES (&1, &2, &3, &4)", Colbl.Item[0], nom, Totalttc, 0)
-      Verif_solde()
-      Maj_Compta()
-      Variables.inumr = Numr
-      Majnum()
-      Print #Hnew, Colbl.Item[0] & String$(10 - Len(Colbl.Item[0]), " ") & Colbl.Item[1] & String$(35 - Len(Colbl.Item[1]), " ") & Colbl.Item[2] & String$(15 - Len(Colbl.Item[2]), " ") & Colbl.Item[3] & String$(10 - Len(Colbl.Item[3]), " ") & libel & String$(30 - Len(libel), " ") & "     " & Numr & String$(15 - Len(Str(Numr)), " ") & Numr2 & String$(15 - Len(Str(Numr2)), " ")
-      Raz_Ventilation()
-      Toteuros = 0
-      'Endif
-      Totalrem = 0
-      Remart = 0
-      'Until Colbl.MoveNext()
-      Me.mouse = Mouse.Wait
-      Utils.db.Exec("UNLOCK TABLES")
-      Message.Info("Traitement terminé !")
-      Close #Hnew
-      Editeur.Prog_Editeur(User.home & "/BR/" & "Valbr" & Datej.Text & ".txt")
-      If Settings["/Soc" & Start.Societe & "/Ged"] And Apdf Then
-        Select Case Message.Question("Que souhaitez vous faire ? \n1- scanner la facture fournisseur\n2- Joindre un document\n3- Ne rien faire", "1", "2", "3")
-          Case 1
-            scanfacture()
-          Case 2
-            hFormc = New GedC(Numr, "Fac", CodeFour.text, " ")
-            hFormc.Showmodal()
-        End Select
+      Edbr.Ed(numrecpts, Colbl.Item[0], datej.Text, coulfond, "ValidBR")
+      If Not View Then
+        If Apdf Then
+          'Keep a copy in fournisseur docs
+          Copie.Dupli4(Filename, "", "BR" & Colbl.Item[0] & "_" & numerobl, datej.Text, Colbl.Item[0])
+        Endif
+        Mttc = Colbl.Item[2]
+        If exo Then Totalttc = Colbl.Item[3]
+        Utils.db.Exec("INSERT INTO " & Tab10 & "(compte, intitule, totalht, codetva) VALUES (&1, &2, &3, &4)", Colbl.Item[0], nom, Totalttc, 0)
+        Verif_solde()
+        Maj_Compta()
+        Variables.inumr = Numr
+        Majnum()
+        Print #Hnew, Colbl.Item[0] & String$(10 - Len(Colbl.Item[0]), " ") & Colbl.Item[1] & String$(35 - Len(Colbl.Item[1]), " ") & Colbl.Item[2] & String$(15 - Len(Colbl.Item[2]), " ") & Colbl.Item[3] & String$(10 - Len(Colbl.Item[3]), " ") & libel & String$(30 - Len(libel), " ") & "     " & Numr & String$(15 - Len(Str(Numr)), " ") & Numr2 & String$(15 - Len(Str(Numr2)), " ")
+        Raz_Ventilation()
+        Toteuros = 0
+        'Endif
+        Totalrem = 0
+        Remart = 0
+        'Until Colbl.MoveNext()
+        Me.mouse = Mouse.Wait
+        Utils.db.Exec("UNLOCK TABLES")
+        Message.Info("Traitement terminé !")
+        Close #Hnew
+        Editeur.Prog_Editeur(User.home & "/BR/" & "Valbr" & Datej.Text & ".txt")
+        If Settings["/Soc" & Start.Societe & "/Ged"] And Apdf Then
+          Select Case Message.Question("Que souhaitez vous faire ? \n1- scanner la facture fournisseur\n2- Joindre un document\n3- Ne rien faire", "1", "2", "3")
+            Case 1
+              scanfacture()
+            Case 2
+              hFormc = New GedC(Numr, "Fac", CodeFour.text, " ")
+              hFormc.Showmodal()
+          End Select
+        Endif
+      Else
+        Utils.db.Exec("UNLOCK TABLES")
+        Raz_Ventilation()
       Endif
     Else
       If son Then
@@ -809,11 +827,11 @@ Public Sub Maj_Totalisation()
         IntitTva = rResult!intitule_cc
       Endif
       'On calcule le montant de la TVA
-      Mtva = Format$(Val(Utils.cpoint(Totalht)) * Val(Utils.cpoint(Ttva)) / 100, "0.00")
+      Mtva = ((Val(Utils.cpoint(Totalht)) * Val(Utils.cpoint(Ttva)) / 100) * Txconv) 
       If IsNull(Totalttc) Then Totalttc = "0"
-      Totalttc = Val(Utils.cpoint(Totalttc)) + Val(Utils.cpoint(Totalht)) + Val(Utils.cpoint(Mtva))
+      Totalttc = Val(Utils.cpoint(Totalttc)) + Val(Utils.cpoint(Totalht)) * Txconv + Val(Utils.cpoint(Mtva))
     Else
-      Totalttc = Val(Utils.cpoint(Totalht))
+      Totalttc = Val(Utils.cpoint(Totalht)) * Txconv
     Endif
     'Si ce n'est pas un compte TVA on regarde si le compte existe deja dans la table temporaire
     If Left$(cpt, 4) <> "4456" Then
@@ -825,32 +843,32 @@ Public Sub Maj_Totalisation()
     'Si le compte existe dans la table temporaire
     If rrResult.Available Then
       Totht = Format$(Val(.cpoint(rrResult!totalht)) + Val(.cpoint(totalht)), "0.00")
-      If exo = False Then TotTva = Format$(Val(.cpoint(rrResult!totaltva)) + Val(.cpoint(Mtva)), "0.00")
+      If exo = False Then TotTva = (Val(.cpoint(rrResult!totaltva)) + Val(.cpoint(Mtva)))
       'Si ce n'est pas un compte TVA on met a jour sans le code TVA
       If Left$(cpt, 4) <> "4456" Then
-        Utils.db.Exec("UPdate " & Tab5 & " set compte = &1, intitule = &2, totalht = &3, totaltva =&4 Where compte = &1 and codetva = &5", cpt, Intit, Totht, TotTva, 0)
+        Utils.db.Exec("UPdate " & Tab5 & " set compte = &1, intitule = &2, totalht = &3, totaltva =&4 Where compte = &1 and codetva = &5", cpt, Intit, Totht, Left$(.cpoint(TotTva), 25), 0)
       Else
         'Si c'est un compte TVA on met a jour avec le code TVA
-        If exo = False Then Utils.db.Exec("UPdate " & Tab5 & " set compte = &1, intitule = &2, totalht = &3, totaltva =&4 Where compte = &1 and codetva = &5", cpt, Intit, Totht, TotTva, Ctva)
+        If exo = False Then Utils.db.Exec("UPdate " & Tab5 & " set compte = &1, intitule = &2, totalht = &3, totaltva =&4 Where compte = &1 and codetva = &5", cpt, Intit, Totht, Left$(.cpoint(TotTva), 25), Ctva)
       Endif
     Else
       'Si le compte n'existe pas dans la table temporaire
       Totht = Format$(Val(.cpoint(totalht)), "0.00")
       'Si ce n'est pas un compte TVA on crée avec un code TVA a zéro
       If Left$(cpt, 4) <> "4456" Then
-        Utils.db.Exec("INSERT INTO " & Tab5 & "(compte, intitule, totalht, totaltva, codetva) VALUES (&1, &2, &3, &4, &5)", cpt, Intit, Totht, Mtva, 0)
+        Utils.db.Exec("INSERT INTO " & Tab5 & "(compte, intitule, totalht, totaltva, codetva) VALUES (&1, &2, &3, &4, &5)", cpt, Intit, Totht, Left$(.cpoint(Mtva), 25), 0)
       Else
         'Sinon on crée avec le code TVA
-        If exo = False Then Utils.db.Exec("INSERT INTO " & Tab5 & "(compte, intitule, totalht, totaltva, codetva) VALUES (&1, &2, &3, &4, &5)", cpt, Intit, Totht, Mtva, Ctva)
+        If exo = False Then Utils.db.Exec("INSERT INTO " & Tab5 & "(compte, intitule, totalht, totaltva, codetva) VALUES (&1, &2, &3, &4, &5)", cpt, Intit, Totht, Left$(.cpoint(Mtva), 25), Ctva)
       Endif
     Endif
     If exo = False Then
       rrResult = Utils.db.Exec("SELECT * FROM " & Tab5 & " Where compte = &1 and codetva = &2", cpttva, Ctva)
       If rrResult.Available Then
         If exo = False Then TotTva = Format$(Val(.cpoint(rrResult!totaltva)) + Val(.cpoint(Mtva)), "0.00")
-        Utils.db.Exec("UPdate " & Tab5 & " set compte = &1, intitule =&2, totaltva =&3, codetva = &4 Where compte = &1 and codeTva = &4", cpttva, Intittva, Tottva, Ctva)
+        Utils.db.Exec("UPdate " & Tab5 & " set compte = &1, intitule =&2, totaltva =&3, codetva = &4 Where compte = &1 and codeTva = &4", cpttva, Intittva, Left$(.cpoint(Tottva), 25), Ctva)
       Else
-        Utils.db.Exec("INSERT INTO " & Tab5 & "(compte, intitule, totaltva, codetva) VALUES (&1, &2, &3, &4)", cpttva, Intittva, Mtva, Ctva)
+        Utils.db.Exec("INSERT INTO " & Tab5 & "(compte, intitule, totaltva, codetva) VALUES (&1, &2, &3, &4)", cpttva, Intittva, Left$(.cpoint(Mtva), 25), Ctva)
       Endif
     Endif
     Totht = 0
@@ -1103,9 +1121,32 @@ Public Sub Button9_Click()
   If Not IsNull(Params!jrnal5) Then
     If RadioButton2.value Then
       If Colbl.Count <> 0 Then
-        Gen_ecr()
+        Gen_ecr(False)
       Else
-        Message.Warning("Veuillez lancer votre traitement avant d'imprimer SVP ! ")
+        Message.Warning("Veuillez lancer votre traitement avant de generer l'ecriture SVP ! ")
+      Endif
+    Else
+      Message.Warning("Ce traitement ne peut se faire que pour un fournisseur. ! ")
+    Endif
+  Else
+    Message.Warning("Génération impossible le journal d'achat n'est pas renseigné dans les paramètres !")
+  Endif
+  
+End
+
+Public Sub Button2_Click()
+  
+  Dim Tab As String
+  Dim Params As Result
+  
+  Tab = "Fiches_Parametres"
+  Params = Utils.db.Exec("SELECT jrnal5 FROM " & Tab & " ")
+  If Not IsNull(Params!jrnal5) Then
+    If RadioButton2.value Then
+      If Colbl.Count <> 0 Then
+        Gen_ecr(True)
+      Else
+        Message.Warning("Veuillez lancer votre traitement avant de visualiser SVP ! ")
       Endif
     Else
       Message.Warning("Ce traitement ne peut se faire que pour un fournisseur. ! ")

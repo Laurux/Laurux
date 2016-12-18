@@ -45,11 +45,11 @@ Public Sub _New()
   compteRel.Columns[0].Alignment = 4
   compteRel.Columns[0].Width = 70
   compteRel.Columns[1].Width = 60
-  compteRel.Columns[2].Width = 220
+  compteRel.Columns[2].Width = 200
   compteRel.Columns[3].Width = 80
-  compteRel.Columns[4].Width = 220
-  compteRel.Columns[5].Width = 100
-  compteRel.Columns[6].Width = 100
+  compteRel.Columns[4].Width = 200
+  compteRel.Columns[5].Width = 50
+  compteRel.Columns[6].Width = 50
   compteRel.Columns[0].Text = "code"
   compteRel.Columns[1].Text = "Rs"
   compteRel.Columns[2].Text = "nom"
@@ -78,6 +78,7 @@ Public Sub MajTab()
   Dim Tab3 As String
   Dim Tab4 As String
   Dim cpt As String
+  Dim cpt_type As String
   Dim Totdeb As Float
   Dim Totcred As Float
   Dim Dn0 As String
@@ -86,7 +87,6 @@ Public Sub MajTab()
   Tab = "Fiches_Relcomptes"
   Tab2 = "Fiches_Mvt"
   Tab3 = "Fiches_Journaux"
-  Tab4 = "Fiches_Cli"
   compteRel.clear
   Utils.db.Exec("DROP TABLE if exists " & Tab & "")
   Utils.db.EXEC("CREATE TABLE " & Tab &
@@ -108,13 +108,25 @@ Public Sub MajTab()
     "journal char(2) ," &
     "PRIMARY KEY (compte,numdoc,numero))" & "ENGINE = MYISAM")
   If dteN0.Text <> "" And dteN1.Text <> "" Then
+    If (RB3.Value) Then
+      cpt_type = "411"
+      Tab4 = "Fiches_Cli"
+    Else
+      cpt_type = "401"
+      Tab4 = "Fiches_Four"
+    Endif 
     Dn0 = Right$(dteN0.Text, 4) & Mid$(dteN0.Text, 4, 2) & Left$(dteN0.Text, 2)
     Dn1 = Right$(dteN1.Text, 4) & Mid$(dteN1.Text, 4, 2) & Left$(dteN1.Text, 2)
-    rResult = Utils.db.Exec("SELECT * FROM " & tab2 & " where left(compte,3) = &1 and dte >= &2 and dte <= &3  and collectif is null  order by compte ", 411, Dn0, Dn1)
+    rResult = Utils.db.Exec("SELECT * FROM " & tab2 & " where left(compte,3) = &1 and dte >= &2 and dte <= &3  and collectif is null  order by compte ", cpt_type, Dn0, Dn1)
     If rResult.Available Then
       Repeat
-        rrResult = Utils.db.Exec("SELECT * FROM " & tab4 & " where  cli_code = &1", rResult!compte)
-        If rrResult!cli_rlvf Then Try Utils.db.Exec("INSERT INTO " & Tab & " (compte,Rs, intitule,adr1,adr2,cp,ville,dte,numdoc,numlot,libelle,montantd,montantc,numero,journal, pays) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", rResult!compte, rrResult!cli_rs_soc, rrResult!cli_nom, rrResult!cli_adr1, rrResult!cli_adr2, rrResult!cli_cd_ptl, rrResult!cli_ville, rResult!dte, rResult!numdoc, rResult!numlot, rResult!libelle, rResult!montantd, rResult!montantc, rResult!numero, rResult!jour, rrResult!cli_pays)
+        If (RB3.Value) Then
+          rrResult = Utils.db.Exec("SELECT * FROM " & tab4 & " where  cli_code = &1", rResult!compte)
+          If rrResult!cli_rlvc Then Try Utils.db.Exec("INSERT INTO " & Tab & " (compte,Rs, intitule,adr1,adr2,cp,ville,dte,numdoc,numlot,libelle,montantd,montantc,numero,journal, pays) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", rResult!compte, rrResult!cli_rs_soc, rrResult!cli_nom, rrResult!cli_adr1, rrResult!cli_adr2, rrResult!cli_cd_ptl, rrResult!cli_ville, Left$(CStr(rResult!dte), 10), rResult!numdoc, rResult!numlot, rResult!libelle, rResult!montantd, rResult!montantc, rResult!numero, rResult!jour, rrResult!cli_pays)
+        Else
+          rrResult = Utils.db.Exec("SELECT * FROM " & tab4 & " where  fo_code = &1", rResult!compte)
+          Utils.db.Exec("INSERT INTO " & Tab & " (compte,Rs, intitule,adr1,adr2,cp,ville,dte,numdoc,numlot,libelle,montantd,montantc,numero,journal, pays) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", rResult!compte, rrResult!fo_rs_soc, rrResult!fo_nom, rrResult!fo_adr1, rrResult!fo_adr2, rrResult!fo_cd_ptl, rrResult!fo_ville, Left$(CStr(rResult!dte), 10), rResult!numdoc, rResult!numlot, rResult!libelle, rResult!montantd, rResult!montantc, rResult!numero, rResult!jour, rrResult!fo_pays)
+        Endif
       Until rResult.MoveNext()
     Endif
     rResult = Utils.db.Exec("SELECT * FROM " & tab & " order by compte ")
@@ -363,7 +375,7 @@ Public Sub Releves()
             pdf.Level2()
             posy = 120
             Repeat
-              dte = Right$(rResult!dte, 2) & "." & Mid$(rResult!dte, 6, 2) & "." & Left$(rResult!dte, 4)
+              dte = Mid$(rResult!dte, 4, 2) & "." & Left$(rResult!dte, 2) & "." & Right$(rResult!dte, 4)
               num = rResult!numdoc
               Lib = rResult!libelle
               Mtd = rResult!montantd
@@ -420,6 +432,18 @@ Public Sub RB1_Click()
 End
 
 Public Sub RB2_Click()
+  
+  MajTab()
+  
+End
+
+Public Sub RB3_Click()
+  
+  MajTab()
+  
+End
+
+Public Sub RB4_Click()
 
   MajTab()
 
