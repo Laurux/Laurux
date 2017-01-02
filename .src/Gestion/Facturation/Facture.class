@@ -10840,6 +10840,7 @@ Public Sub Maj_Compta()
   Dim Viautre As String
   Dim Cptreglt As String
   Dim Tab6 As String
+  Dim ChequeCptInt As Boolean
 
   Tab = "Fiches_Mvt"
   Tab2 = "Totalisation"
@@ -10851,6 +10852,9 @@ Public Sub Maj_Compta()
   Tresor = 0
   Pointee = 0
   lettree = 0
+  
+  Try ChequeCptInt = Settings["/Soc" & Start.Societe & "/ChequeCptInt"]
+  If Error Then ChequeCptInt = False
   If IsNull(rglt.text) Then Rglt.Text = "0"
   If IsNull(rglt2.text) Then Rglt2.Text = "0"
   If Val(rglt.Text) + Val(rglt2.Text) = Abs(Val(Tottc.text)) And Rgmt.Value = True Then
@@ -10995,9 +10999,14 @@ Public Sub Maj_Compta()
             Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech, collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, coll, rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Left$(Libel, 30), mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text), 1)
           Else
             If Regmt.text = "Chèque" Then
-              If Val(Tottc.Text) > 0 Then Montantcheque = Val(rglt.Text)
-              'On mouvemente la table des bordereaux de chèques.
-              Utils.db.Exec("INSERT INTO " & "Fiches_BordereauxC" & "(code, nom, montant,dateremise,banque,nfacture ) VALUES (&1, &2, &3, &4, &5,&6)", Code3.Text, Rs2, Montantcheque, .Cdate_Dbase(Dtef.Text), jnal, Nmfac)
+              If ChequeCptInt
+                Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Code3.Text, rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Left$(Libel, 30), mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text))
+                Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech, collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, coll, rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Left$(Libel, 30), mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text), 1)
+              Else
+                If Val(Tottc.Text) > 0 Then Montantcheque = Val(rglt.Text)
+                'On mouvemente la table des bordereaux de chèques.
+                Utils.db.Exec("INSERT INTO " & "Fiches_BordereauxC" & "(code, nom, montant,dateremise,banque,nfacture ) VALUES (&1, &2, &3, &4, &5,&6)", Code3.Text, Rs2, Montantcheque, .Cdate_Dbase(Dtef.Text), jnal, Nmfac)
+              Endif
             Endif
           Endif
           If Val(Tottc.Text) > 0 Then
@@ -11007,7 +11016,7 @@ Public Sub Maj_Compta()
             Mtc = Mtd
             Mtd = 0
           Endif
-          If Regmt.text <> "Chèque" Then
+          If ChequeCptInt Or Regmt.text <> "Chèque" Then
             Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Cptreglt, Left$(Regmt.text & " " & rs2, 40), .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Left$(Libel, 30), mtd, mtc, 1, 0, 1, 0, cloturee, .Cdate_Dbase(Dtef.Text))
 
             '*******************************On recalcule les soldes des comptes************************************
@@ -11098,9 +11107,14 @@ Public Sub Maj_Compta()
             Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech, collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, coll, rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Left$(Libel, 30), mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text), 1)
           Else
             If Regmt2.text = "Chèque" Then
-              If Val(Tottc.Text) > 0 Then Montantcheque = Val(rglt2.Text)
-              'On mouvemente la table des bordereaux de chèques.
-              Utils.db.Exec("INSERT INTO " & "Fiches_BordereauxC" & "(code, nom, montant,dateremise,banque,nfacture ) VALUES (&1, &2, &3, &4, &5,&6)", Code3.Text, Rs2, Montantcheque, .Cdate_Dbase(Dtef.Text), jnal, Nmfac)
+              If ChequeCptInt
+                Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Code3.Text, rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Left$(Libel, 30), mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text))
+                Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech, collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, coll, rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Left$(Libel, 30), mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text), 1)
+              Else
+                If Val(Tottc.Text) > 0 Then Montantcheque = Val(rglt2.Text)
+                'On mouvemente la table des bordereaux de chèques.
+                Utils.db.Exec("INSERT INTO " & "Fiches_BordereauxC" & "(code, nom, montant,dateremise,banque,nfacture ) VALUES (&1, &2, &3, &4, &5,&6)", Code3.Text, Rs2, Montantcheque, .Cdate_Dbase(Dtef.Text), jnal, Nmfac)
+              Endif
             Endif
           Endif
           If Val(Tottc.Text) > 0 Then
@@ -11110,7 +11124,7 @@ Public Sub Maj_Compta()
             Mtc = Mtd
             Mtd = 0
           Endif
-          If Regmt.text <> "Chèque" Then
+          If ChequeCptInt Or Regmt.text <> "Chèque" Then
             Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Cptreglt, Left$(Regmt2.text & " " & rs2, 40), .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Left$(Libel, 30), mtd, mtc, 1, 0, 1, 0, cloturee, .Cdate_Dbase(Dtef.Text))
 
             '*******************************On recalcule les soldes des comptes************************************
