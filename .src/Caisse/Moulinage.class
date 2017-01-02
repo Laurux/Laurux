@@ -329,6 +329,7 @@ Public Sub Moulinage()
 
   Dim rTck As Result
   Dim rlTck As Result
+  Dim lBl As Result
   Dim rlTck2 As Result
   Dim rcpt As Result
   Dim rResult As Result
@@ -425,9 +426,52 @@ Public Sub Moulinage()
                     'rlTck!mrem est utilisé pour récupéré le numéro de Bl
                     Bl = Utils.db.Exec(" select * from " & Cbase.Table("TabBl") & " where type = \"B\" and numtick = &1 and numbl = &2", rlTck!numero, Format$(rlTck!mrem, "000000"))
                     If Bl.Available Then
-                      'aucun mouvement n'est a inscrire pour le BL, le BL passe cependant en type facture et déclaré règlé et imprimé
+                      'aucun mouvement specifique n'est a inscrire pour le BL, le BL passe cependant en type facture et déclaré règlé et imprimé
                       Utils.db.Exec("UPDATE " & Cbase.Table("TabBl") & " set type = \"F\", numtick = NULL, imp = 1, reg = \"Caisse\", mtreg = &2, numfac = &3, dtefac = &4, ech = &4 where numbl = &1", Format$(rlTck!mrem, "000000"), rlTck!montant, (Right$(rlTck!numero, 7) & Format$(Right(rlTck!numlig, 3), "000")), Utils.Cdate2_Dbase(Left$(rtck!date, 10)))
                       Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, rltck!numlig, rlTck!code, rlTck!intitule, rltck!montant, rlTck!qte, rltck!type, Fam, rltck!mht, Format$(rlTck!mrem, "000000"), rltck!tva)
+                      'On met a jour la totalisation pour la TVA et HT pour chaque ligne du BL
+                      lBl = Utils.db.Exec(" select * from " & Cbase.Table("TabLigbl") & " where num_ligbl = &1 and typel_ligbl = \"A\"", Format$(rlTck!mrem, "000000"))
+                      If lBl.Available Then
+                        Repeat
+                          rFam = Utils.db.Exec(" select * from " & Cbase.Table("TabArt") & " where art_code = &1", lBl!code_ligbl)
+                          Fam = rFam!art_fam
+                          rDep = Utils.db.Exec("SELECT * FROM Fiches_Caisses where code = &1", rtck!caisse)
+                          If rDep.Available Then $depot = rdep!depot
+                          rcpt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " where code_fam = &1", Fam)
+                          If rcpt.Available Then
+                            If Not bretro Then
+                              vente = rcpt!compt_fam
+                            Else
+                              vente = rcpt!compt5_fam
+                            Endif
+                            
+                            If Not IsNull($depot) Then
+                              rDep = Utils.db.Exec("SELECT * FROM Fiches_FamDep where fam = &1 and depot = &2", Fam, $depot)
+                              If rDep.Available Then vente = rDep!compte
+                            Endif
+                            rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", vente)
+                            If rResult.Available Then
+                              ivente = rResult!intitule_cc
+                            Endif
+                            montant = Val(.cpoint(lBl!netht_ligbl))
+                            'on met a jour le HT
+                            Maj_Totalisation(vente, ivente, montant)
+                            
+                            tva = lBl!tx_ligbl
+                            rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTvav") & " Where code_tva = &1", tva)
+                            If rResult.Available Then
+                              tva = rResult!cc_tva
+                            Endif
+                            rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", tva)
+                            If rResult.Available Then
+                              itva = rResult!intitule_cc
+                            Endif
+                            'on met a jour la TVA
+                            montant = Val(.cpoint(lBl!nettc_ligbl)) - Val(.cpoint(lBl!netht_ligbl))
+                            Maj_Totalisation(Tva, iTva, montant)
+                          Endif
+                        Until lBl.MoveNext()
+                      Endif
                     Else
                       Message.Warning("Le BL " & Format$(rlTck!mrem, "000000") & " est noté règlé dans le ticket " & rlTck!numero & " mais n'est pas associé a ce ticket, il sera ignoré") 
                     Endif
