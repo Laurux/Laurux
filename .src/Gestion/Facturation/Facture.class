@@ -288,6 +288,26 @@ Public Sub _New(bfacture As Boolean)
   Else
     ar$ = "0,00"
   Endif
+  If Settings["/Soc" & Start.Societe & "/AffMarge"] Then
+    Fam3.Visible = False
+    MargeMo.Visible = False
+    Marge.Visible = False
+    Textlabel6.Visible = False
+    Textlabel61.Visible = False
+    Textlabel63.Visible = False
+    Mrg.Visible = False
+  Endif
+  If Not Settings["/Soc" & Start.Societe & "/Taches"] Then
+    TabStrip1[2].Visible = False
+  Else
+    Rdep = Utils.db.Exec("select * from Fiches_Users order by lind")
+    If Rdep.Available Then
+      Utilisateur.Add("")
+      Repeat
+        Utilisateur.Add(Rdep!nom & "@" & Rdep!poste)
+      Until Rdep.MoveNext()
+    Endif
+  Endif
   Artqte.Text = "1,00"
   Music.Load(Start.Musique)
   Balloon.delay = 1000
@@ -1422,6 +1442,7 @@ Public Sub Button2_Click()
     Exo.Value = True
     Exo.Enabled = False
   Endif
+  TabStrip1[2].Text = "Taches"
   Dep.Enabled = True
   Dep.Text = ""
 
@@ -1742,6 +1763,17 @@ Public Sub Colbl_Click()
   With utils
     bok = NumUtil()
     If bok Then
+      ' On récupère les taches associées au bl séléctionné
+      If Settings["/Soc" & Start.Societe & "/Taches"] Then
+        ColTaches.Columns.count = 4
+        ColTaches.Columns[0].Width = 1
+        ColTaches.Columns[1].Width = 80
+        ColTaches.Columns[2].Width = 180
+        ColTaches.Columns[1].Text = "Utilisateur"
+        ColTaches.Columns[2].Text = "Poste"
+        ColTaches.Columns[3].Text = "Libellé de la tâche"
+        RecupTaches()
+      Endif
       Variables.bRemise = False
       Try rResult = Utils.db.Exec("select * from " & Tab & " where numbl = &1", colbl[colbl.row, 2].Text)
       If Not Error Then
@@ -2306,6 +2338,77 @@ Public Sub ToggleButton8_Click()
 End
 
 '********************************FIN DE GESTION DU CODE POSTAL**************************
+
+'**********************************************************
+'*                                         Gestion des tâches                                       *
+'**********************************************************
+Public Sub LibelTache_KeyPress()
+
+  If Key.code = Key.Enter Or If Key.code = Key.Return Then button33_Click()
+
+End
+
+Public Sub button33_Click()
+
+  Dim suser As New String[]
+
+  If Not IsNull(Utilisateur.Text) And Not IsNull(LibelTache.Text) Then
+    suser = Split(Utilisateur.Text, "@")
+    rResult = Utils.db.Exec("SELECT * FROM Fiches_Taches WHERE nom = &1 and numdoc = &2", suser[0], num.text)
+    If rResult.Available Then
+      Message.Warning("Saisie impossible ! Une tache est déjà associée pour cet utilisateur et ce bl.")
+    Else
+      suser = Split(Utilisateur.Text, "@")
+      Utils.db.Exec("INSERT INTO Fiches_Taches (numdoc,nom,poste,numcli,nomcli,texte) Values (&1,&2,&3,&4,&5,&6)", num.Text, suser[0], suser[1], code.Text, nom.Text, LibelTache.Text)
+      RecupTaches()
+      Utilisateur.setfocus
+    Endif
+  Endif
+
+End
+
+Public Sub ColTaches_KeyPress()
+
+  If Start.son Then
+    Music.Play
+  Endif
+  If Message.Question("Etes vous sur de vouloir effacer cet enregistrement", "Oui", "Non") = 1 Then
+    Utils.db.Exec("DELETE  FROM Fiches_Taches WHERE lind = &1", ColTaches.Current[0])
+    Utils.db.Exec("ALTER TABLE Fiches_Taches ORDER BY lind")
+    RecupTaches()
+  Endif
+
+End
+
+Public Sub RecupTaches()
+
+  Dim Tactive, bureau, $taches As String
+  Dim itaches As Integer = 0
+
+  Utilisateur.text = ""
+  LibelTache.Clear
+  ColTaches.Clear
+  rResult = Utils.db.Exec("select * from Fiches_Taches where numdoc = &1", colbl[colbl.row, 2].Text)
+  If rResult.Available Then
+    Repeat
+      ColTaches.Add(rResult!lind, rResult!lind)
+      ColTaches.item[0] = rResult!lind
+      ColTaches.item[1] = rResult!nom
+      ColTaches.item[2] = rResult!poste
+      ColTaches.item[3] = rResult!texte
+      Inc itaches
+      If itaches > 1 Then
+        $taches = " taches"
+      Else
+        $taches = " tache"
+      Endif
+    Until rResult.MoveNext()
+    TabStrip1[2].Text = itaches & " " & $taches
+  Else
+    TabStrip1[2].Text = "Taches"
+  Endif
+
+End
 
 '**********************************************************
 '*                 Gestion onglet Saisie MO               *
@@ -4943,7 +5046,7 @@ Public Sub Art_KeyPress()
 
   If key.Code = key.F4 Then
     ChkFocus = 2
-    Articles.ShowModal()
+    If Not Settings["/Soc" & Start.Societe & "/AffFacture"] Then Articles.ShowModal()
     Chkfocus = 0
     Recup_type()
     Stop Event
@@ -8513,7 +8616,7 @@ Public Sub Maj_Quantite()
   Dim Qstock As Float
   Dim Qline As Float
 
-  Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabArt") & " WRITE, " & Cbase.Table("TabArtPromo") & " WRITE, " & Cbase.Table("TabLigbl") & " WRITE ")
+  '  Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabArt") & " WRITE, " & Cbase.Table("TabArtPromo") & " WRITE, " & Cbase.Table("TabLigbl") & " WRITE ")
   With utils
     If Coldetail.Count <> 0 Then
       Coldetail.MoveFirst
@@ -8733,7 +8836,6 @@ Public Sub Bl_Edit()
   Dim Vichq As String
   Dim Viautre As String
   Dim modreg As String
-  Dim Nmfac As Variant
   Dim ech As Variant
 
   If bTypeFacture Then
@@ -8803,7 +8905,7 @@ Public Sub Bl_Edit()
     Try Impstock.Value = Settings["/Soc" & Start.Societe & "/Impstocke"]
     Try ImpPDF.Value = Settings["/Soc" & Start.Societe & "/ImpPDF"]
     Try Imptotbl.value = Settings["/Soc" & Start.Societe & "/ImpTotbl"]
-    Recap.Value = Settings["/Soc" & Start.Societe & "/Recap"]
+    Try Recap.Value = Settings["/Soc" & Start.Societe & "/Recap"]
     If Settings["/Soc" & Start.Societe & "/Sms"] Then
       Button30.Visible = True
     Else
@@ -9430,7 +9532,7 @@ Public Sub Impression(Org As String)
     pdf.AliasNbPages()
   Endif
   If b <> "1" Then
-    Utils.db.Exec("LOCK TABLES " & "Fiches_Parametres" & " WRITE, " & "Fiches_AdrlivC" & " WRITE, " & "Fiches_Bl" & " WRITE, " & "Fiches_Ligbl" & " WRITE, " & "Fiches_BlM" & " WRITE, " & "Fiches_LigblM" & " WRITE, " & "Fiches_Societes" & " WRITE," & "Fiches_LibelFac" & " WRITE, " & "Fiches_Echeances" & " WRITE, " & "Fiches_Cli" & " WRITE, " & "Fiches_Art" & " WRITE, " & "Fiches_Mo" & " WRITE," & Cbase.Table("TabTleg") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, " & Cbase.Table("TabHisFac") & " WRITE, " & "Totalisation" & " WRITE, " & "Fiches_Suivis" & " WRITE, " & "Docs_Clients" & " WRITE")
+    Utils.db.Exec("LOCK TABLES " & "Fiches_Parametres" & " WRITE, " & "Fiches_AdrlivC" & " WRITE, " & "Fiches_Bl" & " WRITE, " & "Fiches_Ligbl" & " WRITE, " & "Fiches_BlM" & " WRITE, " & "Fiches_LigblM" & " WRITE, " & "Fiches_Societes" & " WRITE," & "Fiches_LibelFac" & " WRITE, " & "Fiches_Echeances" & " WRITE, " & "Fiches_Cli" & " WRITE, " & "Fiches_Art" & " WRITE, " & "Fiches_Mo" & " WRITE," & Cbase.Table("TabTleg") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, " & Cbase.Table("TabHisFac") & " WRITE, " & Cbase.Table("TabHisFacm") & " WRITE, " & "Totalisation" & " WRITE, " & "Fiches_Suivis" & " WRITE, " & "Docs_Clients" & " WRITE")
     With Utils
       ye = Right$(dtef.Text, 4)
       mo = Mid$(dtef.Text, 4, 2)
@@ -9656,7 +9758,6 @@ Public Sub Impression(Org As String)
                 PosY = 111
                 If bTypeFacture Then PosY = 116
               Endif
-
               If Coldetail.Count <> 0 Then
                 If Settings["/Soc" & Start.Societe & "/Impbl"] And Bfac.Value Then
                   If BlA5.Value And Not Bfac.value Then
@@ -10577,7 +10678,7 @@ Public Sub Parametres()
     Try bnumfac = rResult!nfac
     If Error Then bnumfac = False
   Endif
-  Nfac = Format$(Val(Nfac) + 1, "000000")
+  Nfac = VerifNumfac.Dnfac(Format$(Val(Nfac), "000000"))
 
 End
 
@@ -10607,7 +10708,7 @@ Public Sub Ventilation()
     "intitule Char(40)," &
     "totalht Char(15)," &
     "totaltva Char(15)," &
-    "codetva Char(1) NOT NULL," &
+    "codetva Char(2) NOT NULL," &
     "PRIMARY KEY (compte,codetva))" & "ENGINE = MYISAM")
   Utils.db.Exec("INSERT INTO " & Cbase.Table("Totalisation") & "(compte, intitule, totalht, codetva) VALUES (&1, &2, &3, &4)", Code.Text, Nom.Text, Tottc.Text, ".")
 
@@ -10963,7 +11064,14 @@ Public Sub Maj_Compta()
             If Regmt.text = "Chèque" Then
               If Val(Tottc.Text) > 0 Then Montantcheque = Val(rglt.Text)
               'On mouvemente la table des bordereaux de chèques.
-              Utils.db.Exec("INSERT INTO " & "Fiches_BordereauxC" & "(code, nom, montant,dateremise,banque,nfacture ) VALUES (&1, &2, &3, &4, &5,&6)", Code3.Text, Rs2, Montantcheque, .Cdate_Dbase(Dtef.Text), jnal, Nmfac)
+              If Not Settings["/Soc" & Start.Societe & "/Cheque"] Then
+                Utils.db.Exec("INSERT INTO " & "Fiches_BordereauxC" & "(code, nom, montant,dateremise,banque,nfacture ) VALUES (&1, &2, &3, &4, &5,&6)", Code3.Text, Rs2, Montantcheque, .Cdate_Dbase(Dtef.Text), jnal, Nmfac)
+              Else
+                If Settings["/Soc" & Start.Societe & "/Cheque"] Then
+                  Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Code3.Text, rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text))
+                  Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech, collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, coll, rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text), 1)
+                Endif
+              Endif
             Endif
           Endif
           If Val(Tottc.Text) > 0 Then
@@ -10973,8 +11081,9 @@ Public Sub Maj_Compta()
             Mtc = Mtd
             Mtd = 0
           Endif
-          If Regmt.text <> "Chèque" Then Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Cptreglt, Regmt.text & " " & rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, 0, cloturee, .Cdate_Dbase(Dtef.Text))
-
+          If Regmt.text <> "Chèque" Or If Regmt.text = "Chèque" And Settings["/Soc" & Start.Societe & "/Cheque"] Then
+            Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Vichq, Regmt.text & " " & rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, 0, cloturee, .Cdate_Dbase(Dtef.Text))
+          Endif
           '*******************************On recalcule les soldes des comptes************************************
           If Val(Tottc.Text) > 0 Then
             Mtc = Val(rglt.Text)
@@ -11064,10 +11173,17 @@ Public Sub Maj_Compta()
           Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Code3.Text, rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text))
           Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech, collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, coll, rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text), 1)
         Else
-          If Regmt2.text = "Chèque" Then
+          If Regmt2.text = "Chèque"
             If Val(Tottc.Text) > 0 Then Montantcheque = Val(rglt2.Text)
             'On mouvemente la table des bordereaux de chèques.
-            Utils.db.Exec("INSERT INTO " & "Fiches_BordereauxC" & "(code, nom, montant,dateremise,banque,nfacture ) VALUES (&1, &2, &3, &4, &5,&6)", Code3.Text, Rs2, Montantcheque, .Cdate_Dbase(Dtef.Text), jnal, Nmfac)
+            If Not Settings["/Soc" & Start.Societe & "/Cheque"] Then
+              Utils.db.Exec("INSERT INTO " & "Fiches_BordereauxC" & "(code, nom, montant,dateremise,banque,nfacture ) VALUES (&1, &2, &3, &4, &5,&6)", Code3.Text, Rs2, Montantcheque, .Cdate_Dbase(Dtef.Text), jnal, Nmfac)
+            Else
+              If Settings["/Soc" & Start.Societe & "/Cheque"] Then
+                Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Code3.Text, rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text))
+                Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech, collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, coll, rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text), 1)
+              Endif
+            Endif
           Endif
         Endif
         If Val(Tottc.Text) > 0 Then
@@ -11258,6 +11374,7 @@ Public Sub Colbl_Activate()
   Dim Blarch As Result
   Dim Fbl As String
   Dim bavoir As Boolean = False
+  Dim barchive As Boolean = False
   'Utils.db.Exec("UNLOCK TABLES")
   If bTypeFacture Then
     Fbl = "Fiches_BlM"
@@ -11277,12 +11394,27 @@ Public Sub Colbl_Activate()
         If start.son Then
           Music.Play
         Endif
-        If Message.Question(" Attention ! Vous allez archiver cette facture. Voulez-vous faire un avoir ?", "Non", "Oui") = 2 Then bavoir = True
-        Tot_Remises()
-        Ent_Archives()
-        Lig_Archives()
-        Bl_Sup()
-        Numerofac = Numfac
+        Select Case Message.Question("Attention ! Vous allez archiver cette facture. Voulez-vous faire un avoir ?\n1- Oui\n2- Non\n3 -Ne rien faire", "1", "2", "3")
+            ' If Message.Question(" Attention ! Vous allez archiver cette facture. Voulez-vous faire un avoir ?", "Non", "Oui") = 2 Then bavoir = True
+          Case 1
+            bavoir = True
+            barchive = True
+            Tot_Remises()
+            Ent_Archives()
+            Lig_Archives()
+            Bl_Sup()
+            Numerofac = Numfac
+          Case 2
+            bavoir = False
+            barchive = True
+            Tot_Remises()
+            Ent_Archives()
+            Lig_Archives()
+            Bl_Sup()
+            Numerofac = Numfac
+          Case 3
+            barchive = False
+        End Select
         If bavoir Then
           Button2_Click()
           Numerofac = Numfac
@@ -11316,10 +11448,12 @@ Public Sub Colbl_Activate()
           Coldetail3.Columns[8].Text = " TL "
           EntFac()
         Endif
-        If bavoir Then
+        If bavoir And barchive Then
           Message.Info("La facture N° " & Numerofac & " a été archivée.\nVeuillez sélectionner vos lignes d'avoir SVP...")
         Else
-          Message.Info("La facture N° " & Numerofac & " a été archivée.")
+          If Not bavoir And barchive Then
+            Message.Info("La facture N° " & Numerofac & " a été archivée.")
+          Endif
         Endif
       Endif
     Endif

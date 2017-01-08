@@ -27,7 +27,7 @@
 hForm As VisStatcli
 dte1 As String
 dte2 As String
-Tot As Integer
+Tot As Float
 son As Integer = Start.Son
 
 Public Sub _New()
@@ -166,15 +166,17 @@ Public Sub Traitement()
   Dim Tab4 As String
   Dim Tab5 As String
   Dim Client As String
+  Dim Dte As String
+  Dim Dte2 As String
   Dim rResult As Result
   Dim N1Result As Result
   Dim TotResult As Result
   Dim cliResult As Result
   Dim TotA As Float
   Dim BrutA As Float
-  Dim RemiseA As Float
-  Dim Remmo As Float
-  Dim Remart As Float
+  Dim Remise, RemiseA, Brut As Float
+  Dim Remmo, MargeMo, MargePmo As Float
+  Dim Remart, MargeArt, MargePart As Float
 
   Tab = "Fiches_HistoFac"
   Tab2 = "Total"
@@ -190,8 +192,13 @@ Public Sub Traitement()
       "pnmclifac Char(25)," &
       "brutfac Decimal(12,2)," &
       "rmfac Decimal(12,2)," &
+      "marge_art Decimal(12,2)," &
+      "marge_mo Decimal(12,2)," &
+      "margepart Decimal(12,2)," &
+      "margepmo Decimal(12,2)," &
       "totfac Decimal(12,2)," &
       "totfacn1 Decimal(12,2)," &
+      "date Char(6)," &
       "PRIMARY KEY (cdclifac))" & "ENGINE = MYISAM")
     If dteN0.Text <> "" Or Left$(dteN0.Text, 2) = "00" Or dteN1.Text <> "" Or Left$(dteN1.Text, 2) = "00" Then
       If Facn.value = True Then rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where datefac >= &1 and datefac <= &2 order by cdclifac, datefac ", Utils.Cdate_Dbase(dteN0.Text), .Cdate_Dbase(dteN1.Text))
@@ -233,29 +240,59 @@ Public Sub Traitement()
           Remmo = 0
         Until rResult.MoveNext()
       Endif
-      If Facn.value = True Then N1Result = Utils.db.Exec("SELECT * FROM " & Tab & " where datefac >= &1 and datefac <= &2  ", Utils.Cdate_Dbase(dte1), utils.Cdate_Dbase(dte2))
-      If Face.value = True Then N1Result = Utils.db.Exec("SELECT * FROM " & Tab3 & " where datefac >= &1 and datefac <= &2  ", .Cdate_Dbase(dte1), .Cdate_Dbase(dte2))
-      If Fact.value = True Then N1Result = Utils.db.Exec("SELECT * FROM " & Tab & " where datefac >= &1 and datefac <= &2 union SELECT * FROM " & Tab3 & " where datefac >= &1 and datefac <= &2", .Cdate_Dbase(dte1), .Cdate_Dbase(dte2))
-      If N1Result.Available Then
+      If Facn.value = True Then rResult = Utils.db.Exec("SELECT * FROM " & Tab4 & " where dtefac >= &1 and dtefac <= &2 and type = &3 and imp = &4 order by dtefac", Utils.Cdate_Dbase(dteN0.Text), utils.Cdate_Dbase(dteN1.Text), "F", 1)
+      If Face.value = True Then rResult = Utils.db.Exec("SELECT * FROM " & Tab5 & " where dtefac >= &1 and dtefac <= &2 and type = &3 and imp = &4 order by dtefac  ", .Cdate_Dbase(dteN0.Text), .Cdate_Dbase(dteN1.Text), "F", 1)
+      If Fact.value = True Then rResult = Utils.db.Exec("SELECT * FROM " & Tab4 & " where dtefac >= &1 and dtefac <= &2  and type = &3 and imp = &4 order by dtefac union SELECT * FROM " & Tab5 & " where dtefac >= &1 and dtefac <= &2  and type = &3 and imp = &4 order by dtefac", .Cdate_Dbase(dteN0.Text), .Cdate_Dbase(dteN1.Text), "F", 1)
+      If rResult.Available Then
         Repeat
-          Try TotA = Val(.cpoint(N1Result!totfac))
-          If Error Then TotA = N1Result!totfac
-          TotResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " Where cdclifac = &1", N1Result!cdclifac)
-          If Totresult.Available Then
-            If TotResult!totfacn1 = "" Then
-              TotA = TotA + 0
-            Else
-              TotA = TotA + TotResult!totfacn1
-            Endif
-            Utils.db.Exec("UPdate " & Tab2 & " set totfacn1 = &2 Where cdclifac = &1", N1Result!cdclifac, TotA)
-            'Else
-            'Utils.db.Exec("INSERT INTO " & Tab2 & "(cdclifac, totfacn1) VALUES (&1, &2)", rResult!cdclifac, TotA)
+          Dte = Mid$(Str(rResult!dtefac), 4, 2) & Mid$(Str(rResult!dtefac), 7, 4)
+          'Dte = Mid$(Str(rResult!dtefac), 3, 2) & Mid$(Str(rResult!dtefac), 6, 2)
+          If Not IsNull(rResult!remmobl) Then
+            Remmo = rResult!remmobl
           Endif
-          TotA = 0
-        Until N1Result.MoveNext()
-        'Else
-        'TotA = 0
-        'Utils.db.Exec("UPdate " & Tab2 & " set totfacn1 = &2 Where cdclifac = &1", rResult!cdclifac, TotA)
+          If Not IsNull(rResult!remartbl) Then
+            Remart = rResult!remartbl
+          Endif
+          Remise = Remise + Remart + Remmo
+          If Not IsNull(rResult!totalht) Then
+            TotA = TotA + Val(.cpoint(rResult!totalht))
+            Brut = TotA + Remise
+          Endif
+          If Not IsNull(rResult!marge_art) Then
+            MargeArt = rResult!marge_art
+            Try MargePart = (MargeArt / Tot) * 100
+          Endif
+          If Not IsNull(rResult!marge_mo) Then
+            MargeMo = rResult!marge_mo
+            Try MargePmo = (MargeMo / Tot) * 100
+          Endif
+          N1Result = Utils.db.Exec("SELECT * FROM " & Tab2 & " where cdclifac = &1", rResult!cdclibl)
+          If N1Result.Available Then
+            TotA = TotA + N1Result!totfac
+            Brut = Brut + N1Result!brutfac
+            Remise = Remise + N1Result!rmfac
+            If Not IsNull(N1Result!marge_art) Then
+              MargeArt = MargeArt + N1Result!marge_art
+              MargePart = (MargeArt / Tot) * 100
+            Endif
+            If Not IsNull(rResult!marge_mo) Then
+              MargeMo = MargeMo + rResult!marge_mo
+              MargePmo = (MargeMo / Tot) * 100
+            Endif
+            Utils.db.Exec("UPdate " & Tab2 & " set brutfac = &1, rmfac = &2, totfac = &3, marge_art = &4, margepart = &5, marge_mo = &6, margepmo = &7 Where cdclifac = &8", .PointBase(Brut), .PointBase(Remise), .PointBase(TotA), .PointBase(MargeArt), .PointBase(MargePart), .PointBase(MargeMo), .PointBase(MargePmo), rResult!cdclibl)
+          Else
+            Try Utils.db.Exec("INSERT INTO " & Tab2 & "(brutfac, rmfac, totfac, marge_art, margepart, marge_mo, margepmo, date, cdclifac, nmclifac, pnmclifac) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", .PointBase(Brut), .PointBase(Remise), .PointBase(TotA), .PointBase(MargeArt), .PointBase(MargePart), .PointBase(MargeMo), .PointBase(MargePmo), Dte, rResult!cdclibl, rResult!nmclibl, rResult!pnmclibl)
+          Endif
+          Remart = 0
+          Remmo = 0
+          Tot = 40
+          Brut = 0
+          Remise = 0
+          MargeArt = 0
+          MargePart = 0
+          MargeMo = 0
+          MargePmo = 0
+        Until rResult.MoveNext()
       Endif
     Else
       If son Then

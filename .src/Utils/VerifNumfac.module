@@ -1,0 +1,93 @@
+' Gambas module file
+
+Public Sub Dnfac(Nfac As String) As String
+
+  Dim FacResult As Result
+  Dim i, N1, N2 As Integer = 0
+  Dim N3, N4, N5 As String
+  Dim bfacture, b1facture, b2facture, b3facture As Boolean = False
+
+  If Settings["/Soc" & Start.Societe & "/Materiel"] Then
+    Facresult = Utils.db.Exec("SELECT numfac FROM Fiches_HistoFacM order by numfac desc")
+    If FacResult.Available Then Try N1 = Val(Right$(Facresult!numfac, 6))
+    Facresult = Utils.db.Exec("SELECT numfac FROM Fiches_BlM order by numfac desc")
+    If FacResult.Available Then Try N2 = Val(Right$(Facresult!numfac, 6))
+    If N1 > N2 Then
+      N5 = N1
+    Else
+      N5 = N2
+    Endif
+    Facresult = Utils.db.Exec("SELECT numfac FROM Fiches_HistoFacM where right(numfac,6) = &1", Nfac)
+    If Not FacResult.Available Then
+      b3facture = False
+    Else
+      b3facture = True
+    Endif
+    If Not b3facture Then
+      Facresult = Utils.db.Exec("SELECT numfac FROM Fiches_BlM where right(numfac,6) = &1", Nfac)
+      If Not FacResult.Available Then
+        b3facture = False
+      Else
+        b3facture = True
+      Endif
+    Endif
+  Endif
+  Facresult = Utils.db.Exec("SELECT numfac FROM Fiches_HistoFac order by numfac desc")
+  If FacResult.Available Then Try N1 = Val(Right$(Facresult!numfac, 6))
+  Facresult = Utils.db.Exec("SELECT numfac FROM Fiches_Bl order by numfac desc")
+  If FacResult.Available Then Try N2 = Val(Right$(Facresult!numfac, 6))
+  If N1 > N2 Then
+    N4 = N1
+  Else
+    N4 = N2
+  Endif
+  Facresult = Utils.db.Exec("SELECT numfac FROM Fiches_HistoFac where right(numfac,6) = &1", Nfac)
+  If Not FacResult.Available Then
+    bfacture = False
+  Else
+    bfacture = True
+  Endif
+  If Not bfacture Then
+    Facresult = Utils.db.Exec("SELECT numfac FROM Fiches_Bl where right(numfac,6) = &1", Nfac)
+    If Not FacResult.Available Then
+      bfacture = False
+    Else
+      bfacture = True
+    Endif
+  Endif
+  If bfacture Then
+    N3 = Format$(Val(Nfac), "000000")
+    Repeat
+      N3 = Format$(Val(N3) + 1, "000000")
+      Facresult = Utils.db.Exec("SELECT numfac FROM Fiches_HistoFac where right(numfac,6) = &1", N3)
+      If Facresult.Available Then
+        b1facture = True
+      Else
+        b1facture = False
+      Endif
+      Facresult = Utils.db.Exec("SELECT numfac FROM Fiches_Bl where right(numfac,6) = &1", N3)
+      If Facresult.Available Then
+        b2facture = True
+      Else
+        b2facture = False
+      Endif
+      If Settings["/Soc" & Start.Societe & "/Materiel"] Then
+        Facresult = Utils.db.Exec("SELECT numfac FROM Fiches_HistoFacM where right(numfac,6) = &1", N3)
+        If Facresult.Available Then
+          b1facture = True
+        Else
+          b1facture = False
+        Endif
+        Facresult = Utils.db.Exec("SELECT numfac FROM Fiches_BlM where right(numfac,6) = &1", N3)
+        If Facresult.Available Then
+          b2facture = True
+        Else
+          b2facture = False
+        Endif
+      Endif
+      If Not b1facture And Not b2facture Then Break
+    Until Val(N3) >= Val(N4) + 1
+  Endif
+  Return N3
+
+End

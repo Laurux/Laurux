@@ -1,0 +1,107 @@
+' Gambas class file
+
+CoulZns As Integer ' Variable pour la couleur du background des zones de saisie
+CoulFoc As Integer ' Variable pour la couleur du FOCUS
+
+Public Sub _New()
+
+  Dim Frmt As String[]
+
+  Frmt = Utils.FColr(Settings["/Coul/Focus"])
+  CoulFoc = Val(Frmt[0])
+  Frmt = Utils.FColr(Settings["/Coul/Znss"])
+  CoulZns = Val(Frmt[0])
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Music.Load(Start.Musique)
+  Me.Center
+
+  'Mise en place de la gestion des focus
+  Utils.Observers(Me)
+
+  Coluser.Columns.count = 2
+  Coluser.Columns[0].Width = 200
+  Coluser.Columns[1].Width = 140
+  Coluser.Columns[0].Text = "Utilisateur"
+  Coluser.Columns[0].Alignment = 1
+  Coluser.Columns[1].Text = "Poste"
+  Coluser.Columns[1].Alignment = 1
+  Utilisateur.SetFocus
+
+End
+
+Public Sub Form_Open()
+
+  Dim Rtype As Result
+
+  Rtype = Utils.db.Exec("SELECT * FROM Fiches_Users")
+  Coluser.Clear
+  If Rtype.Available Then
+    Repeat
+      Coluser.Add(Rtype!nom, Rtype!nom)
+      Coluser.Item[0] = Rtype!nom
+      Coluser.Item[1] = Rtype!poste
+    Until Rtype.MoveNext()
+  Endif
+
+End
+
+Public Sub MajZones()
+
+  Utilisateur.Text = Coluser.Current[0]
+  Poste.text = Coluser.current[1]
+  Utilisateur.SetFocus
+
+End
+
+Public Sub Button4_Click()
+
+  Me.Close
+
+End
+
+Public Sub Button3_Click()
+
+  Dim Rtype As Result
+
+  If Utilisateur.Text <> "" Then
+    Rtype = Utils.db.Exec("SELECT * FROM Fiches_Users WHERE nom = '" & utilisateur.Text & "'")
+    If Rtype.Available Then
+      Utils.db.Exec("UPdate   Fiches_Users  SET  nom = &1, poste = &2 WHERE nom = &1", Utilisateur.Text, Poste.Text)
+    Else
+      Utils.db.Exec("INSERT INTO  Fiches_Users (nom, poste) VALUES (&1, &2)", Utilisateur.Text, Poste.Text)
+    Endif
+    Refresh()
+    Utilisateur.SetFocus
+  Else
+    Utilisateur.Select
+  Endif
+
+End
+
+Public Sub Refresh()
+
+  Utilisateur.clear
+  Poste.Clear
+  form_Open()
+
+End
+
+Public Sub Coluser_Click()
+
+  MajZones()
+
+End
+
+Public Sub Button2_Click()
+
+  If Utilisateur.Text <> "" Then
+    If Start.son Then
+      Music.Play
+    Endif
+    If Message.Question("Etes vous sur de vouloir effacer cet enregistrement", "Oui", "Non") = 1 Then
+      Utils.db.Exec("DELETE FROM  Fiches_Users WHERE nom = &1", Coluser.Current[0])
+      Refresh()
+    Endif
+  Endif
+
+End
