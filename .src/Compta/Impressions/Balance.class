@@ -35,9 +35,6 @@ Private TotSld As Float
 Private debit As Float
 Private credit As Float
 Private solde As Float
-Private Totbaldeb As Float
-Private Totbalcred As Float
-Private Totbalsld As Float
 Private dte As String
 Private dte1 As String
 Private dte2 As String
@@ -51,32 +48,12 @@ Private hfile As File
 Private Tab0 As String
 Private Nom As String
 Private Compt As String
-Private Debclass As Float
-Private Credclass As Float
-Private Sldclass As Float
 Private TotDeb2 As Float
 Private TotCred2 As Float
 Private TotSld2 As Float
-Private Debclasshp As Float
-Private Credclasshp As Float
-Private Sldclassdeb As Float
-Private Sldclasscred As Float
-Private Totdebclass As Float
-Private Totcredclass As Float
-Private Totbaldebhp As Float
-Private Totbalcredhp As Float
-Private sldbaldeb As Float
-Private sldbalcred As Float
-Private Sldbal As Float
-Private Clas As String
-Private p As Integer
 Private PosY As Integer
-Private PosX As Integer
-Private Nbpage As Integer
 Private Ste As String
-Private dateedition As String
 Private Tri As String
-Private pdf As Cbalances
 
 '*************************
 '* On initialise l'écran *
@@ -493,7 +470,7 @@ Public Sub Bclient_Click()
   Cpt.Text = "41100001"
   Type = "C"
   Type2 = "C"
-  nom = "Client"
+  nom = "client"
   Cpt.Setfocus
   Cpt.Select
 
@@ -507,7 +484,7 @@ Public Sub Bfournisseur_Click()
   Cpt.Text = "40100001"
   Type = "F"
   Type2 = "F"
-  nom = "Fournisseur"
+  nom = "fournisseur"
   Cpt.Setfocus
   Cpt.Select
 
@@ -521,7 +498,7 @@ Public Sub Bgestion_Click()
   Cpt.Text = "10000"
   Type = "G"
   Type2 = "B"
-  nom = "Generale"
+  nom = "générale"
   Cpt.Setfocus
   Cpt.Select
 
@@ -642,310 +619,7 @@ End
 '******************
 Public Sub Button1_Click()
 
-  Dim i As Integer
-  Dim rResult As Result
-  Dim rrResult As Result
-  Dim SteResult As Result
-  Dim Intit As String
-  Dim p1 As Integer
-  Dim Stotdeb As String
-  Dim Stotcred As String
-  Dim Sdebhp As String
-  Dim Scredhp As String
-
-  totsldhp = 0.00
-  p1 = 1
-  p = 4
-  solde = 0
-  dateedition = "du " & dteN0.Text & " au " & dteN1.Text
-  Nbpage = 1
-  Shell "cd " & User.Home & ""
-  Filename = User.Home & "/tmp/Balance.pdf"
-  pdf = New Cbalances("Portrait", "mm", "A4")
-  pdf.Open()
-  pdf.AliasNbPages()
-  With Utils
-    Me.mouse = Mouse.wait
-    SteResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabSoc") & " Where cd_sc = &1", Start.Societe)
-    Ste = "Societe " & " " & SteResult!int_sc
-    rrResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " WHERE cast(compte_cc as char) >= &1  and cast(compte_cc as char) <= &2  and type_cc =&4 or cast(compte_cc as char) >= &1  and cast(compte_cc as char) <= &2  and type_cc =&5 order by cast(compte_cc AS char)", cpt.text, cpt2.text, 0, Type, Type2)
-    If rrResult.Available Then
-      pdf.Entete("Impression des balances")
-      posx = 40
-      posy = 26
-      pdf.Level0("Balance  " & nom, dateedition, Ste)
-      posy = posy + 5
-      If Impcumul.Value = True Then
-        pdf.Level1()
-        posy = posy + 4
-      Else
-        pdf.Level1a()
-        posy = posy + 4
-      Endif
-      Repeat
-        compt = rrResult!compte_cc
-        Intit = rrResult!intitule_cc
-        rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " WHERE compte = &1  and validee = &2  order by dte ", compt, 1)
-        If rrResult.count <> 0 Then
-          If Type <> "C" And Type2 <> "F" Then Classe()
-          i = 0
-          rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " WHERE compte = &1  and validee = &2  order by dte ", compt, 1)
-          While i < rResult.count
-            If Utils.Cdate_Comp(rResult!dte) >= Utils.Cdate_Dbase(dten0.Text) And Utils.Cdate_Comp(rResult!dte) <= Utils.Cdate_Dbase(dten1.Text) Then
-              debit = rResult!montantd
-              credit = rResult!montantc
-              solde = solde + debit - credit
-              totdeb = totdeb + debit
-              totcred = totcred + credit
-              totsld = totdeb - totcred
-              dte = .CDate_Aff(rResult!dte)
-              dte = Left(dte, 6) & Right(dte, 2)
-            Else
-              DebHP = DebHP + rResult!montantd
-              CredHP = CredHP + rResult!montantc
-              Totsldhp = debhp - credhp
-            Endif
-            Inc i
-            rResult.MoveNext
-          Wend
-          totdeb2 = totdeb + debhp
-          totcred2 = totcred + credhp
-          totsld2 = totdeb2 - totcred2
-          If totsld2 > 0 Then
-            totdeb2 = totsld2
-            totcred2 = 0
-          Else
-            totdeb2 = 0
-            totcred2 = Abs(totsld2)
-          Endif
-          If Totdeb = 0 Then
-            Stotdeb = ""
-          Else
-            Stotdeb = Str(Totdeb)
-            Stotdeb = Format$(Val(Stotdeb), ",0.00")
-          Endif
-          If Totcred = 0 Then
-            Stotcred = ""
-          Else
-            Stotcred = Str(Totcred)
-            stotcred = Format$(Val(stotcred), ",0.00")
-          Endif
-          If Debhp = 0 Then
-            Sdebhp = ""
-          Else
-            Sdebhp = Str(debhp)
-            Sdebhp = Format$(Val(Sdebhp), ",0.00")
-          Endif
-          If Credhp = 0 Then
-            Scredhp = ""
-          Else
-            Scredhp = Str(Credhp)
-            Scredhp = Format$(Val(Scredhp), ",0.00")
-          Endif
-          If sTotdeb = "" And stotcred = "" And Impc.value = False Then
-          Else
-            If Impcumul.Value = True Then
-              pdf.level2(Compt, intit, Stotdeb, Stotcred, Sdebhp, Scredhp, Format$(totdeb2, ",0.00"), Format$(totcred2, ",0.00"), Format$(totsld2, ",0.00"), PosY)
-            Else
-              pdf.level2a(Compt, intit, Stotdeb, Stotcred, PosY)
-            Endif
-            posy = posy + 5
-            Bas_page()
-          Endif
-          totbaldeb = totbaldeb + totdeb
-          totbalcred = totbalcred + totcred
-          totbaldebhp = totbaldebhp + debhp
-          totbalcredhp = totbalcredhp + credhp
-          Debclass = Debclass + totdeb
-          Credclass = Credclass + totcred
-          Debclasshp = Debclasshp + debhp
-          Credclasshp = Credclasshp + credhp
-          Sldclassdeb = Totdeb2 + Sldclassdeb
-          Sldclasscred = Totcred2 + Sldclasscred
-          Sldclass = Sldclassdeb - Sldclasscred
-          Totdebclass = Totdebclass + Sldclassdeb
-          Totcredclass = Totcredclass + Sldclasscred
-        Else
-          If Impc.value = True Then
-            If Impcumul.Value = True Then
-              pdf.level2(Compt, intit, "", "", "", "", "", "", "", PosY)
-            Else
-              pdf.level2a(Compt, intit, "", "", PosY)
-            Endif
-            posy = posy + 4
-          Endif
-        Endif
-        Bas_page()
-        raz()
-      Until rrResult.MoveNext()
-      If Type = "C" Then Clas = "Client"
-      If Type2 = "F" Then Clas = "Fournisseur"
-      PosY = Posy + 3
-      Bas_page()
-      If Impcumul.value = True Then
-        pdf.level3(Clas, Format$(Debclass, ",0.00"), Format$(Credclass, ",0.00"), Format$(Debclasshp, ",0.00"), Format$(Credclasshp, ",0.00"), Format$(Sldclassdeb, ",0.00"), Format$(Sldclasscred, ",0.00"), Format$(Sldclass, ",0.00"), PosY)
-      Else
-        pdf.level3a(Clas, Format$(Debclass, ",0.00"), Format$(Credclass, ",0.00"), PosY)
-      Endif
-      posy = posy + 5
-      Sldbaldeb = totbaldeb + totbaldebhp
-      Sldbalcred = totbalcred + totbalcredhp
-      Sldbal = Sldbaldeb - Sldbalcred
-      Posy = Posy + 4
-      If Impcumul.value = True Then
-        pdf.level4(Format$(totbaldeb, ",0.00"), Format$(totbalcred, ",0.00"), Format$(totbaldebhp, ",0.00"), Format$(totbalcredhp, ",0.00"), Format$(sldbaldeb, ",0.00"), Format$(sldbalcred, ",0.00"), Format$(sldbal, ",0.00"), PosY)
-      Else
-        pdf.level4a(Format$(totbaldeb, ",0.00"), Format$(totbalcred, ",0.00"), PosY)
-      Endif
-      p = p + 4
-      Bas_page()
-      Clas = ""
-      Raz()
-      totbaldeb = 0
-      totbalcred = 0
-      totdeb2 = 0
-      totcred2 = 0
-      totbalsld = 0
-      Debclass = 0
-      Credclass = 0
-      Totdebclass = 0
-      Totcredclass = 0
-      totbaldeb = 0
-      totbalcred = 0
-      totbaldebhp = 0
-      totbalcredhp = 0
-      Debclass = 0
-      Credclass = 0
-      Debclasshp = 0
-      Credclasshp = 0
-      Sldclassdeb = 0
-      Sldclasscred = 0
-      Sldbaldeb = 0
-      Sldbalcred = 0
-      Sldclass = 0
-      Posy = Posy + 5
-      pdf.Baspage()
-      pdf.Output(Filename, False)
-      Visualiseur.Prog_Editeur(Filename)
-    Else
-      If start.son Then
-        Music.Play
-      Endif
-      message(" Aucune ecriture pour cette demande", "OK")
-    Endif
-  End With
-  Me.Mouse = Mouse.Default
-Catch
-  If start.son Then
-    Music.Play
-  Endif
-  message.Error(Error.Text & " " & Error.where)
-  Me.Mouse = Mouse.Default
-
-End
-
-Public Sub Bas_page()
-
-  If PosY >= 268 Then
-    pdf.Baspage()
-    pdf.Entete("Impression des balances")
-    posx = 40
-    posy = 26
-    pdf.Level0("Balance  " & nom, dateedition, Ste)
-    posy = posy + 5
-    If Impcumul.Value = True Then
-      pdf.Level1()
-      posy = posy + 4
-    Else
-      pdf.Level1a()
-      posy = posy + 4
-    Endif
-  Endif
-
-End
-
-'****************************************************************
-'*   On calcul le total de la classe pour les comptes généraux  *
-'****************************************************************
-
-Public Sub Classe()
-
-  If Clas = "" Then
-    Clas = Left$(Compt, 1)
-  Else
-    If Clas <> Left$(compt, 1) Then
-      If PosY >= 274 Then
-        pdf.Entete("Impression des balances")
-        posx = 40
-        posy = 26
-        pdf.Level0("Balance  " & nom, dateedition, Ste)
-        posy = posy + 5
-        If Impcumul.Value = True Then
-          pdf.Level1()
-          posy = posy + 4
-        Else
-          pdf.Level1a()
-          posy = posy + 4
-        Endif
-      Endif
-      If Impcumul.value = True Then
-        pdf.level3(Clas, Format$(Debclass, ",0.00"), Format$(Credclass, ",0.00"), Format$(Debclasshp, ",0.00"), Format$(Credclasshp, ",0.00"), Format$(Sldclassdeb, ",0.00"), Format$(Sldclasscred, ",0.00"), Format$(Sldclass, ",0.00"), PosY)
-      Else
-        pdf.level3a(Clas, Format$(Debclass, ",0.00"), Format$(Credclass, ",0.00"), PosY)
-      Endif
-      posy = posy + 8
-      Sldclass = 0
-      debclasshp = 0
-      credclasshp = 0
-      totdebclass = 0
-      totcredclass = 0
-      Debclass = 0
-      Credclass = 0
-      Sldclassdeb = 0
-      sldclasscred = 0
-      P = P + 3
-    Endif
-    Clas = Left$(Compt, 1)
-  Endif
-
-End
-
-'*************************************************************
-'*   On calcul le total de la classe pour les comptes tiers  *
-'*************************************************************
-Public Sub Classe2()
-
-  If PosY >= 274 Then
-    pdf.Entete("Impression des balances")
-    posx = 40
-    posy = 26
-    pdf.Level0("Balance  " & nom, dateedition, Ste)
-    posy = posy + 5
-    If Impcumul.Value = True Then
-      pdf.Level1()
-      posy = posy + 4
-    Else
-      pdf.Level1a()
-      posy = posy + 4
-    Endif
-  Endif
-  If Impcumul.value = True Then
-    pdf.level3(Clas, Format$(Debclass, ",0.00"), Format$(Credclass, ",0.00"), Format$(Debclasshp, ",0.00"), Format$(Credclasshp, ",0.00"), Format$(Sldclassdeb, ",0.00"), Format$(Sldclasscred, "0.00"), Format$(Sldclass, ",0.00"), PosY)
-  Else
-    pdf.level3a(Clas, Format$(Debclass, ",0.00"), Format$(Credclass, ",0.00"), PosY)
-  Endif
-  posy = posy + 8
-  Sldclass = 0
-  debclasshp = 0
-  credclasshp = 0
-  totdebclass = 0
-  totcredclass = 0
-  Debclass = 0
-  Credclass = 0
-  Sldclassdeb = 0
-  sldclasscred = 0
-  Inc P
-  Clas = Left$(Compt, 1)
+  BalanceM.Imprime(cpt.text, cpt2.text, Type, Type2, dteN0.Text, dteN1.Text, Impcumul.value, Impc.value, Tab0, nom)
 
 End
 
