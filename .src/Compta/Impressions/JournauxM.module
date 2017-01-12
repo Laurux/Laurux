@@ -36,7 +36,7 @@ Private p[12] As String
 Private q[12] As String
 Private pdf As Ccompta
 
-Public Sub Imprime(cpt As String, cpt2 As String, dten0 As String, dten1 As String, Radiobutton1 As Boolean, CheckBox1 As Boolean, Tab0 As String)
+Public Sub Imprime(cpt As String, cpt2 As String, dten0 As String, dten1 As String, Radiobutton1 As Boolean, CheckBox1 As Boolean, Tab0 As String, Cloture As Boolean)
 
   Dim i As Integer
   Dim rResult As Result
@@ -105,13 +105,17 @@ Public Sub Imprime(cpt As String, cpt2 As String, dten0 As String, dten1 As Stri
         Intit = r2Result!libelle_jo
         type_jour = r2Result!type_jo
         If RadioButton1 Then
-          rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " WHERE jour = &1 and validee = &2 and dte >= &3 and dte <= &4 order by dte, numero, compte", compt, 1, Utils.Cdate_Dbase(dten0), .Cdate_Dbase(dten1))
+          rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " WHERE jour = &1 and validee = &2 and dte >= &3 and dte <= &4 order by dte, numero, compte", compt, 1, Utils.Cdate_Dbase(dten0), Utils.Cdate_Dbase(dten1))
         Else
           rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " WHERE jour = &1 and validee = &2 and dte >= &3 and dte <= &4 order by numero, dte, compte", compt, 1, .Cdate_Dbase(dten0), .Cdate_Dbase(dten1))
         Endif
         If rResult.count <> 0 Then
           i = 0
-          pdf.Entete("Impression du journal " & Compt)
+          If Cloture Then
+            pdf.Entete("Impression du journal " & Compt & " après clôture")
+          Else
+            pdf.Entete("Impression du journal " & Compt)
+          Endif
           pdf.Level0J(Compt, Intit, dateedition, Qual, Ste)
           pdf.Level1J()
           posy = 32
