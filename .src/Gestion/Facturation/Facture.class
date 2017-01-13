@@ -82,6 +82,7 @@ Ctx As String
 Cpttva As String
 IntitTva As String
 Txtleg As String
+Txtleg1 As String
 Txtleg2 As String
 Remmo As String
 Remart As String
@@ -581,6 +582,8 @@ Public Sub CleanChamps()
   Cdivers = False
   Rglt.Clear
   Rglt2.Clear
+  Regmt.Text = ""
+  Regmt2.Text = ""
   Rgmt.value = False
   XX = ""
 
@@ -8888,8 +8891,11 @@ Public Sub Bl_Edit()
       Rgmt.Enabled = True
     Else
       Rglt.Text = Blent!mtreg
+      Try Rglt2.Text = Blent!mtreg2
       HBox6.Visible = True
       Rglt.ReadOnly = True
+      Regmt.Text = Blent!reg
+      Try Regmt2.Text = Blent!reg2
       Regmt.Enabled = False
       Rgmt.Enabled = False
     Endif
@@ -9563,6 +9569,7 @@ Public Sub Impression(Org As String)
           Tart = "0"
           Trem = "0"
           Txtleg = ""
+          Txtleg1 = ""
           Txtleg2 = ""
           If Not Regmt.Text Then
             If Settings["/Soc" & Start.Societe & "/TxtF"] Then
@@ -9575,7 +9582,8 @@ Public Sub Impression(Org As String)
               Txtleg = "Règlement au " & dateech
             Endif
           Else
-            Txtleg = "Règlement par " & Regmt.Text & " au " & dateech
+            Txtleg = "Règlement " & rglt.Text & " par " & Regmt.Text & " au " & dateech
+            If Not IsNull(Regmt2.text) Then Txtleg1 = "Règlement " & rglt2.Text & " par " & Regmt2.Text & " au " & dateech
           Endif
           If Tp = "D" Then Txtleg = Settings["/Soc" & Start.Societe & "/Devis"]
           If Tp <> "T" Then
@@ -10544,7 +10552,8 @@ Public Sub Impression(Org As String)
             BlRslt = Utils.db.Exec("SELECT * FROM " & tab1 & " where numbl = &1", num.Text)
 
             'Nfac = Right$(Dtef.text, 4) & Nfac
-            Utils.db.Exec("UPDATE  " & Tab1 & "  SET  imp = &2, numfac = &3, reg = &4, ech = &5 , dtefac = &6, mtreg = &7, type = &8 WHERE numbl = &1", num.Text, "1", Nmfac, regmt.Text, .Cdate_Dbase(Dtech.text), .Cdate_Dbase(Dtef.Text), Rglt.Text, "F")
+            Try Utils.db.Exec("UPDATE  " & Tab1 & "  SET  imp = &2, numfac = &3, reg = &4, ech = &5 , dtefac = &6, mtreg = &7, type = &8, reg2 = &9, mtreg2 = &{10} WHERE numbl = &1", num.Text, "1", Nmfac, regmt.Text, .Cdate_Dbase(Dtech.text), .Cdate_Dbase(Dtef.Text), Rglt.Text, "F", Regmt2.Text, Rglt2.Text)
+            If Error Then Utils.db.Exec("UPDATE  " & Tab1 & "  SET  imp = &2, numfac = &3, reg = &4, ech = &5 , dtefac = &6, mtreg = &7, type = &8 WHERE numbl = &1", num.Text, "1", Nmfac, regmt.Text, .Cdate_Dbase(Dtech.text), .Cdate_Dbase(Dtef.Text), Rglt.Text, "F")
             Verif_solde()
             Maj_Compta()
             Maj_Suivis()
@@ -11266,6 +11275,8 @@ Public Sub Calc_tva(Org As String)
   Dim TotEuros As String
   Dim $ht As String
   Dim $tva As String
+  Dim bacquitte As Boolean = False
+  Dim rg, rg2 As Float
 
   Tab = "Fiches_Tvaav"
   Tab2 = "Totalisation"
@@ -11324,6 +11335,11 @@ Public Sub Calc_tva(Org As String)
       Toteuros = Format$(Val(Tottc1.Text), ",0.00") & " " & devises
     Endif
     If Blch.Value = True Then
+      Try rg = Val(Rglt.text)
+      If Error Then rg = 0
+      Try rg2 = Val(Rglt2.text)
+      If Error Then rg2 = 0
+      If rg + rg2 = Val(Totalttc) Then bacquitte = True
       If Prxdec Then
         $ht = Round(Val(Totht1.text))
         $ht = Format$(Val($ht), ",0")
@@ -11331,15 +11347,20 @@ Public Sub Calc_tva(Org As String)
         $tva = Format$(Val($tva), ",0")
         If BlA5.Value And Not Bfac.value Then
           pdf2.Level10F($ht, $tva, Toteuros, Txtleg, PosY - 6, ImpAuto, Exo.value, Franchise)
+          If Not IsNull(txtleg1) Then pdf2.Level10F2(Txtleg1, PosY - 4, ImpAuto, Exo.value, Franchise)
         Else
           pdf.Level10F($ht, $tva, Toteuros, Txtleg, PosY - 6, ImpAuto, Exo.value, Franchise)
+          If Not IsNull(txtleg1) Then pdf2.Level10F2(Txtleg1, PosY - 4, ImpAuto, Exo.value, Franchise)
         Endif
       Else
         If BlA5.Value And Not Bfac.value Then
           pdf2.Level10F(Format$(Val(Totht1.Text), ",0.00"), Tottva.Text, Toteuros, Txtleg, PosY - 6, ImpAuto, Exo.value, Franchise)
+          If Not IsNull(txtleg1) Then pdf2.Level10F2(Txtleg1, PosY - 4, ImpAuto, Exo.value, Franchise)
         Else
           pdf.Level10F(Format$(Val(Totht1.Text), ",0.00"), Tottva.Text, Toteuros, Txtleg, PosY - 6, ImpAuto, Exo.value, Franchise)
+          If Not IsNull(txtleg1) Then pdf.Level10F2(Txtleg1, PosY - 4, ImpAuto, Exo.value, Franchise)
         Endif
+        If bacquitte Then pdf.Level10F3(Posy - 6)
       Endif
       PosY = PosY + 8
       If BlA5.Value And Not Bfac.value Then
@@ -12680,7 +12701,7 @@ Public Sub Regmt_Change()
   If Regmt.text = "Virement" Or If Regmt.text = "Traite" Or If Regmt.text = "Lcr" Then
   Else
     Rglt.ReadOnly = False
-    Rglt.Text = Replace$(Tottc.Text, "-", "")
+    If IsNull(Rglt.Text) Then Rglt.Text = Replace$(Tottc.Text, "-", "")
   Endif
   If Regmt.Text Then RegDef.value = False
 
