@@ -23,6 +23,7 @@
 hForm As Fcalc
 Factbl[10] As String
 Motable[4] As String
+CpTable[5] As String
 n As Integer
 Nv As Integer
 Nbl As Integer
@@ -1501,17 +1502,20 @@ Public Sub Button4_Click()
       Tab = "Fiches_Cli"
       rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where cli_code = &1", Code.text)
       If rResult.Available Then
-        If Not rResult!cli_div Then
-          If Majc.Value And nvc <> 1 Then ' si le client existe et que le bouton Majc est coché alors on met a jour la table des comptes
+        If Majc.Value And nvc <> 1 Then ' si le client existe et que le bouton Majc est coché alors on met a jour la table des comptes
+          If Not rResult!cli_div Then
             Utils.db.Exec("UPdate  " & Tab & "  SET  cli_nom = &2, cli_pnm = &3, cli_adr1 = &4, cli_adr2 = &5, cli_cd_ptl =&6, cli_ville =&7, cli_tel_bur = &8, cli_tel_dom = &9, cli_pble = &{10}, cli_obs = &{11}, cli_rmo =&{12}, cli_rart =&{13}, cli_rs_soc=&{14}, cli_exo=&{15}, cli_email=&{16} WHERE cli_code = &1", code.Text, nom.Text, Pnm.Text, adr1.Text, adr2.Text, cp.Text, Burd.Text, Telbur.Text, Teldom.Text, Telport.Text, Divers.Text, Txmo.Text, Txpieces.Text, Cv.Text, Exo.Value, Courriel.Text)
             Utils.db.Exec("UPdate " & Cbase.Table("TabComptes") & " SET intitule_cc = &2 WHERE compte_cc = &1", Code.Text, Nom.Text)
           Else
-            If nvc = 1 Then
-              Syntheses.Message("Création impossible, ce code client existe déjà !")
-              Try Message.Error("Création impossible, ce code client existe déjà !")
-              nvc = 0
-              Return
-            Endif
+            Utils.db.Exec("UPdate  " & Tab & "  SET  cli_tel_bur = &2, cli_tel_dom = &3, cli_pble = &4, cli_obs = &5,  cli_email = &6 WHERE cli_code = &1", code.Text, Telbur.Text, Teldom.Text, Telport.Text, Divers.Text, Courriel.Text)
+          Endif
+          If Not IsNull(Courriel.Text) Then Try Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMailCli") & " (code, mail) VALUES (&1, &2)", Code.text, courriel.text)
+        Else
+          If nvc = 1 Then
+            Syntheses.Message("Création impossible, ce code client existe déjà !")
+            Try Message.Error("Création impossible, ce code client existe déjà !")
+            nvc = 0
+            Return
           Endif
         Endif
       Else
@@ -1768,13 +1772,15 @@ Public Sub Colbl_Click()
     If bok Then
       ' On récupère les taches associées au bl séléctionné
       If Settings["/Soc" & Start.Societe & "/Taches"] Then
-        ColTaches.Columns.count = 4
-        ColTaches.Columns[0].Width = 1
+        ColTaches.Columns.count = 5
+        ColTaches.Columns[0].Width = 0
         ColTaches.Columns[1].Width = 80
-        ColTaches.Columns[2].Width = 180
-        ColTaches.Columns[1].Text = "Utilisateur"
-        ColTaches.Columns[2].Text = "Poste"
-        ColTaches.Columns[3].Text = "Libellé de la tâche"
+        ColTaches.Columns[2].Width = 120
+        ColTaches.Columns[3].Width = 180
+        ColTaches.Columns[1].Text = "Documents"
+        ColTaches.Columns[2].Text = "Utilisateur"
+        ColTaches.Columns[3].Text = "Poste"
+        ColTaches.Columns[4].Text = "Libellé de la tâche"
         RecupTaches()
       Endif
       Variables.bRemise = False
@@ -2376,36 +2382,50 @@ Public Sub ColTaches_KeyPress()
     Music.Play
   Endif
   If Message.Question("Etes vous sur de vouloir effacer cet enregistrement", "Oui", "Non") = 1 Then
-    Utils.db.Exec("DELETE  FROM Fiches_Taches WHERE lind = &1", ColTaches.Current[0])
+    Utils.db.Exec("DELETE  FROM Fiches_Taches WHERE lind = &1", Coltaches[Coltaches.row, 0].Text)
     Utils.db.Exec("ALTER TABLE Fiches_Taches ORDER BY lind")
     RecupTaches()
   Endif
 
 End
 
+Public Sub Coltaches_Data(Row As Integer, Column As Integer)
+
+  With Utils
+    CpTable[0] = "lind"
+    CpTable[1] = "numdoc"
+    CpTable[2] = "nom"
+    CpTable[3] = "poste"
+    CpTable[4] = "texte"
+    Try .rs1.MoveTo(Row)
+    Try Coltaches.data.Text = Str(.rs1[CpTable[Column]])
+  End With
+
+End
+
 Public Sub RecupTaches()
 
-  Dim Tactive, bureau, $taches As String
+  Dim $tnom As String = User.name
   Dim itaches As Integer = 0
+  Dim $taches As String
 
-  Utilisateur.text = ""
-  LibelTache.Clear
-  ColTaches.Clear
-  rResult = Utils.db.Exec("select * from Fiches_Taches where numdoc = &1", colbl[colbl.row, 2].Text)
-  If rResult.Available Then
-    Repeat
-      ColTaches.Add(rResult!lind, rResult!lind)
-      ColTaches.item[0] = rResult!lind
-      ColTaches.item[1] = rResult!nom
-      ColTaches.item[2] = rResult!poste
-      ColTaches.item[3] = rResult!texte
-      Inc itaches
-      If itaches > 1 Then
-        $taches = " taches"
-      Else
-        $taches = " tache"
-      Endif
-    Until rResult.MoveNext()
+  With Coltaches
+    .Columns.count = 5
+    .Columns[0].Width = 0
+    .Columns[1].Width = 90
+    .Columns[2].Width = 100
+    .Columns[3].Width = 180
+    .Columns[4].Width = 300
+  End With
+  Utils.Base(Coltaches, "select * from  Fiches_Taches  where nom like   \"" & User.name & "%\" ")
+  Coltaches.Refresh
+  itaches = Coltaches.rows.count
+  If itaches > 1 Then
+    $taches = " taches"
+  Else
+    $taches = " tache"
+  Endif
+  If itaches >= 1 Then
     TabStrip1[2].Text = itaches & " " & $taches
   Else
     TabStrip1[2].Text = " 0 tache"
