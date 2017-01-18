@@ -751,7 +751,7 @@ Public Sub Impression()
   Tab9 = "Bl"
   Tab10 = "Totalisation"
   Ventilation()
-  Utils.db.Exec("LOCK TABLES " & Tab & " read, " & Tab0 & " WRITE, " & Tab1 & " WRITE, " & Tab2 & " WRITE," & Tab3 & " WRITE, " & Tab4 & " WRITE, " & Tab5 & " WRITE, " & Tab6 & " WRITE, " & Tab7 & " WRITE, " & Tab8 & " WRITE, " & Tab9 & " WRITE, " & Tab10 & " WRITE," & Cbase.Table("TabTleg") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, " & Cbase.Table("TabHisFac") & " WRITE, " & "Fiches_Suivis" & " WRITE, " & "Docs_Clients" & " WRITE")
+  Utils.db.Exec("LOCK TABLES " & Tab & " read, " & Tab0 & " WRITE, " & Tab1 & " WRITE, " & Tab2 & " WRITE," & Tab3 & " WRITE, " & Tab4 & " WRITE, " & Tab5 & " WRITE, " & Tab6 & " WRITE, " & Tab7 & " WRITE, " & Tab8 & " WRITE, " & Tab9 & " WRITE, " & Tab10 & " WRITE," & Cbase.Table("TabTleg") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, " & Cbase.Table("TabHisFac") & " WRITE, " & "Fiches_Suivis" & " WRITE, " & "Docs_Clients" & " WRITE, " & "Fiches_HistoFacM" & " WRITE, " & "Fiches_BlM" & " WRITE")
   If Settings["/Soc" & Start.Societe & "/glogo"] Then Try Logo = Image.Load(Settings["/Soc" & Start.Societe & "/Logo"])
   Shell "cd " & User.Home & ""
   Filename = User.Home & "/tmp/Facture.pdf"
@@ -1649,12 +1649,10 @@ Public Sub Maj_Compta()
             jl = Utils.db.Exec("SELECT * FROM " & Tab5 & " where code_jo = &1", jnal)
             Cptreglt = jl!cde_banque
           Else
-            If Regmt.text = "Carte" Then
-              Cptreglt = Vic
-            Else
-              If Regmt.text = "Chèque" Then
-                Cptreglt = Vichq
-              Endif
+            If Regmt.text = "Carte" Then Cptreglt = Vic
+            If Regmt.text = "Chèque" Then Cptreglt = Vichq
+            If Settings["/Soc" & Start.Societe & "/Carte"] Or If Settings["/Soc" & Start.Societe & "/Cheque"] Then
+              Cptreglt = Param!cde_banque
             Endif
           Endif
           Libel = "Rglt " & Regmt.Text & " " & $intitule
@@ -1756,12 +1754,10 @@ Public Sub Maj_Compta()
           If Regmt2.text = "Espèces" Then
             Cptreglt = jl!cde_banque
           Else
-            If Regmt2.text = "Carte" Then
-              Cptreglt = Vic
-            Else
-              If Regmt2.text = "Chèque" Then
-                Cptreglt = Vichq
-              Endif
+            If Regmt2.text = "Carte" Then Cptreglt = Vic
+            If Regmt2.text = "Chèque" Then Cptreglt = Vichq
+            If Settings["/Soc" & Start.Societe & "/Carte"] Or If Settings["/Soc" & Start.Societe & "/Cheque"] Then
+              Cptreglt = Param!cde_banque
             Endif
           Endif
           Libel = "Rglt " & Regmt2.Text & " " & $intitule
@@ -1789,7 +1785,7 @@ Public Sub Maj_Compta()
             Mtc = Mtd
             Mtd = 0
           Endif
-          If Regmt.text <> "Chèque" Or If Regmt.text = "Chèque" And Settings["/Soc" & Start.Societe & "/Cheque"] Then Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Cptreglt, Regmt2.text & " " & rs2, .Cdate_Dbase(Dtef.Text), numerofac, numerofac, Libel, mtd, mtc, 1, 0, 1, 0, cloturee, .Cdate_Dbase(Dtef.Text))
+          If Regmt2.text <> "Chèque" Or If Regmt2.text = "Chèque" And Settings["/Soc" & Start.Societe & "/Cheque"] Then Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Cptreglt, Regmt2.text & " " & rs2, .Cdate_Dbase(Dtef.Text), numerofac, numerofac, Libel, mtd, mtc, 1, 0, 1, 0, cloturee, .Cdate_Dbase(Dtef.Text))
 
           '*******************************On recalcule les soldes des comptes************************************
 

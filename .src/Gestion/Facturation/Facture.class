@@ -227,6 +227,7 @@ Private Refliee As String
 Private QteRefliee As String
 Private $Matlist As ColumnView
 Private bnumfac As Boolean = False
+Private basc As Boolean = False
 
 '**********************************************************
 '*initialisation écrans et gestion onglet client          *
@@ -2429,6 +2430,30 @@ Public Sub RecupTaches()
     TabStrip1[2].Text = itaches & " " & $taches
   Else
     TabStrip1[2].Text = " 0 tache"
+  Endif
+
+End
+
+Public Sub Coltaches_Columnclick(num As Integer)
+
+  Dim $tri As String
+
+  Select Case num
+    Case 1
+      $tri = "numdoc"
+    Case 2
+      $tri = "nom"
+    Case 4
+      $tri = "texte"
+  End Select
+  If Not IsNull($tri) Then
+    If basc Then
+      Utils.Base(Coltaches, "select * from  Fiches_Taches  where nom like   \"" & User.name & "%\" order by  " & $tri & " desc")
+      basc = False
+    Else
+      Utils.Base(Coltaches, "select * from  Fiches_Taches  where nom like   \"" & User.name & "%\" order by  " & $tri & " asc")
+      basc = True
+    Endif
   Endif
 
 End
@@ -11076,12 +11101,10 @@ Public Sub Maj_Compta()
             If Regmt.text = "Paypal" Then
               Cptreglt = Viautre
             Else
-              If Regmt.text = "Carte" Then
-                If Settings["/Soc" & Start.Societe & "/Carte"] Then
-                  Cptreglt = Vic
-                Else
-                  Cptreglt = Param!cde_banque
-                Endif
+              If Regmt.text = "Carte" Then Cptreglt = Vic
+              If Regmt.text = "Chèque" Then Cptreglt = Vichq
+              If Settings["/Soc" & Start.Societe & "/Carte"] Or If Settings["/Soc" & Start.Societe & "/Cheque"] Then
+                Cptreglt = Param!cde_banque
               Endif
             Endif
           Endif
@@ -11111,7 +11134,7 @@ Public Sub Maj_Compta()
             Mtd = 0
           Endif
           If Regmt.text <> "Chèque" Or If Regmt.text = "Chèque" And Settings["/Soc" & Start.Societe & "/Cheque"] Then
-            Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Vichq, Regmt.text & " " & rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, 0, cloturee, .Cdate_Dbase(Dtef.Text))
+            Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Cptreglt, Regmt.text & " " & rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, 0, cloturee, .Cdate_Dbase(Dtef.Text))
           Endif
           '*******************************On recalcule les soldes des comptes************************************
           If Val(Tottc.Text) > 0 Then
@@ -11188,16 +11211,14 @@ Public Sub Maj_Compta()
           If Regmt2.text = "Paypal" Then
             Cptreglt = Viautre
           Else
-            If Regmt2.text = "Carte" Then
-              If Settings["/Soc" & Start.Societe & "/Carte"] Then
-                Cptreglt = Vic
-              Else
-                Cptreglt = Param!cde_banque
-              Endif
+            If Regmt2.text = "Carte" Then Cptreglt = Vic
+            If Regmt2.text = "Chèque" Then Cptreglt = Vichq
+            If Settings["/Soc" & Start.Societe & "/Carte"] Or If Settings["/Soc" & Start.Societe & "/Cheque"] Then
+              Cptreglt = Param!cde_banque
             Endif
           Endif
         Endif
-        Libel = "Règlement " & $intitule & " par " & Regmt2.Text
+        Libel = "Rglt " & Regmt2.Text & " " & $intitule
         If Regmt2.text = "Espèces" Or If Regmt2.text = "Carte" Or If Regmt2.text = "Paypal" Then
           Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Code3.Text, rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text))
           Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech, collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, coll, rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text), 1)
@@ -11222,7 +11243,7 @@ Public Sub Maj_Compta()
           Mtc = Mtd
           Mtd = 0
         Endif
-        If Regmt.text <> "Chèque" Then Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Cptreglt, Regmt2.text & " " & rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, 0, cloturee, .Cdate_Dbase(Dtef.Text))
+        If Regmt2.text <> "Chèque" Or If Regmt2.text = "Chèque" And Settings["/Soc" & Start.Societe & "/Cheque"] Then Utils.db.Exec("INSERT INTO " & Tab & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Cptreglt, Regmt2.text & " " & rs2, .Cdate_Dbase(Dtef.Text), Nmfac, Nmfac, Libel, mtd, mtc, 1, 0, 1, 0, cloturee, .Cdate_Dbase(Dtef.Text))
 
         '*******************************On recalcule les soldes des comptes************************************
 
