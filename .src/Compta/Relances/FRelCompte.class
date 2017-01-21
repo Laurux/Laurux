@@ -96,9 +96,9 @@ Public Sub MajTab()
     "adr1 char(30) ," &
     "adr2 char(30) ," &
     "cp char(10) ," &
-    "ville char(25) ," &
+    "ville char(35) ," &
     "pays char(30) ," &
-    "dte char(10) ," &
+    "dte datetime ," &
     "numdoc char(10) NOT NULL," &
     "numlot char(10) ," &
     "libelle char(30) ," &
@@ -117,15 +117,15 @@ Public Sub MajTab()
     Endif 
     Dn0 = Right$(dteN0.Text, 4) & Mid$(dteN0.Text, 4, 2) & Left$(dteN0.Text, 2)
     Dn1 = Right$(dteN1.Text, 4) & Mid$(dteN1.Text, 4, 2) & Left$(dteN1.Text, 2)
-    rResult = Utils.db.Exec("SELECT * FROM " & tab2 & " where left(compte,3) = &1 and dte >= &2 and dte <= &3  and collectif is null  order by compte ", cpt_type, Dn0, Dn1)
+    rResult = Utils.db.Exec("SELECT * FROM " & tab2 & " where left(compte,3) = &1 and dte >= &2 and dte <= &3  and collectif is null order by compte ", cpt_type, Dn0, Dn1)
     If rResult.Available Then
       Repeat
         If (RB3.Value) Then
           rrResult = Utils.db.Exec("SELECT * FROM " & tab4 & " where  cli_code = &1", rResult!compte)
-          If rrResult!cli_rlvc Then Try Utils.db.Exec("INSERT INTO " & Tab & " (compte,Rs, intitule,adr1,adr2,cp,ville,dte,numdoc,numlot,libelle,montantd,montantc,numero,journal, pays) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", rResult!compte, rrResult!cli_rs_soc, rrResult!cli_nom, rrResult!cli_adr1, rrResult!cli_adr2, rrResult!cli_cd_ptl, rrResult!cli_ville, Left$(CStr(rResult!dte), 10), rResult!numdoc, rResult!numlot, rResult!libelle, rResult!montantd, rResult!montantc, rResult!numero, rResult!jour, rrResult!cli_pays)
+          If rrResult!cli_rlvc Then Try Utils.db.Exec("INSERT INTO " & Tab & " (compte,Rs, intitule,adr1,adr2,cp,ville,dte,numdoc,numlot,libelle,montantd,montantc,numero,journal, pays) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", rResult!compte, rrResult!cli_rs_soc, rrResult!cli_nom, rrResult!cli_adr1, rrResult!cli_adr2, rrResult!cli_cd_ptl, rrResult!cli_ville, rResult!dte, rResult!numdoc, rResult!numlot, rResult!libelle, rResult!montantd, rResult!montantc, rResult!numero, rResult!jour, rrResult!cli_pays)
         Else
           rrResult = Utils.db.Exec("SELECT * FROM " & tab4 & " where  fo_code = &1", rResult!compte)
-          Utils.db.Exec("INSERT INTO " & Tab & " (compte,Rs, intitule,adr1,adr2,cp,ville,dte,numdoc,numlot,libelle,montantd,montantc,numero,journal, pays) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", rResult!compte, rrResult!fo_rs_soc, rrResult!fo_nom, rrResult!fo_adr1, rrResult!fo_adr2, rrResult!fo_cd_ptl, rrResult!fo_ville, Left$(CStr(rResult!dte), 10), rResult!numdoc, rResult!numlot, rResult!libelle, rResult!montantd, rResult!montantc, rResult!numero, rResult!jour, rrResult!fo_pays)
+          Utils.db.Exec("INSERT INTO " & Tab & " (compte,Rs, intitule,adr1,adr2,cp,ville,dte,numdoc,numlot,libelle,montantd,montantc,numero,journal, pays) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", rResult!compte, rrResult!fo_rs_soc, rrResult!fo_nom, rrResult!fo_adr1, rrResult!fo_adr2, rrResult!fo_cd_ptl, rrResult!fo_ville, rResult!dte, rResult!numdoc, rResult!numlot, rResult!libelle, rResult!montantd, rResult!montantc, rResult!numero, rResult!jour, rrResult!fo_pays)
         Endif
       Until rResult.MoveNext()
     Endif
@@ -360,8 +360,8 @@ Public Sub Releves()
       Repeat
         If RB2.Value And Not compteRel.Item.selected Then
         Else
-          If RB2.Value And compteRel.Item.selected Then rResult = Utils.db.Exec("SELECT * FROM " & tab & " where compte = &1", compteRel.Item[0])
-          If RB1.Value Then rResult = Utils.db.Exec("SELECT * FROM " & tab & " where compte = &1", compteRel.Item[0])
+          If RB2.Value And compteRel.Item.selected Then rResult = Utils.db.Exec("SELECT * FROM " & tab & " where compte = &1 order by dte", compteRel.Item[0])
+          If RB1.Value Then rResult = Utils.db.Exec("SELECT * FROM " & tab & " where compte = &1 order by dte", compteRel.Item[0])
           If rResult.Available Then
             Rs2 = rResult!rs & " " & rResult!intitule
             adr21 = rResult!adr1
@@ -375,7 +375,8 @@ Public Sub Releves()
             pdf.Level2()
             posy = 120
             Repeat
-              dte = Mid$(rResult!dte, 4, 2) & "." & Left$(rResult!dte, 2) & "." & Right$(rResult!dte, 4)
+              dte = CStr(rResult!dte)
+              dte = Mid$(dte, 4, 2) & "." & Left$(dte, 2) & "." & Right$(dte, 4)
               num = rResult!numdoc
               Lib = rResult!libelle
               Mtd = rResult!montantd
