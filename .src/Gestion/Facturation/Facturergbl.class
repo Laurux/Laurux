@@ -180,12 +180,12 @@ Public Sub recup_bl()
     "PRIMARY KEY (code))" & "ENGINE = MYISAM")
   Utils.db.Exec("drop Table IF exists " & Tab4 & "")
   Utils.db.Exec("CREATE TABLE " & Tab4 &
-    "(num Char(12) NOT NULL," &
+    "(numbl Char(12) NOT NULL," &
     "code Char(10)," &
     "date date," &
     "ht Char(12)," &
     "ttc Char(12)," &
-    "PRIMARY KEY (num))" & "ENGINE = MYISAM")
+    "PRIMARY KEY (numbl))" & "ENGINE = MYISAM")
   dteN = Right$(datej.Text, 4) & Mid$(datej.Text, 4, 2) & Left$(datej.Text, 2)
   'If Radiobutton1.Value = True Then
   'codeclient.Background = &HD4D0C8& '&HF9F9BD&
@@ -208,7 +208,7 @@ Public Sub recup_bl()
       Total = 0
       Bl = Utils.db.Exec("SELECT * FROM " & Tab1 & " where num_ligbl = &1 order by num_ligbl", Client!numbl)
       If Bl.Available Then
-        Utils.db.Exec("INSERT INTO " & Tab4 & " (num, code, date, ht, ttc) Values (&1, &2, &3, &4, &5)", Client!numbl, Client!cdclibl, Client!datebl, Client!totalht, Client!totalttc)
+        Utils.db.Exec("INSERT INTO " & Tab4 & " (numbl, code, date, ht, ttc) Values (&1, &2, &3, &4, &5)", Client!numbl, Client!cdclibl, Client!datebl, Client!totalht, Client!totalttc)
       Endif
     Until Client.MoveNext()
   Endif
@@ -240,12 +240,12 @@ Public Sub Colbl_Click()
     If Not Colbl.Available Then
       Colbl.clear
     Else
-      Client = Utils.db.Exec("SELECT * FROM " & Tab4 & " where code = &1 order by num", Colbl.Item[0], "B", "F", 0)
+      Client = Utils.db.Exec("SELECT * FROM " & Tab4 & " where code = &1 order by numbl", Colbl.Item[0], "B", "F", 0)
       sclient = Colbl.Item[0]
       If Client.Available Then
         Repeat
-          Coldetail.Add(Client!num, Client!num)
-          Coldetail.Item[0] = Client!num
+          Coldetail.Add(Client!numbl, Client!numbl)
+          Coldetail.Item[0] = Client!numbl
           Coldetail.Item[1] = .Cdate_Aff(Client!date)
           Coldetail.Item[2] = Format$(Val(.cpoint(Client!ht)), "0.00")
           Coldetail.Item[3] = Format$(Val(.cpoint(Client!ttc)), "0.00")
@@ -310,14 +310,14 @@ Public Sub Coldetail_Keypress()
   Tab4 = "Bl"
   With Utils
     If Key.code = Key.Delete And Coldetail.Count <> 0 Then
-      Utils.db.Exec("delete from " & Tab4 & " WHERE num = &1 ", sclient2)
+      Utils.db.Exec("delete from " & Tab4 & " WHERE numbl = &1 ", sclient2)
     Endif
-    Client = Utils.db.Exec("SELECT * FROM " & Tab4 & " where code = &1 order by num", sclient)
+    Client = Utils.db.Exec("SELECT * FROM " & Tab4 & " where code = &1 order by numbl", sclient)
     Coldetail.Clear
     If Client.Available Then
       Repeat
-        Coldetail.Add(Client!num, Client!num)
-        Coldetail.Item[0] = Client!num
+        Coldetail.Add(Client!numbl, Client!numbl)
+        Coldetail.Item[0] = Client!numbl
         Coldetail.Item[1] = .Cdate_Aff(Client!date)
         Coldetail.Item[2] = Client!ht
         Colbl.Item[3] = Client!ttc
@@ -598,10 +598,10 @@ Public Sub Button14_Click()
       If numbl.Count <> 0 Then
         Ventilation()
         Repeat
-          Bl = Utils.db.Exec("SELECT * FROM " & tab9 & " where num = &1", numbl!numbl)
+          Bl = Utils.db.Exec("SELECT * FROM " & tab9 & " where numbl = &1", numbl!numbl)
           If Bl.Count <> 0 Then
             Repeat
-              Ligbl = Utils.db.Exec("SELECT * FROM " & tab1 & " where num_ligbl = &1", Bl!num)
+              Ligbl = Utils.db.Exec("SELECT * FROM " & tab1 & " where num_ligbl = &1", Bl!numbl)
               cptlig = cptlig + Ligbl.Count
             Until Bl.MoveNext()
           Endif
@@ -723,7 +723,7 @@ Public Sub Button14_Click()
         If numbl.Count <> 0 Then
           Repeat
             numbonl = numbl!numbl
-            Bl = Utils.db.Exec("SELECT * FROM " & tab9 & " where num = &1", numbl!numbl)
+            Bl = Utils.db.Exec("SELECT * FROM " & tab9 & " where numbl = &1", numbl!numbl)
             If Bl.Count <> 0 Then
               Try mgart = Val(mgart) + numbl!marge_art
               Try mgmo = Val(mgmo) + numbl!marge_mo
@@ -731,7 +731,7 @@ Public Sub Button14_Click()
               Try TotAcpt = TotAcpt + numbl!acpt
               Try Mfacttc = Mfacttc + numbl!totalttc
               Toteuros = Val(.cpoint(Toteuros)) + Val(.cpoint(Bl!ht))
-              Ligbl = Utils.db.Exec("SELECT * FROM " & tab1 & " where num_ligbl = &1", Bl!num)
+              Ligbl = Utils.db.Exec("SELECT * FROM " & tab1 & " where num_ligbl = &1", Bl!numbl)
               If Ligbl.Count <> 0 Then
                 PosY = PosY + 4
                 intituleb = "Bon n° " & numbl!numbl & " du " & .Cdate_AffData(numbl!datebl)
@@ -981,7 +981,7 @@ End
 '**********************************************************
 '*                   Recup parametres                     *
 '**********************************************************
-Public Sub Parametres()
+Public Sub Parametres() As String
 
   Tab = "Fiches_Parametres"
   rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
@@ -989,19 +989,18 @@ Public Sub Parametres()
     Nbon = Val(rResult!dnbon) + 1
     Nbon = Format$(Nbon, "000000")
   Endif
+  
+  Return Nbon
 
 End
 
 '**********************************************************
 '*                   Maj parametres                     *
 '**********************************************************
-Public Sub Maj_Parametres()
+Public Sub Maj_Parametres(Numbon As String)
 
   Tab = "Fiches_Parametres"
-  With Utils
-    rResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
-    Utils.db.Exec("UPDATE  " & Tab & "  SET  dnbon = &1", Nbon)
-  End With
+  Utils.db.Exec("UPDATE  " & Tab & "  SET  dnbon = &1", Numbon)
 
 End
 
@@ -1212,10 +1211,10 @@ Public Sub Selbl()
       Colbl.Item.Selected = True
       sclient = Colbl.Item[0]
       Nbon = Format$(Val(Nbon) + 1, "000000")
-      Ent_Bl()
+      Ent_Bl(sclient, nbon, Fusion_art.Value)
     Until Colbl.MoveNext()
   Else
-    Ent_Bl()
+    Ent_Bl(sclient, nbon, Fusion_art.Value)
   Endif
 
 End
@@ -1223,7 +1222,7 @@ End
 '***************************************************
 '*                   Maj  BL                *
 '***************************************************
-Public Sub Ent_Bl()
+Public Sub Ent_Bl(sclient As String, nbon As String, Fus_art As Boolean, Optional ntk As String = Null)
 
   Dim Entbonl, efac As Result
   Dim Ligbonl, ligart As Result
@@ -1243,25 +1242,34 @@ Public Sub Ent_Bl()
   Ligbon = "Fiches_Ligbl"
   Bn = "Bl"
   With Utils
-    Bonl = Utils.db.Exec("SELECT * FROM " & Bn & " where code = &1 order by num", sclient)
+    If ntk <> Null Then
+      Bonl = Utils.db.Exec("SELECT * FROM " & Entbon & " where cdclibl = &1 and numtick = &2 and type = \"B\" order by numbl", sclient, ntk)
+    Else
+      Bonl = Utils.db.Exec("SELECT * FROM " & Bn & " where code = &1 order by numbl", sclient)
+    Endif
     If Bonl.Available Then
       efac = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " where cli_code = &1", sclient)
       Utils.db.Exec("INSERT INTO " & Entbon & "(numbl,datebl,cdclibl,cvclibl, nmclibl, rmobl, rartbl, pnmclibl, adr1bl, adr2bl, cpbl, villebl, Exobl, remmobl, remartbl, htbl, reg, ech, numfac, acpt, mreg, marge_art, marge_mo, totalttc, type, imp) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13},&{14},&{15},&{16},&{17},&{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24}, &{25}, &{26})", nbon, .Cdate_Dbase(datej.Text), sclient, efac!cli_rs_soc, efac!cli_nom, 0, 0, efac!cli_pnm, efac!cli_adr1, efac!cli_adr2, efac!cli_cd_ptl, efac!cli_ville, efac!cli_exo, .cpoint(Remmo), .cpoint(Remart), Val(Totht), "", .Cdate_Dbase(dateech), "", 0, "", mgart, mgmo, Val(Mttc), "B", 0)
+      If ntk <> Null Then
+        Nlgn = Format$(Val(Nlgn) + 1, "0000")
+        Utils.db.Exec("INSERT INTO " & Ligbon & "(num_ligbl, numlig_ligbl, typel_ligbl, com_ligbl, block_ligbl) VALUES (&1,&2,&3,&4,&5)", Nbon, Nlgn, "C", "Règlement en Caisse par le Ticket n° " & ntk, Nlgn)
+      Endif
       Repeat
-        Entbonl = Utils.db.Exec("SELECT * FROM " & Entbon & " where numbl = &1", Bonl!num)
+        Entbonl = Utils.db.Exec("SELECT * FROM " & Entbon & " where numbl = &1", Bonl!numbl)
+        Ligbonl = Utils.db.Exec("SELECT * FROM " & Ligbon & " where num_ligbl = &1 and (typel_ligbl = &2 or typel_ligbl = &3)", Bonl!numbl, "A", "C")
+        Nlgn = Format$(Val(Nlgn) + 1, "0000")
+        Utils.db.Exec("INSERT INTO " & Ligbon & "(num_ligbl, numlig_ligbl, typel_ligbl, com_ligbl, block_ligbl) VALUES (&1,&2,&3,&4,&5)", Nbon, Nlgn, "C", "Regroupement BL n° " & Bonl!numbl, Nlgn)
         tht = Val(Utils.cpoint(tht)) + Val(Utils.cpoint(Entbonl!totalht))
         ttc = Val(Utils.cpoint(ttc)) + Val(Utils.cpoint(Entbonl!totalttc))
-        'Ligbonl = Utils.db.Exec("SELECT * FROM " & Ligbon & " where num_ligbl = &1 and typel_ligbl = &2", Bonl!num, "A")
-        Ligbonl = Utils.db.Exec("SELECT * FROM " & Ligbon & " where num_ligbl = &1 and (typel_ligbl = &2 or typel_ligbl = &3)", Bonl!num, "A", "C")
         If Ligbonl.Available Then
           Repeat
             Nlgn = Format$(Val(Nlgn) + 1, "0000")
             'Si on ne fusionne pas les articles il est possible de conserver l'historique des tickets
-            If Ligbonl!typel_ligbl = "C" And Not Fusion_art.Value Then
+            If Ligbonl!typel_ligbl = "C" And Not Fus_art Then
               Utils.db.Exec("INSERT INTO " & Ligbon & "(num_ligbl, numlig_ligbl, typel_ligbl, com_ligbl, block_ligbl) VALUES (&1,&2,&3,&4,&5)", Nbon, Nlgn, Ligbonl!typel_ligbl, Ligbonl!com_ligbl, Nlgn)
             Else
               Ligart = Utils.db.Exec("SELECT * FROM " & Ligbon & " where num_ligbl = &1 and code_ligbl = &2 and typel_ligbl = &3 and rem_ligbl = &4 and pu_ligbl = &5", Nbon, Ligbonl!code_ligbl, "A", Ligbonl!rem_ligbl, Ligbonl!pu_ligbl)
-              If Fusion_art.Value And Ligart.Available Then
+              If Fus_art And Ligart.Available Then
                 qte = Val(utils.cpoint(Ligart!qte_ligbl)) + Val(utils.cpoint(Ligbonl!qte_ligbl))
                 brut = Val(utils.cpoint(Ligart!brut_ligbl)) + Val(utils.cpoint(Ligbonl!brut_ligbl))
                 netht = Val(utils.cpoint(Ligart!netht_ligbl)) + Val(utils.cpoint(Ligbonl!netht_ligbl))
@@ -1277,8 +1285,8 @@ Public Sub Ent_Bl()
             If rTva.available Then TauxTva = rTva!taux_tva
           Until Ligbonl.MoveNext()
         Endif
-        Utils.db.Exec("DELETE FROM " & Ligbon & " where num_ligbl = &1", Bonl!num)
-        Utils.db.Exec("DELETE FROM " & Entbon & " where numbl = &1", Bonl!num)
+        Utils.db.Exec("DELETE FROM " & Ligbon & " where num_ligbl = &1", Bonl!numbl)
+        Utils.db.Exec("DELETE FROM " & Entbon & " where numbl = &1", Bonl!numbl)
       Until Bonl.MoveNext()
       Utils.db.Exec("UPdate " & Entbon & " SET totalht = &1, totalttc = &2 where numbl = &3", tht, ttc, nbon)
     Endif
@@ -1314,13 +1322,9 @@ Public Sub Button9_Click()
   If Message.Question(msg, "Oui", "Non") = 1 Then
     If Colbl.Count <> 0 Then
       Utils.db.Exec("LOCK TABLES " & "Fiches_Parametres" & " WRITE, " & "Fiches_Bl" & " WRITE, " & "Fiches_Ligbl" & " WRITE, " & "Bl" & " WRITE, " & "Fiches_Cli" & " WRITE, " & "Fiches_Tvaav" & " WRITE")
-      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
-      If rResult.Available Then
-        Nbon = rResult!dnbon
-        Nbon = Format$(Val(Nbon) + 1, "000000")
-      Endif
+      Nbon = Parametres()
       Selbl()
-      Maj_Parametres()
+      Maj_Parametres(Nbon)
       Utils.db.Exec("UNLOCK TABLES")
       Colbl.Clear
       Coldetail.Clear

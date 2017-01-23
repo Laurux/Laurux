@@ -40,6 +40,7 @@ Private Viautre As String
 Private jnal As String
 Private jnal3 As String
 Private Tab As String = "Virements"
+Private RegroupBL As Facturergbl
 
 Public Sub _new()
 
@@ -335,6 +336,8 @@ Public Sub Moulinage()
   Dim rResult As Result
   Dim rFam, rDep As Result
   Dim Bl As Result
+  Dim Blg As Result
+  Dim respar As Result
   Dim vente As String
   Dim ivente As String
   Dim tva As String
@@ -363,7 +366,13 @@ Public Sub Moulinage()
   Dim totalttc As Float
   Dim $intit, resto, Fam, $depot As String
   Dim bretro As Boolean
-
+  Dim Nbon As String
+  Dim dnfac As String
+  Dim snfac As String
+  Dim bl_numr As Integer ' Numero ecriture provisoire des règlements BLs
+  Dim bl_numr2 As Integer ' numero ecriture définitif des règlements BLs
+  
+  RegroupBL = New Facturergbl
   Virements()
   numecr = "numecriture"
   numr = Ecritures(numecr)
@@ -427,7 +436,6 @@ Public Sub Moulinage()
                     Bl = Utils.db.Exec(" select * from " & Cbase.Table("TabBl") & " where type = \"B\" and numtick = &1 and numbl = &2", rlTck!numero, Format$(rlTck!mrem, "000000"))
                     If Bl.Available Then
                       'aucun mouvement specifique n'est a inscrire pour le BL, le BL passe cependant en type facture et déclaré règlé et imprimé
-                      Utils.db.Exec("UPDATE " & Cbase.Table("TabBl") & " set type = \"F\", numtick = NULL, imp = 1, reg = \"Caisse\", mtreg = &2, numfac = &3, dtefac = &4, ech = &4 where numbl = &1", Format$(rlTck!mrem, "000000"), rlTck!montant, (Right$(rlTck!numero, 7) & Format$(Right(rlTck!numlig, 3), "000")), Utils.Cdate2_Dbase(Left$(rtck!date, 10)))
                       Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, rltck!numlig, rlTck!code, rlTck!intitule, rltck!montant, rlTck!qte, rltck!type, Fam, rltck!mht, Format$(rlTck!mrem, "000000"), rltck!tva)
                       'On met a jour la totalisation pour la TVA et HT pour chaque ligne du BL
                       lBl = Utils.db.Exec(" select * from " & Cbase.Table("TabLigbl") & " where num_ligbl = &1 and typel_ligbl = \"A\"", Format$(rlTck!mrem, "000000"))
@@ -568,16 +576,48 @@ Public Sub Moulinage()
                   Endif
                 Until rlTck.MoveNext()
               Endif
+              
+              'On regroupe les BL règlés dans ce ticket pour chaque client concerné afin de générer une facture
+              Bl = Utils.db.Exec(" select * from " & Cbase.Table("TabBl") & " where type = \"B\" and numtick = &1 group by cdclibl", rtck!numero)
+              If Bl.Available Then
+                'on regroupe tous les BLs du meme clients pour le meme numero de ticket pour la generation de facture
+                numbon = Val(numbon) + 1
+                numbon = Format$(numbon, "000000")
+                RegroupBL.Ent_Bl(Bl!cdclibl, numbon, False, rtck!numero)
+                Blg = Utils.db.Exec(" select * from " & Cbase.Table("TabBl") & " where type = \"B\" and numbl = &1", numbon)
+                If Blg.Available
+                  'recuperation et maj du n° facture
+                  respar = Utils.db.Exec("SELECT * FROM Fiches_Parametres")
+                  If (respar!nfac <> 0)
+                    snfac = Str(Format$(Now, "yymm")) & Format(Val(respar!dnfac) + 1, "000000")
+                  Else
+                    snfac = Str(Format$(Now, "yyyy")) & Format(Val(respar!dnfac) + 1, "000000")
+                  Endif
+                  dnfac = Format(Val(respar!dnfac) + 1, "000000")
+                  utils.db.Exec("UPDATE Fiches_Parametres set dnfac = &1", dnfac) 
+                  Utils.db.Exec("UPDATE " & Cbase.Table("TabBl") & " set type = \"F\", numtick = NULL, imp = 1, reg = \"Caisse\", mtreg = &2, numfac = &3, dtefac = &4, ech = &4 where numbl = &1", numbon, Blg!totalttc, snfac, Utils.Cdate2_Dbase(Left$(rtck!date, 10)))
+                  'On genere les Mvt pour le clients
+                  Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnl, numr, Blg!cdclibl, "Reglement BL Caisse", Utils.Cdate_Dbase(Datem), snfac, snfac, Left$("Facture " & Blg!nmclibl, 30), 0, Blg!totalttc, 1, 0, 1, 1, 1, Utils.Cdate_Dbase(Datem), numr2)
+                  Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnl, numr, Client, "Reglement BL Caisse", Utils.Cdate_Dbase(Datem), snfac, snfac, Left$("Facture " & Blg!nmclibl, 30), Blg!totalttc, 0, 1, 0, 1, 1, 1, Utils.Cdate_Dbase(Datem), numr2)
+                  numr = numr + 1
+                  numr2 = numr2 + 1
+                  Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, Blg!cdclibl, "Reglement BL Caisse", Utils.Cdate_Dbase(Datem), snfac, snfac, Left$("Rglt Caisse Facture " & Blg!nmclibl, 30), Blg!totalttc, 0, 1, 0, 1, 1, 1, Utils.Cdate_Dbase(Datem), numr2)
+                  Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, Client, "Reglement BL Caisse", Utils.Cdate_Dbase(Datem), snfac, snfac, Left$("Rglt Caisse Facture " & Blg!nmclibl, 30), 0, Blg!totalttc, 1, 0, 1, 1, 1, Utils.Cdate_Dbase(Datem), numr2)
+                  'on incremente le numero d'ecriture pour la suite des Mvt
+                  numr = numr + 1
+                  numr2 = numr2 + 1
+                Else
+                  Message.Warning("Le BL " & numbon & " du client " & Bl!nmclibl & " est inexistant le regroupement de BL n'a pas fonctionné") 
+                Endif
+              Endif
+              
             Endif
             'Puis on gère les clients en compte
             scli = rTck!client
             If rTck!type = "1" Then
-              'On recupère le dernier numéro de bon
-              If numbon = "" Then numbon = "000000"
+              'On increment le numero de bon
               numbon = Val(numbon) + 1
               numbon = Format$(numbon, "000000")
-              ' Et on met à jour
-              Utils.db.Exec("UPDATE  " & Cbase.Table("TabParam") & "  SET  dnbon = &1", numbon)
               rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " Where cli_code = &1", scli)
               If rResult.Available Then
                 cvclibl = rResult!cli_rs_soc
@@ -635,6 +675,7 @@ Public Sub Moulinage()
           Verif()
           Maj_Compta()
           Maj_Tresorerie()
+          RegroupBL.Maj_Parametres(numbon)
           Utils.db.Exec("UNLOCK TABLES")
           'On recalcule les soldes
           'Csolde.Recalc_solde()
