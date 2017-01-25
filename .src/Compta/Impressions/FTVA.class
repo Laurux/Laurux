@@ -45,12 +45,10 @@ Public Sub Form_Open()
   For i = 0 To 1
     ComboBoxYear.Add(annee - i)
   Next
-  'ComboBoxYear.Add(Left$(annee2, 4))
-  'If Format$(Now, "yyyy") > Left$(annee2, 4) Then ComboBoxYear.Add(Format$(Now, "yyyy"))
   Coulfond = Utils.Coulfd()
   Me.Center
+  ComboBoxYear.text = Format$(Now, "yyyy")
   moiscalc()
-  anneecalc()
   debutOpen = True
   trimestre()
   debutOpen = False
@@ -138,6 +136,7 @@ Public Sub Affiche(ColView As ColumnView)
         CptResult = Utils.db.Exec("SELECT * FROM " & Tab & " where compte = &4 and year(dte) = &3 order by dte ", datec2, datec3, Annee, rResultat!compte_cc, annee1, annee2)
       Endif
       If CptResult.Available Then
+        Print cptresult.count
         Repeat
           JtResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabJour") & " where code_jo = &1", cptresult!jour)
           If CptResult!montantd <> "0.00" Or If CptResult!montantc <> "0.00" Then
@@ -185,7 +184,7 @@ Public Sub Affiche(ColView As ColumnView)
               Endif
             Endif
             If Detail.value Then
-              Tot = Val(Utils.cpoint(.Item[6]))
+              ' Tot = Val(Utils.cpoint(.Item[6]))
               .Item[7] = CptResult!numero
               .Item[8] = CptResult!jour
               .Item[9] = CptResult!tresorerie
@@ -211,7 +210,7 @@ Public Sub Affiche(ColView As ColumnView)
           Totd = 0
           Totc = 0
           If Detail.value Then
-            Tot = solde
+            Tot = Tot + solde
           Else
             Tot = Tot + solde
           Endif
@@ -284,6 +283,9 @@ End
 
 Public Sub RadioBtnmensuel_Click()
 
+  Dim Totd As Integer
+  Dim Totc As Integer
+
   If RadioBtnmensuel.value = True Then
     Try mois1 = ComboBoxMois.Text
     If Not Error Then
@@ -301,6 +303,9 @@ Public Sub RadioBtnmensuel_Click()
       CredP = 0
       DebP = 0
       Totht = 0
+      Totd = 0
+      Totc = 0
+      Tot = 0
       rResultat = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " WHERE compte_cc like '4456%' and type_cc = 'B' order by cast(compte_cc AS char)")
       If rResultat.Available Then Affiche(ColumnViewTVAachat)
       TextLabelTAchat.Text = Format$(Val(Utils.cpoint(Tot)), ",0.00")
@@ -732,6 +737,7 @@ Public Sub Raz()
   debit = 0
   credit = 0
   solde = 0
+  tot = 0
 
 End
 
