@@ -97,6 +97,8 @@ Private pdf As Cdocuments
 Public Sub _New()
 
   Dim Dppc As Date
+  Dim $lp, $imp As String
+  Dim imp As String[]
 
   Tab = "Fiches_Parametres"
   rResult = Utils.db.Exec("SELECT * FROM " & tab & "")
@@ -106,8 +108,13 @@ Public Sub _New()
   Endif
   Coulfond = Utils.Coulfd()
   If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
-
   Music.Load(Start.Musique)
+  ' On gère les imprimantes
+  Shell "lpc status 2>&1" To $imp
+  For Each $lp In Split($imp, "\n")
+    If Right($lp) = ":" Then Cimp.add(Left($lp, -1))
+  Next
+  Try Cimp.Text = Settings["/Soc" & Start.Societe & "/Cimp"]
   Me.Center
 
   Colbl.Columns.count = 6
@@ -958,7 +965,7 @@ Public Sub Button14_Click()
         Endif
       Endif
       pdf.Output(Filename, False)
-      Impressfac.Prog_Editeur(Filename, Val(Nbexpl), False)
+      Impressfac.Prog_Editeur(Filename, Val(Nbexpl), Chximp.value, Cimp.Text)
       Wait 1
       Acpt = 0
       Totacpt = 0

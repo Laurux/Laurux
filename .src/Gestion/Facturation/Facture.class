@@ -235,6 +235,8 @@ Private basc As Boolean = False
 Public Sub _New(bfacture As Boolean)
 
   Dim rdep As Result
+  Dim $lp, $imp As String
+  Dim imp As String[]
   Dim Frmt As New String[]
   'Dim n As Integer = 30
   bTypeFacture = bfacture
@@ -332,6 +334,11 @@ Public Sub _New(bfacture As Boolean)
   Else
     Panel8.visible = False
   Endif
+  Shell "lpc status 2>&1" To $imp
+  For Each $lp In Split($imp, "\n")
+    If Right($lp) = ":" Then Cimp.add(Left($lp, -1))
+  Next
+  Try Cimp.Text = Settings["/Soc" & Start.Societe & "/Cimp"]
   Me.center
   n = 1
   T = 0
@@ -8934,7 +8941,7 @@ Public Sub Bl_Edit()
       Rgmt.Enabled = False
     Endif
     Try Recap.Value = Settings["/Soc" & Start.Societe & "/Recap"]
-    'Try Impttc.Value = Settings["/Soc" & Start.Societe & "/Impttc"]
+    Try Impttc.Value = Settings["/Soc" & Start.Societe & "/Impttc"]
     Try Entete.Value = Settings["/Soc" & Start.Societe & "/Entete"]
     Try Reserve.Value = Settings["/Soc" & Start.Societe & "/Conditions"]
     Try Pied.Value = Settings["/Soc" & Start.Societe & "/Pied"]
@@ -9016,6 +9023,17 @@ Catch
     Music.Play
   Endif
   Try message.Error(Error.Text & " " & Error.where)
+
+End
+
+'On active le choix de l'imprimante
+Public Sub ChxImp_Click()
+
+  If ChxImp.value Then
+    Cimp.Visible = True
+  Else
+    Cimp.Visible = False
+  Endif
 
 End
 
@@ -9270,7 +9288,7 @@ End
 Public Sub Button16_Click()
 
   Settings["/Soc" & Start.Societe & "/Recap"] = Recap.Value
-  Settings["/Soc" & Start.Societe & "/Impttc"] = Impttc.Value
+  ' Settings["/Soc" & Start.Societe & "/Impttc"] = Impttc.Value
   Settings["/Soc" & Start.Societe & "/Entete"] = Entete.Value
   Settings["/Soc" & Start.Societe & "/Conditions"] = Reserve.Value
   Settings["/Soc" & Start.Societe & "/Pied"] = Pied.Value
@@ -9282,6 +9300,7 @@ Public Sub Button16_Click()
   Settings["/Soc" & Start.Societe & "/ImpPDF"] = ImpPDF.Value
   Settings["/Soc" & Start.Societe & "/ImpTotbl"] = Imptotbl.value
   Settings["/Soc" & Start.Societe & "/Recap"] = Recap.Value
+  Settings["/Soc" & Start.Societe & "/Cimp"] = Cimp.text
   Settings.Save
   Settings.Reload
   Edit.Visible = False
@@ -10512,9 +10531,9 @@ Public Sub Impression(Org As String)
               Visualiseur.Prog_Editeur(Filename)
             Else
               If BlA5.value And Not Bfac.value Then
-                Impressfac.Prog_Editeur(Filename, 1, ChxImp.value)
+                Impressfac.Prog_Editeur(Filename, 1, ChxImp.value, Cimp.Text)
               Else
-                Impressfac.Prog_Editeur(Filename, Val(Nbexpl.text), ChxImp.value)
+                Impressfac.Prog_Editeur(Filename, Val(Nbexpl.text), ChxImp.value, Cimp.Text)
               Endif
             Endif
           Endif
