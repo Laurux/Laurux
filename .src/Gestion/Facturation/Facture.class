@@ -228,6 +228,7 @@ Private QteRefliee As String
 Private $Matlist As ColumnView
 Private bnumfac As Boolean = False
 Private basc As Boolean = False
+Private bacquitte As Boolean = False
 
 '**********************************************************
 '*initialisation écrans et gestion onglet client          *
@@ -8972,7 +8973,7 @@ Public Sub Bl_Edit()
       Else
         If Imp <> "1" And BFac.value Then
           Regmt.text = Modreg
-          Rglt.Text = Replace$(Tottc.Text, "-", "")
+          ' Rglt.Text = Replace$(Tottc.Text, "-", "")
           Rgmt.value = True
           Label6.Visible = True
           Rglt.Visible = True
@@ -9549,6 +9550,8 @@ Public Sub Impression(Org As String)
   Dim Datef2 As String
   Dim Nomclient, Tel2, Portable2 As String
   Dim ftotal, ftotalttc, sRecap As String
+  Dim $Reg, $Reg2, $Mreg, $Mreg2 As String
+  Dim rResult As Result
 
   variables.typel = ""
   Try ImpRef = Settings["/Soc" & Start.Societe & "/AffArt"]
@@ -9624,19 +9627,42 @@ Public Sub Impression(Org As String)
           Txtleg = ""
           Txtleg1 = ""
           Txtleg2 = ""
-          If Not Regmt.Text Then
+          If Not Rgmt.Value Then
             If Settings["/Soc" & Start.Societe & "/TxtF"] Then
               If RegDef.value = True Then
                 Txtleg = Settings["/Soc" & Start.Societe & "/LTxtF"]
               Else
-                Txtleg = "Règlement au " & dateech
+                Txtleg = "Règlement   " & Regmt.Text & " au " & dateech
               Endif
             Else
-              Txtleg = "Règlement au " & dateech
+              Txtleg = "Règlement  " & Regmt.Text & " au " & dateech
             Endif
           Else
             Txtleg = "Règlement " & rglt.Text & " par " & Regmt.Text & " au " & dateech
             If Not IsNull(Regmt2.text) Then Txtleg1 = "Règlement " & rglt2.Text & " par " & Regmt2.Text & " au " & dateech
+          Endif
+          If Imp = "1" Then
+            rResult = Utils.db.Exec("SELECT * FROM Fiches_Bl where numbl = &1", Num.text)
+            $reg = rResult!reg
+            $reg2 = rResult!reg2
+            $mreg = rResult!mtreg
+            $mreg2 = rResult!mtreg2
+            If IsNull($mreg) Then $mreg = "0"
+            If IsNull($mreg2) Then $mreg2 = "0"
+            If Not IsNull($reg) And $mreg <> "0" Then Txtleg = "Règlement " & $mreg & " par " & $reg & " au " & dateech
+            If Not IsNull($reg2) And $mreg2 <> "0" Then Txtleg1 = "Règlement " & $mreg2 & " par " & $reg2 & " au " & dateech
+            If Val(Utils.cpoint($mreg)) + Val(Utils.cpoint($mreg2)) = Val(Utils.CPoint(Tottc.Text)) Then
+              bacquitte = True
+            Else
+              bacquitte = False
+            Endif
+            If IsNull($mreg) Then Txtleg = "Règlement par " & $reg & " au " & dateech
+          Else
+            bacquitte = False
+          Endif
+          If Not Bfac.value Then
+            Txtleg = ""
+            bacquitte = False
           Endif
           If Tp = "D" Then Txtleg = Settings["/Soc" & Start.Societe & "/Devis"]
           If Tp <> "T" Then
@@ -9712,6 +9738,8 @@ Public Sub Impression(Org As String)
             Endif
             If Bfac.value And imp = "0" And Visudoc = True Then
               ty = "Bon n° "
+              Bacquitte = False
+              Txtleg = ""
             Endif
             If dtef.Text = "" Then
               If start.son Then
@@ -11324,8 +11352,7 @@ Public Sub Calc_tva(Org As String)
   Dim TotEuros As String
   Dim $ht As String
   Dim $tva As String
-  Dim bacquitte As Boolean = False
-  Dim rg, rg2 As Float
+  Dim rg, rg2 As Float = 0
 
   Tab = "Fiches_Tvaav"
   Tab2 = "Totalisation"
@@ -11388,7 +11415,10 @@ Public Sub Calc_tva(Org As String)
       If Error Then rg = 0
       Try rg2 = Val(Rglt2.text)
       If Error Then rg2 = 0
-      If rg + rg2 = Val(Totalttc) Then bacquitte = True
+      If Not bacquitte Then
+        If rg + rg2 = Val(Totalttc) And If Rgmt.value Then bacquitte = True
+      Endif
+      If Visudoc And Not imp Then bacquitte = False
       If Prxdec Then
         $ht = Round(Val(Totht1.text))
         $ht = Format$(Val($ht), ",0")
@@ -11409,7 +11439,9 @@ Public Sub Calc_tva(Org As String)
           pdf.Level10F(Format$(Val(Totht1.Text), ",0.00"), Tottva.Text, Toteuros, Txtleg, PosY - 6, ImpAuto, Exo.value, Franchise)
           If Not IsNull(txtleg1) Then pdf.Level10F2(Txtleg1, PosY - 4, ImpAuto, Exo.value, Franchise)
         Endif
-        If bacquitte Then pdf.Level10F3(Posy - 6)
+        If bacquitte Then
+          pdf.Level10F3(Posy - 6)
+        Endif
       Endif
       PosY = PosY + 8
       If BlA5.Value And Not Bfac.value Then
@@ -12739,8 +12771,10 @@ Public Sub Rgmt_Click()
 
   If Rgmt.Value = True Then
     HBox6.Visible = True
+    Rglt.Text = Replace$(Tottc.Text, "-", "")
   Else
     HBox6.Visible = False
+    Rglt.Text = ""
   Endif
 
 End

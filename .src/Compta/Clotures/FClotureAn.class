@@ -131,7 +131,7 @@ Public Sub Button1_Click()
   Dim Tab5 As String
   Dim Tab6 As String
   Dim Tab7 As String
-  Dim TabA, TabA1, TabA2, TabA3, TabA4, TabA5 As String
+  Dim TabA, TabA1, TabA2, TabA3, TabA4, TabA5, TabM As String
   Dim numecr1 As Integer ' Numero écriture provisoire
   Dim numecr3 As Integer ' Numero écriture définitive
   Dim Deb As Float
@@ -344,6 +344,12 @@ Public Sub Button1_Click()
             Utils.db.Exec("alter Table " & TabA2 & " Rename " & TabA3 & "")
             Utils.db.Exec("alter Table " & TabA1 & " Rename " & TabA2 & "")
             Utils.db.Exec("alter Table " & TabA & " Rename " & TabA1 & "")
+            Utils.db.Exec("drop Table IF exists Fiches_MvtM5")
+            Utils.db.Exec("alter Table Fiches_MvtM4 Rename Fiches_MvtM5")
+            Utils.db.Exec("alter Table Fiches_MvtM3 Rename Fiches_MvtM4")
+            Utils.db.Exec("alter Table Fiches_MvtM2 Rename Fiches_MvtM3")
+            Utils.db.Exec("alter Table Fiches_MvtM1 Rename Fiches_MvtM2")
+            Utils.db.Exec("alter Table Fiches_MvtM Rename Fiches_MvtM1")
 
             TabA = "Fiches_MvtA"
             Utils.db.Exec("CREATE TABLE " & TabA &
@@ -352,7 +358,7 @@ Public Sub Button1_Click()
               "intitule Char(30)," &
               "dte date," &
               "numdoc CHAR(10) NOT NULL," &
-              "libelle CHAR(30)," &
+              "libelle VarChar(50)," &
               "pourcent CHAR(5)," &
               "montantd Decimal(12,2)," &
               "montantc Decimal(12,2)," &
@@ -375,7 +381,7 @@ Public Sub Button1_Click()
               "numcol Char(3)," &
               "numdoc CHAR(10)," &
               "numlot CHAR(10)," &
-              "libelle CHAR(30)," &
+              "libelle VarChar(50)," &
               "montantd Decimal(12,2)," &
               "montantc Decimal(12,2)," &
               "validee TINYINT(1)," &
@@ -390,6 +396,42 @@ Public Sub Button1_Click()
               "numerop Integer(11)," &
               "numeropdef Integer(11)," &
               "export Char(1)," &
+              "control VARCHAR(40)," &
+              "lind2 INT," &
+              "lind INT NOT NULL AUTO_INCREMENT," &
+              "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+
+            TabM = "Fiches_MvtM"
+            Utils.db.Exec("CREATE TABLE " & TabM &
+              " (jour Char(2)," &
+              "numero Integer(11) NOT NULL," &
+              "numerodef Integer(11)," &
+              "compte CHAR(8) NOT NULL," &
+              "collectif TINYINT," &
+              "intitule Char(30)," &
+              "dte date," &
+              "datee date, " &
+              "dateech date, " &
+              "numcol Char(3)," &
+              "numdoc CHAR(10)," &
+              "numlot CHAR(10)," &
+              "libelle VarChar(50)," &
+              "montantd Decimal(12,2)," &
+              "montantc Decimal(12,2)," &
+              "validee TINYINT(1)," &
+              "provisoire TINYINT(1)," &
+              "tresorerie  TINYINT(1)," &
+              "pointee TINYINT(1)," &
+              "nrlv INTEGER(8)," &
+              "lettree TINYINT(1)," &
+              "cloturee TINYINT(1)," &
+              "dteval date, " &
+              "relance INTEGER(1)," &
+              "numerop Integer(11)," &
+              "numeropdef Integer(11)," &
+              "export Char(1)," &
+              "control VARCHAR(40)," &
+              "lind2 INT," &
               "lind INT NOT NULL AUTO_INCREMENT," &
               "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
 
@@ -407,7 +449,7 @@ Public Sub Button1_Click()
               "numcol Char(3)," &
               "numdoc CHAR(10)," &
               "numlot CHAR(10)," &
-              "libelle CHAR(30)," &
+              "libelle VarChar(50)," &
               "reptd Decimal(12,2)," &
               "reptc Decimal(12,2)," &
               "validee TINYINT(1)," &
@@ -420,6 +462,41 @@ Public Sub Button1_Click()
               "dteval date, " &
               "relance INTEGER(1)," &
               "export Char(1)," &
+              "control VARCHAR(40)," &
+              "lind2 INT," &
+              "lind INT NOT NULL AUTO_INCREMENT," &
+              "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
+
+            TabM = "ReportM"
+            Utils.db.Exec("drop Table IF exists " & TabM & "")
+            Utils.db.Exec("CREATE TABLE " & TabM &
+              " (jour Char(2)," &
+              "numero Integer(6) NOT NULL," &
+              "numerodef Integer(6)," &
+              "compte CHAR(8) NOT NULL," &
+              "collectif TINYINT," &
+              "intitule Char(30)," &
+              "dte date," &
+              "datee date, " &
+              "dateech date, " &
+              "numcol Char(3)," &
+              "numdoc CHAR(10)," &
+              "numlot CHAR(10)," &
+              "libelle VarChar(50)," &
+              "reptd Decimal(12,2)," &
+              "reptc Decimal(12,2)," &
+              "validee TINYINT(1)," &
+              "provisoire TINYINT(1)," &
+              "tresorerie  TINYINT(1)," &
+              "pointee TINYINT(1)," &
+              "nrlv INTEGER(8)," &
+              "lettree TINYINT(1)," &
+              "cloturee TINYINT(1)," &
+              "dteval date, " &
+              "relance INTEGER(1)," &
+              "export Char(1)," &
+              "control VARCHAR(40)," &
+              "lind2 INT," &
               "lind INT NOT NULL AUTO_INCREMENT," &
               "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
 
@@ -601,41 +678,39 @@ Public Sub Button1_Click()
             Endif
 
             ' On renumérote les écritures
-            numecr3 = 0
-            numecr1 = 0
-            num = ""
-            rResult = Utils.db.Exec("SELECT distinct numerop, cloturee FROM " & Tab & " order by numerop")
-            If rResult.Available Then
-              num = rResult!numerop
-              Repeat
-                cloturee = rResult!cloturee
-                If cloturee = True Then
-                  Inc numecr3
-                  Inc numecr1
-                Else
-                  Inc numecr1
-                Endif
-                Eresult = Utils.db.Exec("SELECT * FROM " & Tab & " where numerop = &1", rResult!numerop)
-                Repeat
-                  If CheckBox1.value Then
-                    If EResult!cloturee = True Then Utils.db.Exec("UPdate  " & Tab & "  SET numerodef =  &1, numero = &2 where lind = &3", numecr3, numecr1, Eresult!lind)
-                    If EResult!cloturee = False Then
-                      Utils.db.Exec("UPdate  " & Tab & "  SET numero =  &1, numerodef = &3 where lind = &2", numecr1, Eresult!lind, 0)
-                    Endif
-                  Else
-                    If EResult!cloturee = False Then Utils.db.Exec("UPdate  " & Tab & "  SET numerodef = &1 where lind = &2", 0, Eresult!lind)
-                    If EResult!cloturee = True Then Utils.db.Exec("UPdate  " & Tab & "  SET numerodef = &1 where lind = &2", numecr3, Eresult!lind)
-                  Endif
-                Until EResult.MoveNext()
-              Until rResult.MoveNext()
-              'If cloturee = True Then Utils.db.Exec("UPdate  " & Tab & "  SET numerodef =  &1, numero = &2, numerop = &2 where numerop = &3", numecr3, numecr1, num)
-              'If cloturee = False Then Utils.db.Exec("UPdate  " & Tab & "  SET numero =  &1 where numerop = &2", numecr1, num)
-            Endif
-            If CheckBox1.value Then
-              Utils.db.Exec("UPdate  " & Tab0 & "  SET  numecriture = &1, numecriture1 = &2, numecriture2 = &3 ", numecr1, 0, numecr3)
-            Else
-              Utils.db.Exec("UPdate  " & Tab0 & "  SET  numecriture1 = &1, numecriture2 = &2 ", 0, numecr3)
-            Endif
+            'numecr3 = 0
+            ' numecr1 = 0
+            '  num = ""
+            '  rResult = Utils.db.Exec("SELECT distinct numerop, cloturee FROM " & Tab & " order by numerop")
+            '  If rResult.Available Then
+            '    num = rResult!numerop
+            '     Repeat
+            '      cloturee = rResult!cloturee
+            '       If cloturee = True Then
+            '        Inc numecr3
+            '        Inc numecr1
+            '     Else
+            '       Inc numecr1
+            '      Endif
+            '      Eresult = Utils.db.Exec("SELECT * FROM " & Tab & " where numerop = &1", rResult!numerop)
+            '    Repeat
+            '        If CheckBox1.value Then
+            '          If EResult!cloturee = True Then Utils.db.Exec("UPdate  " & Tab & "  SET numerodef =  &1, numero = &2 where lind = &3", numecr3, numecr1, Eresult!lind)
+            '          If EResult!cloturee = False Then
+            '             Utils.db.Exec("UPdate  " & Tab & "  SET numero =  &1, numerodef = &3 where lind = &2", numecr1, Eresult!lind, 0)
+            '          Endif
+            '        Else
+            '          If EResult!cloturee = False Then Utils.db.Exec("UPdate  " & Tab & "  SET numerodef = &1 where lind = &2", 0, Eresult!lind)
+            '          If EResult!cloturee = True Then Utils.db.Exec("UPdate  " & Tab & "  SET numerodef = &1 where lind = &2", numecr3, Eresult!lind)
+            '         Endif
+            '       Until EResult.MoveNext()
+            '    Until rResult.MoveNext()
+            '    Endif
+            '   If CheckBox1.value Then
+            '    Utils.db.Exec("UPdate  " & Tab0 & "  SET  numecriture = &1, numecriture1 = &2, numecriture2 = &3 ", numecr1, 0, numecr3)
+            '  Else
+            '    Utils.db.Exec("UPdate  " & Tab0 & "  SET  numecriture1 = &1, numecriture2 = &2 ", 0, numecr3)
+            '  Endif
 
             ' On lettre les écritures
 
