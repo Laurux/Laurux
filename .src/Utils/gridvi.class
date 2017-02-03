@@ -7,6 +7,8 @@ Private $scode As String
 Private $stype As String
 Private $ideb As Integer
 Private $ifin As Integer
+Private Prxdec As Boolean = Settings["/Soc" & Start.Societe & "/Prxdec"]
+Private Ar$ As String
 
 Property code As String
 Property dec As String
@@ -39,12 +41,11 @@ Public Sub _new(TabStrip1 As TabStrip, type As String)        'dessin du gridvie
   $lab.Expand = True
   $lab.Background = &HDFBFFF
 
-  'but = New Button(pan) As "bouton"
-  'but.Height = 24
-  'but.Text = "Calcul"
-  'but.AutoResize = True
-  'but.Expand = True
-  'but.Picture = Picture["Icones/find.png"]
+  If Prxdec Then
+    ar$ = "0"
+  Else
+    ar$ = "0.00"
+  Endif
 
   $grdv = New GridView(TabStrip1) As "grdv"
   $grdv.Height = TabStrip1.Height - 30 - 24
@@ -138,9 +139,9 @@ Public Sub bouton_Click()         'lit et affiche les stat
 
       End Select
 
-      $grdv[j, i].Text = "0.00"
+      $grdv[j, i].Text = ar$
       $grdv[j, i + 1].Text = $sdec
-      $grdv[j, i + 2].Text = "0.00"
+      $grdv[j, i + 2].Text = ar$
       requete(tab, tab1, req, cond, dateinf, datesup, i, j)
 
       '                                                   lit et additionne les mois en cours dans le fichier bl
@@ -187,9 +188,9 @@ Public Sub bouton_Click()         'lit et affiche les stat
 
     Select i
       Case 1, 4, 7, 10
-        $grdv[12, i].Text = Format(fsomme, "######" & $sdec)
+        $grdv[12, i].Text = Format(fsomme, ar$)
       Case Else
-        $grdv[12, i].Text = Format(fsomme, "#######0.00")
+        $grdv[12, i].Text = Format(fsomme, ar$)
     End Select
 
   Next
@@ -212,7 +213,7 @@ Private Sub requete(tab As String, tab1 As String, req As String, cond As String
   For k = 0 To resbl.Max
     fsomme = 0
     Try fsomme = CFloat(Replace($grdv[j, i].Text, ",", ".")) + CFloat(Trim(Replace(resbl!ht, ",", ".")))
-    $grdv[j, i].Text = Format(fsomme, "#######0.00")
+    $grdv[j, i].Text = Format(fsomme, ar$)
     fsomme = 0
     Try fsomme = CFloat(Replace($grdv[j, i + 1].Text, ",", ".")) + CFloat(Trim(Replace(resbl!qte, ",", ".")))
     $grdv[j, i + 1].Text = Format(fsomme, "######" & $sdec)
@@ -226,7 +227,7 @@ Private Sub requete(tab As String, tab1 As String, req As String, cond As String
     Else
       Try fsomme = CFloat(Replace($grdv[j, i + 2].Text, ",", ".")) + CFloat(resbl!marge)
     Endif
-    $grdv[j, i + 2].Text = Format(fsomme, "#####0.00")
+    $grdv[j, i + 2].Text = Format(fsomme, ar$)
 
     resbl.MoveNext
   Next
