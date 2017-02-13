@@ -54,6 +54,7 @@ Private Esphauteur As Integer
 Private Nbetq As Integer = 1
 Private Nb As Boolean = False
 Private pdf As Cetiquettes
+Private $type As String = "tous"
 Public Bsel As Boolean = False
 Public Codepostal As String
 Public Bureaudistributeur As String
@@ -87,14 +88,45 @@ Public Sub _New()
       Loop Until rResult.MoveNext()
     Endif
   Endif
+  Rb1.value = True
   CV.Text = ""
   Nm.setfocus
+
+End
+
+Public Sub Form_Open()
+
+  Tri = "code"
+  Tris()
+  sel = ""
+  Deb2()
 
 End
 
 Public Sub Tabstrip1_click()
 
   If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+
+End
+
+Public Sub Rb1_Click()
+
+  $type = "tous"
+  Deb2()
+
+End
+
+Public Sub Rb2_Click()
+
+  $type = "carte"
+  Deb2()
+
+End
+
+Public Sub Rb3_Click()
+
+  $type = "divers"
+  Deb2()
 
 End
 
@@ -127,15 +159,6 @@ Public Sub Colcli_Data(Row As Integer, Column As Integer)
       If Column = 8 Then Colcli.Data.Alignment = 1
     Endif
   End With
-
-End
-
-Public Sub Form_Open()
-
-  Tri = "code"
-  Tris()
-  sel = ""
-  Deb2()
 
 End
 
@@ -172,14 +195,32 @@ End
 
 Public Sub Deb2()
 
-  Utils.Base(colcli, "select code, rs_soc, nom, pnm, adr1, cd_ptl, ville from " & Cbase.Table("TabCarte") & " where " & Tri & " like  \"%" & sel & "%\" order by " & Tri & "")
+  Dim $divers As String = "-1"
+
+  Select Case $type
+    Case "tous"
+      Utils.Base(colcli, "select code, rs_soc, nom, pnm, adr1, cd_ptl, ville from " & Cbase.Table("TabCarte") & " where " & Tri & " like  \"%" & sel & "%\" order by " & Tri & "")
+    Case "carte"
+      Utils.Base(colcli, "select code, rs_soc, nom, pnm, adr1, cd_ptl, ville from " & Cbase.Table("TabCarte") & " where " & Tri & " like  \"%" & sel & "%\" and divers <>  " & $divers & " order by " & Tri & "")
+    Case "divers"
+      Utils.Base(colcli, "select code, rs_soc, nom, pnm, adr1, cd_ptl, ville from " & Cbase.Table("TabCarte") & " where " & Tri & " like  \"%" & sel & "%\" and divers = " & $divers & " order by " & Tri & "")
+  End Select
   Colcli.Refresh
 
 End
 
 Public Sub Deb3()
 
-  Utils.Base(colcli, "select code, rs_soc, nom, pnm, adr1, cd_ptl, ville  from " & Cbase.Table("TabCarte") & " where " & Tri & " like  \"%" & sel & "%\" order by " & Tri & " desc ")
+  Dim $divers As String = "-1"
+
+  Select Case $type
+    Case "tous"
+      Utils.Base(colcli, "select code, rs_soc, nom, pnm, adr1, cd_ptl, ville from " & Cbase.Table("TabCarte") & " where " & Tri & " like  \"%" & sel & "%\" order by " & Tri & " desc")
+    Case "carte"
+      Utils.Base(colcli, "select code, rs_soc, nom, pnm, adr1, cd_ptl, ville from " & Cbase.Table("TabCarte") & " where " & Tri & " like  \"%" & sel & "%\" and divers <>  " & $divers & " order by " & Tri & " desc")
+    Case "divers"
+      Utils.Base(colcli, "select code, rs_soc, nom, pnm, adr1, cd_ptl, ville from " & Cbase.Table("TabCarte") & " where " & Tri & " like  \"%" & sel & "%\" and divers = " & $divers & " order by " & Tri & " desc")
+  End Select
   colcli.Refresh
 
 End
@@ -1128,14 +1169,15 @@ Public Sub Hisv_Click()
   If Hisv.value = True Then
     Hisp.value = False
     Histo.Clear
-    Histo.Columns.count = 7
+    Histo.Columns.count = 8
     Histo.Columns[0].Width = 90
     Histo.Columns[1].Width = 90
     Histo.Columns[2].Width = 160
     Histo.Columns[3].Width = 260
     Histo.Columns[4].Width = 60
     Histo.Columns[5].Width = 100
-    Histo.Columns[6].Width = 60
+    Histo.Columns[6].Width = 100
+    Histo.Columns[7].Width = 60
     Histo.Columns[0].Text = "Date"
     Histo.Columns[1].Text = "N° Ticket"
     Histo.Columns[1].Alignment = 3
@@ -1146,13 +1188,15 @@ Public Sub Hisv_Click()
     Histo.Columns[4].Alignment = 2
     Histo.Columns[5].Text = "Tot HT"
     Histo.Columns[5].Alignment = 2
-    Histo.Columns[6].Text = "Remise"
+    Histo.Columns[6].Text = "Tot TTC"
     Histo.Columns[6].Alignment = 2
+    Histo.Columns[7].Text = "Remise"
+    Histo.Columns[7].Alignment = 2
     HisResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHEntTck") & " where carte = &1 order by numero", cd.text)
     If HisResult.Available Then
       If Not IsNull(HisResult!carte) Then
         Repeat
-          HligResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHLigTck") & " where numero = &1 order by code", HisResult!numero)
+          HligResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHLigTck") & " where numero = &1 and type = &2 order by code", HisResult!numero, "A")
           If HligResult.Available Then
             Repeat
               Histo.Add(HligResult!lInd, HligResult!lInd)
@@ -1162,7 +1206,8 @@ Public Sub Hisv_Click()
               Histo.Item[3] = HligResult!intitule
               Histo.Item[4] = HligResult!qte
               Try Histo.Item[5] = Format$(Val(Utils.cpoint(HligResult!mht)), "0.00")
-              Try Histo.Item[6] = Format$(Val(Utils.cpoint(HligResult!mrem)), "0.00")
+              Histo.Item[6] = Format$(Val(Utils.cpoint(HligResult!montant)), "0.00")
+              Try Histo.Item[7] = Format$(Val(Utils.cpoint(HligResult!mrem)), "0.00")
             Until HligResult.MoveNext()
           Endif
         Until HisResult.MoveNext()

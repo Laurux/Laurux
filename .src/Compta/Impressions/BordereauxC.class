@@ -228,11 +228,13 @@ Public Sub Imp_Bordereaux()
   Dim Cptcli, libel, Cptcaisse, Cptbanque As String
   Dim libelCaisse As String
   Dim nbreg As Integer = 0
-  Dim Montant As Float = 0
+  Dim Montant, Tmontant As Float = 0
   Dim Nbtot As String
   Dim lg, inlg As Integer
-  Dim rBanque As Result
+  Dim rBanque, rBrd As Result
   Dim Nlot As String
+  Dim Chemin As String
+  Dim blettree, bcheque As Boolean = False
 
   Parametres()
   'On recupère le code client caisse
@@ -291,7 +293,11 @@ Public Sub Imp_Bordereaux()
   If Not IsNull(Settings["/Soc" & Start.Societe & "/FactcheminC"]) Then
     If Not Exist(Settings["/Soc" & Start.Societe & "/FactcheminC"]) Then Mkdir Settings["/Soc" & Start.Societe & "/FactcheminC"]
     If Not Exist(Settings["/Soc" & Start.Societe & "/FactcheminC"] & "/Bordereaux") Then Mkdir Settings["/Soc" & Start.Societe & "/FactcheminC"] & "/Bordereaux"
-    Shell "cp " & Filename & " " & Settings["/Soc" & Start.Societe & "/FactcheminC"] & "/Bordereaux/" & "Bordereau" & Nbordereau.text & "pdf" Wait
+    Chemin = Settings["/Soc" & Start.Societe & "/FactcheminC"] & "/Bordereaux/" & Format$(DateChooser1.Value, "yyyy")
+    If Not Exist(Chemin) Then Mkdir Chemin
+    Chemin &= "/" & Format$(DateChooser1.Value, "mm")
+    If Not Exist(Chemin) Then Mkdir Chemin
+    Shell "cp " & Filename & " " & Chemin & "/Bordereau" & Nbordereau.text & ".pdf" Wait
   Else
     Message.Warning("Copie impossible ! le chemin des PDF de la comptabilité n'est pas indiqué.")
   Endif
@@ -300,52 +306,80 @@ Public Sub Imp_Bordereaux()
     ' On génère l'écriture de trésorerie pour les chèques caisse
     For inlg = 0 To Grd1.Rows.count - 1
       If Grd1[inlg, 1].Text = "1" Then
-        Cptcli = Grd1[inlg, 5].Text
-        If Cptcli = Cptcaisse Then Montant += Val(Utils.cpoint(Grd1[inlg, 4].text))
+        If Grd1[inlg, 5].Text = Cptcaisse Then
+          Montant += Val(Utils.cpoint(Grd1[inlg, 4].text))
+          Tmontant += Montant
+          Cptcli = Grd1[inlg, 5].Text
+        Endif
       Endif
     Next
-    If Cptcli = Cptcaisse And montant > 0 Then
+    If Cptcli = Cptcaisse And montant > 0 And Not IsNull(Cptcli) Then
       Libel = "Chèques caisse "
-      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, Client, Libel, Utils.Cdate_Dbase(Dateb.Text), Nbordereau.Text, Nbordereau.Text, Libel, 0, montant, 1, 0, 1, 1, 1, Utils.Cdate_Dbase(Dateb.text), numr2)
-      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, Cptbanque, libel, Utils.Cdate_Dbase(Dateb.Text), Nbordereau.Text, Nbordereau.Text, Libel, montant, 0, 1, 0, 1, 1, 1, Utils.Cdate_Dbase(Dateb.text), numr2)
+      rBrd = Utils.db.Exec(" select  sum(replace(montantd, ',', '.')) as tmtd, sum(replace(montantc, ',', '.')) as tmtc from " & Cbase.Table("TabMvt") & " where numlot = &1 and compte = &2", Nlot, CptCli)
+      If Not IsNull(rBrd!tmtd) Then
+        If rBrd!tmtd - rBrd!tmtc = Montant Then
+          blettree = 1
+        Else
+          blettree = 0
+        Endif
+      Else
+        blettree = 0
+      Endif
+      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, Client, Libel, Utils.Cdate_Dbase(Dateb.Text), Nbordereau.Text, Nbordereau.Text, Libel, 0, montant, 1, 0, 1, 0, 1, Utils.Cdate_Dbase(Dateb.text), numr2)
+
+      Utils.db.Exec("Update " & Cbase.Table("TabMvt") & " set lettree = &1 Where numero = &2", blettree, numr)
       Csolde.Solde_caisse(Cptcaisse)
-      Csolde.Solde_caisse(Cptbanque)
-      Maj_Collectif(cptcli, LibelCaisse, "Chèques caisse " & Dateb.text, montant)
+      Maj_Collectif(cptcli, LibelCaisse, "Chèques caisse " & Dateb.text, montant, blettree)
     Endif
     ' On génère l'écriture de trésorerie pour les chèques client compte
     For inlg = 0 To Grd1.Rows.count - 1
       If Grd1[inlg, 1].Text = "1" Then
-        Cptcli = Grd1[inlg, 5].Text
-        If Not IsNull(Grd1[inlg, 7].text) Then
-          Nlot = Grd1[inlg, 7].text
-        Else
-          Nlot = Nbordereau.Text
-        Endif
-        If Cptcli <> Cptcaisse And Not IsNull(Cptcli) Then
+        If Grd1[inlg, 5].Text <> Cptcaisse And Not IsNull(Grd1[inlg, 5].Text) Then
+          bcheque = True
+          If Not IsNull(Grd1[inlg, 7].text) Then
+            Nlot = Grd1[inlg, 7].text
+          Else
+            Nlot = Nbordereau.Text
+          Endif
+          Cptcli = Grd1[inlg, 5].Text
           Montant = Val(Utils.cpoint(Grd1[inlg, 4].text))
+          Tmontant += Montant
           Libel = Grd1[inlg, 6].text
           If montant > 0 Then
-            Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, CptCli, Libel, Utils.Cdate_Dbase(Dateb.Text), Nlot, Nlot, Libel & " (B" & Nbordereau.Text & ")", 0, montant, 1, 0, 1, 1, 1, Utils.Cdate_Dbase(Dateb.text), numr2)
-            Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, Cptbanque, libel, Utils.Cdate_Dbase(Dateb.Text), Nlot, Nlot, Libel & " (B" & Nbordereau.Text & ")", montant, 0, 1, 0, 1, 1, 1, Utils.Cdate_Dbase(Dateb.text), numr2)
+            rBrd = Utils.db.Exec(" select  sum(replace(montantd, ',', '.')) as tmtd, sum(replace(montantc, ',', '.')) as tmtc from " & Cbase.Table("TabMvt") & " where numlot = &1 and compte = &2", Nlot, CptCli)
+            If Not IsNull(rBrd!tmtd) Then
+              If rBrd!tmtd - rBrd!tmtc = Montant Then
+                blettree = 1
+              Else
+                blettree = 0
+              Endif
+            Else
+              blettree = 0
+            Endif
+            Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, CptCli, Libel, Utils.Cdate_Dbase(Dateb.Text), Nlot, Nlot, Libel & " 'B" & Nbordereau.Text, 0, montant, 1, 0, 1, blettree, 1, Utils.Cdate_Dbase(Dateb.text), numr2)
             Csolde.Solde_caisse(Cptcli)
-            Csolde.Solde_caisse(Cptbanque)
-            Maj_Collectif(cptcli, Libel, "Chèque " & Libel & Dateb.text, montant)
+            Maj_Collectif(cptcli, Libel, "Chèque " & Libel & Dateb.text, montant, blettree)
           Endif
         Else
-          Message.Error("Le chèque d'un montant de " & Montant & " ne peux pas être traité!\ncar il ne possède pas de code client!")
+          If IsNull(Grd1[inlg, 5].Text) Then Message.Error("Le chèque d'un montant de " & Montant & " ne peux pas être traité!\ncar il ne possède pas de code client!")
         Endif
       Endif
     Next
+    Libel = "Bordereau de chèque N° " & Bordereaux.Text
+    Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, Cptbanque, libel, Utils.Cdate_Dbase(Dateb.Text), Nlot, Nlot, Libel, Tmontant, 0, 1, 0, 1, 0, 1, Utils.Cdate_Dbase(Dateb.text), numr2)
+    Csolde.Solde_caisse(Cptbanque)
+    Maj_Collectif(cptcli, Libel, "Chèque " & Libel & Dateb.text, montant, blettree)
+    Sha1Calc.CalcSha1(numr)
     For inlg = 0 To Grd1.Rows.count - 1
       If Grd1[inlg, 1].Text = "1" Then Utils.db.Exec("DELETE FROM  Fiches_BordereauxC  WHERE lind = &1", Grd1[inlg, 0].Text)
     Next
     Recup_Cheques()
+    Message.Info("Traitement terminé !")
   Endif
-  ' Endif
 
 End
 
-Public Sub Maj_Collectif(Cpt As String, intit As String, libel As String, Mnt As Float)
+Public Sub Maj_Collectif(Cpt As String, intit As String, libel As String, Mnt As Float, lettree As String)
 
   Dim Coll As String
   Dim Mtc As Float
@@ -365,10 +399,10 @@ Public Sub Maj_Collectif(Cpt As String, intit As String, libel As String, Mnt As
       Mtc = 0
       Mtd = Mnt + cResult!montantd
     Endif
-    Utils.db.Exec("UPDATE " & Cbase.Table("TabMvt") & " set montantc = &4 Where compte = &1 and numero = &2 and numerodef = &3", Coll, numr, numr2, mtc)
+    Utils.db.Exec("UPDATE " & Cbase.Table("TabMvt") & " set montantc = &4, lettree = &5 Where compte = &1 and numero = &2 and numerodef = &3", Coll, numr, numr2, mtc, lettree)
   Else
     Mtc = Mnt
-    Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour, numero, compte, collectif, intitule, dte, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, numerodef, numdoc, numlot) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19})", Jnal, numr, coll, 1, Intit, Utils.Cdate_Dbase(Dateb.Text), Libel, Mtd, Mtc, 1, 0, 1, 0, 0, 1, 0, numr2, Numlt, numlt)
+    Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour, numero, compte, collectif, intitule, dte, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, numerodef, numdoc, numlot) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19})", Jnal, numr, coll, 1, Intit, Utils.Cdate_Dbase(Dateb.Text), Libel, Mtd, Mtc, 1, 0, 1, 0, lettree, 1, 0, numr2, Numlt, numlt)
   Endif
   cResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", coll)
   If cResult!solde = "" Then
