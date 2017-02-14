@@ -116,6 +116,8 @@ Public Sub _New()
 
   Dim Dppc As Date
   Dim Tab As String = "Fiches_Parametres"
+  Dim $lp, $imp As String
+  Dim imp As String[]
 
   rResult = Utils.db.Exec("SELECT * FROM " & tab & "")
   If rResult.Available Then
@@ -124,8 +126,13 @@ Public Sub _New()
   Endif
   Coulfond = Utils.Coulfd()
   If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
-
   Music.Load(Start.Musique)
+  ' On gère les imprimantes
+  Shell "lpc status 2>&1" To $imp
+  For Each $lp In Split($imp, "\n")
+    If Right($lp) = ":" Then Cimp.add(Left($lp, -1))
+  Next
+  Try Cimp.Text = Settings["/Soc" & Start.Societe & "/Cimp"]
   Me.Center
 
   Colbl.Columns.count = 6
@@ -586,6 +593,16 @@ Public Sub Bl_Edit()
 
 End
 
+Public Sub Chximp_Click()
+
+  If Chximp.Value Then
+    Cimp.Visible = True
+  Else
+    Cimp.Visible = False
+  Endif
+
+End
+
 Public Sub dtef_LostFocus()
 
   dtef.text = Utils.Cdate_calc(dtef.text)
@@ -751,7 +768,7 @@ Public Sub Impression()
   Tab9 = "Bl"
   Tab10 = "Totalisation"
   Ventilation()
-  Utils.db.Exec("LOCK TABLES " & Tab & " read, " & Tab0 & " WRITE, " & Tab1 & " WRITE, " & Tab2 & " WRITE," & Tab3 & " WRITE, " & Tab4 & " WRITE, " & Tab5 & " WRITE, " & Tab6 & " WRITE, " & Tab7 & " WRITE, " & Tab8 & " WRITE, " & Tab9 & " WRITE, " & Tab10 & " WRITE," & Cbase.Table("TabTleg") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, " & Cbase.Table("TabHisFac") & " WRITE, " & "Fiches_Suivis" & " WRITE, " & "Docs_Clients" & " WRITE")
+  Utils.db.Exec("LOCK TABLES " & Tab & " read, " & Tab0 & " WRITE, " & Tab1 & " WRITE, " & Tab2 & " WRITE," & Tab3 & " WRITE, " & Tab4 & " WRITE, " & Tab5 & " WRITE, " & Tab6 & " WRITE, " & Tab7 & " WRITE, " & Tab8 & " WRITE, " & Tab9 & " WRITE, " & Tab10 & " WRITE," & Cbase.Table("TabTleg") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, " & Cbase.Table("TabHisFac") & " WRITE, " & "Fiches_Suivis" & " WRITE, " & "Docs_Clients" & " WRITE, " & "Fiches_HistoFacM" & " WRITE, " & "Fiches_BlM" & " WRITE")
   If Settings["/Soc" & Start.Societe & "/glogo"] Then Try Logo = Image.Load(Settings["/Soc" & Start.Societe & "/Logo"])
   Shell "cd " & User.Home & ""
   Filename = User.Home & "/tmp/Facture.pdf"
@@ -1225,7 +1242,7 @@ Public Sub Impression()
             Endif
           Endif
           pdf.Output(Filename, False)
-          Impressfac.Prog_Editeur(Filename, Val(Nbexpl), False)
+          Impressfac.Prog_Editeur(Filename, Val(Nbexpl), Cimp.Text)
           Wait 1
           ty = ""
           Nom = Replace$(Nom, " ", "")
@@ -1290,6 +1307,8 @@ Public Sub Parametres()
     Try bnumfac = rResult!nfac
     If Error Then bnumfac = False
   Endif
+  Nfac = VerifNumfac.Dnfac(Nfac)
+  Nfac = Format$(Val(Nfac) - 1, "000000")
 
 End
 
@@ -1326,7 +1345,7 @@ Public Sub Ventilation()
     "intitule Char(40)," &
     "totalht Char(25)," &
     "totaltva Char(25)," &
-    "codetva Char(1)," &
+    "codetva Char(2)," &
     "PRIMARY KEY (compte,codetva))" & "ENGINE = MYISAM")
 
 End
@@ -1476,7 +1495,7 @@ Public Sub Maj_Compta()
   Dim Libel As String
   Dim Mtc As Float
   Dim Mtd As Float
-  Dim Sld As Float
+  Dim Sld, Montantcheque, totf As Float
   Dim Valid As Integer
   Dim Prov As Integer
   Dim Tresor As Integer
@@ -1528,9 +1547,11 @@ Public Sub Maj_Compta()
           If rResult!totalht <> "" And Val(.cpoint(rResult!totalht)) > 0 Then
             Mtd = Val(.cpoint(rResult!totalht))
             Mtc = 0
+            Totf = Mtd
           Else
             Mtc = Abs(Val(.cpoint(rResult!totalht)))
             Mtd = 0
+            Totf = Mtc
           Endif
           If radiobutton2.value Then
             If IsNull(rglt.text) Then Rglt.Text = "0"
@@ -1622,6 +1643,7 @@ Public Sub Maj_Compta()
         Mtc = 0
         sld = 0
       Until rResult.MoveNext()
+      Sha1Calc.CalcSha1(Numr)
       'Maj_Parametres()
       ' On gère la première écriture de trésorerie
       If Regmt.text = "Espèces" Or If Regmt.text = "Carte" Or If Regmt.text = "Chèque" Then
@@ -1641,21 +1663,34 @@ Public Sub Maj_Compta()
             Mtd = Val(rglt.Text)
             Mtc = 0
           Endif
+          jl = Utils.db.Exec("SELECT * FROM " & Tab5 & " where code_jo = &1", jnal)
           If Regmt.text = "Espèces" Then
-            jl = Utils.db.Exec("SELECT * FROM " & Tab5 & " where code_jo = &1", jnal)
             Cptreglt = jl!cde_banque
           Else
-            If Regmt.text = "Carte" Then
-              Cptreglt = Vic
-            Else
-              If Regmt.text = "Chèque" Then
-                Cptreglt = Vichq
-              Endif
+            If Regmt.text = "Carte" Then Cptreglt = Vic
+            If Regmt.text = "Chèque" Then Cptreglt = Vichq
+            If Not Settings["/Soc" & Start.Societe & "/Carte"] Or If Not Settings["/Soc" & Start.Societe & "/Cheque"] Then
+              Cptreglt = jl!cde_banque
             Endif
           Endif
           Libel = "Rglt " & Regmt.Text & " " & $intitule
-          Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Codeclient.Text, Left$(rs2, 40), .Cdate_Dbase(Dtef.Text), Numerofac, Numerofac, Left$(Libel, 30), mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text))
-          Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech, collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, coll, Left$(rs2, 40), .Cdate_Dbase(Dtef.Text), Numerofac, Numerofac, Left$(Libel, 30), mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text), 1)
+          If Regmt.text = "Espèces" Or If Regmt.text = "Carte" Or If Regmt.text = "Paypal" Then
+            Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Codeclient.Text, Left$(rs2, 40), .Cdate_Dbase(Dtef.Text), Numerofac, Numerofac, Left$(Libel, 30), mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text))
+            Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech, collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, coll, Left$(rs2, 40), .Cdate_Dbase(Dtef.Text), Numerofac, Numerofac, Left$(Libel, 30), mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text), 1)
+          Else
+            If Regmt.text = "Chèque" Then
+              If totf > 0 Then Montantcheque = Val(rglt.Text)
+              'On mouvemente la table des bordereaux de chèques.
+              If Not Settings["/Soc" & Start.Societe & "/Cheque"] Then
+                Utils.db.Exec("INSERT INTO " & "Fiches_BordereauxC" & "(code, nom, montant,dateremise,banque,nfacture ) VALUES (&1, &2, &3, &4, &5,&6)", Codeclient.Text, Rs2, Montantcheque, .Cdate_Dbase(Dtef.Text), jnal, Numerofac)
+              Else
+                If Settings["/Soc" & Start.Societe & "/Cheque"] Then
+                  Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Codeclient.Text, Left$(rs2, 40), .Cdate_Dbase(Dtef.Text), Numerofac, Numerofac, Left$(Libel, 30), mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text))
+                  Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech, collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, coll, Left$(rs2, 40), .Cdate_Dbase(Dtef.Text), Numerofac, Numerofac, Left$(Libel, 30), mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text), 1)
+                Endif
+              Endif
+            Endif
+          Endif
           If Val(Rglt.Text) > 0 Then
             Mtd = Mtc
             Mtc = 0
@@ -1663,8 +1698,10 @@ Public Sub Maj_Compta()
             Mtc = Mtd
             Mtd = 0
           Endif
-          Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Cptreglt, Left$(Regmt.text & " " & rs2, 40), .Cdate_Dbase(Dtef.Text), Numerofac, numerofac, Left$(Libel, 30), mtd, mtc, 1, 0, 1, 0, cloturee, .Cdate_Dbase(Dtef.Text))
-
+          If Regmt.text <> "Chèque" Or If Regmt.text = "Chèque" And Settings["/Soc" & Start.Societe & "/Cheque"] Then
+            Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Cptreglt, Left$(Regmt.text & " " & rs2, 40), .Cdate_Dbase(Dtef.Text), Numerofac, numerofac, Left$(Libel, 30), mtd, mtc, 1, 0, 1, 0, cloturee, .Cdate_Dbase(Dtef.Text))
+          Endif
+          Sha1Calc.CalcSha1(Numr)
           '*******************************On recalcule les soldes des comptes************************************
           If Val(rglt.Text) > 0 Then
             Mtc = Val(rglt.Text)
@@ -1736,17 +1773,30 @@ Public Sub Maj_Compta()
           If Regmt2.text = "Espèces" Then
             Cptreglt = jl!cde_banque
           Else
-            If Regmt2.text = "Carte" Then
-              Cptreglt = Vic
-            Else
-              If Regmt2.text = "Chèque" Then
-                Cptreglt = Vichq
-              Endif
+            If Regmt2.text = "Carte" Then Cptreglt = Vic
+            If Regmt2.text = "Chèque" Then Cptreglt = Vichq
+            If Not Settings["/Soc" & Start.Societe & "/Carte"] Or If Not Settings["/Soc" & Start.Societe & "/Cheque"] Then
+              Cptreglt = jl!cde_banque
             Endif
           Endif
           Libel = "Rglt " & Regmt2.Text & " " & $intitule
-          Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Codeclient.Text, Left$(rs2, 40), .Cdate_Dbase(Dtef.Text), Numerofac, numerofac, Left$(Libel, 30), mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text))
-          Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech, collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, coll, Left$(rs2, 40), .Cdate_Dbase(Dtef.Text), numerofac, Numerofac, Left$(Libel, 30), mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text), 1)
+          If Regmt2.text = "Espèces" Or If Regmt2.text = "Carte" Or If Regmt2.text = "Paypal" Then
+            Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Codeclient.Text, Left$(rs2, 40), .Cdate_Dbase(Dtef.Text), Numerofac, numerofac, Left$(Libel, 30), mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text))
+            Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech, collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, coll, Left$(rs2, 40), .Cdate_Dbase(Dtef.Text), numerofac, Numerofac, Left$(Libel, 30), mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text), 1)
+          Else
+            If Regmt2.text = "Chèque"
+              If Totf > 0 Then Montantcheque = Val(rglt2.Text)
+              'On mouvemente la table des bordereaux de chèques.
+              If Not Settings["/Soc" & Start.Societe & "/Cheque"] Then
+                Utils.db.Exec("INSERT INTO " & "Fiches_BordereauxC" & "(code, nom, montant,dateremise,banque,nfacture ) VALUES (&1, &2, &3, &4, &5,&6)", Codeclient.Text, Rs2, Montantcheque, .Cdate_Dbase(Dtef.Text), jnal, Numerofac)
+              Else
+                If Settings["/Soc" & Start.Societe & "/Cheque"] Then
+                  Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Codeclient.Text, Left$(rs2, 40), .Cdate_Dbase(Dtef.Text), Numerofac, Numerofac, Left$(Libel, 30), mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text))
+                  Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech, collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, coll, Left$(rs2, 40), .Cdate_Dbase(Dtef.Text), Numerofac, Numerofac, Left$(Libel, 30), mtd, mtc, 1, 0, 1, lettree, cloturee, .Cdate_Dbase(Dtef.Text), 1)
+                Endif
+              Endif
+            Endif
+          Endif
           If Val(rglt2.Text) > 0 Then
             Mtd = Mtc
             Mtc = 0
@@ -1754,8 +1804,10 @@ Public Sub Maj_Compta()
             Mtc = Mtd
             Mtd = 0
           Endif
-          Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Cptreglt, Left$(Regmt2.text & " " & rs2, 40), .Cdate_Dbase(Dtef.Text), numerofac, numerofac, Left$(Libel, 30), mtd, mtc, 1, 0, 1, 0, cloturee, .Cdate_Dbase(Dtef.Text))
-
+          If Regmt2.text <> "Chèque" Or If Regmt2.text = "Chèque" And Settings["/Soc" & Start.Societe & "/Cheque"] Then
+            Utils.db.Exec("INSERT INTO " & Tmvt & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Jnal, numr, Cptreglt, Left$(Regmt2.text & " " & rs2, 40), .Cdate_Dbase(Dtef.Text), numerofac, numerofac, Left$(Libel, 30), mtd, mtc, 1, 0, 1, 0, cloturee, .Cdate_Dbase(Dtef.Text))
+          Endif
+          Sha1Calc.CalcSha1(Numr)
           '*******************************On recalcule les soldes des comptes************************************
 
           If Val(rglt2.Text) > 0 Then
@@ -1803,8 +1855,8 @@ Public Sub Maj_Compta()
           Mtc = 0
         Endif
       Endif
-      Utils.db.Exec("UPDATE " & Tab & " set numecriture = &1, numecriture2 = &2", numr, numr2)
     Endif
+    Utils.db.Exec("UPDATE " & Tab & " set numecriture = &1, numecriture2 = &2", numr, numr2)
   End With
 
 End

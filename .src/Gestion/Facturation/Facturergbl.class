@@ -17,7 +17,7 @@
 'INC, 59 Temple place - Suite 33, Boston
 'MA 02111-1307 USA
 '################################################
-'# nom du fichier           : Facturefm.class
+'# nom du fichier           : Facturergbl.class
 '# Auteur                   : Jacky Tripoteau
 '# date de création         : 01/09/2007
 '# Facturation fin de mois
@@ -97,6 +97,8 @@ Private pdf As Cdocuments
 Public Sub _New()
 
   Dim Dppc As Date
+  Dim $lp, $imp As String
+  Dim imp As String[]
 
   Tab = "Fiches_Parametres"
   rResult = Utils.db.Exec("SELECT * FROM " & tab & "")
@@ -106,8 +108,13 @@ Public Sub _New()
   Endif
   Coulfond = Utils.Coulfd()
   If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
-
   Music.Load(Start.Musique)
+  ' On gère les imprimantes
+  Shell "lpc status 2>&1" To $imp
+  For Each $lp In Split($imp, "\n")
+    If Right($lp) = ":" Then Cimp.add(Left($lp, -1))
+  Next
+  Try Cimp.Text = Settings["/Soc" & Start.Societe & "/Cimp"]
   Me.Center
 
   Colbl.Columns.count = 6
@@ -958,7 +965,7 @@ Public Sub Button14_Click()
         Endif
       Endif
       pdf.Output(Filename, False)
-      Impressfac.Prog_Editeur(Filename, Val(Nbexpl), False)
+      Impressfac.Prog_Editeur(Filename, Val(Nbexpl), Cimp.Text)
       Wait 1
       Acpt = 0
       Totacpt = 0
@@ -1019,7 +1026,7 @@ Public Sub Ventilation()
     "intitule Char(40)," &
     "totalht Char(25)," &
     "totaltva Char(25)," &
-    "codetva Char(1)," &
+    "codetva Char(2)," &
     "PRIMARY KEY (compte,codetva))" & "ENGINE = MYISAM")
 
 End

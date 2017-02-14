@@ -100,6 +100,7 @@ Public Sub _New()
   Dim Frmt As New String[]
   Dim WidthCol As String
   Dim s As String
+  Dim $lp, $imp As String
   Dim spl As New String[10]
 
   Music.Load(Start.Musique)
@@ -124,6 +125,12 @@ Public Sub _New()
     Frame1.x = Colbl.W + 108
   Endif
   If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  ' On gère les imprimantes
+  Shell "lpc status 2>&1" To $imp
+  For Each $lp In Split($imp, "\n")
+    If Right($lp) = ":" Then Cimp.add(Left($lp, -1))
+  Next
+  Try Cimp.Text = Settings["/Soc" & Start.Societe & "/Cimp"]
   Prxdec = Settings["/Soc" & Start.Societe & "/Prxdec"]
   n = 1
   dat = 0
@@ -1450,6 +1457,16 @@ Public Sub Button9_Click()
 
 End
 
+Public Sub Chximp_Click()
+
+  If Chximp.Value Then
+    Cimp.Visible = True
+  Else
+    Cimp.Visible = False
+  Endif
+
+End
+
 Public Sub Button21_Click()
 
   Visudoc = True
@@ -1962,7 +1979,7 @@ Public Sub Impression(Org As String)
           Visualiseur.Prog_Editeur(Filename)
           Visudoc = False
         Else
-          Impressfac.Prog_Editeur(Filename, Val(Nbcopie.text), ChxImp.value)
+          Impressfac.Prog_Editeur(Filename, Val(Nbcopie.text), Cimp.Text)
         Endif
       Endif
       ty = "Duplicata"
@@ -2030,7 +2047,7 @@ Public Sub Ventilation()
     "intitule Char(40)," &
     "totalht Char(15)," &
     "totaltva Char(15)," &
-    "codetva Char(1)," &
+    "codetva Char(2)," &
     "PRIMARY KEY (compte,codetva))" & "ENGINE = MYISAM")
   Utils.db.Exec("INSERT INTO " & Cbase.Table("Totalisation") & "(compte, intitule, totalht, codetva) VALUES (&1, &2, &3, &4)", Code.Text, Nom.Text, Tottc.Text, ".")
 

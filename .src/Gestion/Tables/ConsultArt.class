@@ -113,7 +113,22 @@ End
 
 Public Sub Colarts_Data(Row As Integer, Column As Integer)
 
+  Dim Frmt As New String[]
+  Dim Epuises As String
+  Dim Stockes As String
+  Dim Nstockes As String
+  Dim Suspendus As String
+  Dim sline As String
+
   With Utils
+    Epuises = Settings["/Coul/Eps"]
+    If IsNull(Epuises) Then Epuises = "&HF9F9BD&"
+    Stockes = Settings["/Coul/Stk"]
+    If IsNull(Stockes) Then Stockes = "&HF9F9BD&"
+    Nstockes = Settings["/Coul/Nstk"]
+    If IsNull(Nstockes) Then Nstockes = "&HF9F9BD&"
+    Suspendus = Settings["/Coul/Spd"]
+    If IsNull(Suspendus) Then Suspendus = "&HF9F9BD&"
     ArtTable[0] = "art_stocke"
     ArtTable[1] = "art_qte"
     ArtTable[2] = "art_suspendu"
@@ -140,21 +155,49 @@ Public Sub Colarts_Data(Row As Integer, Column As Integer)
     Endif
     Try .rs1.MoveTo(Row)
     Try Colarts.data.Text = Str(.rs1[Arttable[Column]])
-    'If Not Error Then
-
-    'If Error Then
-    If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then
-      CoulB = Val("&HFAFAFA&")
-    Else
-      CoulB = Val("&HF9F9BD&")
+    If Not Error Then
+      If column = 1 Then
+        If IsNull(colarts.data.text) Then colarts.data.text = "0,000"
+        If IsNull(Val(colarts.data.text)) Then colarts.data.text = "0,000"
+        If Str(.rs1[Arttable[0]]) = "True" And Val(colarts.data.text) <= 0 Then
+          Frmt = Utils.FColr(Epuises)
+          Try CoulB = Val(Frmt[0])
+          Try CoulF = Val(Frmt[2])
+          Try Fnt = Frmt[1]
+        Endif
+        If Str(.rs1[Arttable[0]]) = "True" And Val(colarts.data.text) > 0 Then
+          Frmt = Utils.FColr(Stockes)
+          Try CoulB = Val(Frmt[0])
+          Try CoulF = Val(Frmt[2])
+          Try Fnt = Frmt[1]
+        Endif
+        If Str(.rs1[Arttable[0]]) <> "True" Then
+          Frmt = Utils.FColr(NStockes)
+          Try CoulB = Val(Frmt[0])
+          Try CoulF = Val(Frmt[2])
+          Try Fnt = Frmt[1]
+        Endif
+      Endif
+      If column = 2 Then
+        If Str(.rs1[Arttable[0]]) = "True" And If Val(colarts.data.text) = True Then
+          Frmt = Utils.FColr(Suspendus)
+          Try CoulB = Val(Frmt[0])
+          Try Fnt = Frmt[1]
+        Endif
+      Endif
+      If Error Then
+        If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then
+          CoulB = Val("&HFAFAFA&")
+        Else
+          CoulB = Val("&HF9F9BD&")
+        Endif
+        CoulF = Val("&H000000&")
+        Fnt = "serif 10"
+      Endif
+      colarts.Data.Background = CoulB
+      colarts.Data.Foreground = CoulF
+      colarts.Data.Font = Font[Fnt]
     Endif
-    CoulF = Val("&H000000&")
-    'Fnt = "serif 10"
-    'Endif
-    Colarts.Data.Background = CoulB
-    Colarts.Data.Foreground = CoulF
-    Colarts.Data.Font = Font[Fnt]
-    'Endif
   End With
 
 End

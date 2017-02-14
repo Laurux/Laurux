@@ -22,9 +22,9 @@ Public Sub _New()
   lg = Int(Coltk.height / coltk.Rows.Height) - 1
   Me.Center
   Nm.Text = "Numéro"
-  Date.Text = "Date"
+  Date.Text = "Date-Heure"
   Mtht.Text = "Montant ht"
-  Mttva.Text = "Montant tva"
+  Mttva.Text = "TVA"
   Mt.Text = "Montant ttc"
   Ca.Text = "Caisse"
   Ve.Text = "Vendeur"
@@ -87,7 +87,7 @@ End
 
 Public Sub Deb2()
 
-  TkResult = Utils.db.Exec("select * from " & Cbase.Table("TabHisEntTck") & " where " & Tri & " like  \"%" & sel & "%\" order by " & Tri & " limit " & NbEnreg & ", " & lg & "")
+  TkResult = Utils.db.Exec("select * from " & Cbase.Table("TabHisEntTck") & " where " & Tri & " like  \"%" & sel & "%\" order by " & Tri & " Desc limit " & NbEnreg & ", " & lg & "")
   'Utils.Base(Coltk, "select * from " & Cbase.Table("TabHisEntTck") & " where " & Tri & " like  \"" & sel & "%\" order by " & Tri & " limit " & NbEnreg & ", " & lg & "")
   affiche()
 
@@ -95,14 +95,14 @@ End
 
 Public Sub Deb3()
 
-  TkResult = Utils.db.Exec("select * from " & Cbase.Table("TabHisEntTck") & " where " & Tri & " like  \"%" & sel & "%\" order by " & Tri & " Desc limit " & NbEnreg & ", " & lg & "")
+  TkResult = Utils.db.Exec("select * from " & Cbase.Table("TabHisEntTck") & " where " & Tri & " like  \"%" & sel & "%\" order by " & Tri & "  limit " & NbEnreg & ", " & lg & "")
   affiche()
 
 End
 
 Public Sub affiche()
 
-  Dim i As Integer = 0
+  Dim i, n As Integer = 0
 
   Coltk.Clear
   If tkresult.Available Then
@@ -111,7 +111,11 @@ Public Sub affiche()
       Coltk[i, 6].Text = ""
       Coltk[i, 0].Text = tkresult!numero
       Coltk[i, 1].Text = tkresult!date
-      Coltk[i, 1].Text = Mid$(Coltk[i, 1].Text, 4, 2) & "." & Left$(Coltk[i, 1].Text, 2) & "." & Right$(Coltk[i, 1].Text, 4)
+      If Mid$(Coltk[i, 1].Text, 3, 1) = "-" Then
+        Coltk[i, 1].Text = Left$(Coltk[i, 1].Text, 2) & "." & Mid$(Coltk[i, 1].Text, 4, 2) & "." & Mid$(Coltk[i, 1].Text, 7, 4) & Right$(Coltk[i, 1].Text, 6)
+      Else
+        Coltk[i, 1].Text = Mid$(Coltk[i, 1].Text, 9, 2) & "." & Mid$(Coltk[i, 1].Text, 6, 2) & "." & Left$(Coltk[i, 1].Text, 4)
+      Endif
       Coltk[i, 1].Alignment = 3
       Coltk[i, 2].Text = tkresult!mht
       Coltk[i, 3].Text = tkresult!mtva
@@ -125,6 +129,12 @@ Public Sub affiche()
       If tkresult!sresto = "R" Then Coltk[i, 6].Text = "Chq entreprise"
       Coltk[i, 7].Text = Replace$(tkresult!vendeur, "\n", "")
       Coltk[i, 8].Text = tkresult!nom
+      If tkresult!suppr = True Then
+        For n = 0 To 8
+          Coltk[i, n].Font.Italic = True
+          Coltk[i, n].Font.StrikeOut = True
+        Next
+      Endif
       Inc i
     Until tkresult.MoveNext()
   Endif
@@ -377,7 +387,6 @@ Public Sub Button3_Click()
   Detk.Visible = False
   Detk.Clear
   Button3.Visible = False
-  Button4.Visible = False
   Panel1.Visible = False
   Coltk.SetFocus
 
@@ -479,11 +488,11 @@ Public Sub Coltk_Click()
   Dim LkResult As Result
   Dim rowText As String
 
+  Detk.Clear
   Try rowText = ColTk[ColTk.row, 0].Text
   If Not Error Then
     Detk.visible = True
     Button3.Visible = True
-    Button4.Visible = True
     LkResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisLigTck") & " where numero = &1 order by numlig", ColTk[ColTk.row, 0].Text)
     If LkResult.Available Then
       Repeat

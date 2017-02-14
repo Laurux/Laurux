@@ -1,10 +1,10 @@
 ' Gambas module file
 
-' programme de récupération des produits en rupture de stock. Utilisé dans les commandes automatiques, la liste des produits en rupture et 
+' programme de récupération des produits en rupture de stock. Utilisé dans les commandes automatiques, la liste des produits en rupture et
 'l 'affichage des fournisseurs dans la fenêtre de recherche des fournisseurs en commande.
 
 Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As String, art1 As String, art2 As String, Org As String)
-  
+
   Dim rarts, carts, rart, cart, fart As Result
   Dim Tabl, Tab2, Tab3 As String
   Dim codea, codec, rupt, rupt2, numcom As String
@@ -15,9 +15,9 @@ Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As S
   Dim stkmini, stkmaxi As Float = 0
   Dim Stocke, bcarts As Boolean = False
   Dim qtec As Integer = 0
-  
+
   Nbpage = 1
-  Tabl = "Fiches_Ligcom" 
+  Tabl = "Fiches_Ligcom"
   Tab2 = "Rupture"
   Tab3 = "RuptureC"
   rupt = " "
@@ -26,7 +26,7 @@ Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As S
   Utils.db.Exec("drop Table IF exists " & Tab3 & "")
   If Org = "EdRup" Then
     If Chk2 Then
-      Try Utils.db.Exec("CREATE TABLE " & Tab2 & 
+      Try Utils.db.Exec("CREATE TABLE " & Tab2 &
         "(codea Char(15) NOT NULL," &
         "intitulea Char(50)," &
         "four Char(8),"
@@ -35,10 +35,10 @@ Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As S
         "qtecom FLOAT," &
         "codec Char(8) NOT NULL," &
         "intitulec Char(50)," &
-        "numcom Char(50)," & 
+        "numcom Char(50)," &
         "PRIMARY KEY (codea, codec, intitulea, four))" & "ENGINE = MYISAM")
     Else
-      Try Utils.db.Exec("CREATE TABLE " & Tab2 & 
+      Try Utils.db.Exec("CREATE TABLE " & Tab2 &
         "(codea Char(15) NOT NULL," &
         "intitulea Char(50)," &
         "four Char(8)," &
@@ -50,7 +50,7 @@ Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As S
         "numcom Char(50)," &
         "PRIMARY KEY (codea, intitulea, four))" & "ENGINE = MYISAM")
     Endif
-    Try Utils.db.Exec("CREATE TABLE " & Tab3 & 
+    Try Utils.db.Exec("CREATE TABLE " & Tab3 &
       "(codea Char(15) NOT NULL," &
       "intitulea Char(50)," &
       "four Char(8)," &
@@ -61,7 +61,7 @@ Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As S
       "numcom Char(50)," &
       "PRIMARY KEY (codea, codec, numcom, intitulea, four))" & "ENGINE = MYISAM")
   Else
-    Try Utils.db.Exec("CREATE TABLE " & Tab2 & 
+    Try Utils.db.Exec("CREATE TABLE " & Tab2 &
       "(codea Char(15) NOT NULL," &
       "intitulea Char(50)," &
       "four Char(8),"
@@ -70,7 +70,7 @@ Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As S
       "qtecom FLOAT," &
       "codec Char(8) NOT NULL," &
       "intitulec Char(50)," &
-      "numcom Char(50)," & 
+      "numcom Char(50)," &
       "PRIMARY KEY (codea, codec, intitulea, four))" & "ENGINE = MYISAM")
   Endif
   If org = "EdRup" Then
@@ -84,7 +84,7 @@ Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As S
   Endif
   If rarts.Available Then
     Repeat
-      codea = rarts!art_code 
+      codea = rarts!art_code
       Try Qtefour = rarts!qte
       intitulea = rarts!design
       If InStr(intitulea, "~ ") <> 0 Then Try intitulea = Mid$(intitulea, InStr(intitulea, "~ ") + 2, Len(intitulea))
@@ -110,12 +110,12 @@ Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As S
         Else
           carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and four = &2", codea, fourn)
         Endif
-        If Not carts.Available Then 
+        If Not carts.Available Then
           Utils.db.Exec("INSERT INTO " & Tab2 & "(codea, intitulea, four, qtefour, codec, qtecli) VALUES (&1,&2,&3, &4, &5, &6)", codea, intitulea, fourn, Qtefour, "0", 0)
         Else
           Qtefour = Qtefour + carts!qtefour
           Utils.db.Exec("UPdate  " & Tab2 & "  SET qtefour = &2 where codea = &1 and  intitulea = &3", codea, Qtefour, intitulea)
-        Endif 
+        Endif
       Endif
     Until rarts.MoveNext()
   Endif
@@ -142,7 +142,7 @@ Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As S
         If IsNull(Fourn) Then Fourn = rart!art_four
         Stocke = rart!art_stocke
         If Org = "EdRup" Then
-          If Fourn >= Four1 And Fourn <= Four2 Then 
+          If Fourn >= Four1 And Fourn <= Four2 Then
             If Left$(codea, 4) = ".DEP" Then
               carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and codeC = &2 and four = &3 and intitulea = &4", codea, "0", fourn, intitulea)
             Else
@@ -153,7 +153,7 @@ Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As S
             If Left$(codea, 4) <> ".DEP" Then
               carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and four = &2", codea, fourn)
             Else
-              carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and intitulea = &2 and four = &3", codea, intitulea, Fourn) 
+              carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and intitulea = &2 and four = &3", codea, intitulea, Fourn)
             Endif
             Bcarts = True
           Endif
@@ -161,8 +161,8 @@ Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As S
           If Left$(codea, 4) <> ".DEP" Then
             carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and four = &2", codea, four1)
           Else
-            carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and intitulea = &2 and four = &3", codea, intitulea, Four1) 
-          Endif 
+            carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1 and intitulea = &2 and four = &3", codea, intitulea, Four1)
+          Endif
           Bcarts = True
         Endif
         If Bcarts Then
@@ -173,7 +173,7 @@ Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As S
                 qtecli = qtecli + qtec
                 If Not IsNull(carts!qtecli) Then qtec = qtec + carts!qtecli
                 If Stocke Or If Chk1 Then
-                  If Chk2 And carts!codec <> "0" Then 
+                  If Chk2 And carts!codec <> "0" Then
                     Utils.db.Exec("UPdate  " & Tab3 & "  SET  qte = &3, qtecli = &4 where codea = &1 and codec = &2 and numcom = &5 and intitulea = &6", codea, codec, Qtec, qtecli, numcom, intitulea)
                   Else
                     If Chk2 And carts!codec = "0" Then
@@ -247,7 +247,7 @@ Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As S
         Try stkmaxi = rarts!art_stkmax
         If Error Then stkmaxi = 0
         carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1", codea)
-        If carts.Available Then 
+        If carts.Available Then
           If carts.count = 1 Then
             Stkth = Stkrl + carts!qtefour - carts!qtecli
           Else
@@ -265,7 +265,7 @@ Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As S
           Stkth = Stkrl
         Endif
         If rarts!art_stocke And stkmini > 0 And stkmini > Stkth Or If Not rarts!art_stocke Then
-          If stkmaxi > Stkth Then 
+          If stkmaxi > Stkth Then
             Qtecom = stkmaxi - Stkth
           Else
             Qtecom = Stkth - stkmaxi
@@ -277,42 +277,42 @@ Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As S
         qtecom = 0
       Endif
       carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE codea = &1", codea)
-      If Not carts.Available Then 
+      If Not carts.Available Then
         If Qtecom > 0 Then Utils.db.Exec("INSERT INTO " & Tab2 & "(codea, intitulea, four, qtecom, codec) VALUES (&1,&2,&3, &4, &5)", codea, intitulea, fourn, Qtecom, "0")
       Else
         If Qtecom = 0 And stkmini = 0 And carts!qtecli > 0 And carts!qtefour = 0 Then qtecom = carts!qtecli
-        If Qtecom >= 0 Then Utils.db.Exec("UPdate  " & Tab2 & "  SET  qtecom = &2 where codea = &1", codea, Qtecom) 
+        If Qtecom >= 0 Then Utils.db.Exec("UPdate  " & Tab2 & "  SET  qtecom = &2 where codea = &1", codea, Qtecom)
       Endif
     Until rarts.MoveNext()
   Endif
-  If Org <> "EdRup" Then 
+  If Org <> "EdRup" Then
     carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " left join " & Cbase.Table("TabArt") & " on art_code = codea WHERE qtecli is not null and qtefour is not null and four = &1", Four1)
   Else
     carts = Utils.db.Exec("SELECT * FROM " & Tab2 & " left join " & Cbase.Table("TabArt") & " on art_code = codea WHERE qtecli is not null and qtefour is not null")
   Endif
-  If carts.Available Then 
+  If carts.Available Then
     Repeat
       If Not carts!art_stocke Then
         'If carts!qtecli <> carts!qtefour Then Qtecom = carts!qtecli - Abs(carts!qtefour)
         Qtecom = carts!qtecli - Abs(carts!qtefour)
-        'Utils.db.Exec("UPdate  " & Tab2 & "  SET  qtecom = &4 where codea = &1 and intitulea = &2 and four = &3", carts!codea, carts!intitulea, carts!four, carts!qtecli - Abs(carts!qtefour))  
+        'Utils.db.Exec("UPdate  " & Tab2 & "  SET  qtecom = &4 where codea = &1 and intitulea = &2 and four = &3", carts!codea, carts!intitulea, carts!four, carts!qtecli - Abs(carts!qtefour))
       Else
         If carts!four <> Four1 Then
-          If carts!qtecli <> carts!qtefour Then 
+          If carts!qtecli <> carts!qtefour Then
             Try Qtecom = carts!qtecli - Abs(carts!qtefour)
             Try Qtecom = carts!qtecom + Qtecom
             'Utils.db.Exec("UPdate  " & Tab2 & "  SET  qtecom = &4 where codea = &1 and intitulea = &2 and four = &3", carts!codea, carts!intitulea, carts!four, Qtecom)
           Endif
         Else
-          If IsNull(carts!qtecom) Then 
-            If carts!qtecli = 0 Then 
-              Qtecom = carts!qtefour 
+          If IsNull(carts!qtecom) Then
+            If carts!qtecli = 0 Then
+              Qtecom = carts!qtefour
             Else
-              Try Qtecom = carts!qtecli - Abs(carts!qtefour) 
+              Try Qtecom = carts!qtecli - Abs(carts!qtefour)
             Endif
             'Utils.db.Exec("UPdate  " & Tab2 & "  SET  qtecom = &4 where codea = &1 and intitulea = &2 and four = &3", carts!codea, carts!intitulea, carts!four, Qtecom)
           Else
-            Qtecom = carts!qtecom 
+            Qtecom = carts!qtecom
           Endif
         Endif
       Endif
@@ -320,5 +320,5 @@ Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As S
     Until carts.MoveNext()
   Endif
   If Org <> "EdRup" Then Utils.db.Exec("delete from " & Tab2 & " WHERE four <> &1", Four1)
-  
+
 End

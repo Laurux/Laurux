@@ -143,7 +143,7 @@ Public Sub Livre_caisse()
         Else
           Enc = False
         Endif
-        rTkx = Utils.db.Exec(" select * from " & Cbase.Table("TabEntTck") & " where statut = &1 and caisse = &2 and left(date,10) = &3", 0, Ncaisse, Format$(DateChooser1.Value, "dd-mm-yyyy"))
+        rTkx = Utils.db.Exec(" select * from " & Cbase.Table("TabEntTck") & " where statut = &1 and caisse = &2 and left(date,10) = &3 and suppr is null", 0, Ncaisse, Format$(DateChooser1.Value, "dd-mm-yyyy"))
         If rTkx.Available Or If Enc = True Then
           pdf.newPage()
           Totnbtck = rTkx.count
@@ -395,17 +395,19 @@ Public Sub Moulinage()
         sDate = Left(rtck!date, 2) & "." & Mid(rtck!date, 4, 2) & "." & Mid(rtck!date, 7, 4)
         Message.Info("Il reste des tickets à la date du " & sdate & " !\nVeuillez faire un moulinage à cette date SVP.")
       Else
-        rTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where left(date,10) = &1 order by numero", Format$(DateChooser1.Value, "dd-mm-yyyy"))
+        rTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where left(date,10) = &1 and suppr is not true order by numero", Format$(DateChooser1.Value, "dd-mm-yyyy"))
         If rTck.Available Then
 
           'création du fichier temporaire pour récuperer les lignes de facture
-          creatmp
+          creatmp()
           ' On gère d'abord les clients caisse
           Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabParam") & " WRITE, " & Cbase.Table("TabEntTck") & " WRITE, " & Cbase.Table("TabLigTck") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("Totalisation") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabArt") & " WRITE, " & Cbase.Table("TabHisEntTck") & " WRITE, " & Cbase.Table("TabHisLigTck") & " WRITE, " & Cbase.Table("TabJour") & " WRITE,  " & Cbase.Table("TabCli") & " WRITE, " & Cbase.Table("TabBl") & " WRITE, " & Cbase.Table("TabLigbl") & " WRITE, " & Tab & " WRITE, Fiches_Caisses WRITE, Fiches_FamDep WRITE")
 
           '         Génération de la facture
           genfac()
-
+        Endif
+        rTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where left(date,10) = &1 order by numero", Format$(DateChooser1.Value, "dd-mm-yyyy"))
+        If rTck.Available Then
           Repeat
             If rtck!sresto = "1" Then
               resto = "R"
@@ -413,24 +415,23 @@ Public Sub Moulinage()
               resto = ""
             Endif
             bretro = rtck!retro
-            Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisEntTck") & " (caisse, numero, date, client, scheque, mcheque, scarte, mcarte, sespeces, mespeces, scredit, mcredit, mht, mtva, mttc, savoir, scavoir, mavoir, vendeur, carte, points, sresto, mresto, nom) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24})", rtck!caisse, rtck!numero, Utils.Cdate_Dbase(Left$(rtck!date, 10)), rtck!client, rtck!scheque, rtck!mcheque, rtck!scarte, rtck!mcarte, rtck!sespeces, rtck!mespeces, rtck!scredit, rtck!mcredit, rtck!mht, rtck!mtva, rtck!mttc, rtck!savoir, rtck!scavoir, rtck!mavoir, rtck!vendeur, rtck!carte, rtck!points, resto, rtck!mresto, rtck!nom)
+            Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisEntTck") & " (caisse, numero, date, client, scheque, mcheque, scarte, mcarte, sespeces, mespeces, scredit, mcredit, mht, mtva, mttc, savoir, scavoir, mavoir, vendeur, carte, points, sresto, mresto, nom, suppr) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24}, &{25})", rtck!caisse, rtck!numero, rtck!date, rtck!client, rtck!scheque, rtck!mcheque, rtck!scarte, rtck!mcarte, rtck!sespeces, rtck!mespeces, rtck!scredit, rtck!mcredit, rtck!mht, rtck!mtva, rtck!mttc, rtck!savoir, rtck!scavoir, rtck!mavoir, rtck!vendeur, rtck!carte, rtck!points, resto, rtck!mresto, rtck!nom, rtck!suppr)
             If Jnl Then
               If rTck!type = "0" Then
                 rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", client)
                 If rResult.Available Then
                   ivente = rResult!intitule_cc
                 Endif
-                If Not IsNull(rTck!mttc) Then
+                If Not IsNull(rTck!mttc) And Not rTck!suppr Then
                   If rTck!savoir = "1" Then
                     Maj_Totalisation(Client, ivente, "-" & rTck!mttc)
                   Else
                     Maj_Totalisation(Client, ivente, rTck!mttc)
                   Endif
                 Endif
-              Endif
-              rlTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigTck") & " where numero = &1 order by lInd", rTck!numero)
-              If rlTck.Available Then
-                Repeat
+                rlTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigTck") & " where numero = &1 order by lInd", rTck!numero)
+                If rlTck.Available Then
+                  Repeat
                   If rlTck!type = "BL" Then
                     'rlTck!mrem est utilisé pour récupéré le numéro de Bl
                     Bl = Utils.db.Exec(" select * from " & Cbase.Table("TabBl") & " where type = \"B\" and numtick = &1 and numbl = &2", rlTck!numero, Format$(rlTck!mrem, "000000"))
@@ -484,98 +485,103 @@ Public Sub Moulinage()
                       Message.Warning("Le BL " & Format$(rlTck!mrem, "000000") & " est noté règlé dans le ticket " & rlTck!numero & " mais n'est pas associé a ce ticket, il sera ignoré") 
                     Endif
                   Endif
-                  If rlTck!type = "A" Or If rlTck!type = "M" Or If rlTck!type = "S" Or If rlTck!type = "T" Or If rlTck!type = "L" Then
-                    If rlTck!type = "A" And IsNull(rlTck!fam) Then
-                      rFam = Utils.db.Exec(" select * from " & Cbase.Table("TabArt") & " where art_code = &1", rltck!code)
-                      Fam = rFam!art_fam
+                    If rlTck!type = "A" Or If rlTck!type = "M" Or If rlTck!type = "S" Or If rlTck!type = "T" Or If rlTck!type = "L" Or If rlTck!type = "C" Then
+                      If rlTck!type = "A" And IsNull(rlTck!fam) Then
+                        rFam = Utils.db.Exec(" select * from " & Cbase.Table("TabArt") & " where art_code = &1", rltck!code)
+                        Fam = rFam!art_fam
                       code = rlTck!code
                       qte = rlTck!qte
-                    Else
-                      Fam = rlTck!fam
+                      Else
+                        Fam = rlTck!fam
                       code = rlTck!code
                       qte = rlTck!qte
-                    Endif
-                    If IsNull(Fam) Then Fam = rlTck!fam
-                    If rlTck.index < rlTck.count - 1 Then
-                      $intit = rlTck!intitule
-                      rlTck.MoveNext()
-                      If rlTck!type = "O" Then
-                        rlTck.MoveNext()
                       Endif
-                      If rlTck!type <> "S" And If rlTck!type <> "T" Then
-                        rlTck.MovePrevious()
+                      If IsNull(Fam) Then Fam = rlTck!fam
+                      If Not IsNull(rTck!suppr) And rlTck!type = "A" Then $intit = rlTck!intitule
+                      If rlTck.index < rlTck.count - 1 Then
+                        $intit = rlTck!intitule
+                        rlTck.MoveNext()
                         If rlTck!type = "O" Then
-                          rlTck.MovePrevious()
+                          rlTck.MoveNext()
                         Endif
-                      Endif
-                    Endif
-                    If rlTck!type <> "L" And If rlTck!type <> "M" Then
-                      rDep = Utils.db.Exec("SELECT * FROM Fiches_Caisses where code = &1", rtck!caisse)
-                      If rDep.Available Then $depot = rdep!depot
-                      rcpt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " where code_fam = &1", Fam)
-                      If rcpt.Available Then
-                        If Not bretro Then
-                          vente = rcpt!compt_fam
-                        Else
-                          vente = rcpt!compt5_fam
-                        Endif
-                        If Not IsNull($depot) Then
-                          rDep = Utils.db.Exec("SELECT * FROM Fiches_FamDep where fam = &1 and depot = &2", Fam, $depot)
-                          If rDep.Available Then vente = rDep!compte
-                        Endif
-                        rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", vente)
-                        If rResult.Available Then
-                          ivente = rResult!intitule_cc
-                        Endif
-                        montant = Val(.cpoint(rlTck!mht))
-                        If rTck!type = "0" Then
-                          If rTck!savoir = "1" Then
-                            Maj_Totalisation(vente, ivente, "-" & montant)
-                          Else
-                            Maj_Totalisation(vente, ivente, montant)
-                          Endif
-                        Endif
-                        tva = rcpt!cdtva_fam
-                        rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTvav") & " Where code_tva = &1", tva)
-                        If rResult.Available Then
-                          tva = rResult!cc_tva
-                        Endif
-                        rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", tva)
-                        If rResult.Available Then
-                          itva = rResult!intitule_cc
-                        Endif
-                        rlTck2 = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigTck") & " where numero = &1 and type = &2 and numlig = &3", rTck!numero, "T", rlTck!numlig, rlTck!code, rlTck!block)
-                        If rlTck2.Available Then
-                          montant = Val(.cpoint(rlTck2!mtva))
-                        Else
-                          rlTck2 = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigTck") & " where numero = &1 and type = &2 and numlig = &3", rTck!numero, "M", rlTck!numlig, rlTck!code, rlTck!block)
-                          If rlTck2.Available Then
-                            montant = Val(.cpoint(rlTck2!mtva))
-                          Else
-                            montant = Val(.cpoint(rlTck!mtva))
-                          Endif
-                        Endif
-                      Endif
-                      If IsNull(montant) Then montant = 0
-                      If rlTck!type = "S" Then
-                        rlTck.MoveNext()
-                        If rlTck!type <> "T" Then
+                        If rlTck!type <> "S" And If rlTck!type <> "T" Then
                           rlTck.MovePrevious()
                           If rlTck!type = "O" Then
                             rlTck.MovePrevious()
                           Endif
                         Endif
                       Endif
+                      If rlTck!type <> "L" And If rlTck!type <> "M" Then
+                        rDep = Utils.db.Exec("SELECT * FROM Fiches_Caisses where code = &1", rtck!caisse)
+                        If rDep.Available Then $depot = rdep!depot
+                        rcpt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " where code_fam = &1", Fam)
+                        If rcpt.Available Then
+                          If Not bretro Then
+                            vente = rcpt!compt_fam
+                          Else
+                            vente = rcpt!compt5_fam
+                          Endif
+                          If Not IsNull($depot) Then
+                            rDep = Utils.db.Exec("SELECT * FROM Fiches_FamDep where fam = &1 and depot = &2", Fam, $depot)
+                            If rDep.Available Then vente = rDep!compte
+                          Endif
+                          rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", vente)
+                          If rResult.Available Then
+                            ivente = rResult!intitule_cc
+                          Endif
+                          montant = Val(.cpoint(rlTck!mht))
+                          If Not rTck!suppr Then
+                            If rTck!type = "0" Then
+                              If rTck!savoir = "1" Then
+                                Maj_Totalisation(vente, ivente, "-" & montant)
+                              Else
+                                Maj_Totalisation(vente, ivente, montant)
+                              Endif
+                            Endif
+                          Endif
+                          tva = rcpt!cdtva_fam
+                          rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTvav") & " Where code_tva = &1", tva)
+                          If rResult.Available Then
+                            tva = rResult!cc_tva
+                          Endif
+                          rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", tva)
+                          If rResult.Available Then
+                            itva = rResult!intitule_cc
+                          Endif
+                          rlTck2 = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigTck") & " where numero = &1 and type = &2 and numlig = &3", rTck!numero, "T", rlTck!numlig, rlTck!code, rlTck!block)
+                          If rlTck2.Available Then
+                            montant = Val(.cpoint(rlTck2!mtva))
+                          Else
+                            rlTck2 = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigTck") & " where numero = &1 and type = &2 and numlig = &3", rTck!numero, "M", rlTck!numlig, rlTck!code, rlTck!block)
+                            If rlTck2.Available Then
+                              montant = Val(.cpoint(rlTck2!mtva))
+                            Else
+                              montant = Val(.cpoint(rlTck!mtva))
+                            Endif
+                          Endif
+                        Endif
+                        If IsNull(montant) Then montant = 0
+                        If rlTck!type = "S" Then
+                          rlTck.MoveNext()
+                          If rlTck!type <> "T" Then
+                            rlTck.MovePrevious()
+                            If rlTck!type = "O" Then
+                              rlTck.MovePrevious()
+                            Endif
+                          Endif
+                        Endif
+                      Endif
                       Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, rltck!numlig, code, $intit, rltck!montant, qte, rltck!type, Fam, rltck!mht, rltck!mrem, rltck!tva)
-                      If rTck!savoir = "1" Then
-                        If rlTck!type <> "L" And If rlTck!type <> "M" Then Maj_Totalisation(Tva, iTva, "-" & montant)
-                      Else
-                        If rlTck!type <> "L" And If rlTck!type <> "M" Then Maj_Totalisation(Tva, iTva, montant)
+                      If Not rTck!suppr Then
+                        If rTck!savoir = "1" Then
+                          If rlTck!type <> "L" And If rlTck!type <> "M" Then Maj_Totalisation(Tva, iTva, "-" & montant)
+                        Else
+                          If rlTck!type <> "L" And If rlTck!type <> "M" Then Maj_Totalisation(Tva, iTva, montant)
+                        Endif
                       Endif
                     Endif
-                  Endif
-                Until rlTck.MoveNext()
-              Endif
+                  Until rlTck.MoveNext()
+                Endif
               
               'On regroupe les BL règlés dans ce ticket pour chaque client concerné afin de générer une facture
               Bl = Utils.db.Exec(" select * from " & Cbase.Table("TabBl") & " where type = \"B\" and numtick = &1 group by cdclibl", rtck!numero)
@@ -611,65 +617,66 @@ Public Sub Moulinage()
                 Endif
               Endif
               
-            Endif
-            'Puis on gère les clients en compte
-            scli = rTck!client
-            If rTck!type = "1" Then
-              'On increment le numero de bon
-              numbon = Val(numbon) + 1
-              numbon = Format$(numbon, "000000")
-              rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " Where cli_code = &1", scli)
-              If rResult.Available Then
-                cvclibl = rResult!cli_rs_soc
-                nmclibl = rResult!cli_nom
-                pnmclibl = rResult!cli_pnm
-                adr1bl = rResult!cli_adr1
-                adr2bl = rResult!cli_adr2
-                cpbl = rResult!cli_cd_ptl
-                villebl = rResult!cli_ville
-                typec = rResult!cli_typec
-                artrm = rResult!cli_rart
-                rmobl = rResult!cli_rmo
-                Exo = rResult!cli_exo
               Endif
+              'Puis on gère les clients en compte
+              scli = rTck!client
+              If rTck!type = "1" And Not rTck!suppr Then
+              'On increment le numero de bon
+                numbon = Val(numbon) + 1
+                numbon = Format$(numbon, "000000")
+                rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " Where cli_code = &1", scli)
+                If rResult.Available Then
+                  cvclibl = rResult!cli_rs_soc
+                  nmclibl = rResult!cli_nom
+                  pnmclibl = rResult!cli_pnm
+                  adr1bl = rResult!cli_adr1
+                  adr2bl = rResult!cli_adr2
+                  cpbl = rResult!cli_cd_ptl
+                  villebl = rResult!cli_ville
+                  typec = rResult!cli_typec
+                  artrm = rResult!cli_rart
+                  rmobl = rResult!cli_rmo
+                  Exo = rResult!cli_exo
+                Endif
               Remart = "0.00"
               totalht = 0
               totalttc = 0
-              'On met à jour le fichier des entetes de bl
-              Utils.db.Exec("INSERT INTO " & Cbase.Table("TabBl") & "(numbl,datebl,cdclibl, nmclibl, rmobl, rartbl, type, pnmclibl, adr1bl, adr2bl, cpbl, villebl, exobl, cvclibl, tvar, imp, acpt, mreg, totalht, totalttc, retro, marge_art, remmobl, remartbl, marge_mo) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13},&{14},&{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24}, &{25})", numbon, Utils.Cdate_Dbase(Datem), scli, nmclibl, rmobl, Artrm, "B", Pnmclibl, adr1bl, adr2bl, cpbl, villebl, Exo, Cvclibl, 0, 0, 0, "", .PointBase(totalht), .PointBase(totalttc), 0, 0, 0, 0, 0)
-              'On met à jour les lignes de bl
-              'On s'occupe des articles
-              rlTck.MoveFirst()
-              'on ecrit la provenance du bl
-              Inc numlig
-              nmlig = Format$(Str(numlig), "0000")
-              Bloc = nmlig
-              origine = "Ticket de caisse numéro " & rTck!numero & " du " & rTck!date
-              Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigbl") & "(num_ligbl, numlig_ligbl, com_ligbl, typel_ligbl, block_ligbl) VALUES (&1, &2, &3, &4, &5)", numbon, nmlig, origine, "C", Bloc)
-              Repeat
-                If rlTck!type = "A" Then
-                  qte = rlTck!qte
-                  Recup_Art(rlTck!code, qte, rlTck!mht, rlTck!montant, rlTck!tva)
-                  Inc numlig
-                  nmlig = Format$(Str(numlig), "0000")
-                  Bloc = nmlig
-                  Remart = Val(.cpoint(Remart)) + Val(.cpoint(artbrut)) - Val(.cpoint(artnet))
-                  totalht = totalht + Val(.cpoint(artnet))
-                  totalttc = totalttc + Val(.cpoint(Arttc))
-                  Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigbl") & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15})", numbon, nmlig, rlTck!code, artdsg, artfam, artpu, qte, artbrut, Artrm, artnet, Arttx, Arttc, "A", Nbd, Bloc)
-                Endif
-                If rlTck!type = "O" Then
-                  'Eco participation
-                  If rlTck!intitule = " Dont Eco-taxe" Then
+                'On met à jour le fichier des entetes de bl
+                Utils.db.Exec("INSERT INTO " & Cbase.Table("TabBl") & "(numbl,datebl,cdclibl, nmclibl, rmobl, rartbl, type, pnmclibl, adr1bl, adr2bl, cpbl, villebl, exobl, cvclibl, tvar, imp, acpt, mreg, totalht, totalttc, retro, marge_art, remmobl, remartbl, marge_mo) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13},&{14},&{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24}, &{25})", numbon, Utils.Cdate_Dbase(Datem), scli, nmclibl, rmobl, Artrm, "B", Pnmclibl, adr1bl, adr2bl, cpbl, villebl, Exo, Cvclibl, 0, 0, 0, "", .PointBase(totalht), .PointBase(totalttc), 0, 0, 0, 0, 0)
+                'On met à jour les lignes de bl
+                'On s'occupe des articles
+                rlTck.MoveFirst()
+                'on ecrit la provenance du bl
+                Inc numlig
+                nmlig = Format$(Str(numlig), "0000")
+                Bloc = nmlig
+                origine = "Ticket de caisse numéro " & rTck!numero & " du " & rTck!date
+                Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigbl") & "(num_ligbl, numlig_ligbl, com_ligbl, typel_ligbl, block_ligbl) VALUES (&1, &2, &3, &4, &5)", numbon, nmlig, origine, "C", Bloc)
+                Repeat
+                  If rlTck!type = "A" Then
+                    qte = rlTck!qte
+                    Recup_Art(rlTck!code, qte, rlTck!mht, rlTck!montant, rlTck!tva)
                     Inc numlig
                     nmlig = Format$(Str(numlig), "0000")
-                    totalht = totalht + Val(.cpoint(rlTck!montant))
-                    totalttc = totalttc + Val(.cpoint(rlTck!montant))
-                    Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigbl") & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15})", numbon, nmlig, rlTck!code, rlTck!intitule, "", Format$(Val(rlTck!montant), "0.00"), "1", Format$(Val(rlTck!montant), "0.00"), 0, Format$(Val(rlTck!montant), "0.00"), Arttx, Format$(Val(rlTck!montant), "0.00"), "E", "0", Bloc)
+                    Bloc = nmlig
+                    Remart = Val(.cpoint(Remart)) + Val(.cpoint(artbrut)) - Val(.cpoint(artnet))
+                    totalht = totalht + Val(.cpoint(artnet))
+                    totalttc = totalttc + Val(.cpoint(Arttc))
+                    Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigbl") & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15})", numbon, nmlig, rlTck!code, artdsg, artfam, artpu, qte, artbrut, Artrm, artnet, Arttx, Arttc, "A", Nbd, Bloc)
                   Endif
-                Endif
-              Until rlTck.MoveNext()
-              Utils.db.Exec("UPdate  " & Cbase.Table("TabBl") & "  SET marge_art = &2, remartbl = &3, totalht = &4, totalttc = &5 where numbl = &1", numbon, marge, Remart, totalht, totalttc)
+                  If rlTck!type = "O" Then
+                    'Eco participation
+                    If rlTck!intitule = " Dont Eco-taxe" Then
+                      Inc numlig
+                      nmlig = Format$(Str(numlig), "0000")
+                      totalht = totalht + Val(.cpoint(rlTck!montant))
+                      totalttc = totalttc + Val(.cpoint(rlTck!montant))
+                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigbl") & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15})", numbon, nmlig, rlTck!code, rlTck!intitule, "", Format$(Val(rlTck!montant), "0.00"), "1", Format$(Val(rlTck!montant), "0.00"), 0, Format$(Val(rlTck!montant), "0.00"), Arttx, Format$(Val(rlTck!montant), "0.00"), "E", "0", Bloc)
+                    Endif
+                  Endif
+                Until rlTck.MoveNext()
+                Utils.db.Exec("UPdate  " & Cbase.Table("TabBl") & "  SET marge_art = &2, remartbl = &3, totalht = &4, totalttc = &5 where numbl = &1", numbon, marge, Remart, totalht, totalttc)
+              Endif
             Endif
           Until rTck.MoveNext()
           Verif()
@@ -754,6 +761,7 @@ Public Sub Raz_Tables()
     "mrem Char(12)," &
     "carte Char(13)," &
     "points Decimal(12,3)," &
+    "suppr TINYINT(1)," &
     "PRIMARY KEY (lInd))" & "ENGINE = MYISAM")
 
   Try Utils.db.EXEC("CREATE TABLE " & Cbase.Table("TabLigTck") &
@@ -1273,6 +1281,7 @@ Public Sub Maj_Compta()
         Mtc = 0
         Try Utils.db.Exec("delete FROM " & Cbase.Table("Totalisation") & " where compte = &1", Cpt)
       Until rResult.MoveNext()
+      Sha1Calc.CalcSha1(Numr)
       If SldTot <> 0 Then
 
       Endif
@@ -1296,7 +1305,7 @@ Public Sub Maj_Tresorerie()
   Dim x As Integer
   Dim ChequeCptInt As Boolean
 
-  Try ChequeCptInt = Settings["/Soc" & Start.Societe & "/ChequeCptInt"]
+  Try ChequeCptInt = Settings["/Soc" & Start.Societe & "/Cheque"]
   If Error Then ChequeCptInt = False
   rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabJour") & " where code_jo = &1", jnal)
   CptCaisse = rResult!cde_banque
@@ -1351,6 +1360,7 @@ Public Sub Maj_Tresorerie()
           For x = 1 To nm.Count - 1
             Snom &= nm[x] & " "
           Next
+          If IsNull(Snom) Then Snom = " "
           Utils.db.Exec("INSERT INTO " & "Fiches_BordereauxC" & "(code, nom, montant,dateremise,banque  ) VALUES (&1, &2, &3, &4, &5)", hresult!client, Snom, Val(Utils.cpoint(hResult!mcheque)), Utils.Cdate_Dbase(datem), jnal3)
         Endif
       Until hResult.MoveNext()
@@ -1446,6 +1456,7 @@ Public Sub Maj_Tresorerie()
       Maj_Collectif(cptcli, hResult!intitule, libel, hResult!montant)
     Until hresult.MoveNext()
   Endif
+  Sha1Calc.CalcSha1(Numr)
   Majnum()
 
 End
@@ -1475,6 +1486,7 @@ Public Sub Maj_Collectif(Cpt As String, intit As String, libel As String, Mnt As
     Mtc = Mnt
     Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour, numero, compte, collectif, intitule, dte, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, numerodef, numdoc, numlot) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19})", Jnal, numr, coll, 1, Intit, Utils.Cdate_Dbase(Datem), Libel, Mtd, Mtc, 1, 0, 1, 0, 0, 1, 0, numr2, Numlt, numlt)
   Endif
+  Sha1Calc.CalcSha1(Numr)
   cResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", coll)
   If cResult!solde = "" Then
     Sld = Mtd - Mtc
@@ -1493,7 +1505,7 @@ Private Sub genfac()
   Dim res, resentz, resligz, resentfac, resligfac, respar, reslig As Result
   Dim i, j As Integer
   Dim rem As Float
-  Dim pu, qte, pxttc, mttc, mht, mtva, ttva, mremise As Float
+  Dim pu, pxttc, mttc, mht, mtva, mremise As Float
   Dim snfac, snumlig As String
 
   'recuperation et maj du n° facture
@@ -1502,7 +1514,7 @@ Private Sub genfac()
   respar!dnfac = Format(Val(respar!dnfac) + 1, "000000")
 
   'selection des entetes fichier z
-  resentz = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where left(date,10) = &1 and client = &2 group by numero", Format$(DateChooser1.Value, "dd-mm-yyyy"), client)
+  resentz = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where left(date,10) = &1 and client = &2 and not suppr group by numero", Format$(DateChooser1.Value, "dd-mm-yyyy"), client)
   If resentz.Available Then
     utils.db.Begin
     resentz.MoveFirst

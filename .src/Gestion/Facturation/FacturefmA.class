@@ -17,10 +17,10 @@
 'INC, 59 Temple place - Suite 33, Boston
 'MA 02111-1307 USA
 '################################################
-'# nom du fichier           : Facturefm.class
+'# nom du fichier           : FacturefmA.class
 '# Auteur                   : Jacky Tripoteau
 '# date de création         : 01/09/2007
-'# Facturation fin de mois
+'# Facturation périodique
 '################################################
 '
 
@@ -109,6 +109,9 @@ Private numeroFac As String
 '**********************************************************
 Public Sub _New()
 
+  Dim $lp, $imp As String
+  Dim imp As String[]
+
   Tab = "Fiches_Parametres"
   rResult = Utils.db.Exec("SELECT * FROM " & tab & "")
   If rResult.Available Then
@@ -118,6 +121,12 @@ Public Sub _New()
   Coulfond = Utils.Coulfd()
   If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
   Music.Load(Start.Musique)
+  ' On gère les imprimantes
+  Shell "lpc status 2>&1" To $imp
+  For Each $lp In Split($imp, "\n")
+    If Right($lp) = ":" Then Cimp.add(Left($lp, -1))
+  Next
+  Try Cimp.Text = Settings["/Soc" & Start.Societe & "/Cimp"]
   Me.Center
 
   Colbl.Columns.count = 6
@@ -1120,7 +1129,7 @@ Public Sub Button14_Click()
               Endif
             Endif
             pdf.Output(Filename, False)
-            Impressfac.Prog_Editeur(Filename, Val(Nbexpl), False)
+            Impressfac.Prog_Editeur(Filename, Val(Nbexpl), Cimp.Text)
             Wait 1
             ty = ""
             Nom = Replace$(Nom, " ", "")
@@ -1241,6 +1250,8 @@ Public Sub Parametres()
     Try bnumfac = rResult!nfac
     If Error Then bnumfac = False
   Endif
+  Nfac = VerifNumfac.Dnfac(Nfac)
+  Nfac = Format$(Val(Nfac) - 1, "000000")
 
 End
 
@@ -1277,7 +1288,7 @@ Public Sub Ventilation()
     "intitule Char(40)," &
     "totalht Char(25)," &
     "totaltva Char(25)," &
-    "codetva Char(1)," &
+    "codetva Char(2)," &
     "PRIMARY KEY (compte,codetva))" & "ENGINE = MYISAM")
 
 End
@@ -1526,7 +1537,6 @@ Public Sub Maj_Compta()
         Endif
         Mtd = Abs(mtd)
         Mtc = Abs(Mtc)
-        'Utils.db.Exec("INSERT INTO " & Tmvt & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnl, numr, cpt, Intit, .Cdate_Dbase(dtef.Text), Right$(Dtef.text, 2) & Mid$(Dtef.text, 4, 2) & Nfac, Libel, Mtd, Mtc, Valid, Prov, Tresor, pointee, lettree, cloturee, relance, numr2)
         Utils.db.Exec("INSERT INTO " & Tmvt & "(jour, numero, compte, intitule, dte, dateech, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18})", Jnl, numr, Cpt, Intit, .Cdate_Dbase(dtef.Text), .Cdate_Dbase(dateech2), numerofac, Libel, Mtd, Mtc, Valid, Prov, Tresor, Pointee, lettree, Cloturee, Relance, numr2)
         rrResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " Where compte_cc = &1", cpt)
         If rrResult!solde = "" Then
@@ -1539,6 +1549,7 @@ Public Sub Maj_Compta()
         Mtc = 0
         sld = 0
       Until rResult.MoveNext()
+      Sha1Calc.CalcSha1(Numr)
       Maj_Parametres()
     Endif
   End With

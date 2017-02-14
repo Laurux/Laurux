@@ -48,7 +48,7 @@ Public Sub Cmpt_KeyPress()
 
   Dim rResult As Result
 
-  Tab = String = "Fiches_Ligrecpt"
+  Tab = "Fiches_Ligrecpt"
 
   Select Case Last.tag
 
@@ -87,12 +87,14 @@ Public Sub ToggleButton1_Click()
     Nm.Hide
     Nr.Hide
     Dt.Hide
+    Mt.Hide
     Colbl.visible = False
   Else
     Cd.Visible = True
     Nm.Visible = True
     Nr.Visible = True
     Dt.Visible = True
+    Mt.Visible = True
     Colbl.visible = True
     Aff_Data
   Endif
@@ -106,21 +108,25 @@ Public Sub Aff_Data()
 
   Tab = "Fiches_Entrecpt"
   Tab2 = "Fiches_Four"
-  Colbl.Columns.count = 4
+  Colbl.Columns.count = 5
   Colbl.Columns[0].Width = Nm.Width
   Colbl.Columns[1].Width = Cd.Width
   Colbl.Columns[2].Width = Nr.Width
   Colbl.Columns[3].Width = Dt.Width
+  Colbl.Columns[4].Width = Mt.Width
+  Colbl.Columns[4].Alignment = 2
   With Utils
-    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by " & Tri & "")
+    ' rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by " & Tri & "")
+    rResult = Utils.db.Exec("SELECT * From " & Tab & " Left join " & Tab2 & " on fo_code = four order by " & Tri & "")
     If rResult.Available Then
       Repeat
         Colbl.Add(rResult!numrecpt & rResult!four, rResult!numrecpt & rResult!four)
         Colbl.Item[1] = rResult!four
-        FoResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " where  fo_code = &1", rResult!four)
-        Colbl.Item[0] = FoResult!fo_nom
+        'FoResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " where  fo_code = &1", rResult!four)
+        Colbl.Item[0] = rResult!fo_nom
         Colbl.Item[2] = rResult!numrecpt
         Colbl.Item[3] = .Cdate_Aff(rResult!ddate)
+        Colbl.Item[4] = rResult!montant
       Until rResult.MoveNext()
     Endif
     If Colbl.Count Then
@@ -137,16 +143,26 @@ End
 '***********************************************************
 Public Sub Colbl_KeyPress()
 
+  Dim codef As String
+
   If Key.code = Key.Enter Or Key.code = Key.Return Then
     Colbl.MoveCurrent
     Nbl.Text = Colbl.Current[2]
     codef = Colbl.Current[1]
+    Stop Event
+    cache_bl()
   Endif
   If Key.code = Key.Escape Or Key.code = Key.F2 Then
     Nbl.SetFocus
     Nbl.Select
     Stop Event
+    cache_bl()
   Endif
+
+End
+
+Public Sub cache_bl()
+
   Cd.Hide
   Nm.Hide
   Nr.Hide
@@ -168,8 +184,24 @@ Public Sub Colbl_Click()
   Nm.Hide
   Nr.Hide
   Dt.Hide
+  Mt.Hide
   Colbl.visible = False
   Colbl.clear
+
+End
+
+Public Sub Nm_GotFocus()
+
+  If b = 0 Then
+    b = 1
+    Tri = "fo_nom asc"
+  Else
+    b = 0
+    Tri = "fo_nom desc"
+  Endif
+  Colbl.Sorted = False
+  Colbl.Clear
+  Aff_Data
 
 End
 
@@ -211,6 +243,21 @@ Public Sub Dt_GotFocus()
   Else
     b = 0
     Tri = "ddate desc"
+  Endif
+  Colbl.Sorted = False
+  Colbl.Clear
+  Aff_Data
+
+End
+
+Public Sub Mt_GotFocus()
+
+  If b = 0 Then
+    b = 1
+    Tri = "montant asc"
+  Else
+    b = 0
+    Tri = "montant desc"
   Endif
   Colbl.Sorted = False
   Colbl.Clear

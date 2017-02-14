@@ -1,0 +1,70 @@
+' Gambas class file
+
+'Comparaison entre un fichier texte et la table des produits pour extraire les produits manquant dans la base.
+
+Private son As Integer = Start.Son
+
+Public Sub _new()
+
+  Music.Load(Start.Musique)
+
+End
+
+Public Sub Svs_Click()
+
+  Dialog.Title = "Choisir un fichier"
+  Dialog.Path = User.home
+  Dialog.Filter = ["*.csv", "Fichiers csv", "*.txt", "Fichiers texte", "*", "Tous les fichiers"]
+  If Dialog.OpenFile() Then Return
+  ChemFic.Text = Dialog.Path
+
+End
+
+Public Sub Button1_Click()
+
+  Me.Close()
+
+End
+
+Public Sub Button2_Click()
+
+  Dim rResult As Result
+  Dim hfile, hfile2 As File
+  Dim Lig As String
+  Dim Lig2 As String[]
+  Dim Filetxt, Filename As String
+  Dim Nbc As Integer = 0
+
+  If son Then
+    Music.Play
+  Endif
+  If Not IsNull(ChemFic.text) Then
+    If Exist(ChemFic.text) Then
+      Me.mouse = Mouse.wait
+      Filetxt = ChemFic.text
+      Filename = User.Home & "/tmp/Diff.txt"
+      If Exist(filename) Then Kill Filename
+      hFile = Open filetxt For Read
+      hFile2 = Open filename For Write Create
+      While Not Eof(hFile)
+        Line Input #hFile, Lig
+        Lig2 = Split(Lig, ";")
+        rResult = Utils.db.Exec("SELECT * FROM Fiches_Art where art_code = &1", Lig2[0])
+        If Not rResult.Available Then
+          Inc Nbc
+          Print #hfile2, Lig2[0] & ";" & Lig2[1]
+        Endif
+      Wend
+      Me.Mouse = Mouse.Default
+      Message.Info("Traitement terminé !")
+      If Nbc > 0 Then Visualiseur.Prog_Editeur(Filename)
+    Else
+      Message.Warning("Ce nom de fichier n'existe pas ou alors le chemin n'est pas bon !")
+    Endif
+    Close #hfile
+    Close #hfile2
+  Else
+    Message.Warning("Veuillez saisir un nom de fichier SVP !")
+  Endif
+
+End

@@ -7,6 +7,8 @@ Private $scode As String
 Private $stype As String
 Private $ideb As Integer
 Private $ifin As Integer
+Private Prxdec As Boolean = Settings["/Soc" & Start.Societe & "/Prxdec"]
+Private Ar$ As String
 
 Property code As String
 Property dec As String
@@ -39,12 +41,11 @@ Public Sub _new(TabStrip1 As TabStrip, type As String)        'dessin du gridvie
   $lab.Expand = True
   $lab.Background = &HDFBFFF
 
-  'but = New Button(pan) As "bouton"
-  'but.Height = 24
-  'but.Text = "Calcul"
-  'but.AutoResize = True
-  'but.Expand = True
-  'but.Picture = Picture["Icones/find.png"]
+  If Prxdec Then
+    ar$ = "0"
+  Else
+    ar$ = "0.00"
+  Endif
 
   $grdv = New GridView(TabStrip1) As "grdv"
   $grdv.Height = TabStrip1.Height - 30 - 24
@@ -63,6 +64,7 @@ Public Sub _new(TabStrip1 As TabStrip, type As String)        'dessin du gridvie
   $grdv.Columns.Count = 12
   $grdv.Rows.Count = 13
 
+  sdte[2] = calcanne(sdte, res!dtepec)
   affent($grdv, sdte)
 
   j = sdte[0]
@@ -100,6 +102,7 @@ Public Sub bouton_Click()         'lit et affiche les stat
   smoiscour = Left(respar!dtepec, 2) & Right(respar!dtepec, 4)
   smoisprec = Left(respar!dtepp, 2) & Right(respar!dtepp, 4)
   dte = Split(respar!dteclec, "/")
+  dte[2] = calcanne(dte, respar!dtepec)
   '                                                             lit le fichier facture mois par mois
   smois = dte[0]
   If smois = "12" Then
@@ -117,7 +120,7 @@ Public Sub bouton_Click()         'lit et affiche les stat
 
       scle = smois & sanne
       dateinf = sanne & "-" & smois & "-01"
-      datesup = sanne & "-" & smois & "-" & Str(utils.lastday(Val(dateinf)))
+      datesup = sanne & "-" & smois & "-" & Str(utils.lastday(CDate(01 & "/" & smois & "/" & sanne)))
       tab = "Fiches_HistoLigfac"
       tab1 = "Fiches_HistoFac"
       Select $stype
@@ -136,9 +139,9 @@ Public Sub bouton_Click()         'lit et affiche les stat
 
       End Select
 
-      $grdv[j, i].Text = "0.00"
+      $grdv[j, i].Text = ar$
       $grdv[j, i + 1].Text = $sdec
-      $grdv[j, i + 2].Text = "0.00"
+      $grdv[j, i + 2].Text = ar$
       requete(tab, tab1, req, cond, dateinf, datesup, i, j)
 
       '                                                   lit et additionne les mois en cours dans le fichier bl
@@ -185,9 +188,9 @@ Public Sub bouton_Click()         'lit et affiche les stat
 
     Select i
       Case 1, 4, 7, 10
-        $grdv[12, i].Text = Format(fsomme, "######" & $sdec)
+        $grdv[12, i].Text = Format(fsomme, ar$)
       Case Else
-        $grdv[12, i].Text = Format(fsomme, "#######0.00")
+        $grdv[12, i].Text = Format(fsomme, ar$)
     End Select
 
   Next
@@ -210,7 +213,7 @@ Private Sub requete(tab As String, tab1 As String, req As String, cond As String
   For k = 0 To resbl.Max
     fsomme = 0
     Try fsomme = CFloat(Replace($grdv[j, i].Text, ",", ".")) + CFloat(Trim(Replace(resbl!ht, ",", ".")))
-    $grdv[j, i].Text = Format(fsomme, "#######0.00")
+    $grdv[j, i].Text = Format(fsomme, ar$)
     fsomme = 0
     Try fsomme = CFloat(Replace($grdv[j, i + 1].Text, ",", ".")) + CFloat(Trim(Replace(resbl!qte, ",", ".")))
     $grdv[j, i + 1].Text = Format(fsomme, "######" & $sdec)
@@ -224,7 +227,7 @@ Private Sub requete(tab As String, tab1 As String, req As String, cond As String
     Else
       Try fsomme = CFloat(Replace($grdv[j, i + 2].Text, ",", ".")) + CFloat(resbl!marge)
     Endif
-    $grdv[j, i + 2].Text = Format(fsomme, "#####0.00")
+    $grdv[j, i + 2].Text = Format(fsomme, ar$)
 
     resbl.MoveNext
   Next
@@ -327,6 +330,7 @@ Public Sub grdv_MouseUp()
   sdte = Split(res!dteclec, "/")
   grdv1.Columns.Count = 12
 
+  sdte[2] = calcanne(sdte, res!dtepec)
   mois = Val(sdte[0]) + $ideb + 1
   ann = Val(sdte[2]) - 4
   If mois > 12 Then
@@ -345,15 +349,18 @@ Public Sub grdv_MouseUp()
   datesup = Date(ann, mois, utils.lastday(datesup))
 
   jour = utils.lastday(Date(Year(datesup) - 3, Month(datesup), 1))
-  d1 = Date(Year(datesup) - 3, Month(datesup), jour)
+  Try d1 = Date(Year(datesup) - 3, Month(datesup), jour)
+  If Error Then d1 = Date(Year(datesup) - 3, Month(datesup), jour - 1)
 
   d2 = Date(Year(dateinf) + 1, Month(dateinf), 1)
   jour = utils.lastday(Date(Year(datesup) - 2, Month(datesup), 1))
-  d3 = Date(Year(datesup) - 2, Month(datesup), jour)
+  Try d3 = Date(Year(datesup) - 2, Month(datesup), jour)
+  If Error Then d3 = Date(Year(datesup) - 2, Month(datesup), jour - 1)
 
   d4 = Date(Year(dateinf) + 2, Month(dateinf), 1)
   jour = utils.lastday(Date(Year(datesup) - 2, Month(datesup), 1))
-  d5 = Date(Year(datesup) - 1, Month(datesup), jour)
+  Try d5 = Date(Year(datesup) - 1, Month(datesup), jour)
+  If Error Then d5 = Date(Year(datesup) - 1, Month(datesup), jour - 1)
 
   d6 = Date(Year(dateinf) + 3, Month(dateinf), 1)
 
@@ -438,6 +445,21 @@ Private Sub affdon(grdv1 As GridView, resbl As Result, i As Integer, j As Intege
 
     resbl.MoveNext
   Next
+
+End
+
+Private Function calcanne(dte As String[], dtem As String) As String
+
+  Dim anne, mois As String
+
+  anne = Right(dtem, 4)
+  mois = Left(dtem, 2)
+  If anne & mois > dte[2] & dte[0] Then
+    If anne = dte[2] Then anne = Str(Val(anne) + 1)
+    Return anne
+  Else
+    Return dte[2]
+  Endif
 
 End
 

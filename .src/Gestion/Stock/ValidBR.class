@@ -17,7 +17,7 @@
 'INC, 59 Temple place - Suite 33, Boston
 'MA 02111-1307 USA
 '################################################
-'# nom du fichier           : Facturefm.class
+'# nom du fichier           : ValidBR.class
 '# Auteur                   : Jacky Tripoteau
 '# date de création         : 01/09/2014
 '# Validations des bons de réceptions
@@ -74,6 +74,7 @@ Private libel As String
 Private dateech2 As String
 Private hnew As File
 Private chkfam As Boolean = False
+Private bchktva As Boolean = False
 Private Famachat As String
 Private NmFic As String
 Private skey As String
@@ -544,8 +545,6 @@ Public Sub Gen_ecr(View As Boolean)
   Dim Tab5 As String
   Dim Tab6 As String
   Dim Tab7 As String
-  Dim Tab8 As String
-  Dim Tab9 As String
   Dim Tab10 As String
   Dim Tab11 As String
   Dim Txtva As String
@@ -589,10 +588,9 @@ Public Sub Gen_ecr(View As Boolean)
   Tab5 = "Fiches_Four"
   Tab6 = "Fiches_Art"
   Tab7 = "Fiches_Mo"
-  Tab8 = "Facturefm"
-  Tab9 = "Bl"
   Tab10 = "Totalisation"
   Tab11 = "Br"
+  bchktva = True
   Ventilation()
   Filename = User.Home & "/tmp/BonReception.pdf"
   If Not Exist(User.home & "/BR") Then Try Mkdir User.home & "/BR"
@@ -606,7 +604,7 @@ Public Sub Gen_ecr(View As Boolean)
     Print #Hnew, " "
   Endif
   Raz_Ventilation()
-  Utils.db.Exec("LOCK TABLES " & Tab & " WRITE, " & Tab0 & " WRITE, " & Tab1 & " WRITE, " & Tab2 & " WRITE, " & Tab4 & " WRITE, " & Tab5 & " WRITE, " & Tab6 & " WRITE, " & Tab7 & " WRITE, " & Tab8 & " WRITE, " & Tab9 & " WRITE, " & Tab10 & " WRITE, " & Tab11 & " WRITE," & Cbase.Table("TabTleg") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, " & Cbase.Table("TabHisFac") & " WRITE, " & "Fiches_Tvaac" & " Write, " & Cbase.Table("TabCPTdocs") & " write, " & Cbase.Table("TabFdocs") & " write ")
+  Utils.db.Exec("LOCK TABLES " & Tab & " WRITE, " & Tab0 & " WRITE, " & Tab1 & " WRITE, " & Tab2 & " WRITE, " & Tab4 & " WRITE, " & Tab5 & " WRITE, " & Tab6 & " WRITE, " & Tab7 & " WRITE, " & Tab10 & " WRITE, " & Tab11 & " WRITE," & Cbase.Table("TabTleg") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, " & Cbase.Table("TabHisFac") & " WRITE, " & "Fiches_Tvaac" & " Write, " & Cbase.Table("TabCPTdocs") & " write, " & Cbase.Table("TabFdocs") & " write ")
   Parametres()
   With Utils
     If Jnl Then
@@ -637,6 +635,7 @@ Public Sub Gen_ecr(View As Boolean)
       Coldetail.Item.Selected = True
       Edbr.Init()
       Repeat
+        bchktva = True
         Numbl = Utils.db.Exec("SELECT * FROM " & tab0 & " where four = &1 and validee = &2 and numrecpt = &3 order by numrecpt", CodeFour.Text, False, Coldetail.Item[0])
         Try NumeroBl = numbl!numrecpt
         If Not Error Then
@@ -658,7 +657,7 @@ Public Sub Gen_ecr(View As Boolean)
           Endif
           
           If Not View Then
-            Utils.db.Exec("UPdate " & Tab0 & " set validee = &3 Where four = &1 and numrecpt = &2", Colbl.Item[0], numbl!numrecpt, 1)
+            If bchktva Then Utils.db.Exec("UPdate " & Tab0 & " set validee = &3 Where four = &1 and numrecpt = &2", Colbl.Item[0], numbl!numrecpt, 1)
           Endif
           
           numrecpts = numrecpts & "\n" & numbl!numrecpt
@@ -675,30 +674,32 @@ Public Sub Gen_ecr(View As Boolean)
         Mttc = Colbl.Item[2]
         If exo Then Totalttc = Colbl.Item[3]
         Utils.db.Exec("INSERT INTO " & Tab10 & "(compte, intitule, totalht, codetva) VALUES (&1, &2, &3, &4)", Colbl.Item[0], nom, Totalttc, 0)
-        Verif_solde()
-        Maj_Compta()
-        Variables.inumr = Numr
-        Majnum()
-        Print #Hnew, Colbl.Item[0] & String$(10 - Len(Colbl.Item[0]), " ") & Colbl.Item[1] & String$(35 - Len(Colbl.Item[1]), " ") & Colbl.Item[2] & String$(15 - Len(Colbl.Item[2]), " ") & Colbl.Item[3] & String$(10 - Len(Colbl.Item[3]), " ") & libel & String$(30 - Len(libel), " ") & "     " & Numr & String$(15 - Len(Str(Numr)), " ") & Numr2 & String$(15 - Len(Str(Numr2)), " ")
-        Raz_Ventilation()
-        Toteuros = 0
-        'Endif
-        Totalrem = 0
-        Remart = 0
-        'Until Colbl.MoveNext()
-        Me.mouse = Mouse.Wait
-        Utils.db.Exec("UNLOCK TABLES")
-        Message.Info("Traitement terminé !")
-        Close #Hnew
-        Editeur.Prog_Editeur(User.home & "/BR/" & "Valbr" & Datej.Text & ".txt")
-        If Settings["/Soc" & Start.Societe & "/Ged"] And Apdf Then
-          Select Case Message.Question("Que souhaitez vous faire ? \n1- scanner la facture fournisseur\n2- Joindre un document\n3- Ne rien faire", "1", "2", "3")
-            Case 1
-              scanfacture()
-            Case 2
-              hFormc = New GedC(Numr, "Fac", CodeFour.text, " ")
-              hFormc.Showmodal()
-          End Select
+        If bchktva Then
+          Verif_solde()
+          Maj_Compta()
+          Variables.inumr = Numr
+          Majnum()
+          Print #Hnew, Colbl.Item[0] & String$(10 - Len(Colbl.Item[0]), " ") & Colbl.Item[1] & String$(35 - Len(Colbl.Item[1]), " ") & Colbl.Item[2] & String$(15 - Len(Colbl.Item[2]), " ") & Colbl.Item[3] & String$(10 - Len(Colbl.Item[3]), " ") & libel & String$(30 - Len(libel), " ") & "     " & Numr & String$(15 - Len(Str(Numr)), " ") & Numr2 & String$(15 - Len(Str(Numr2)), " ")
+          Raz_Ventilation()
+          Toteuros = 0
+          'Endif
+          Totalrem = 0
+          Remart = 0
+          'Until Colbl.MoveNext()
+          Me.mouse = Mouse.Wait
+          Utils.db.Exec("UNLOCK TABLES")
+          Message.Info("Traitement terminé !")
+          Close #Hnew
+          Editeur.Prog_Editeur(User.home & "/BR/" & "Valbr" & Datej.Text & ".txt")
+          If Settings["/Soc" & Start.Societe & "/Ged"] And Apdf Then
+            Select Case Message.Question("Que souhaitez vous faire ? \n1- scanner la facture fournisseur\n2- Joindre un document\n3- Ne rien faire", "1", "2", "3")
+              Case 1
+                scanfacture()
+              Case 2
+                hFormc = New GedC(Numr, "Fac", CodeFour.text, " ")
+                hFormc.Showmodal()
+            End Select
+          Endif
         Endif
       Else
         Utils.db.Exec("UNLOCK TABLES")
@@ -710,6 +711,7 @@ Public Sub Gen_ecr(View As Boolean)
       Endif
       Message.Warning(" Impression impossible ! Veuillez saisir un code journal dans les parametres Svp !", "Ok")
     Endif
+    Utils.db.Exec("UNLOCK TABLES")
   End With
   Me.Mouse = Mouse.Arrow
   Colbl.Clear
@@ -768,7 +770,7 @@ Public Sub Ventilation()
     "intitule Char(40)," &
     "totalht Char(25)," &
     "totaltva Char(25)," &
-    "codetva Char(1)," &
+    "codetva Char(2)," &
     "PRIMARY KEY (compte,codetva))" & "ENGINE = MYISAM")
 
 End
@@ -825,11 +827,15 @@ Public Sub Maj_Totalisation()
       rResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " Where compte_cc = &1", cpttva)
       If rResult.Available Then
         IntitTva = rResult!intitule_cc
+        'On calcule le montant de la TVA
+        Mtva = ((Val(Utils.cpoint(Totalht)) * Val(Utils.cpoint(Ttva)) / 100) * Txconv) 
+        If IsNull(Totalttc) Then Totalttc = "0"
+        Totalttc = Val(Utils.cpoint(Totalttc)) + Val(Utils.cpoint(Totalht)) * Txconv + Val(Utils.cpoint(Mtva))
+      Else
+        Message.Error("Le code tva " & Ctva & " n'existe pas dans la table des Tva sur achat.")
+        bchktva = False
+        Return
       Endif
-      'On calcule le montant de la TVA
-      Mtva = ((Val(Utils.cpoint(Totalht)) * Val(Utils.cpoint(Ttva)) / 100) * Txconv) 
-      If IsNull(Totalttc) Then Totalttc = "0"
-      Totalttc = Val(Utils.cpoint(Totalttc)) + Val(Utils.cpoint(Totalht)) * Txconv + Val(Utils.cpoint(Mtva))
     Else
       Totalttc = Val(Utils.cpoint(Totalht)) * Txconv
     Endif
@@ -975,7 +981,7 @@ Public Sub Maj_Compta()
           Else
             libel = Libell.Text
           Endif
-          libel = Left$(libel, 30)
+          libel = Left$(libel, 50)
           If rResult!totalht <> "" And Val(.cpoint(rResult!totalht)) > 0 Then
             Mtc = Val(.cpoint(rResult!totalht))
             Mtd = 0
@@ -1042,7 +1048,7 @@ Public Sub Maj_Compta()
         Else
           libel = Libell.Text
         Endif
-        libel = Left$(libel, 30)
+        Try libel = Left$(libel, 50)
         Mtd = Abs(mtd)
         Mtc = Abs(Mtc)
         Utils.db.Exec("INSERT INTO " & Tmvt & "(jour, numero, compte, intitule, dte, dateech, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18})", Jnl, numr, Cpt, Intit, .Cdate_Dbase(Datej.Text), .Cdate_Dbase(dateech2), numr, Libel, Mtd, Mtc, Valid, Prov, Tresor, Pointee, lettree, Cloturee, Relance, numr2)

@@ -30,6 +30,8 @@ Private Dtpc As String
 Private Dpc As String
 Private Depc As String
 Private dtepc As String
+Private Dateimp1 As String
+Private Dateimp2 As String
 Private son As Integer = Start.Son
 
 Public Sub _New()
@@ -61,6 +63,8 @@ Public Sub Aff_date()
     Quit
   Else
     Dpc = rResult!dtepc
+    Dateimp2 = Mid$(dpc, 4, 2) & "." & Left$(dpc, 2) & "." & Mid$(dpc, 7, 4)
+    Dateimp1 = "01." & Left$(dpc, 2) & "." & Mid$(dpc, 7, 4)
     dtepc = Left(Dpc, 2)
     dateprc.Text = "  " & Format$(Date(Right(dpc, 4), Left(dpc, 2), "01"), "mmmm  yyyy")
     'Aff_date()
@@ -110,14 +114,15 @@ Public Sub Button1_Click()
           num = rResult!numero
           numecr = numecr + 1
           Repeat
-            If rResult!numero <> num And If IsNull(rResult!numerodef) Then numecr = numecr + 1
+            If rResult!numero <> num And IsNull(rResult!numerodef) Or If rResult!numero <> num And rResult!numerodef = 0 Then numecr = numecr + 1
             num = rResult!numero
             cpt = rResult!compte
-            If IsNull(rResult!numerodef) Then
+            If IsNull(rResult!numerodef) Or If rResult!numerodef = 0 Then
               Utils.db.Exec("UPdate  " & Tab & "  SET cloturee =  &1,numerodef = &3, dteval =&5 where numero = &2 and compte = &4", 1, num, numecr, cpt, Format$(Now, "yyyymmdd"))
             Else
               Utils.db.Exec("UPdate  " & Tab & "  SET cloturee =  &1, dteval =&5 where numero = &2 and compte = &4", 1, num, numecr, cpt, Format$(Now, "yyyymmdd"))
             Endif
+            Sha1Calc.CalcSha1(Numecr)
           Until rResult.MoveNext()
         Endif
         dtepc = Format$(Val(dtepc), "00")
@@ -131,6 +136,7 @@ Public Sub Button1_Click()
         ' Met à jour la table des parametres
         rResult = Utils.db.Exec("SELECT * FROM " & Tab2 & "")
         Utils.db.Exec("UPdate  " & Tab2 & "  SET  dtepc  =  &1, numecriture2 = &2", .Cdate_Dbase(dtepc), numecr)
+        ' JournauxM.Imprime("01", "99", Dateimp1, Dateimp2, True, True, "Fiches_Mvt", True)
         Message.Warning(" Traitement terminé ! ", "OK")
         Me.mouse = mouse.Default
       Endif

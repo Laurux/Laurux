@@ -1,0 +1,385 @@
+' Gambas module file
+
+Private DebhP As Float
+Private CredhP As Float
+Private TotSldhP As Float
+Private TotDeb As Float
+Private TotCred As Float
+Private TotDeb2 As Float
+Private TotCred2 As Float
+Private TotDeb3 As Float
+Private TotCred3 As Float
+Private TotSld As Float
+Private debit As Float
+Private credit As Float
+Private solde As Float
+Private dte As String
+Private dte1 As String
+Private dte2 As String
+Private Txt As String
+Private Filename As String
+Private Filetxt As String
+Private jour As String
+Private hfile As File
+Private r3Result As Result
+Private type_jour As String
+Private Tab As String
+Private Tab0 As String
+Private Db_ction As Float
+Private Cd_ction As Float
+Private Compt As String
+Private iPage As Integer
+Private son As Integer = Start.Son
+Private PosY As Integer
+Private Janx As String ' on recupère le numéro du journal des a nouveaux
+Private p[12] As String
+Private q[12] As String
+Private pdf As Ccompta
+
+Public Sub Imprime(cpt As String, cpt2 As String, dten0 As String, dten1 As String, Radiobutton1 As Boolean, CheckBox1 As Boolean, Tab0 As String, Cloture As Boolean)
+
+  Dim i As Integer
+  Dim rResult As Result
+  Dim r2Result As Result
+  Dim SteResult As Result
+  Dim Nm As Result
+  Dim Tab2 As String
+  Dim Tab5 As String
+  Dim Intit As String
+  Dim datep As String
+  Dim copt As String
+  Dim dateedition As String
+  Dim p1 As Integer
+  Dim Tab3 As String
+  Dim Tab4 As String
+  Dim Qual As String
+  Dim Ccoll As String
+  Dim bcol As Boolean = False
+  Dim debitcol As String
+  Dim creditcol As String
+  Dim Ste As String
+  Dim Libelle As String
+  Dim intitule As String
+  Dim Tresorerie As Integer = 0
+  Dim Type As String
+
+  With utils
+    totsldhp = 0.00
+    Db_Ction = 0
+    Cd_Ction = 0
+    Solde = 0
+    Totdeb3 = 0
+    Totcred3 = 0
+    Tab = "centralisation"
+    Tab2 = "Fiches_Journaux"
+    Tab3 = "Fiches_Parametres"
+    Tab4 = "Fiches_Societes"
+    Tab5 = "Fiches_Comptes"
+    p1 = 0
+    iPage = 1
+    Filename = User.Home & "/tmp/Journaux.pdf"
+    Journaux.Mouse = Mouse.Wait
+    Createtable()
+    SteResult = Utils.db.Exec("SELECT * FROM " & Tab4 & " Where cd_sc = &1", Start.Societe)
+    Ste = "Société " & " " & SteResult!int_sc
+    dateedition = "du " & dteN0 & " au " & dteN1
+    Shell "cd " & User.Home & ""
+    pdf = New Ccompta("Portrait", "mm", "A4")
+    pdf.Open()
+    pdf.AliasNbPages()
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab3 & "")
+    dte = rResult!dtepc
+    dte = .Cdate_aff(dte)
+    If Val(Right$(dteN1, 4) & Mid$(dteN1, 4, 2) & Left$(dteN1, 2)) > Val(Right$(dte, 4) & Mid$(dte, 4, 2) & Left$(dte, 2)) Then
+      Qual = " ( Edition provisoire )"
+    Else
+      Qual = ""
+    Endif
+    Datep = Now
+    Datep = Mid$(Datep, 4, 2) & "-" & Left$(Datep, 2) & "-" & Mid$(Datep, 7, 4)
+    r2Result = Utils.db.Exec("SELECT * FROM " & Tab2 & " WHERE code_jo >= &1  and code_jo <= &2  order by code_jo", cpt, cpt2)
+    If r2Result.Available Then
+      Repeat
+        p1 = 0
+        compt = r2Result!code_jo
+        Intit = r2Result!libelle_jo
+        type_jour = r2Result!type_jo
+        If RadioButton1 Then
+          rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " WHERE jour = &1 and validee = &2 and dte >= &3 and dte <= &4 order by dte, numero, compte", compt, 1, Utils.Cdate_Dbase(dten0), Utils.Cdate_Dbase(dten1))
+        Else
+          rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " WHERE jour = &1 and validee = &2 and dte >= &3 and dte <= &4 order by numero, dte, compte", compt, 1, .Cdate_Dbase(dten0), .Cdate_Dbase(dten1))
+        Endif
+        If rResult.count <> 0 Then
+          i = 0
+          If Cloture Then
+            pdf.Entete("Impression du journal " & Compt & " après clôture")
+          Else
+            pdf.Entete("Impression du journal " & Compt)
+          Endif
+          pdf.Level0J(Compt, Intit, dateedition, Qual, Ste)
+          pdf.Level1J()
+          posy = 32
+          If IsNull(Qual) Then
+            copt = rResult!numerodef
+            If Settings["/Soc" & Start.Societe & "/Gestion"] Then copt = rResult!numero
+          Else
+            copt = rResult!numero
+          Endif
+          While i < rResult.count
+            '   If .Cdate_Comp(rResult!dte) >= .Cdate_Dbase(dten0.Text) And .Cdate_Comp(rResult!dte) <= .Cdate_Dbase(dten1.Text) Then
+            'If P >= 40 Then p = 0
+            Try Bcol = rResult!collectif
+            If Error Then Bcol = False
+            If Bcol Then
+              Ccoll = rResult!compte
+            Endif
+            Nm = Utils.db.Exec("SELECT * FROM " & Tab5 & " WHERE compte_cc = &1", rResult!compte)
+            If Not Nm.Available Then
+              Message.Error("Le compte " & rResult!compte & " n'existe pas ! Veuillez créer ce compte avant d'imprimer vos journaux SVP !")
+              Return
+            Endif
+            If Nm!comptr_cc <> 0 Then
+              Tresorerie = 1
+              Intitule = Nm!intitule_cc
+            Else
+              Tresorerie = 0
+            Endif
+            If Not Bcol Then
+              debit = rResult!montantd
+              credit = rResult!montantc
+              solde = solde + debit - credit
+              totdeb = totdeb + debit
+              totcred = totcred + credit
+              totsld = totdeb - totcred
+              dte = .CDate_Aff(rResult!dte)
+              dte = Left(dte, 6) & Right(dte, 2)
+            Else
+              debitcol = rResult!montantd
+              creditcol = rResult!montantc
+              totdeb = totdeb + rResult!montantd
+              totcred = totcred + rResult!montantc
+            Endif
+            If Settings["/Soc" & Start.Societe & "/Gestion"] Then
+              If rResult!numero <> copt Then
+                If p1 <> 0 Then
+                  'solde = 0
+                Endif
+                pdf.Lines(posY)
+              Endif
+            Else
+              If IsNull(Qual) Then
+                If rResult!numerodef <> copt Then
+                  If p1 <> 0 Then
+                    'solde = 0
+                  Endif
+                  pdf.Lines(posY)
+                Endif
+              Else
+                If rResult!numero <> copt Then
+                  If p1 <> 0 Then
+                    'solde = 0
+                  Endif
+                  pdf.Lines(posY)
+                Endif
+              Endif
+            Endif
+            If IsNull(Qual) Then
+              copt = rResult!numerodef
+              If Settings["/Soc" & Start.Societe & "/Gestion"] Then copt = rResult!numero
+            Else
+              copt = rResult!numero
+            Endif
+            If Not Bcol Then
+              If Left$(rResult!compte, 3) = "401" Or If Left$(rResult!compte, 3) = "411" Or If Left$(rResult!compte, 3) = "453" Then
+                If Left$(rResult!libelle, 3) = "Fac" Then
+                  Libelle = "Facture"
+                Else
+                  If Left$(rResult!libelle, 3) = "Avo" Then
+                    Libelle = "Avoir"
+                  Else
+                    Libelle = rResult!libelle
+                  Endif
+                Endif
+                If type_jour = "VE" And Left$(Libelle, 6) <> "Caisse" Then Libelle = libelle & " " & rResult!numdoc
+                pdf.level2J(rResult!intitule, rResult!compte, dte, copt, Libelle, rResult!montantd, rResult!montantc, solde, posy, rResult!numdoc)
+              Else
+                Libelle = rResult!libelle
+                If Tresorerie = 1 Then
+                  pdf.level2J(Intitule, rResult!compte, dte, copt, Libelle, rResult!montantd, rResult!montantc, solde, posy, rResult!numdoc)
+                Else
+                  pdf.level2J(rResult!intitule, rResult!compte, dte, copt, Libelle, rResult!montantd, rResult!montantc, solde, posy, rResult!numdoc)
+                Endif
+              Endif
+              posy += 5
+              Inc p1
+              totdeb2 = totdeb2 + rResult!montantd
+              totcred2 = totcred2 + rResult!montantc
+            Endif
+            If Left$(rResult!compte, 3) <> "401" And type_jour <> "OD" And Not Bcol And If Left$(rResult!compte, 3) <> "411" And type_jour <> "OD" And Not Bcol And If Left$(rResult!compte, 3) <> "453" And type_jour <> "OD" And Not Bcol Then
+              Nm = Utils.db.Exec("SELECT * FROM " & Tab5 & " WHERE compte_cc = &1", rResult!compte)
+              r3Result = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE cd_cent = &1", rResult!compte)
+              If r3Result.Available Then
+                Db_Ction = r3Result!db_cent
+                Cd_Ction = r3Result!crd_cent
+                Db_Ction = Db_Ction + rResult!montantd
+                Cd_Ction = Cd_Ction + rResult!montantc
+                Utils.db.Exec("UPDATE " & Tab & " SET cd_cent = &1, intitule = &2, db_cent = &3, crd_cent = &4, njournal = &5 WHERE cd_cent = &1 and njournal = &5", rResult!compte, nm!intitule_cc, Db_Ction, Cd_Ction, Compt)
+              Else
+                Db_Ction = rResult!montantd
+                Cd_Ction = rResult!montantc
+                Utils.db.Exec("INSERT INTO " & Tab & " (cd_cent, intitule, db_cent, crd_cent, njournal) Values (&1, &2, &3, &4, &5)", rResult!compte, nm!intitule_cc, Debit, Credit, Compt)
+              Endif
+              Db_Ction = 0
+              Cd_Ction = 0
+            Endif
+            If Bcol And type_jour <> "OD" Then
+              If Left$(rResult!compte, 2) = "40" Then
+                type = "Collectif fournisseurs"
+              Else
+                If Left$(rResult!compte, 2) = "41" Then
+                  Type = "Collectif clients"
+                Else
+                  If Left$(rResult!compte, 3) = "453" Then
+                    Type = "Collectif clients coop"
+                  Endif
+                Endif
+              Endif
+              r3Result = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE cd_cent = &1", rResult!compte)
+              If r3Result.Available Then
+                Db_Ction = r3Result!db_cent
+                Cd_Ction = r3Result!crd_cent
+                Db_Ction = Db_Ction + debitcol
+                Cd_Ction = Cd_Ction + creditcol
+                Utils.db.Exec("UPDATE " & Tab & " SET cd_cent = '" & rResult!compte & "', db_cent = '" & Db_Ction & "', crd_cent = '" & Cd_Ction & "', njournal = '" & Compt & "' WHERE cd_cent = '" & rResult!compte & "' and njournal = '" & Compt & "'")
+              Else
+                Utils.db.Exec("INSERT INTO " & Tab & " (cd_cent, intitule,db_cent, crd_cent, njournal) Values (&1, &2, &3, &4, &5)", rResult!compte, Type, debitcol, creditcol, Compt)
+              Endif
+              Db_Ction = 0
+              Cd_Ction = 0
+            Endif
+            i = i + 1
+            If posy > 283 Then
+              pdf.Baspage2(ipage)
+              pdf.Entete("Impression du journal " & Compt)
+              pdf.Level0J(Compt, Intit, dateedition, Qual, Ste)
+              pdf.Level1J()
+              p1 = 0
+              posy = 32
+              copt = ""
+              Inc iPage
+            Endif
+            rResult.MoveNext
+          Wend
+          totdeb = totdeb + debhp
+          totcred = totcred + credhp
+          totsld = totdeb - totcred
+          If p1 <= 40 Then
+            pdf.Lines(posY)
+          Endif
+          posy += 2
+          If CheckBox1 Then pdf.level2J("", "", "", "", "Total journal", Totdeb2, Totcred2, Totdeb2 - totcred2, posy, "")
+          posy += 4
+          totdeb3 = totdeb3 + totdeb2
+          totcred3 = totcred3 + totcred2
+          Totdeb2 = 0
+          Totcred2 = 0
+          If type_jour <> "OD" Then
+            pdf.Baspage2(ipage)
+            Inc iPage
+            pdf.Entete("Centralisation du journal " & Compt)
+            pdf.Level0J(Compt, Intit, dateedition, Qual, Ste)
+            'pdf.level1J()
+            posy = 32
+            pdf.level6J()
+            posy += 6
+            Centralisation()
+            'Inc ipage
+            pdf.BasPage2(ipage)
+            iPage = 1
+            raz()
+            Createtable()
+          Else
+            raz()
+            pdf.BasPage2(ipage)
+            iPage = 1
+          Endif
+        Endif
+        raz()
+        Solde = 0
+      Until r2Result.MoveNext()
+      If CheckBox1 Then
+        pdf.BasPage2(ipage)
+        Inc iPage
+        pdf.Entete("Totaux impressions")
+        pdf.level1JT()
+        posy = 34
+        pdf.level2JT(Totdeb3, Totcred3, Totdeb3 - totcred3, posy)
+        pdf.BasPage2(ipage)
+      Endif
+      pdf.Output(Filename, False)
+      Visualiseur.Prog_Editeur(Filename)
+    Else
+      message(" Aucune ecriture pour cette demande", "OK")
+    Endif
+  End With
+  Journaux.Mouse = Mouse.Default
+
+End
+
+Public Sub Raz()
+
+  debhp = 0
+  credhp = 0
+  totsldhp = 0
+  totdeb = 0
+  totcred = 0
+  totsld = 0
+  debit = 0
+  credit = 0
+  Db_Ction = 0
+  Cd_Ction = 0
+
+End
+
+Public Sub Centralisation()
+
+  Dim CentResult As Result
+
+  raz()
+  CentResult = Utils.db.Exec("SELECT * FROM " & Tab & " where njournal = &1 order by cd_cent", Compt)
+  If CentResult.Available Then
+    posy += 6
+    ' Code = CentResult!cd_cent
+    Repeat
+      totdeb = totdeb + CentResult!db_cent
+      totcred = totcred + CentResult!crd_cent
+      totsld = totdeb - totcred
+      pdf.level7j(CentResult!cd_cent, CentResult!intitule, CentResult!db_cent, CentResult!crd_cent, totsld, posy)
+      posy += 6
+      If posy > 283 Then
+        pdf.Baspage2(ipage)
+        pdf.Entete("Centralisation du journal " & Compt)
+        'pdf.level1J()
+        posy = 32
+        pdf.level6J()
+        posy += 12
+        Inc ipage
+      Endif
+    Until CentResult.MoveNext()
+  Endif
+
+End
+
+Public Sub Createtable()
+
+  Tab = "centralisation"
+  Utils.db.Exec("DROP TABLE IF EXISTS centralisation")
+  Try Utils.db.Exec("CREATE TABLE " & Tab &
+    "(cd_cent Char(8) NOT NULL," &
+    "intitule Char(50)," &
+    "db_cent Decimal(12,2)," &
+    "crd_cent Decimal(12,2)," &
+    "njournal Char(2)," &
+    "PRIMARY KEY (cd_cent))" & "ENGINE = MYISAM")
+
+End

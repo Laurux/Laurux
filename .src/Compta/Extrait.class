@@ -66,6 +66,8 @@ Private $type As String
 Private $Org As String
 Private sJournal As String
 Private sNumero As String
+Private bTri As Boolean = False
+Private sTri As String
 Public Bsel As Boolean = False
 Public sCmpt As String
 Public sDesg As String
@@ -80,6 +82,7 @@ Public Sub _New(scode As String, sintitule As String, stype As String, Org As St
   ' [GB2:ARRD] Dim spl As String[9]
   Dim spl As New String[9]
 
+  sTri = "dte asc"
   Try WidthCol = Settings["/Soc" & Start.Societe & "/Col/LcolE"]
   $Code = scode
   $Intitule = sIntitule
@@ -131,22 +134,32 @@ Public Sub _New(scode As String, sintitule As String, stype As String, Org As St
     colcli.Columns[9].Width = 60
   Endif
   colcli.Columns[0].Alignment = 4
-  colcli.Columns[0].Text = "Code"
-  colcli.Columns[1].Text = "Date"
-  colcli.Columns[2].Text = "Libellé"
-  colcli.Columns[3].Text = "Document"
+  'colcli.Columns[0].Text = "Code"
+  '  colcli.Columns[1].Text = ""
+  '  colcli.Columns[2].Text = "Libellé"
+  ' colcli.Columns[3].Text = "Document"
   colcli.Columns[4].Alignment = 2
-  colcli.Columns[4].Text = "Débit"
+  '  colcli.Columns[4].Text = "Débit"
   colcli.Columns[5].Alignment = 2
-  colcli.Columns[5].Text = "Crédit"
+  'colcli.Columns[5].Text = "Crédit"
   colcli.Columns[6].Alignment = 2
-  colcli.Columns[6].Text = "Solde"
+  '  colcli.Columns[6].Text = "Solde"
   colcli.Columns[7].Alignment = 2
-  colcli.Columns[7].Text = "Numéro"
+  '  colcli.Columns[7].Text = "Numéro"
   colcli.Columns[8].Alignment = 3
-  colcli.Columns[8].Text = "Journal"
+  '  colcli.Columns[8].Text = "Journal"
   colcli.Columns[9].Alignment = 3
-  colcli.Columns[9].Text = "Lettrée"
+  '  colcli.Columns[9].Text = "Lettrée"
+  Tdate.Width = colcli.Columns[0].Width
+  Tdate2.Width = colcli.Columns[1].Width
+  Tlibelle.Width = colcli.Columns[2].Width
+  Tdoc.Width = colcli.Columns[3].Width
+  Tdebit.Width = colcli.Columns[4].Width
+  Tcredit.Width = colcli.Columns[5].Width
+  Tsolde.Width = colcli.Columns[6].Width
+  Tnumero.Width = colcli.Columns[7].Width
+  Tjournal.Width = colcli.Columns[8].Width
+  Tlettree.Width = colcli.Columns[9].Width
   type = "C"
   compt = "0"
   jour = Format$(Now, "dd.mm.yyyy")
@@ -347,14 +360,14 @@ Public Sub Exo5()
 
   Dim rResult As Result
   Dim Tab As String
-  Dim Mois As Integer
+  Dim $Mois As Integer
 
   Tab = "Fiches_Parametres"
   With utils
     rResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
     dte = rResult!dteclec5
-    Mois = Val(Right$(dte, 4))
-    dte = Left$(dte, 6) & (Mois - 1)
+    $Mois = Val(Right$(dte, 4))
+    dte = Left$(dte, 6) & ($Mois - 1)
     dteN0.Text = .Calc_mois(dte)
     dte = rResult!dteclec5
     dteN1.Text = .Cdate_aff(dte)
@@ -733,15 +746,14 @@ Public Sub affichage()
       Endif
     Endif
 
-    'Ncode = 1
     If Enl.value = True Then
-      rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " WHERE compte = &1 and lettree = &2  and validee = &3 order by dte", cpt.text, 0, 1)
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " WHERE compte = &1 and lettree = &2  and validee = &3 order by &4", cpt.text, 0, 1, sTri)
     Else
       If El.value = True Then
-        rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " WHERE compte = &1 and lettree = &2 and validee = &3 order by dte", cpt.Text, 1, 1)
+        rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " WHERE compte = &1 and lettree = &2 and validee = &3 order by  &4", cpt.Text, 1, 1, sTri)
       Else
         If Toutes.value = True Then
-          rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " WHERE compte = &1  and validee = &2 order by dte", cpt.text, 1)
+          rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " WHERE compte = &1  and validee = &2 order by " & sTri & "", cpt.text, 1)
         Endif
       Endif
     Endif
@@ -750,12 +762,12 @@ Public Sub affichage()
       "(compte Char(8) NOT NULL," &
       "intitule Char(30)," &
       "jour Char(2)," &
-      "Mois Char(6) NOT NULL," &
+      "mois Char(6) NOT NULL," &
       "libelle Char(30) ," &
       "dte Integer ," &
       "montantd Decimal(12,2)," &
       "montantc Decimal(12,2)," &
-      "PRIMARY KEY (compte, Mois))" & "ENGINE = MYISAM")
+      "PRIMARY KEY (compte, mois))" & "ENGINE = MYISAM")
     If rResult.Available Then
       Repeat
         If Ctrl.Value = False Or detail.Value = True Then
@@ -824,200 +836,6 @@ Public Sub affichage()
   Ncode = 1
 
 End
-'**************************
-'* On affiche les données *
-'**************************
-
-Public Sub affichage2()
-
-  Dim rResult, presult As Result
-  Dim tot As Float
-  Dim Tabp As String = "Docs_Compta"
-
-  Tab1 = "Ctrln"
-  With Utils
-    Colcli.clear
-    If cpt.Text <> "" Then
-      If Compt = "0" Then
-        rrResult.MoveFirst
-        cpt.Text = rrResult!compte_cc
-        nom.Text = rrResult!intitule_cc
-        Centr = rrResult!cent_cc
-        If Centr = True Then
-          Ctrl.Value = True
-        Else
-          Ctrl.value = False
-        Endif
-        Compt = ""
-      Else
-        rrResult.MoveFirst()
-        Repeat
-          If rrResult!compte_cc = cpt.Text Then
-            nom.Text = rrResult!intitule_cc
-            Break
-          Endif
-        Until rrResult.Movenext()
-      Endif
-      If rrResult.Available And Compt = "1" Then
-        rrResult.MoveFirst
-        cpt.Text = rrResult!compte_cc
-        nom.Text = rrResult!intitule_cc
-        Centr = rrResult!cent_cc
-        Compt = ""
-        If Centr = True Then
-          Ctrl.Value = True
-        Else
-          Ctrl.value = False
-        Endif
-      Endif
-
-      If rrResult.Available And Compt = "2" Then
-        rrResult.Movenext
-        If rrResult.Available Then
-          cpt.Text = rrResult!compte_cc
-          nom.Text = rrResult!intitule_cc
-          Centr = rrResult!cent_cc
-        Else
-          rrResult.MoveLast
-        Endif
-        Compt = ""
-        If Centr = True Then
-          Ctrl.Value = True
-        Else
-          Ctrl.value = False
-        Endif
-      Endif
-
-      If rrResult.Available And Compt = "3" Then
-        rrResult.MovePrevious
-        If rrResult.Available Then
-          cpt.Text = rrResult!compte_cc
-          nom.Text = rrResult!intitule_cc
-          Centr = rrResult!cent_cc
-        Else
-          rrResult.MoveFirst
-        Endif
-        Compt = ""
-        If Centr = True Then
-          Ctrl.Value = True
-        Else
-          Ctrl.value = False
-        Endif
-      Endif
-
-      If Compt = "4" Then
-        rrResult.MoveLast
-        cpt.Text = rrResult!compte_cc
-        nom.Text = rrResult!intitule_cc
-        Centr = rrResult!cent_cc
-        Compt = ""
-        If Centr = True Then
-          Ctrl.Value = True
-        Else
-          Ctrl.value = False
-        Endif
-      Endif
-
-      If Compt = "5" Then
-        Compt = ""
-        If Centr = True Then
-          Ctrl.Value = True
-        Else
-          Ctrl.value = False
-        Endif
-      Endif
-
-      'Ncode = 1
-      If Enl.value = True Then
-        rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " WHERE compte = &1 and lettree = &2  and validee = &3 order by dte", cpt.text, 0, 1)
-      Else
-        If El.value = True Then
-          rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " WHERE compte = &1 and lettree = &2 and validee = &3 order by dte", cpt.Text, 1, 1)
-        Else
-          If Toutes.value = True Then
-            rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " WHERE compte = &1  and validee = &2 order by dte", cpt.text, 1)
-          Endif
-        Endif
-      Endif
-      Utils.db.Exec("drop Table IF exists " & Tab1 & "")
-      Utils.db.Exec("CREATE TABLE " & Tab1 &
-        "(compte Char(8) NOT NULL," &
-        "intitule Char(30)," &
-        "jour Char(2)," &
-        "Mois Char(6) NOT NULL," &
-        "libelle Char(30) ," &
-        "dte Integer ," &
-        "montantd Decimal(12,2)," &
-        "montantc Decimal(12,2)," &
-        "PRIMARY KEY (compte, Mois))" & "ENGINE = MYISAM")
-      If rResult.Available Then
-        Repeat
-          If Ctrl.Value = False Or detail.Value = True Then
-            If .Cdate_Comp(rResult!dte) >= .Cdate_dbase(dten0.Text) And .Cdate_Comp(rResult!dte) <= .Cdate_dbase(dten1.Text) Then
-              pResult = Utils.db.Exec("SELECT * FROM " & Tabp & " WHERE doc2 like \"%" & rResult!numero & "%\"")
-              Colcli.Add(rResult.Index, rResult.Index)
-              If presult.Available Then
-                Colcli.Item[0] = "*  " & rResult!compte
-              Else
-                Colcli.Item[0] = "   " & rResult!compte
-              Endif
-              Colcli.Item[1] = .Cdate_Aff(rResult!dte)
-              Colcli.Item[2] = rResult!libelle
-              Colcli.Item[3] = rResult!numdoc
-              Colcli.Item[4] = Format$(rResult!montantd, "0.00")
-              Colcli.Item[5] = Format$(rResult!montantc, "0.00")
-              tot = tot + rResult!montantd - rResult!montantc
-              Colcli.Item[6] = Format(Val(.cpoint(tot)), "0.00")
-              Colcli.Item[7] = rResult!numero
-              Colcli.Item[8] = rResult!jour
-              If rResult!lettree Then
-                Colcli.Item[9] = "*"
-              Else
-                Colcli.Item[9] = ""
-              Endif
-              Colcli.Item[10] = rResult!tresorerie
-              DebP = DebP + rResult!montantd
-              CredP = CredP + rResult!montantc
-            Else
-              If .Cdate_Comp(rResult!dte) <= .Cdate_dbase(dten0.Text) Then
-                DebHP = DebHP + rResult!montantd
-                CredHP = CredHP + rResult!montantc
-              Endif
-            Endif
-          Else
-            If .Cdate_Comp(rResult!dte) >= .Cdate_dbase(dten0.Text) And .Cdate_Comp(rResult!dte) <= .Cdate_dbase(dten1.Text) Then
-              jour = rResult!jour
-              Datj = .Cdate_Aff(rResult!dte)
-              montantd = rResult!montantd
-              montantc = rResult!montantc
-              centralisation()
-            Endif
-          Endif
-        Until rResult.MoveNext()
-      Endif
-      Aff()
-      montantd = 0
-      montantc = 0
-      Mnt = 0
-      Mnt1 = 0
-    Endif
-  End With
-  dbHP.Text = Format$(DebHP, "0.00")
-  CdHP.Text = Format$(CredHP, "0.00")
-  TotSldHP = Val(dbHP.Text) - Val(CdHP.Text)
-  SDHP.Text = Format$(TotSldHP, "0.00")
-  dbP.Text = Format$(DebP, "0.00")
-  CdP.Text = Format$(CredP, "0.00")
-  TotSldP = Val(dbP.Text) - Val(CdP.Text)
-  SDP.Text = Format$(TotSldP, "0.00")
-  TotD.Text = Val(dbHP.Text) + Val(dbp.Text)
-  TotD.Text = Format$(TotD.Text, "0.00")
-  TotC.Text = Val(CdHP.Text) + Val(Cdp.Text)
-  TotC.Text = Format$(TotC.Text, "0.00")
-  solde.Text = Format$(Val(TotD.Text) - Val(TotC.Text), "0.00")
-  Ncode = 1
-
-End
 
 '**************************************************
 '* On récupere le solde des comptes centralisés   *
@@ -1053,24 +871,24 @@ End
 '**************************************************
 Public Sub Centralisation()
 
-  Dim Mois As String
+  Dim $Mois As String
   Dim Libel As String
   Dim Jrs As Date
   Dim jrs1 As String
 
   Libel = "Centralisation"
   jrs = Date(Right$(Datj, 4), Format$(Val(Mid$(Datj, 4, 2)), "00"), 01)
-  Mois = Right$(Datj, 4) & Mid$(Datj, 4, 2)
+  $Mois = Right$(Datj, 4) & Mid$(Datj, 4, 2)
   Jrs1 = finmois(jrs)
   Jrs1 = Right$(Datj, 4) & Format$(Val(Mid$(Datj, 4, 2)), "00") & Jrs1
   With utils
-    CResult = Utils.db.Exec("SELECT * FROM " & Tab1 & " WHERE compte = &1 and Mois = &2", cpt.Text, Mois)
+    CResult = Utils.db.Exec("SELECT * FROM " & Tab1 & " WHERE compte = &1 and mois = &2", cpt.Text, $Mois)
     If CResult.Available Then
       Mnt = montantd + cResult!montantd
       Mnt1 = montantc + cResult!montantc
-      Utils.db.Exec("Update " & Tab1 & " set montantd = &2, montantc = &3, dte = &5 Where compte = &1 and Mois = &4", cpt.Text, Mnt, Mnt1, Mois, Jrs1)
+      Utils.db.Exec("Update " & Tab1 & " set montantd = &2, montantc = &3, dte = &5 Where compte = &1 and mois = &4", cpt.Text, Mnt, Mnt1, $Mois, Jrs1)
     Else
-      Utils.db.Exec("INSERT INTO " & Tab1 & "(compte,intitule,dte,libelle, montantd, montantc, jour, Mois) VALUES (&1, &2, &3, '" & Libel & "', &5, &6, &7, &8)", cpt.Text, intitule, Jrs1, Jrs1, montantd, montantc, jour, Mois)
+      Utils.db.Exec("INSERT INTO " & Tab1 & "(compte,intitule,dte,libelle, montantd, montantc, jour, mois) VALUES (&1, &2, &3, '" & Libel & "', &5, &6, &7, &8)", cpt.Text, intitule, Jrs1, Jrs1, montantd, montantc, jour, $Mois)
     Endif
   End With
 
@@ -1395,6 +1213,102 @@ Public Sub Raz()
 
 End
 
+Public Sub Tdate_MouseDown()
+
+  If btri Then
+    sTri = "dte asc"
+  Else
+    sTri = "dte desc"
+  Endif
+  affichage()
+  btri = Not btri
+
+End
+
+Public Sub Tlibelle_MouseDown()
+
+  If btri Then
+    sTri = "libelle asc"
+  Else
+    sTri = "libelle desc"
+  Endif
+  affichage()
+  btri = Not btri
+
+End
+
+Public Sub Tdoc_MouseDown()
+
+  If btri Then
+    sTri = "numdoc asc"
+  Else
+    sTri = "numdoc desc"
+  Endif
+  affichage()
+  btri = Not btri
+
+End
+
+Public Sub Tnumero_MouseDown()
+
+  If btri Then
+    sTri = "numero asc"
+  Else
+    sTri = "numero desc"
+  Endif
+  affichage()
+  btri = Not btri
+
+End
+
+Public Sub Tdebit_MouseDown()
+
+  If btri Then
+    sTri = "montantd asc"
+  Else
+    sTri = "montantd desc"
+  Endif
+  affichage()
+  btri = Not btri
+
+End
+
+Public Sub Tcredit_MouseDown()
+
+  If btri Then
+    sTri = "montantc asc"
+  Else
+    sTri = "montantc desc"
+  Endif
+  affichage()
+  btri = Not btri
+
+End
+
+Public Sub Tjournal_MouseDown()
+
+  If btri Then
+    sTri = "jour asc"
+  Else
+    sTri = "jour desc"
+  Endif
+  affichage()
+  btri = Not btri
+
+End
+
+Public Sub Tlettree_MouseDown()
+
+  If btri Then
+    sTri = "lettree asc"
+  Else
+    sTri = "lettree desc"
+  Endif
+  affichage()
+  btri = Not btri
+
+End
+
 Public Sub Colcli_Click()
 
   Dim rDoc As Result
@@ -1407,6 +1321,8 @@ Public Sub Colcli_Click()
         Desktop.Open(rDoc!doc)
       Until rDoc.MoveNext()
     Endif
+  Else
+    Colcli.Sorted = True
   Endif
 
 End
