@@ -7,8 +7,12 @@ Public Codearticle As String
 Private nbdec As String 'variable pour decimale des prix
 Private arr As String
 Private ppublic As String
+Private tri As String = "cart"
+Private sel As String
+Private sens As String = " asc"
 Private son As Integer = Start.Son
 Private B As Boolean
+Private Dbl As Boolean = False
 
 Public Sub _new()
 
@@ -16,7 +20,9 @@ Public Sub _new()
   ' If Variables.OrgTarTypeCli <> "Art" Then
   Lstart.Columns.count = 10
   Lstart.Columns[0].Width = 200
+  CO.Width = Lstart.Columns[0].Width
   Lstart.Columns[1].Width = 220
+  DSG.Width = Lstart.Columns[1].Width
   Lstart.Columns[2].Width = 100
   Lstart.Columns[3].Width = 90
   Lstart.Columns[4].Width = 100
@@ -199,11 +205,11 @@ Public Sub Aff_Tarart()
   Dim rrr As Float
 
   Lstart.clear
-  ' If Variables.OrgTarTypeCli <> "Art" Then
-  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTcli") & " T " & ", " & Cbase.Table("TabArt") & " A " & " where A.art_code = T.cart and T.type = &1 order by cart", TypeC.Text)
-  'Else
-  ' rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTcli") & " T " & ", " & Cbase.Table("TabTypec") & " C " & " where C.code = T.type and T.cart = &1  order by type ", Tart.Text)
-  ' Endif
+  If Tri = "cart" Then
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTcli") & " T " & ", " & Cbase.Table("TabArt") & " A " & " where A.art_code = T.cart and T.type = &1 and T.cart like  \"%" & sel & "%\" order by  " & tri & " " & sens & "", TypeC.Text)
+  Else
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTcli") & " T " & ", " & Cbase.Table("TabArt") & " A " & " where A.art_code = T.cart and T.type = &1 and A.art_design like  \"%" & sel & "%\" order by  " & tri & " " & sens & "", TypeC.Text)
+  Endif
   If rResult.Available Then
     Repeat
       '  If Variables.OrgTarTypeCli <> "Art" Then
@@ -746,5 +752,81 @@ End
 Public Sub Button1_Click()
 
   Exec ["xdg-open", Application.Path &/ "Ecrans/TarifClient.html"]
+
+End
+
+Public Sub CO_MouseDown()
+
+  If Not Dbl Then
+    sens = " asc"
+    Dbl = True
+  Else
+    sens = " desc"
+    Dbl = False
+  Endif
+
+  sel = ""
+  CO.Clear
+  DSG.Text = "Désignation"
+  Tri = "cart"
+  Aff_Tarart()
+
+End
+
+Public Sub CO_KeyPress()
+
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    Aff_Tarart()
+  Endif
+
+End
+
+Public Sub CO_LostFocus()
+
+  CO.Text = "Code"
+
+End
+
+Public Sub DSG_MouseDown()
+
+  If Not Dbl Then
+    sens = " asc"
+    Dbl = True
+  Else
+    sens = " desc"
+    Dbl = False
+  Endif
+
+  sel = ""
+  CO.Text = "Code"
+  DSG.clear
+  Tri = "art_design"
+  Aff_Tarart()
+
+End
+
+Public Sub DSG_KeyPress()
+
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    Aff_Tarart()
+  Endif
+
+End
+
+Public Sub DSG_LostFocus()
+
+  DSG.Text = "Désignation"
 
 End
