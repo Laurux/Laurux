@@ -62,24 +62,24 @@ Public Sub Button1_Click()
   Dim chemin As String = "/Sauve"
 
   If Jnal = "" Or If Vic = "" Or If Vichq = "" Or If Viautre = "" Then
-    Music.play
+    If start.son Then Music.Play
     Message.Error("Vous devez completer, dans les parametres, les données relatives au journal de caisse \net aux comptes de virements internes avant de faire le moulinage !")
   Else
-    Music.play
+    If start.son Then Music.Play
     If Message.Question("Ce programme va effacer les bordereaux de remises de chèques et de cartes !\nEtes-vous d'accord pour lancer le moulinage ?", "Oui", "Non") = 1 Then
       rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCaisses") & " where connecte = &1", 1)
       If rResult.Available Then
-        Music.play
+        If start.son Then Music.Play
         Message.Error("La caisse numéro " & rResult!code & " est connectée ! \n Veuillez déconnecter toutes vos caisses avant de faire le moulinage SVP.")
         Return
       Else
         rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCaisses") & " where tkz = &1", 0)
         If rResult.Available Then
-          Music.play
+          If start.son Then Music.Play
           Message.Error("Le ticket Z de la caisse numéro " & rResult!code & " n'est pas tiré ! \n Veuillez imprimer vos bandes Z avant de faire le moulinage SVP.")
           Return
         Else
-          Music.play
+          If start.son Then Music.Play
           If Message.Question("Cette opération va effectuer le passage en comptabilité pour l'ensemble des tickets de caisse.\nLes bons de caisse pour les clients en compte seront archivés dans les documents.\nLes bordereaux seront effacés.\nVoulez-vous continuer ?", "Oui", "Non") = "1" Then
             Me.mouse = mouse.Wait
             If Not Exist(User.home & chemin) Then Mkdir User.home & chemin
@@ -397,12 +397,13 @@ Public Sub Moulinage()
 
           'création du fichier temporaire pour récuperer les lignes de facture
           creatmp()
-          ' On gère d'abord les clients caisse
+          ' On bloque les tables
           Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabParam") & " WRITE, " & Cbase.Table("TabEntTck") & " WRITE, " & Cbase.Table("TabLigTck") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("Totalisation") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabArt") & " WRITE, " & Cbase.Table("TabHisEntTck") & " WRITE, " & Cbase.Table("TabHisLigTck") & " WRITE, " & Cbase.Table("TabJour") & " WRITE,  " & Cbase.Table("TabCli") & " WRITE, " & Cbase.Table("TabBl") & " WRITE, " & Cbase.Table("TabLigbl") & " WRITE, " & Tab & " WRITE, Fiches_Caisses WRITE, Fiches_FamDep WRITE, Fiches_BordereauxC WRITE")
 
           '         Génération de la facture
           genfac()
         Endif
+        ' On gère d'abord les clients caisse
         rTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where left(date,10) = &1 order by numero", Format$(DateChooser1.Value, "dd-mm-yyyy"))
         If rTck.Available Then
           Repeat
@@ -508,7 +509,7 @@ Public Sub Moulinage()
                           Endif
                         Endif
                       Endif
-                      If rlTck!type <> "L" And If rlTck!type <> "M" Then
+                      If rlTck!type <> "L" And If rlTck!type <> "M" And If rlTck!type <> "C" Then
                         rDep = Utils.db.Exec("SELECT * FROM Fiches_Caisses where code = &1", rtck!caisse)
                         If rDep.Available Then $depot = rdep!depot
                         rcpt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " where code_fam = &1", Fam)
@@ -571,9 +572,9 @@ Public Sub Moulinage()
                       Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, rltck!numlig, code, $intit, rltck!montant, qte, rltck!type, Fam, rltck!mht, rltck!mrem, rltck!tva)
                       If Not rTck!suppr Then
                         If rTck!savoir = "1" Then
-                          If rlTck!type <> "L" And If rlTck!type <> "M" Then Maj_Totalisation(Tva, iTva, "-" & montant)
+                          If rlTck!type <> "L" And If rlTck!type <> "M" And If rlTck!type <> "C" Then Maj_Totalisation(Tva, iTva, "-" & montant)
                         Else
-                          If rlTck!type <> "L" And If rlTck!type <> "M" Then Maj_Totalisation(Tva, iTva, montant)
+                          If rlTck!type <> "L" And If rlTck!type <> "M" And If rlTck!type <> "C" Then Maj_Totalisation(Tva, iTva, montant)
                         Endif
                       Endif
                     Endif
@@ -696,15 +697,15 @@ Public Sub Moulinage()
           Utils.db.Exec("delete from " & Cbase.Table("TabReglt") & " where date = &1", Format$(DateChooser1.Value, "dd-mm-yyyy"))
           'Raz_Tables()
           Me.mouse = Mouse.Default
-          Music.play
+          If start.son Then Music.Play
           Message.Info("Traitement terminé !")
         Else
-          Music.play
+          If start.son Then Music.Play
           Message.Info("Acune donnée n'est a traiter pour cette sélection !")
         Endif
       Endif
     Else
-      Music.play
+      If start.son Then Music.Play
       Message.Info("Acune donnée n'est a traiter pour cette sélection !")
     Endif
   End With
