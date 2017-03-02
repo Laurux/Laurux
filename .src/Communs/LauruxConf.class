@@ -46,6 +46,11 @@ Public Sub _new()
   If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
   Me.Center
   Nbase.Clear
+  If Settings["/Soc" & Start.Societe & "/Prefixe"] Then
+    TextLabel2.visible = True
+    Prefixe.visible = True
+    Prefixe.Text = Settings["/dbase/Prefixe"]
+  Endif
   If Settings["/Soc" & Start.Societe & "/Blocsoc"] = False Or If IsNull(Settings["/Soc" & Start.Societe & "/Blocsoc"]) Then
     For Each elements In Utils.db.Databases
       Lig = elements.name
@@ -122,7 +127,32 @@ Public Sub _new()
   Endif
 Catch
   Nbase.Text = "Laurux01"
-  'Nbase.Enabled = False
+  Try login.Text = Settings["/dbase/Login"]
+  Try Port.Text = Settings["/dbase/Port"]
+  If IsNull(Port.text) Then Port.text = "3306"
+  Try Host.Text = Settings["/dbase/Host"]
+  If Settings["/Soc" & Start.Societe & "/Blocsoc"] = False Or If IsNull(Settings["/Soc" & Start.Societe & "/Blocsoc"]) Then
+    Try Maj.Value = Settings["/dbase/Maj"]
+    Maj.Enabled = True
+  Else
+    Try Maj.Value = False
+    Maj.Enabled = False
+  Endif
+  If IsNull(Host.Text) Then Host.Text = "localhost"
+  Try Password.Text = hexdblKey.crypt("de", Settings["/dbase/Password"], "Laurux")
+  Try ssh = Settings["/dbase/Con-ssh"]
+  If ssh = "" Then ssh = 0
+  If ssh <> 0 Then
+    Bssh.value = True
+    Bssh_Click()
+    Loginssh.Text = Settings["/dbase/ssh/Login"]
+    Hostssh.Text = Settings["/dbase/ssh/Hostssh"]
+    Passwordssh.Text = hexdblKey.crypt("de", Settings["/dbase/ssh/Passwssh"], "LauruX2012")
+    Portssh.Text = Settings["/dbase/ssh/Portssh"]
+    Portlocal.Text = Settings["/dbase/ssh/Portlocal"]
+    Passphrase.Text = Settings["/dbase/ssh/Passphrase"]
+    Try Passp.value = Settings["/dbase/ssh/Passp"]
+  Endif
   Nouveau = True
   Maj.Value = True
 
@@ -145,7 +175,7 @@ Public Sub Button1_Click()
   Settings["/Societes/Soc" & Soc] = Variables.version
   '# -- Partie commune aux connexions avec ou sans tunnel
   Settings["/dbase/type"] = "mysql"
-  'Settings["/dbase/Prefixe"] = Prefixe.Text
+  Settings["/dbase/Prefixe"] = Prefixe.Text
   Settings["/dbase/Name"] = Nbase.Text
   Settings["/dbase/Login"] = login.Text
   Settings["/dbase/Password"] = hexdblKey.crypt("en", Password.Text, "Laurux")
@@ -187,6 +217,7 @@ Public Sub Button1_Click()
     '# -- Valeurs de connexion via tunnel
     ' par contre on utilise le port local de loopback pour la connexion (et pas localhost qui impliquerait une connexion socket unix)
     Utils.db.Host = "127.0.0.1"
+    ' Utils.db.Host = "localhost"
     ' on remplace le port mysql par le port local du tunnel ssh
     Utils.db.Port = Settings["/dbase/ssh/Portlocal"]
     ' on définit des variables pour l'établissement du tunnel ssh
@@ -360,7 +391,19 @@ End
 '********************************************************************
 Public Sub Form_Close()
 
+  Dim $Nbase As String[]
+
+  Settings["/dbase/Prefixe"] = Prefixe.Text
   Settings["/dbase/Con-ssh"] = Bssh.Value
+  Settings["/dbase/type"] = "mysql"
+  $Nbase = Split(Nbase.Text, "_")
+  Try Settings["/dbase/Name"] = $Nbase[1]
+  If Error Then Settings["/dbase/Name"] = $Nbase[0]
+  Settings["/dbase/Login"] = login.Text
+  Settings["/dbase/Password"] = hexdblKey.crypt("en", Password.Text, "Laurux")
+  Settings["/dbase/Port"] = Port.Text
+  Settings["/dbase/Host"] = Host.Text
+  Settings["/dbase/Maj"] = Maj.Value
   If Bssh.value Then
     Settings["/dbase/ssh/Login"] = Loginssh.Text
     Settings["/dbase/ssh/Hostssh"] = Hostssh.Text
