@@ -1,4 +1,4 @@
-' Gambas class file
+ ' Gambas class file
 
 '#######################################################
 '# Modification Fabrice Lalande <fabrice@flcc.fr>
@@ -44,7 +44,6 @@ Coeff As String ' Coefficient de vente
 Mtva As String ' Taux de la TVA
 Cbarre As String
 Cequ As String
-Poids As String
 Volumes As String
 Copie As String
 Ecot As String
@@ -76,8 +75,9 @@ Private Org As String
 Private Maj As Boolean = True
 Private cda As Boolean = False
 Private Etiqb As Boolean ' Si true on demande si on veut imprimer les etiquettes
-Private $poids As String
 Private $ua As String
+Private $Poids As String
+Private bPoids As Float
 
 Public Sub Form_Open()
 
@@ -747,7 +747,7 @@ Public Sub Maj_Divers()
       If RDef.Available Then
         For x = 1 To 31
           keyf = "pos_" & Str(x)
-          KeyLaurux = "posorg_" & Str(x + 1)
+          KeyLaurux = "posorg_" & Str(x)
           Try keyf = RDef[keyf]
           If Not Error Then
             If Not IsNull(keyf) Then
@@ -764,6 +764,7 @@ Public Sub Maj_Divers()
           If Not IsNull($mini) Then Utils.db.Exec("Update  Fiches_Art  SET  art_stkmin = &2 where art_code = &1", CodeA, $mini)
           If Not IsNull($maxi) Then Utils.db.Exec("Update  Fiches_Art  SET  art_stkmax = &2 where art_code = &1", CodeA, $maxi)
           If Not IsNull($casier) Then Utils.db.Exec("Update  Fiches_Art  SET  art_casier = &2 where art_code = &1", CodeA, $casier)
+          If Not IsNull($poids) Then Utils.db.Exec("Update  Fiches_Art  SET  art_poids = &2 where art_code = &1", CodeA, bpoids)
           If Stockes.value Then Utils.db.Exec("Update  Fiches_Art  SET  art_stocke = &2 where art_code = &1", CodeA, True)
         Endif
       Endif
@@ -920,7 +921,6 @@ Public Sub Import()
   Dim debut As String
   Dim Longueur As String
   Dim stck, centrale As Boolean = False
-  Dim Poids As String
 
   If IsNull(Sep.Text) Then
     separateurFichier = ";"
@@ -963,7 +963,6 @@ Public Sub Import()
           If RDef.Available Then
             For x = 1 To 25
               keyf = "pos_" & Str(x)
-              Print keyf
               KeyLaurux = "posorg_" & Str(x)
               Try keyf = RDef[keyf]
               If Not Error Then
@@ -1043,9 +1042,9 @@ Public Sub Import()
                   Pvht = Utils.cpoint(Pvht)
                   If Val(Pvht) = Null Then Pvht = "0"
                 Case 15
-                  Poids = Mid$(lig, debut, Longueur)
-                  If InStr(Poids, ".") Or If InStr(Poids, ",") Then Poids = Utils.cpoint(Poids)
-                  If Val(Poids) = Null Then Poids = "0"
+                  $Poids = Mid$(lig, debut, Longueur)
+                  bPoids = Val(Utils.cpoint($Poids))
+                  'If bPoids) = Null Then $Poids = "0"
                 Case 16
                   Volumes = Mid$(lig, debut, Longueur)
                 Case 17
@@ -1236,7 +1235,7 @@ Public Sub Import()
                     stck = 0
                   Endif
                   'stck = Stockes.value
-                  Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET  art_design2 = &2, art_remcas1 = &3, art_remcas2 = &4, art_remcas3 = &5, art_pvcons = &6, art_stocke = &7, art_ddatefbt = &8, art_casier = &9, art_refliee = &{10}, art_poids = &{11}, art_vol = &{12}, art_uv = &{13}, art_ua = &{14}  WHERE art_code = &1", Code, Left$(Intitule2, 50), Val(remise2), Val(remise3), Val(Remise4), Val(Pvcons), Utils.convBool(Stockes.Value), Format$(Now, "yyyymmdd"), $casier, Refliee, $Poids, Volumes, $unite, $ua)
+                  Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET  art_design2 = &2, art_remcas1 = &3, art_remcas2 = &4, art_remcas3 = &5, art_pvcons = &6, art_stocke = &7, art_ddatefbt = &8, art_casier = &9, art_refliee = &{10}, art_poids = &{11}, art_vol = &{12}, art_uv = &{13}, art_ua = &{14}  WHERE art_code = &1", Code, Left$(Intitule2, 50), Val(remise2), Val(remise3), Val(Remise4), Val(Pvcons), Utils.convBool(Stockes.Value), Format$(Now, "yyyymmdd"), $casier, Refliee, bPoids, Volumes, $unite, $ua)
                   If Not IsNull(Cbarre) Then Try Utils.db.Exec("INSERT INTO " & Cbase.Table("TabCdBarre") & " (codep,codeb) VALUES (&1, &2)", code, CBarre)
                   Intitule = Left$(Intitule, 50)
                   Try Print #Hnew, code & String$(13 - Len(code), " ") & " ; " & Intitule & String$(50 - Len(Intitule), " ") & " ; " & ref & String$(15 - Len(ref), " ") & " ; " & cbarre & String$(13 - Len(cbarre), " ") & " ; " & pbht & String$(10 - Len(pbht), " ") & " ; " & remise & String$(5 - Len(remise), " ") & " ; " & Paua & String$(10 - Len(paua), " ") & " ; " & Coef.Text & String$(5 - Len(Coef.Text), " ") & " ; " & Pvht & String$(10 - Len(pvht), " ") & " ; " & Tva.Text & " ; " & Pvttc & String$(10 - Len(pvttc), " ")
@@ -1406,7 +1405,8 @@ Public Sub Initialisation()
   Coeff = ""
   Cbarre = ""
   Cequ = ""
-  Poids = ""
+  $Poids = ""
+  bPoids = 0
   Volumes = ""
   Copie = ""
   Ecot = ""
@@ -1796,9 +1796,9 @@ Public Sub rechercheKey(cle As Integer, KeyL As String) As String
       Pvht = Utils.cpoint(Pvht)
       If Val(Pvht) = Null Then Pvht = "0"
     Case 15
-      Poids = RTrim$(Lig2[cle])
-      Poids = Utils.cpoint(Poids)
-      If Val(Poids) = Null Then Poids = "0"
+      $Poids = RTrim$(Lig2[cle])
+      bPoids = Val(Utils.cpoint($Poids))
+
     Case 16
       Volumes = RTrim$(Lig2[cle])
     Case 17
