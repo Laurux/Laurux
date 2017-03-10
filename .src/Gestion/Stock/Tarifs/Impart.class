@@ -1,4 +1,4 @@
- ' Gambas class file
+' Gambas class file
 
 '#######################################################
 '# Modification Fabrice Lalande <fabrice@flcc.fr>
@@ -921,6 +921,7 @@ Public Sub Import()
   Dim debut As String
   Dim Longueur As String
   Dim stck, centrale As Boolean = False
+  Dim remise As String
 
   If IsNull(Sep.Text) Then
     separateurFichier = ";"
@@ -1043,8 +1044,8 @@ Public Sub Import()
                   If Val(Pvht) = Null Then Pvht = "0"
                 Case 15
                   $Poids = Mid$(lig, debut, Longueur)
-                  bPoids = Val(Utils.cpoint($Poids))
-                  'If bPoids) = Null Then $Poids = "0"
+                  Try bPoids = Val(Utils.cpoint($Poids))
+                  If Error Then bpoids = 0
                 Case 16
                   Volumes = Mid$(lig, debut, Longueur)
                 Case 17
@@ -1202,6 +1203,10 @@ Public Sub Import()
               Else
                 Prix_achat()
               Endif
+              If pbht <> "0" And Paht <> "0" Then
+                remise = Format(Val(pbht) - Val(Paht), "0.000")
+                remise = Format$((Val(remise) * 100) / Val(pbht), "0.000")
+              Endif
               If Maj = True Then
                 If IsNull(code) Then
                   Code = CodeA
@@ -1256,6 +1261,10 @@ Public Sub Import()
                 Prix_base()
               Else
                 Prix_achat()
+              Endif
+              If pbht <> "0" And Paht <> "0" Then
+                remise = Format(Val(pbht) - Val(Paht), "0.000")
+                remise = Format$((Val(remise) * 100) / Val(pbht), "0.000")
               Endif
               If MajPrix.Value = True Then
                 If rArt!art_pbht <> Val(pbht) Or If rArt!art_tr <> Val(remise) Or If rArt!art_coef <> Val(coeff) Then
@@ -1429,13 +1438,14 @@ End
 Public Sub prix_base()
 
   If Not IsNull(pbht) Then
+    If IsNull(remise) Then remise = "0"
     If Val(Utils.cpoint(Txchg.text)) <> 0 Then
       Pbht = Format$(Val(Pbht) * Val(Utils.cpoint(Txchg.text)), "0.000")
     Endif
     If Val(remise) > 0 Then
       Try Paht = Format$(Val(PbHT) - (Val(PbHT) * Val(remise) / 100), Nbdec)
     Else
-      Paht = Pbht
+      If IsNull(Paht) Then Paht = Pbht
     Endif
     If Not IsNull(remise2) And If remise2 <> "0" Then Try Paht = Format$(CPrix.Cascade(paht, remise2), nbdec)
     If Not IsNull(remise2) And If remise3 <> "0" Then Try Paht = Format$(CPrix.Cascade(paht, remise3), nbdec)
@@ -1797,8 +1807,8 @@ Public Sub rechercheKey(cle As Integer, KeyL As String) As String
       If Val(Pvht) = Null Then Pvht = "0"
     Case 15
       $Poids = RTrim$(Lig2[cle])
-      bPoids = Val(Utils.cpoint($Poids))
-
+      Try bPoids = Val(Utils.cpoint($Poids))
+      If Error Then bpoids = 0
     Case 16
       Volumes = RTrim$(Lig2[cle])
     Case 17
