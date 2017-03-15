@@ -786,6 +786,13 @@ Public Sub Button2_Click()
   Else
     If Dymo.Value Then
       pdf = New CEtiquettes("Portrait", "mm", "dymog")
+      'On devrait plutot retrouver ces parametres dans la base, voir a remonter la taille depuis la classe PDFWriter
+      Hauteur = 35.0
+      Largeur = 88.0
+      Mrghaut = 0
+      Mrgauche = 0
+      txtPosX = 2
+      txtPosY = 0
     Endif
   Endif
   pdf.Open()
@@ -916,33 +923,31 @@ Public Sub Imprime(nb As Boolean)
     If A4.Value And InStr(Codetiq.text, "Gondole") <> 0 Or If Dymo.value Then
       For i = 1 To nombretiq
         If nb = False Then pos_Etiq()
-        FontRatio = Largeur / 80.0
-        pdf.Rectangle2(txtPosX, txtPosY, Largeur, Hauteur)
+        FontRatio = Largeur / 100.0
+        'pdf.Rectangle2(txtPosX, txtPosY, Largeur, Hauteur)
         pdf.Code(code, txtPosX, txtPosY, FontRatio)
-        pdf.IntituleA(Intitule, txtPosX, txtPosY + Round(3 * FontRatio), FontRatio)
-        If CheckBox4.Value Then pdf.Refour(fourn, txtPosX, txtPosY + Round(7 * FontRatio), FontRatio)
-        If CheckBox3.Value Then pdf.Refour(cfourn, txtPosX + (Largeur - 10), txtPosY + Round(7 * FontRatio), FontRatio)
+        pdf.IntituleA(Intitule, txtPosX, txtPosY + (3 * FontRatio), FontRatio)
+        If CheckBox4.Value Then pdf.Refour(fourn, txtPosX, txtPosY + (6 * FontRatio), FontRatio)
+        If CheckBox3.Value Then pdf.Refour(cfourn, txtPosX + ((Largeur / 2) + 1), txtPosY + (6 * FontRatio), FontRatio)
         If (Not CheckBox4.Value) And (Not CheckBox3.Value) Then
-          pdf.IntituleA(Intitule2, txtPosX, txtPosY + Round(7 * FontRatio), FontRatio)
+          pdf.IntituleA(Intitule2, txtPosX, txtPosY + (6 * FontRatio), FontRatio)
         Endif
-        If Not IsNull(Barcode) Then
-          pdf.Barcode(Barcode, txtPosX + 2, txtPosY + Round(14 * FontRatio), Round(Hauteur / 3) - 2, (Largeur - 6), FontRatio)
+        If Not IsNull(Barcode) And If Len(Barcode) = 13 Then
+          pdf.Barcode(Barcode, txtPosX + 2, txtPosY + ((Hauteur / 2) - (Hauteur / 6)), (Hauteur / 3), (Largeur - 6), FontRatio)
         Endif
+        pdf.Tva(Tva, txtPosX + 2, txtPosY + (Hauteur - (12 * FontRatio)), FontRatio)
+        
         'If RadioButton5.Value = True And Not IsNull(volm) Then pdf.volm(volm, unite, 1, txtPosX + 28, txtPosY + 14)
         If RadioButton5.Value = True And Val(Utils.cpoint(Volm)) > 0 Then
-          pdf.volm(Volm, unite, 1, txtPosX + (Largeur - 8), txtPosY + (Hauteur - Round(10 * FontRatio)), FontRatio)
+          pdf.volm(Volm, unite, 1, txtPosX + ((Largeur / 2) + 1), txtPosY + (Hauteur - (9 * FontRatio)), FontRatio)
         Endif
         If RadioButton6.Value = True And Val(Utils.cpoint(Volm)) > 0 Then
-          pdf.volm(Volm, unite, 0, txtPosX + (Largeur - 8), txtPosY + (Hauteur - Round(10 * FontRatio)), FontRatio)
+          pdf.volm(Volm, unite, 0, txtPosX + ((Largeur / 2) + 1), txtPosY + (Hauteur - (9 * FontRatio)), FontRatio)
         Endif
 
-        pdf.Rectangle2(txtPosX + 1, txtPosY + (Hauteur - Round(10 * FontRatio)), (Largeur - 2), Round(9 * FontRatio))
-        If CheckBox1.Value Then
-          pdf.PrixHt(Pvht, txtPosX + 2, txtPosY + (Hauteur - Round(9 * FontRatio)), FontRatio)
-        Else
-          pdf.Tva(Tva, txtPosX + 2, txtPosY + (Hauteur - Round(9 * FontRatio)), FontRatio)
-        Endif
-        If CheckBox2.Value Then pdf.PrixTTC(Pvttc, txtPosX + ((Largeur / 2) + 1), txtPosY + (Hauteur - Round(9 * FontRatio)), FontRatio)
+        pdf.Rectangle2(txtPosX + 1, txtPosY + (Hauteur - (8 * FontRatio)), (Largeur - 2), (7 * FontRatio))
+        If CheckBox1.Value Then pdf.PrixHt(Pvht, txtPosX + 2, txtPosY + (Hauteur - (7 * FontRatio)), FontRatio)
+        If CheckBox2.Value Then pdf.PrixTTC(Pvttc, txtPosX + ((Largeur / 2) + 1), txtPosY + (Hauteur - (7 * FontRatio)), FontRatio)
         Inc Nbetiq
         If nb = True Then
           pos_Etiq()
@@ -953,23 +958,25 @@ Public Sub Imprime(nb As Boolean)
     If A4.Value And InStr(Codetiq.text, "Article") <> 0 Then
       For i = 1 To nombretiq
         If nb = False Then pos_Etiq()
+        'pdf.Rectangle2(txtPosX, txtPosY, Largeur, Hauteur)
         'pdf.Code(code, txtPosX, txtPosY)
-        pdf.IntituleB(Intitule, txtPosX, txtPosY)
-        pdf.Tva(Tva, txtPosX, txtPosY + 14)
+        FontRatio = Largeur / 100.0
+        pdf.IntituleB(Intitule, txtPosX, txtPosY, FontRatio)
+        pdf.Tva(Tva, txtPosX, txtPosY + (14 * FontRatio), FontRatio)
         If RadioButton5.Value = True And Val(Utils.cpoint(Volm)) > 0 Then
-          pdf.Poids(rarts!art_poids, unite, txtPosX, txtPosY + 5)
-          pdf.volm(Volm, unite, 1, txtPosX + 19, txtPosY + 5)
+          pdf.Poids(rarts!art_poids, unite, txtPosX, txtPosY + (5 * FontRatio), FontRatio)
+          pdf.volm(Volm, unite, 1, txtPosX + ((Largeur / 2) + 1), txtPosY + (5 * FontRatio), FontRatio)
         Endif
         If RadioButton6.Value = True And Val(Utils.cpoint(Volm)) > 0 Then
-          pdf.Poids(rarts!art_poids, unite, txtPosX, txtPosY + 5)
-          pdf.volm(Volm, unite, 0, txtPosX + 19, txtPosY + 5)
+          pdf.Poids(rarts!art_poids, unite, txtPosX, txtPosY + (5 * FontRatio), FontRatio)
+          pdf.volm(Volm, unite, 0, txtPosX + ((Largeur / 2) + 1), txtPosY + (5 * FontRatio), FontRatio)
         Endif
-        pdf.PrixTTCB(Pvttc, txtPosX + 50, txtPosY + 8)
-        If Not IsNull(Barcode) Then
-          pdf.Barcode(Barcode, txtPosX + 2, txtPosY + 22)
+        pdf.PrixTTCB(Pvttc, txtPosX + Largeur - (Largeur / 4), txtPosY + (8 * FontRatio), FontRatio)
+        If Not IsNull(Barcode) And If Len(Barcode) = 13 Then
+          pdf.Barcode(Barcode, txtPosX + 2, txtPosY + (Hauteur - (Hauteur / 3)), (Hauteur / 3), (Largeur - 6), FontRatio)
         Endif
-        If CheckBox4.Value Then pdf.Refour(fourn, txtPosX, txtPosY + 17)
-        If CheckBox3.Value Then pdf.Refour(cfourn, txtPosX + 28, txtPosY + 17)
+        If CheckBox4.Value Then pdf.Refour(fourn, txtPosX, txtPosY + (17 * FontRatio), FontRatio)
+        If CheckBox3.Value Then pdf.Refour(cfourn, txtPosX + ((Largeur / 2) + 1), txtPosY + (17 * FontRatio), FontRatio)
         Inc Nbetiq
         If nb = True Then
           pos_Etiq()

@@ -36,12 +36,12 @@ son As Integer = Start.Son
 i2 As Integer
 Nblargeur As String
 Nbhauteur As String
-Largeur As Integer
-Hauteur As Integer
-Mrghaut As Integer
-Mrgauche As Integer
-Esplargeur As Integer
-Esphauteur As Integer
+Largeur As Float
+Hauteur As Float
+Mrghaut As Float
+Mrgauche As Float
+Esplargeur As Float
+Esphauteur As Float
 Filename As String
 Private pdf As Cetiquettes
 Page As String
@@ -142,6 +142,7 @@ Public Sub Button2_Click()
   Dim i As Integer
   Dim stock As Float
   Dim PageA As String[]
+  Dim FontRatio As Float
 
   If IsNull(codetiq.text) Then
     Message.Warning("Veuillez selectionner un modèle d'étiquettes SVP !")
@@ -177,10 +178,30 @@ Public Sub Button2_Click()
     Endif
     Shell "cd " & User.Home & ""
     Filename = User.Home & "/tmp/EtiqRecpt.pdf"
+    'Ci-dessous il faudrait plutot s'appuyer sur les classe Etiqart/Etigond/Eticasier plutot que de reecrire le code ici...
+    'C'est pas propre
     Try Kill Filename
     If A4.Value Then pdf = New CEtiquettes(PageA[1], "mm", PageA[0])
-    If Dymo.Value And Etigond.value Then pdf = New CEtiquettes("Portrait", "mm", "dymog")
-    If Dymo.Value And Eticas.value Then pdf = New CEtiquettes("Portrait", "mm", "dymoc")
+    If Dymo.Value Then
+      pdf = New CEtiquettes("Portrait", "mm", "dymog")
+      'On devrait plutot retrouver ces parametres dans la base, voir a remonter la taille depuis la classe PDFWriter
+      Hauteur = 35.0
+      Largeur = 88.0
+      Mrghaut = 0
+      Mrgauche = 0
+      txtPosX = 2
+      txtPosY = 0
+    Endif
+    If Dymo.Value And Eticas.value Then
+      pdf = New CEtiquettes("Portrait", "mm", "dymoc")
+      'On devrait plutot retrouver ces parametres dans la base, voir a remonter la taille depuis la classe PDFWriter
+      Hauteur = 25.0
+      Largeur = 25.0
+      Mrghaut = 0
+      Mrgauche = 0
+      txtPosX = 2
+      txtPosY = 0
+    Endif
     pdf.Open()
     pdf.NewPage()
     SorP = False
@@ -218,28 +239,53 @@ Public Sub Button2_Click()
         txtBarcode = barcode
         For i = 1 To retiq!nombre
           pos_Etiq()
+          FontRatio = Largeur / 100.0
           If Etiprod.value = True Then
-            pdf.Code(code, txtPosX, txtPosY)
-            pdf.Intitule(Intitule, txtPosX, txtPosY + 3)
-            pdf.Intitule(Intitule2, txtPosX, txtPosY + 6)
-            If Not IsNull(txtBarcode) And If Len(TxtBarcode) = 13 Then pdf.Barcode(txtBarcode, txtPosX + 2, txtPosY + 11)
+            'pdf.Rectangle2(txtPosX, txtPosY, Largeur, Hauteur)
+            pdf.Code(code, txtPosX, txtPosY + (1 * FontRatio), FontRatio + 0.3)
+            pdf.IntituleA(Left(Intitule, Round(85 * FontRatio)), txtPosX, txtPosY + (5 * FontRatio), FontRatio + 0.3)
+            pdf.IntituleA(Left(Intitule2, Round(90 * FontRatio)), txtPosX, txtPosY + (9 * FontRatio), FontRatio + 0.2)
+            If Not IsNull(Barcode) Then
+              pdf.Barcode(Barcode, txtPosX + 2, txtPosY + (Hauteur / 2) - (Hauteur / 8), (Hauteur / 3), (Largeur - 6), FontRatio)
+            Endif
+            If EtiqPrix.Value Then
+              'On booste un peu le Prix TTC sur les etiquettes articles (logiquement petite)
+              pdf.PrixTTC(Pvttc, txtPosX + ((Largeur / 6) + 1), txtPosY + (Hauteur - (12 * FontRatio)), FontRatio + 0.6)
+            Endif
           Else
             If Etigond.value Then
-              pdf.Code(code, txtPosX, txtPosY)
-              pdf.Intitule(Intitule, txtPosX, txtPosY + 3)
-              pdf.Intitule(Intitule2, txtPosX, txtPosY + 6)
-              If Not IsNull(txtBarcode) And If Len(TxtBarcode) = 13 Then pdf.Barcode(txtBarcode, txtPosX + 2, txtPosY + 11)
-              pdf.Tva(Tva, txtPosX, txtPosY + 17)
-              pdf.Rectangle(txtPosX + 1, txtPosY + 26)
-              pdf.PrixHt(Pvht, txtPosX + 2, txtPosY + 26)
-              pdf.PrixTTC(Pvttc, txtPosX + 38, txtPosY + 26)
-            Else
-              pdf.casierc(casier, 1, txtPosY)
-              pdf.Codec(code, 1, txtPosY + 12)
-              If Not IsNull(txtBarcode) And If Len(txtBarcode) = 13 Then
-                pdf.Barcodec(txtBarcode, 1, txtPosY + 26)
+              'pdf.Rectangle2(txtPosX, txtPosY, Largeur, Hauteur)
+              pdf.Code(code, txtPosX, txtPosY, FontRatio)
+              pdf.IntituleA(Intitule, txtPosX, txtPosY + (3 * FontRatio), FontRatio)
+              pdf.IntituleA(Intitule2, txtPosX, txtPosY + (6 * FontRatio), FontRatio)
+              If Not IsNull(Barcode) And If Len(Barcode) = 13 Then
+                pdf.Barcode(Barcode, txtPosX + 2, txtPosY + ((Hauteur / 2) - (Hauteur / 6)), (Hauteur / 3), (Largeur - 6), FontRatio)
               Endif
-              pdf.stockc(stock, txtPosX + 2, txtPosY + 26)
+              pdf.Tva(Tva, txtPosX + 2, txtPosY + (Hauteur - (12 * FontRatio)), FontRatio)
+              pdf.Rectangle2(txtPosX + 1, txtPosY + (Hauteur - (8 * FontRatio)), (Largeur - 2), (7 * FontRatio))
+              pdf.PrixHt(Pvht, txtPosX + 2, txtPosY + (Hauteur - (7 * FontRatio)), FontRatio)
+              pdf.PrixTTC(Pvttc, txtPosX + ((Largeur / 2) + 1), txtPosY + (Hauteur - (7 * FontRatio)), FontRatio)
+            Else 'Casier
+              If A4.Value Then 'PDF Standard
+                FontRatio = Largeur / 100.0
+                'pdf.Rectangle2(txtPosX, txtPosY, Largeur, Hauteur)
+                pdf.casier(casier, txtPosX, txtPosY + (2 * FontRatio), FontRatio + 0.3)
+                pdf.Code(code, txtPosX, txtPosY + (8 * FontRatio), FontRatio + 0.3)
+                pdf.Intitule(Left$(Intitule, 45), txtPosX, txtPosY + (12 * FontRatio), FontRatio)
+                If Not IsNull(Barcode) And If Len(Barcode) = 13 Then
+                  pdf.Barcode(Barcode, txtPosX + 2, txtPosY + ((2 * Hauteur) / 3) - (Hauteur / 6), (Hauteur / 3), (Largeur - 6), FontRatio)
+                Endif
+                pdf.stock(Stock, txtPosX + (Largeur / 2) + 1, txtPosY + ((Hauteur) - (5 * FontRatio)), FontRatio + 0.3)
+              Else 'Dymoc
+                FontRatio = Largeur / 50.0
+                pdf.casierc(casier, txtPosX, txtPosY + (2 * FontRatio), FontRatio + 0.3)
+                pdf.Codec(code, txtPosX, txtPosY + (8 * FontRatio), FontRatio + 0.3)
+                pdf.Intitulec(Left$(Intitule, 25), txtPosX, txtPosY + (11 * FontRatio), FontRatio + 0.3)
+                If Not IsNull(Barcode) And If Len(Barcode) = 13 Then
+                  pdf.Barcode(Barcode, txtPosX, txtPosY + ((2 * Hauteur) / 3) - (Hauteur / 6), (Hauteur / 3), (Largeur - 6), FontRatio)
+                Endif
+                pdf.stockc(Stock, txtPosX, txtPosY + ((Hauteur) - (12 * FontRatio)), FontRatio + 0.3)
+              Endif
             Endif
           Endif
           Inc Nbetiq
@@ -265,17 +311,28 @@ End
 
 Public Sub pos_Etiq()
 
-  If Nbetiq = 1 Then
-    txtPosX = 2 + Mrgauche
+  If A4.Value Then
+    If Nbetiq = 1 Then
+      txtPosY = Mrghaut
+      txtPosX = 2 + Mrgauche
+    Else
+      txtPosX = 2 + Mrgauche + ((Largeur + Esplargeur) * (Nbetiq - 1))
+    Endif
+    If Nbetiq > Val(Nblargeur) Then
+      Nbetiq = 1
+      txtPosX = 2 + Mrgauche
+      txtPosY = txtPosY + Hauteur + Esphauteur
+      Inc i2
+      If i2 >= Val(Nbhauteur) Then
+        pdf.NewPage()
+        i2 = 0
+        Nbetiq = 1
+        txtPosX = 2 + Mrgauche
+        txtPosY = Mrghaut
+      Endif
+    Endif
   Else
-    txtPosX = 2 + Mrgauche + (Largeur * (Nbetiq - 1)) + Esplargeur
-  Endif
-  If Nbetiq > Val(Nblargeur) Then
-    Nbetiq = 1
-    txtPosX = 2 + Mrgauche
-    txtPosY = txtPosY + Hauteur + Esphauteur
-    Inc i2
-    If i2 >= Val(Nbhauteur) Then
+    If Nbetiq > 1 Then
       pdf.NewPage()
       i2 = 0
       Nbetiq = 1
@@ -283,7 +340,7 @@ Public Sub pos_Etiq()
       txtPosY = Mrghaut
     Endif
   Endif
-
+  
 End
 
 Public Sub Btn_Click()
@@ -317,5 +374,23 @@ End
 Public Sub Button1_Click()
 
   Exec ["xdg-open", Application.Path &/ "Ecrans/Etiqrcpt.html"]
+
+End
+
+Public Sub Etiprod_Click()
+
+  EtiqPrix.Show
+
+End
+
+Public Sub Etigond_Click()
+
+  EtiqPrix.Hide
+
+End
+
+Public Sub Eticas_Click()
+
+  EtiqPrix.Hide
 
 End

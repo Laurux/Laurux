@@ -43,12 +43,12 @@ intitule As String
 intitule2 As String
 Nblargeur As String
 Nbhauteur As String
-Largeur As Integer
-Hauteur As Integer
-Mrghaut As Integer
-Mrgauche As Integer
-Esplargeur As Integer
-Esphauteur As Integer
+Largeur As Float
+Hauteur As Float
+Mrghaut As Float
+Mrgauche As Float
+Esplargeur As Float
+Esphauteur As Float
 Page As String
 Filename As String = "EtiqArt.ps"
 Tri As String = "art_code"
@@ -671,6 +671,8 @@ Public Sub Art_man()
                 Me.Raise
                 Return
             End Select
+          Else
+            Art.Clear
           Endif
         Else
           If Son Then
@@ -789,7 +791,16 @@ Public Sub Button2_Click()
     Filename = User.Home & "/tmp/EtiqArt.pdf"
     Try Kill Filename
     If A4.Value Then pdf = New CEtiquettes(PageA[1], "mm", PageA[0])
-    If Dymo.Value Then pdf = New CEtiquettes("Portrait", "mm", "dymog")
+    If Dymo.Value Then
+      pdf = New CEtiquettes("Portrait", "mm", "dymog")
+      'On devrait plutot retrouver ces parametres dans la base, voir a remonter la taille depuis la classe PDFWriter
+      Hauteur = 35.0
+      Largeur = 88.0
+      Mrghaut = 0
+      Mrgauche = 0
+      txtPosX = 2
+      txtPosY = 0
+    Endif
     pdf.Open()
     pdf.NewPage()
     SorP = False
@@ -863,8 +874,6 @@ Public Sub fin_impression()
   Gridbart.Clear
   Gridbart.Rows.Count = 4
   liste_Click()
-  Codetiq.Text = ""
-  'Etiqart.Close
 
 End
 
@@ -892,8 +901,8 @@ Public Sub Imprime()
     nombretiq = Val(Nbtiq.Text)
   Endif
   code = rarts!art_code
-  intitule = Left$(rarts!art_design, 32)
-  intitule2 = Left$(rarts!art_design2, 32)
+  intitule = rarts!art_design
+  intitule2 = rarts!art_design2
   barcode = rarts!art_cbarre
   fami = rarts!art_fam
   fourn = rarts!art_four
@@ -913,7 +922,7 @@ Public Sub Imprime()
   tva = rarts!art_tva
   pvttc = Format$(rarts!art_pvttc, nbdec)
   If Len(pvttc) - InStr(pvttc, ",") = 2 Then pvttc = pvttc & " "
-  FontRatio = Largeur / 80.0
+  FontRatio = Largeur / 100.0
   'On imprime
   If Not ConnZbr Then
     For i = 1 To nombretiq
@@ -922,16 +931,16 @@ Public Sub Imprime()
       Else
         pos_Etiq2()
       Endif
-      pdf.Rectangle2(txtPosX, txtPosY, Largeur, Hauteur)
-      pdf.Code(code, txtPosX, txtPosY + Round(1 * FontRatio), FontRatio)
-      pdf.IntituleA(Left$(Intitule, 30), txtPosX, txtPosY + Round(3 * FontRatio), FontRatio)
-      pdf.IntituleA(Left$(Intitule2, 30), txtPosX, txtPosY + Round(6 * FontRatio), FontRatio)
-      If Not IsNull(Barcode) Then
-        pdf.Barcode(Barcode, txtPosX + 2, txtPosY + Round(12 * FontRatio), Round(Hauteur / 3), (Largeur - 6), FontRatio)
+      'pdf.Rectangle2(txtPosX, txtPosY, Largeur, Hauteur)
+      pdf.Code(code, txtPosX, txtPosY + (1 * FontRatio), FontRatio + 0.3)
+      pdf.IntituleA(Left(Intitule, Round(85 * FontRatio)), txtPosX, txtPosY + (5 * FontRatio), FontRatio + 0.3)
+      pdf.IntituleA(Left(Intitule2, Round(90 * FontRatio)), txtPosX, txtPosY + (9 * FontRatio), FontRatio + 0.2)
+      If Not IsNull(Barcode) And If Len(Barcode) = 13 Then
+        pdf.Barcode(Barcode, txtPosX + 2, txtPosY + (Hauteur / 2) - (Hauteur / 8), (Hauteur / 3), (Largeur - 6), FontRatio)
       Endif
       If EtiqPrix.Value Then
         'On booste un peu le Prix TTC sur les etiquettes articles (logiquement petite)
-        pdf.PrixTTC(Pvttc, txtPosX + ((Largeur / 4) + 1), txtPosY + (Hauteur - Round(12 * FontRatio)), FontRatio + 0.3)
+        pdf.PrixTTC(Pvttc, txtPosX + ((Largeur / 6) + 1), txtPosY + (Hauteur - (12 * FontRatio)), FontRatio + 0.6)
       Endif
       Inc Nbetiq
     Next
