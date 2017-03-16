@@ -9502,7 +9502,6 @@ End
 
 Public Sub Impression(Org As String)
 
-  Dim Tab1 As String
   Dim Tab5 As String
   Dim Tab6 As String
   Dim Tab7 As String
@@ -11375,13 +11374,14 @@ Public Sub Calc_tva(Org As String)
   Dim Mtva2 As String
   Dim Mht As String
   Dim Mttc As String
-  Dim Ttx As String
+  Dim Ttx As Float
   Dim CResult As Result
   Dim Cptrst As Result
-  Dim TotEuros As String
-  Dim $ht As String
+  Dim fsTot, fsTva As Float = 0
+  Dim $ht, toteuros As String
   Dim $tva As String
   Dim rg, rg2 As Float = 0
+  Dim Ctx As Variant
 
   Tab = "Fiches_Tvaav"
   Tab2 = "Totalisation"
@@ -11389,16 +11389,21 @@ Public Sub Calc_tva(Org As String)
     Cptrst = Utils.db.Exec("SELECT * FROM " & Tab & "")
     If Cptrst.Available Then
       Repeat
-        Try Ttx = Format$(Cptrst!taux_tva, ",0.00")
         Ctx = Cptrst!code_tva
+        Ttx = Cptrst!taux_tva
         Cresult = Utils.db.Exec("SELECT * FROM " & Tab2 & " Where codetva = &1", Ctx)
         If Cresult.Available Then
           Repeat
             Cpt = CResult!compte
             If Left$(Cpt, 3) = "445" Then
-              Mtva2 = Format$(Val(CResult!totaltva), ",0.00")
+              Mtva2 = Val(CResult!totaltva)
               If IsNull(Mtva2) Then Mtva2 = "0,00"
               Mht = Format$(Val(CResult!totalht), ",0.00")
+              Mttc = Val(CResult!totalht) * (1 + (Ttx / 100))
+              Mtva2 = Val(Utils.cpoint(Mttc)) - Val(CResult!totalht)
+              Mtva2 = Format$(Val(Utils.cpoint(Mtva2)), ",0.00")
+              fstot += Val(Utils.cpoint(Mttc))
+              fstva += Val(Utils.cpoint(Mtva2))
               If IsNull(Mht) Then Mht = "0,00"
               If Prxdec Then
                 Mtva2 = Round(Val(Mtva2))
@@ -11434,10 +11439,12 @@ Public Sub Calc_tva(Org As String)
     Endif
     If Reserve.Value = False And Org <> "Mail" Then Txtleg2 = ""
     If Prxdec Then
-      Toteuros = Round(Val(Tottc1.text))
-      Toteuros = Format$(Val(Toteuros), ",0") & " " & devises
+      fstot = Round(fstot)
+      Toteuros = Format$(fstot, ",0") & " " & devises
+      $tva = Format$(fstva, ",0") & " " & devises
     Else
-      Toteuros = Format$(Val(Tottc1.Text), ",0.00") & " " & devises
+      Toteuros = Format$(fstot, ",0.00") & " " & devises
+      $tva = Format$(fstva, ",0.00") & " " & devises
     Endif
     If Blch.Value = True Then
       Try rg = Val(Rglt.text)
@@ -11452,9 +11459,9 @@ Public Sub Calc_tva(Org As String)
       Endif
       If Visudoc And Not imp Then bacquitte = False
       If Prxdec Then
-        $ht = Round(Val(Totht1.text))
+        $ht = Round(fstot)
         $ht = Format$(Val($ht), ",0")
-        $tva = Round(Val(Tottva.text))
+        $tva = Round($tva)
         $tva = Format$(Val($tva), ",0")
         If BlA5.Value And Not Bfac.value Then
           pdf2.Level10F($ht, $tva, Toteuros, Txtleg, PosY - 6, ImpAuto, Exo.value, Franchise)
@@ -11465,10 +11472,10 @@ Public Sub Calc_tva(Org As String)
         Endif
       Else
         If BlA5.Value And Not Bfac.value Then
-          pdf2.Level10F(Format$(Val(Totht1.Text), ",0.00"), Tottva.Text, Toteuros, Txtleg, PosY - 6, ImpAuto, Exo.value, Franchise)
+          pdf2.Level10F(Format$(Val(Totht1.Text), ",0.00"), $tva, Toteuros, Txtleg, PosY - 6, ImpAuto, Exo.value, Franchise)
           If Not IsNull(txtleg1) Then pdf2.Level10F2(Txtleg1, PosY - 4, ImpAuto, Exo.value, Franchise)
         Else
-          pdf.Level10F(Format$(Val(Totht1.Text), ",0.00"), Tottva.Text, Toteuros, Txtleg, PosY - 6, ImpAuto, Exo.value, Franchise)
+          pdf.Level10F(Format$(Val(Totht1.Text), ",0.00"), $tva, Toteuros, Txtleg, PosY - 6, ImpAuto, Exo.value, Franchise)
           If Not IsNull(txtleg1) Then pdf.Level10F2(Txtleg1, PosY - 4, ImpAuto, Exo.value, Franchise)
         Endif
         If bacquitte Then

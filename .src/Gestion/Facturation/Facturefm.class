@@ -1430,12 +1430,14 @@ Public Sub Maj_Totalisation()
     rrResult = Utils.db.Exec("SELECT * FROM " & Tab5 & " Where compte = &1 and codetva = &2", cpttva, Ctva)
     If rrResult.Available Then
       TotTva = Format$(Val(.cpoint(rrResult!totaltva)) + Val(.cpoint(Mtva)), "0.00")
+      Totht = Format$(Val(.cpoint(rrResult!totalht)) + Val(.cpoint(totalht)), "0.00")
       If Prxdec Then
         TotTva = Round(Val(TotTva))
+        Totht = Round(Val(Totht))
       Endif
-      Utils.db.Exec("UPdate " & Tab5 & " set compte = &1, intitule =&2, totaltva =&3, codetva = &4 Where compte = &1 and codeTva = &4", cpttva, Intittva, Tottva, Ctva)
+      Utils.db.Exec("UPdate " & Tab5 & " set compte = &1, intitule =&2, totaltva =&3, codetva = &4, totalht = &5 Where compte = &1 and codeTva = &4", cpttva, Intittva, Tottva, Ctva, Totht)
     Else
-      Utils.db.Exec("INSERT INTO " & Tab5 & "(compte, intitule, totaltva, codetva) VALUES (&1, &2, &3, &4)", cpttva, Intittva, Mtva, Ctva)
+      Utils.db.Exec("INSERT INTO " & Tab5 & "(compte, intitule, totaltva, codetva, totalht) VALUES (&1, &2, &3, &4, &5)", cpttva, Intittva, Mtva, Ctva, Totht)
     Endif
     Totht = 0
     Remise = 0
@@ -1872,8 +1874,9 @@ Public Sub Calc_tva()
   Dim Mttc2 As String
   Dim efacs As String
   Dim Mht As String
-  Dim Ttx As String
+  Dim Ttx As Float
   Dim Tva As String
+  Dim fsTot, fsTva As Float = 0
   Dim CResult As Result
   Dim entf As String
   Dim cptrst As Result
@@ -1897,28 +1900,36 @@ Public Sub Calc_tva()
     cptrst = Utils.db.Exec("SELECT * FROM " & Tab & "")
     If cptrst.Available Then
       Repeat
-        Ttx = Format$(cptrst!taux_tva, "00.00")
+        Ttx = cptrst!taux_tva
         Ctx = cptrst!code_tva
         Cresult = Utils.db.Exec("SELECT * FROM " & Tab2 & " Where codetva = &1", Ctx)
         If Cresult.Available Then
           Repeat
             cpt = CResult!compte
             If Left$(cpt, 3) = "445" Then
-              Mtva2 = Format$(Val(CResult!totaltva), "0.00")
-              If Mtva2 = "" Then Mtva2 = "0,00"
+              Mtva2 = Format$(Val(CResult!totaltva), ",0.00")
+              If IsNull(Mtva2) Then Mtva2 = "0,00"
+              Mht = Format$(Val(CResult!totalht), ",0.00")
+              Mttc = Val(CResult!totalht) * (1 + (Ttx / 100))
+              Mtva2 = Val(Utils.cpoint(Mttc)) - Val(CResult!totalht)
+              If IsNull(Mht) Then Mht = "0,00"
               If Prxdec Then
                 Mtva2 = Round(Val(Mtva2))
                 Mtva2 = Format$(Val(Mtva2), ",0")
+                Mht = Round(Val(Mht))
+                Mht = Format$(Val(Mht), ",0")
               Endif
               If Val(Mtva2) <> 0 Then
                 If Prxdec Then
-                  Mtva = Format$(Val(Mtva2), "0" & " " & devises)
+                  Mtva = Format$(Val(.cpoint(Mtva2)), "0")
                   ctx = Format$(Val(ctx), "0")
-                  Mtva2 = Format$(Val(Mtva2), "0")
+                  Mtva2 = Format$(Val(.cpoint(Mtva2)), "0")
                 Else
-                  Mtva = Mtva2 & " " & devises
+                  Mtva = Mtva2
+                  Mtva2 = Format$(Val(.cpoint(Mtva2)), "0.00")
                 Endif
-                Tva = Val(.cpoint(Tva)) + Val(Mtva2)
+                Tva = Val(.cpoint(Tva)) + Val(.cpoint(Mtva2))
+                Tva = Format$(Val(.cpoint(Tva)), "0.00")
                 If ImpAuto = False Then pdf.Level9F(Ctx, Mht, Ttx, Mtva2, Mttc, PosY)
                 PosY = PosY + 5
                 Inc Nbtx
@@ -1936,12 +1947,10 @@ Public Sub Calc_tva()
       Txtleg2 = ""
     Endif
     Mttc = Format$(Val(.cpoint(Toteuros)) + Val(.cpoint(Tva)), "0.00")
-    'Level7(CStr(Toteuros), CStr(Format$(Tva, "0.00")), CStr(Mttc), CStr(Txtleg))
-    'Level7()
     If Prxdec Then
       Tva = Format$(Val(Tva), "0")
     Else
-      Tva = Format$(Tva, "0.00")
+      Tva = Format$(Val(Tva), "0.00")
     Endif
     If Prxdec Then
       Mttc2 = Format$(Val(Mttc), "0" & " " & devises)
@@ -1951,7 +1960,6 @@ Public Sub Calc_tva()
       Toteuros = Format$(Toteuros, "0.00")
     Endif
     pdf.Level10F(Toteuros, Tva, Mttc2, Txtleg, PosY - 6, "", "", "")
-    'PosY = PosY + 3
     If Settings["/Soc" & Start.Societe & "/Coupon"] Then pdf.Level15F(CCli, numerofac, Mttc2, PosY, Devises)
     PosY = PosY + 8
     pdf.Level11F(Txtleg2, PosY)
