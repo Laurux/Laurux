@@ -368,6 +368,7 @@ Public Sub Moulinage()
   Dim bretro As Boolean
   Dim dnfac As String
   Dim snfac As String
+  Dim Verif_Caisse As Float
 
   RegroupBL = New Facturergbl
   Virements()
@@ -680,8 +681,8 @@ Public Sub Moulinage()
             Endif
           Until rTck.MoveNext()
           Verif()
-          Maj_Compta()
-          Maj_Tresorerie()
+          Verif_Caisse = Maj_Compta()
+          Maj_Tresorerie(Verif_Caisse)
           RegroupBL.Maj_Parametres(numbon)
           Utils.db.Exec("UNLOCK TABLES")
           'On recalcule les soldes
@@ -1178,7 +1179,7 @@ End
 '**********************************************************
 '*                   Maj comptabilité                     *
 '**********************************************************
-Public Sub Maj_Compta()
+Public Sub Maj_Compta() As Float
 
   Dim Cpt As String
   Dim coll As String
@@ -1187,6 +1188,7 @@ Public Sub Maj_Compta()
   Dim Mtd As Float
   Dim Sld As Float
   Dim SldTot As Float
+  Dim Verif_Caisse As Float
   Dim Valid As Integer
   Dim Prov As Integer
   Dim Tresor As Integer
@@ -1206,6 +1208,7 @@ Public Sub Maj_Compta()
   Lettree = 1
   Cloturee = 1
   Relance = 0
+  Verif_Caisse = 0
   Datem = Format$(DateChooser1.Value, "dd.mm.yyyy")
   Numlt = Format$(DateChooser1.Value, "ddmmyyyy")
   With Utils
@@ -1221,6 +1224,7 @@ Public Sub Maj_Compta()
           coll = hResult!coll_cc
           collectif = "1"
           Mtd = Val(.cpoint(rResult!totalttc))
+          Verif_Caisse = Mtd
           If Mtd < 0 Then
             Mtc = Abs(Mtd)
             Mtd = 0
@@ -1285,16 +1289,17 @@ Public Sub Maj_Compta()
         Try Utils.db.Exec("delete FROM " & Cbase.Table("Totalisation") & " where compte = &1", Cpt)
       Until rResult.MoveNext()
       Sha1Calc.CalcSha1(Numr)
-      If SldTot <> 0 Then
-
+      If Round(SldTot, -3) <> 0 Then
+        Message.Warning("Une erreur de moulinage importante est survenu!\nLa ventilation du montant de la caisse donne un solde de\n" & CStr(Round(SldTot, -3)) & "\nVeuillez corriger manuellement l'ecriture " & numr & ".")
       Endif
       Majnum()
     Endif
   End With
+  Return Verif_Caisse
 
 End
 
-Public Sub Maj_Tresorerie()
+Public Sub Maj_Tresorerie(Verif_Caisse As Float)
 
   Dim rResult As Result
   Dim hResult As Result
@@ -1305,9 +1310,11 @@ Public Sub Maj_Tresorerie()
   Dim Snom As String
   Dim Nm As String[]
   Dim Mtd As Float
+  Dim SldTot As Float
   Dim x As Integer
   Dim ChequeCptInt As Boolean
 
+  SldTot = Verif_Caisse
   Try ChequeCptInt = Settings["/Soc" & Start.Societe & "/Cheque"]
   If Error Then ChequeCptInt = False
   rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabJour") & " where code_jo = &1", jnal)
@@ -1322,6 +1329,7 @@ Public Sub Maj_Tresorerie()
         rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " where compte_cc = &1", hResult!client)
         Nom = rresult!intitule_cc
         rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where compte = &1 and type = &2", Client, "N")
+        SldTot = SldTot - Val(utils.cpoint(hResult!mespeces))
         If rresult.Available Then
           MtTot = Val(Utils.cpoint(rResult!montant)) + Val(utils.cpoint(hResult!mespeces))
           Utils.db.Exec("UPDATE " & Tab & " set montant = &3, intitule = &4 Where compte = &1 and type = &2", Client, "N", MtTot, nom)
@@ -1343,6 +1351,7 @@ Public Sub Maj_Tresorerie()
           rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " where compte_cc = &1", hResult!client)
           Nom = rresult!intitule_cc
           rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where compte = &1 and type = &2", Client, "V")
+          SldTot = SldTot - Val(utils.cpoint(hResult!mcheque))
           If rresult.Available Then
             MtTot = Val(Utils.cpoint(rResult!montant)) + Val(utils.cpoint(hResult!mcheque))
             Utils.db.Exec("UPDATE " & Tab & " set montant = &3, intitule = &4 Where compte = &1 and type = &2", Client, "V", MtTot, nom)
@@ -1353,21 +1362,21 @@ Public Sub Maj_Tresorerie()
         Endif
       Until hResult.MoveNext()
     Endif
-  Endif
-  'On mouvemente la table des bordereaux de chèques.
-  hResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where scheque = &1", "V")
-  If hResult.Available Then
-    Repeat
-      If Mid(hResult!date, 7, 4) & Mid(hResult!date, 4, 2) & Left(hResult!date, 2) = Format$(DateChooser1.Value, "yyyy") & Format$(DateChooser1.Value, "mm") & Format$(DateChooser1.Value, "dd") Then
-        Snom = ""
-        nm = Split(hresult!nmcheque, " ")
-        For x = 1 To nm.Count - 1
-          Snom &= nm[x] & " "
-        Next
-        If IsNull(Snom) Then Snom = " "
-        Utils.db.Exec("INSERT INTO " & "Fiches_BordereauxC" & "(code, nom, montant,dateremise,banque,nfacture) VALUES (&1, &2, &3, &4, &5, &6)", hresult!client, Snom, Val(Utils.cpoint(hResult!mcheque)), Utils.Cdate_Dbase(datem), jnal3, Right$(hresult!client, 4) & Replace$(Left$(datem, 5), ".", ""))
-      Endif
-    Until hResult.MoveNext()
+  Else
+    'On mouvemente la table des bordereaux de chèques.
+    hResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where scheque = &1", "V")
+    If hResult.Available Then
+      Repeat
+        If Mid(hResult!date, 7, 4) & Mid(hResult!date, 4, 2) & Left(hResult!date, 2) = Format$(DateChooser1.Value, "yyyy") & Format$(DateChooser1.Value, "mm") & Format$(DateChooser1.Value, "dd") Then
+          nm = Split(hresult!nmcheque, " ")
+          SldTot = SldTot - Val(utils.cpoint(hResult!mcheque))
+          For x = 1 To nm.Count - 1
+            Snom &= nm[x] & " "
+          Next
+          Utils.db.Exec("INSERT INTO " & "Fiches_BordereauxC" & "(code, nom, montant,dateremise,banque  ) VALUES (&1, &2, &3, &4, &5)", hresult!client, Snom, Val(Utils.cpoint(hResult!mcheque)), Utils.Cdate_Dbase(datem), jnal3)
+        Endif
+      Until hResult.MoveNext()
+    Endif
   Endif
 
   ' On fait le total des cartes
@@ -1380,6 +1389,7 @@ Public Sub Maj_Tresorerie()
         rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " where compte_cc = &1", hResult!client)
         Nom = rresult!intitule_cc
         rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where compte = &1 and type = &2", Client, "U")
+        SldTot = SldTot - Val(utils.cpoint(hResult!mcarte))
         If rresult.Available Then
           MtTot = Val(Utils.cpoint(rResult!montant)) + Val(utils.cpoint(hResult!mcarte))
           Utils.db.Exec("UPDATE " & Tab & " set montant = &3, intitule = &4 Where compte = &1 and type = &2", Client, "U", MtTot, nom)
@@ -1461,6 +1471,9 @@ Public Sub Maj_Tresorerie()
       Maj_Collectif(cptcli, hResult!intitule, libel, hResult!montant)
       Sha1Calc.CalcSha1(numr)
     Until hresult.MoveNext()
+  Endif
+  If Round(SldTot, -3) <> 0 Then
+    Message.Warning("Une erreur de moulinage importante est survenu!\nLa comparaison de la caisse et des règlements donne un solde de\n" & CStr(Round(SldTot, -3)) & "\nVeuillez corriger manuellement l'ecriture " & numr & ".")
   Endif
   Sha1Calc.CalcSha1(Numr)
   Majnum()
