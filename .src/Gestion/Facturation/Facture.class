@@ -34,6 +34,7 @@ Tp2 As String
 Tri As String
 Tribl As String
 Tribl2 As String
+TriType As String
 tab As String
 Tab1 As String
 Tab2 As String
@@ -254,7 +255,7 @@ Public Sub _New(bfacture As Boolean)
   If rResult.Available Then
     Val_retro = rResult!coretro
     devises = rResult!devise
-    If IsNull(devises) Then devises = "Euro"
+    If IsNull(devises) Then devises = "Euros"
   Endif
   Try Gmateriel = Settings["/Soc" & Start.Societe & "/Materiel"]
   If Error Then Gmateriel = False
@@ -2382,6 +2383,9 @@ Public Sub button33_Click()
       suser = Split(Utilisateur.Text, "@")
       Utils.db.Exec("INSERT INTO Fiches_Taches (numdoc,nom,poste,numcli,nomcli,texte) Values (&1,&2,&3,&4,&5,&6)", num.Text, suser[0], suser[1], code.Text, nom.Text, LibelTache.Text)
       RecupTaches()
+      Message.Info("Tache enregistrée.")
+      Utilisateur.Text = ""
+      LibelTache.Clear
       Utilisateur.setfocus
     Endif
   Endif
@@ -2417,7 +2421,6 @@ End
 
 Public Sub RecupTaches()
 
-  Dim $tnom As String = User.name
   Dim itaches As Integer = 0
   Dim $taches As String
 
@@ -4410,13 +4413,13 @@ Public Sub Art_man(Prod As String)
       Rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", Cart.Text)
     Endif
     If Rarts.Available Then
-      If bTypeFacture And Rarts!art_mat = 0 Or If bTypeFacture And IsNull(Rarts!art_mat) Then
+      If bTypeFacture And Not Rarts!art_mat Or If bTypeFacture And IsNull(Rarts!art_mat) Then
         bentretien = False
       Else
-        If bTypeFacture And If Rarts!art_mat = 1 Then bentretien = True
+        If bTypeFacture And If Rarts!art_mat Then bentretien = True
       Endif
       If Not bTypeFacture Then bentretien = True
-      If bentretien Then
+      If Not bentretien Or Not bTypeFacture Then
         Stk = Rarts!art_stocke
         Qte.Text = Utils.CPoint(Rarts!art_qte)
         $photo = Rarts!art_photo
@@ -9657,8 +9660,8 @@ Public Sub Impression(Org As String)
               Txtleg = "Règlement  " & Regmt.Text & " au " & dateech
             Endif
           Else
-            Txtleg = "Règlement " & rglt.Text & " par " & Regmt.Text & " au " & dtef.Text
-            If Not IsNull(Regmt2.text) Then Txtleg1 = "Règlement " & rglt2.Text & " par " & Regmt2.Text & " au " & dtef.Text
+            Txtleg = "Règlement " & rglt.Text & " " & devises & " par " & Regmt.Text & " au " & dtef.Text
+            If Not IsNull(Regmt2.text) Then Txtleg1 = "Règlement " & rglt2.Text & " " & devises & " par " & Regmt2.Text & " au " & dtef.Text
           Endif
           If Imp = "1" Then
             rResult = Utils.db.Exec("SELECT * FROM  " & tab1 & " where numbl = &1 and type = &2 and imp = &3", Num.text, "F", 1)
@@ -9678,6 +9681,7 @@ Public Sub Impression(Org As String)
               If Val(Utils.cpoint($mreg)) + Val(Utils.cpoint($mreg2)) = Val(Utils.CPoint(Tottc.Text)) Then
                 If Not IsNull($reg2) Then bacquitte = True
               Endif
+              If Val(Utils.cpoint($mreg)) = 0 And IsNull($mreg) Then bacquitte = False
               If IsNull($mreg) Then Txtleg = "Règlement par " & $reg & " au " & dateech
             Else
               bacquitte = False
@@ -11374,14 +11378,13 @@ Public Sub Calc_tva(Org As String)
   Dim Mtva2 As String
   Dim Mht As String
   Dim Mttc As String
-  Dim Ttx As Float
+  Dim Ttx As String
   Dim CResult As Result
   Dim Cptrst As Result
-  Dim fsTot, fsTva As Float = 0
-  Dim $ht, toteuros As String
+  Dim TotEuros As String
+  Dim $ht As String
   Dim $tva As String
   Dim rg, rg2 As Float = 0
-  Dim Ctx As Variant
 
   Tab = "Fiches_Tvaav"
   Tab2 = "Totalisation"
@@ -11389,21 +11392,16 @@ Public Sub Calc_tva(Org As String)
     Cptrst = Utils.db.Exec("SELECT * FROM " & Tab & "")
     If Cptrst.Available Then
       Repeat
+        Try Ttx = Format$(Cptrst!taux_tva, ",0.00")
         Ctx = Cptrst!code_tva
-        Ttx = Cptrst!taux_tva
         Cresult = Utils.db.Exec("SELECT * FROM " & Tab2 & " Where codetva = &1", Ctx)
         If Cresult.Available Then
           Repeat
             Cpt = CResult!compte
             If Left$(Cpt, 3) = "445" Then
-              Mtva2 = Val(CResult!totaltva)
+              Mtva2 = Format$(Val(CResult!totaltva), ",0.00")
               If IsNull(Mtva2) Then Mtva2 = "0,00"
               Mht = Format$(Val(CResult!totalht), ",0.00")
-              Mttc = Val(CResult!totalht) * (1 + (Ttx / 100))
-              Mtva2 = Val(Utils.cpoint(Mttc)) - Val(CResult!totalht)
-              Mtva2 = Format$(Val(Utils.cpoint(Mtva2)), ",0.00")
-              fstot += Val(Utils.cpoint(Mttc))
-              fstva += Val(Utils.cpoint(Mtva2))
               If IsNull(Mht) Then Mht = "0,00"
               If Prxdec Then
                 Mtva2 = Round(Val(Mtva2))
@@ -11412,7 +11410,7 @@ Public Sub Calc_tva(Org As String)
                 Mht = Format$(Val(Mht), ",0")
               Endif
               If Val(Mtva2) <> 0 Then
-                Mtva = Mtva2 & " " & " " & devises
+                Mtva = Mtva2
                 If ImpAuto = False And If Franchise = False And If Not exo.value Then
                   If Blch.Value = True Then
                     If BlA5.Value And Not Bfac.value Then
@@ -11439,12 +11437,10 @@ Public Sub Calc_tva(Org As String)
     Endif
     If Reserve.Value = False And Org <> "Mail" Then Txtleg2 = ""
     If Prxdec Then
-      fstot = Round(fstot)
-      Toteuros = Format$(fstot, ",0") & " " & devises
-      $tva = Format$(fstva, ",0") & " " & devises
+      Toteuros = Round(Val(Tottc1.text))
+      Toteuros = Format$(Val(Toteuros), ",0") & " " & devises
     Else
-      Toteuros = Format$(fstot, ",0.00") & " " & devises
-      $tva = Format$(fstva, ",0.00") & " " & devises
+      Toteuros = Format$(Val(Tottc1.Text), ",0.00") & " " & devises
     Endif
     If Blch.Value = True Then
       Try rg = Val(Rglt.text)
@@ -11452,16 +11448,16 @@ Public Sub Calc_tva(Org As String)
       Try rg2 = Val(Rglt2.text)
       If Error Then rg2 = 0
       If Not bacquitte Then
-        If rg = Val(Utils.cpoint(Totalttc)) And If Rgmt.value Then bacquitte = True
+        If rg = Val(Utils.cpoint(Totalttc)) And If Rgmt.value And If Not IsNull(Regmt.Text) Then bacquitte = True
         If rg + rg2 = Val(Tottc.Text) And If Rgmt.value Then
           If Not IsNull(Regmt2.Text) Then bacquitte = True
         Endif
       Endif
-      If Visudoc And Not imp Then bacquitte = False
+      If Visudoc And If imp = "0" Then bacquitte = False
       If Prxdec Then
-        $ht = Round(fstot)
+        $ht = Round(Val(Totht1.text))
         $ht = Format$(Val($ht), ",0")
-        $tva = Round($tva)
+        $tva = Round(Val(Tottva.text))
         $tva = Format$(Val($tva), ",0")
         If BlA5.Value And Not Bfac.value Then
           pdf2.Level10F($ht, $tva, Toteuros, Txtleg, PosY - 6, ImpAuto, Exo.value, Franchise)
@@ -11472,10 +11468,10 @@ Public Sub Calc_tva(Org As String)
         Endif
       Else
         If BlA5.Value And Not Bfac.value Then
-          pdf2.Level10F(Format$(Val(Totht1.Text), ",0.00"), $tva, Toteuros, Txtleg, PosY - 6, ImpAuto, Exo.value, Franchise)
+          pdf2.Level10F(Format$(Val(Totht1.Text), ",0.00"), Tottva.Text, Toteuros, Txtleg, PosY - 6, ImpAuto, Exo.value, Franchise)
           If Not IsNull(txtleg1) Then pdf2.Level10F2(Txtleg1, PosY - 4, ImpAuto, Exo.value, Franchise)
         Else
-          pdf.Level10F(Format$(Val(Totht1.Text), ",0.00"), $tva, Toteuros, Txtleg, PosY - 6, ImpAuto, Exo.value, Franchise)
+          pdf.Level10F(Format$(Val(Totht1.Text), ",0.00"), Tottva.Text, Toteuros, Txtleg, PosY - 6, ImpAuto, Exo.value, Franchise)
           If Not IsNull(txtleg1) Then pdf.Level10F2(Txtleg1, PosY - 4, ImpAuto, Exo.value, Franchise)
         Endif
         If bacquitte Then
@@ -12960,7 +12956,6 @@ Public Sub ToggleButton11_Click()
         $Matlist.Item[4] = "O"
       Endif
     Loop Until MatResult.MoveNext()
-    $Matlist.Visible = True
   Else
     If start.son Then
       Music.Play
@@ -12982,7 +12977,7 @@ End
 '*******************************************
 Public Sub Matlist_Click()
 
-  Numserie.Text = $Matlist.Current[0]
+  Try Numserie.Text = $Matlist.Current[0]
   $Matlist.Clear
   $Matlist.visible = False
   MatMan()
@@ -13287,6 +13282,13 @@ End
 
 Public Sub Deb1()
 
+  Dim TriType As String
+
+  If TYB.Text <> "T" Then
+    TriType = TYB.text
+  Else
+    TriType = ""
+  Endif
   colbl.Clear
   If Not bTypeFacture Then
     Tab = "Fiches_Bl"
@@ -13294,17 +13296,41 @@ Public Sub Deb1()
     Tab = "Fiches_BlM"
   Endif
   If TriBl <> "datebl" And If Tribl <> "com_ligbl" Then
-    'If Not bTypeFacture Then
-    Utils.Base3(Colbl, "select imp, type, numbl, datebl, cdclibl, nmclibl, pnmclibl, numfac from " & Tab & "  where " & TriBl & " like  \"%" & sel & "%\" order by " & tribl2 & " desc ")
-    'Else
-    'Utils.Base3(Colbl, "select imp, type, numbl, datebl, cdclibl, nmclibl, pnmclibl, numfac from " & Cbase.Table("TabBlM") & "  where " & TriBl & " like  \"%" & sel & "%\" order by " & tribl2 & " desc ")
-    'Endif
+    If TYB.Text = "T" Or If IsNull(TYB.Text) Then
+      Utils.Base3(Colbl, "select imp, type, numbl, datebl, cdclibl, nmclibl, pnmclibl, numfac from " & Tab & "  where  " & TriBl & " like  \"%" & sel & "%\" order by " & tribl2 & " desc ")
+    Else
+      Utils.Base3(Colbl, "select imp, type, numbl, datebl, cdclibl, nmclibl, pnmclibl, numfac from " & Tab & "  where type like \"%" & TriType & "%\" and " & TriBl & " like  \"%" & sel & "%\" order by " & tribl2 & " desc ")
+    Endif
   Else
-    ' If Not bTypeFacture Then
-    Utils.Base3(Colbl, "select imp, type, numbl, datebl, cdclibl, nmclibl, pnmclibl, numfac from " & Tab & "  where " & TriBl & " like  \"%" & sel2 & "%\" order by " & tribl2 & " desc ")
-    'Else
-    'Utils.Base3(Colbl, "select imp, type, numbl, datebl, cdclibl, nmclibl, pnmclibl, numfac from " & Cbase.Table("TabBlM") & "  where " & TriBl & " like  \"%" & sel2 & "%\" order by " & tribl2 & " desc ")
-    'Endif
+    If TYB.Text = "T" Or If IsNull(TYB.Text) Then
+      Utils.Base3(Colbl, "select imp, type, numbl, datebl, cdclibl, nmclibl, pnmclibl, numfac from " & Tab & "  where " & TriBl & " like  \"%" & sel2 & "%\" order by " & tribl2 & " desc ")
+    Else
+      Utils.Base3(Colbl, "select imp, type, numbl, datebl, cdclibl, nmclibl, pnmclibl, numfac from " & Tab & "  where type like  \"%" & TriType & "%\" and " & TriBl & " like  \"%" & sel2 & "%\" order by " & tribl2 & " desc ")
+    Endif
+  Endif
+  Colbl.Refresh
+
+End
+
+Public Sub Deb2()
+
+  Dim TriType As String
+
+  If TYB.Text <> "T" Then
+    TriType = TYB.text
+  Else
+    TriType = ""
+  Endif
+  If bTypeFacture Then
+    Tab = "Fiches_LigblM"
+  Else
+    Tab = "Fiches_Ligbl"
+  Endif
+  Colbl.Clear
+  If TYB.Text = "T" Or If IsNull(TYB.Text) Then
+    Utils.Base3(Colbl, "select imp, type, numbl, datebl, cdclibl, nmclibl, pnmclibl, numfac from " & Cbase.Table("TabBl") & "  where " & TriBl & " like  \"%" & sel & "%\" order by " & tribl2 & " asc")
+  Else
+    Utils.Base3(Colbl, "select imp, type, numbl, datebl, cdclibl, nmclibl, pnmclibl, numfac from " & Cbase.Table("TabBl") & "  where  type  like  \"%" & TriType & "%\" and  " & TriBl & " like  \"%" & sel & "%\" order by " & tribl2 & " asc")
   Endif
   Colbl.Refresh
 
@@ -13417,19 +13443,6 @@ Public Sub Colbl_libel()
   Colbl.Refresh
   Utils.db.Exec("drop TABLE " & BlTab & "")
   Me.mouse = mouse.Default
-
-End
-
-Public Sub Deb2()
-
-  If bTypeFacture Then
-    Tab = "Fiches_LigblM"
-  Else
-    Tab = "Fiches_Ligbl"
-  Endif
-  Colbl.Clear
-  Utils.Base3(Colbl, "select imp, type, numbl, datebl, cdclibl, nmclibl, pnmclibl, numfac from " & Cbase.Table("TabBl") & "  where " & TriBl & " like  \"%" & sel & "%\" order by " & tribl2 & " asc")
-  Colbl.Refresh
 
 End
 
