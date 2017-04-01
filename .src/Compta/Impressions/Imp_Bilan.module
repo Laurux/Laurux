@@ -105,7 +105,17 @@ Public Sub Lancement(Detail As Boolean, dte0 As String, dte1 As String, dt1 As S
   Dim totdeb As Float
   Dim totcred As Float
   Dim totsld As Float
-
+  Dim Hnew As File
+  Dim Hnew2 As File
+  Dim filename As String
+  
+  filename = User.Home & "/tmp/BilanDetail.csv"
+  If Exist(filename) Then Try Kill filename
+  Hnew = Open filename For Write Create
+  filename = User.Home & "/tmp/BilanRub.csv"
+  If Exist(filename) Then Try Kill filename
+  Hnew2 = Open filename For Write Create
+  
   dtes1 = dt1
   dtes2 = dt2
   dteN0 = dte0
@@ -280,6 +290,7 @@ Public Sub Lancement(Detail As Boolean, dte0 As String, dte1 As String, dt1 As S
             totcred = totcred + credit
             totsld = totdeb - totcred
             Inc i
+            Print #Hnew, rResult!dte & ";" & compt & ";" & Intit & ";" & .cpoint(debit) & ";" & .cpoint(credit) & ";" & .cpoint(totsld)
             rResult.MoveNext()
           Wend
           Utils.db.Exec("INSERT INTO " & Tab3 & "(compte, intitule, type, solde, solde2, annee) VALUES ( &1, &2, &3, &4, &5, &6)", Compt, intit, type, .PointBase(Totsld), 0, "N")
@@ -417,6 +428,7 @@ Public Sub Lancement(Detail As Boolean, dte0 As String, dte1 As String, dt1 As S
                   If amort Then imp = True
                   If imp Then
                     Ltot2 = Tab5Rslt!solde
+                    Print #Hnew2, rub & ";" & cpt & ";" & intitcpt & ";" & .cpoint(Ltot2)
                     If amort Then Ltot2 = Abs(ltot2)
                     If Val(Right$(Rub, 4)) > 1000 Then
                       If ltot2 < 0 Then
@@ -813,7 +825,10 @@ Public Sub Lancement(Detail As Boolean, dte0 As String, dte1 As String, dt1 As S
       Message.Info("Rien a imprimer pour cette période !")
     Endif
   End With
-
+  
+  Try Close #Hnew
+  Try Close #Hnew2
+  
 End
 
 '********************
