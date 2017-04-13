@@ -285,9 +285,8 @@ Public Sub DelMvt()
 
   rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " WHERE numero = &1 ", numecrit.Text)
   If rResult.Available Then
-    Repeat
-      Utils.db.Exec("DELETE FROM " & Cbase.Table("TabMvt") & " WHERE numero = &1", numecrit.Text)
-    Until rResult.Movenext()
+    Utils.db.Exec("DELETE FROM " & Cbase.Table("TabMvt") & " WHERE numero = &1", numecrit.Text)
+    Utils.db.Exec("UPDATE Fiches_MvtM SET supprimee = &1 WHERE numero =  &2", 1, numecrit.Text)
   Endif
 
 End
@@ -2062,6 +2061,7 @@ Public Sub Ecrit3()
                 Cpt = rResult!compte
                 coll = rResult!collectif
                 numecriture = rResult!numero
+                Utils.db.Exec("INSERT INTO  Fiches_MvtM (jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,cloturee,pointee, numcol, dateech, lind2, control, datem) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21})", rResult!jour, rResult!numero, rResult!compte, rResult!intitule, rResult!dte, rResult!numdoc, rResult!numlot, rResult!libelle, rResult!montantd, rResult!montantc, rResult!validee, rResult!provisoire, rResult!tresorerie, rResult!lettree, rResult!cloturee, rResult!pointee, rResult!numcol, rResult!dateech, rResult!lind, rResult!control, Utils.Cdate_Dbase(Format$(Now, "dd.mm.yyyy")))
                 If Left(Cpt, 3) <> "512" And If Left(Cpt, 2) <> "53" Then
                   'Cle = rResult!compte & rResult!numdoc & numecriture
                   Ecrit1.Add(rResult!lind, rResult!lind)
@@ -2164,6 +2164,7 @@ Public Sub Ecrit3()
         Numcompte.SetFocus
         ' On passe l'écriture en provisoire
         Utils.db.Exec("UPDATE  " & Cbase.Table("TabMvt") & "  SET  validee = &2, provisoire = &3 where numero = &1", numecrit.Text, 0, 1)
+        Sha1Calc.CalcSha1(numecrit.Text)
       Else
         If Ext = True Then Me.close
       Endif
