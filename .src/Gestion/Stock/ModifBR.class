@@ -43,6 +43,7 @@ sclient2 As String
 Public Exo As Boolean = True
 Private chkfam As Boolean = False
 Private Famachat As String
+Private skey As String
 
 '**********************************************************
 '*initialisation écrans et gestion onglet client          *
@@ -65,7 +66,6 @@ Public Sub _New()
 
   Colbl.Columns.count = 5
   Colbl.Columns[0].Width = 80
-  Colbl.Columns[0].Background = Color.Red
   Colbl.Columns[1].Width = 260
   Colbl.Columns[2].Width = 100
   Colbl.Columns[3].Width = 100
@@ -139,7 +139,12 @@ Public Sub recup_bl()
   Colbl.Clear
   Coldetail.clear
   dteN = Right$(datej.Text, 4) & Mid$(datej.Text, 4, 2) & Left$(datej.Text, 2)
-  Client = Utils.db.Exec("SELECT * FROM " & Tab & "  left join " & Cbase.Table("TabFour") & " on fo_code = four  where four = &1 and montant <> &2 and ddate <= &3  and validee <> &4 order by four", codeclient.Text, 0, dteN, True)
+  If Radiobutton1.Value = True Then
+    CodeFour.Background = &HD4D0C8& '&HF9F9BD&
+    Client = Utils.db.Exec("SELECT * FROM " & Tab & " left join " & Cbase.Table("TabFour") & " on fo_code = four where montant <> &1 and ddate <= &2 and validee <> &3  order by four", 0, dteN, True)
+  Else
+    Client = Utils.db.Exec("SELECT * FROM " & Tab & "  left join " & Cbase.Table("TabFour") & " on fo_code = four  where four = &1 and montant <> &2 and ddate <= &3  and validee <> &4 order by four", CodeFour.Text, 0, dteN, True)
+  Endif
   If Client.Available Then
     Repeat
       Exo = Client!fo_exo
@@ -175,7 +180,7 @@ Public Sub recup_bl()
       Endif
     Until Client.MoveNext()
   Endif
-  Client = Utils.db.Exec("SELECT * FROM " & Tab3 & " order by nom")
+  Client = Utils.db.Exec("SELECT * FROM " & Tab3 & " order by code")
   If Client.Available Then
     Repeat
       Colbl.Add(Client!code, Client!code)
@@ -189,6 +194,24 @@ Public Sub recup_bl()
       Endif
       If Error Then Colbl.Item[3] = "0,00"
     Until Client.MoveNext()
+  Endif
+  If IsNull(skey) Then
+    If Colbl.Count > 0 Then
+      Colbl.MoveFirst()
+      Colbl.item.Selected = True
+      Colbl_Click()
+    Endif
+  Else
+    If Colbl.Count > 0 Then
+      Colbl.MoveFirst()
+      Repeat
+        Colbl.item.Selected = True
+        If Colbl.Item[0] = skey Then
+          Colbl_Click()
+          Break
+        Endif
+      Until Colbl.MoveNext()
+    Endif
   Endif
 
 End
@@ -252,10 +275,11 @@ Public Sub Coldetail_Activate()
 
   Dim hForm As ModifCom
 
-  hForm = New ModifCom(Coldetail.Item[0], Colbl.item[0], Coldetail.Item[1], Coldetail.Item[4])
+  hForm = New ModifCom(Coldetail.Item[0], Colbl.current[0], Coldetail.Item[1], Coldetail.Item[4])
   hForm.Showmodal
+  skey = Colbl.current[0]
   recup_bl()
-  Colbl_Click()
+  skey = ""
 
 End
 
@@ -368,8 +392,8 @@ End
 
 Public Sub Radiobutton1_Click()
 
-  codeclient.Background = &HD4D0C8& '&HF9F9BD&
-  codeclient.ReadOnly = True
+  codefour.Background = &HD4D0C8& '&HF9F9BD&
+  codefour.ReadOnly = True
   Colbl.clear
   Coldetail.clear
 
@@ -380,22 +404,22 @@ Public Sub Radiobutton2_Click()
   Dim Frmt As New String[]
 
   Frmt = Utils.FColr(Settings["/Coul/Znss"])
-  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then codeclient.Background = Val(Frmt[0])
-  codeclient.ReadOnly = False
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then codefour.Background = Val(Frmt[0])
+  codefour.ReadOnly = False
   Colbl.clear
   Coldetail.clear
-  codeclient.SetFocus
+  codefour.SetFocus
 
 End
 
-Public Sub codeclient_KeyPress()
+Public Sub codefour_KeyPress()
 
   If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
-    rResult = Utils.db.Exec("select * from " & Cbase.Table("TabFour") & " where fo_code = &1", codeclient.Text)
+    rResult = Utils.db.Exec("select * from " & Cbase.Table("TabFour") & " where fo_code = &1", codefour.Text)
     If Not rResult.Available Then
       Message.Error("Ce client n'existe pas !")
-      codeclient.Select
-      codeclient.SetFocus
+      codefour.Select
+      codefour.SetFocus
     Endif
   Endif
 
@@ -409,10 +433,14 @@ Public Sub Togglebutton1_Click()
   MyForm = New Trifours("ModifBR")
   MyForm.Showmodal()
   If Variables.Bsel = True Then
-    codeclient.Text = Variables.Cfour
+    codefour.Text = Variables.Cfour
   Else
-    Codeclient.SetFocus
+    codefour.SetFocus
   Endif
+
+End
+
+Public Sub Button1_Click()
 
   If chkfam = True Then
     Message.Warning("Traitement impossible ! La famille " & Famachat & " n'a pas de compte d'achat")
@@ -432,7 +460,6 @@ Public Sub Togglebutton1_Click()
   Endif
 
 End
-
 '***********************************
 '*        On gère l' arrondi       *
 '***********************************
@@ -525,3 +552,4 @@ Public Sub Button7_Click()
   Exec ["xdg-open", Application.Path &/ "Ecrans/Br.html"]
 
 End
+
