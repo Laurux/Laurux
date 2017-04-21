@@ -1369,9 +1369,9 @@ Public Sub Maj_Totalisation()
     rrResult = Utils.db.Exec("SELECT * FROM " & Tab5 & " Where compte = &1 and codetva = &2", cpttva, Ctva)
     If rrResult.Available Then
       TotTva = Format$(Val(.cpoint(rrResult!totaltva)) + Val(.cpoint(Mtva)), "0.00")
-      Utils.db.Exec("UPdate " & Tab5 & " set compte = &1, intitule =&2, totaltva =&3, codetva = &4 Where compte = &1 and codeTva = &4", cpttva, Intittva, Tottva, Ctva)
+      Utils.db.Exec("UPdate " & Tab5 & " set compte = &1, intitule =&2, totaltva =&3, codetva = &4, totalht = &5 Where compte = &1 and codeTva = &4", cpttva, Intittva, Tottva, Ctva, Totht)
     Else
-      Utils.db.Exec("INSERT INTO " & Tab5 & "(compte, intitule, totaltva, codetva) VALUES (&1, &2, &3, &4)", cpttva, Intittva, Mtva, Ctva)
+      Utils.db.Exec("INSERT INTO " & Tab5 & "(compte, intitule, totaltva, codetva, totalht) VALUES (&1, &2, &3, &4, &5)", cpttva, Intittva, Mtva, Ctva, Totht)
     Endif
     'Totht = 0
     Remise = 0
@@ -1566,7 +1566,7 @@ Public Sub Calc_tva()
   Dim Mttc2 As String
   Dim efacs As String
   Dim Mht As String
-  Dim Ttx As String
+  Dim Ttx As Float
   Dim Tva As String
   Dim CResult As Result
   Dim entf As String
@@ -1597,7 +1597,7 @@ Public Sub Calc_tva()
     cptrst = Utils.db.Exec("SELECT * FROM " & Tab & "")
     If cptrst.Available Then
       Repeat
-        Ttx = Format$(cptrst!taux_tva, "00.00")
+        Ttx = cptrst!taux_tva
         Ctx = cptrst!code_tva
         Cresult = Utils.db.Exec("SELECT * FROM " & Tab2 & " Where codetva = &1", Ctx)
         If Cresult.Available Then
@@ -1622,7 +1622,7 @@ Public Sub Calc_tva()
               Tva = Val(.cpoint(Tva)) + Val(.cpoint(Mtva2))
               Tva = Format$(Val(.cpoint(Tva)), "0.00")
               If ImpAuto = False Then pdf.Level9F(Ctx, Mht, Ttx, Mtva2, Mttc, PosY)
-              PosY = PosY + 5
+              PosY = PosY + 3
               Inc Nbtx
             Endif
           Until Cresult.MoveNext()
@@ -1640,7 +1640,7 @@ Public Sub Calc_tva()
     If Settings["/Soc" & Start.Societe & "/Prxdec"] Then
       Tva = Format$(Val(Tva), "0")
     Else
-      Tva = Format$(Tva, "0.00")
+      Tva = Format$(Val(Tva), "0.00")
     Endif
     If Settings["/Soc" & Start.Societe & "/Prxdec"] Then
       Mttc2 = Format$(Val(Mttc), "0" & " " & devises)
