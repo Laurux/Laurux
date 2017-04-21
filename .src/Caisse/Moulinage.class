@@ -642,38 +642,38 @@ Public Sub Moulinage()
                 'On met à jour le fichier des entetes de bl
                 Utils.db.Exec("INSERT INTO " & Cbase.Table("TabBl") & "(numbl,datebl,cdclibl, nmclibl, rmobl, rartbl, type, pnmclibl, adr1bl, adr2bl, cpbl, villebl, exobl, cvclibl, tvar, imp, acpt, mreg, totalht, totalttc, retro, marge_art, remmobl, remartbl, marge_mo) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13},&{14},&{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24}, &{25})", numbon, Utils.Cdate_Dbase(Datem), scli, nmclibl, rmobl, Artrm, "B", Pnmclibl, adr1bl, adr2bl, cpbl, villebl, Exo, Cvclibl, 0, 0, 0, "", .PointBase(totalht), .PointBase(totalttc), 0, 0, 0, 0, 0)
                 'On met à jour les lignes de bl
-                'On s'occupe des articles
-                rlTck.MoveFirst()
-                'on ecrit la provenance du bl
                 Inc numlig
                 nmlig = Format$(Str(numlig), "0000")
                 Bloc = nmlig
                 origine = "Ticket de caisse numéro " & rTck!numero & " du " & rTck!date
                 Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigbl") & "(num_ligbl, numlig_ligbl, com_ligbl, typel_ligbl, block_ligbl) VALUES (&1, &2, &3, &4, &5)", numbon, nmlig, origine, "C", Bloc)
-                Repeat
-                  If rlTck!type = "A" Then
-                    qte = rlTck!qte
-                    Recup_Art(rlTck!code, qte, rlTck!mht, rlTck!montant, rlTck!tva)
-                    Inc numlig
-                    nmlig = Format$(Str(numlig), "0000")
-                    Bloc = nmlig
-                    Remart = Val(.cpoint(Remart)) + Val(.cpoint(artbrut)) - Val(.cpoint(artnet))
-                    totalht = totalht + Val(.cpoint(artnet))
-                    totalttc = totalttc + Val(.cpoint(Arttc))
-                    Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigbl") & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15})", numbon, nmlig, rlTck!code, artdsg, artfam, artpu, qte, artbrut, Artrm, artnet, Arttx, Arttc, "A", Nbd, Bloc)
-                  Endif
-                  If rlTck!type = "O" Then
-                    'Eco participation
-                    If rlTck!intitule = " Dont Eco-taxe" Then
+                rlTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigTck") & " where numero = &1 order by lInd", rTck!numero)
+                If rlTck.Available Then
+                  Repeat
+                    If rlTck!type = "A" Then
+                      qte = rlTck!qte
+                      Recup_Art(rlTck!code, qte, rlTck!mht, rlTck!montant, rlTck!tva)
                       Inc numlig
                       nmlig = Format$(Str(numlig), "0000")
-                      totalht = totalht + Val(.cpoint(rlTck!montant))
-                      totalttc = totalttc + Val(.cpoint(rlTck!montant))
-                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigbl") & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15})", numbon, nmlig, rlTck!code, rlTck!intitule, "", Format$(Val(rlTck!montant), "0.00"), "1", Format$(Val(rlTck!montant), "0.00"), 0, Format$(Val(rlTck!montant), "0.00"), Arttx, Format$(Val(rlTck!montant), "0.00"), "E", "0", Bloc)
+                      Bloc = nmlig
+                      Remart = Val(.cpoint(Remart)) + Val(.cpoint(artbrut)) - Val(.cpoint(artnet))
+                      totalht = totalht + Val(.cpoint(artnet))
+                      totalttc = totalttc + Val(.cpoint(Arttc))
+                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigbl") & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15})", numbon, nmlig, rlTck!code, artdsg, artfam, artpu, qte, artbrut, Artrm, artnet, Arttx, Arttc, "A", Nbd, Bloc)
                     Endif
-                  Endif
-                Until rlTck.MoveNext()
-                Utils.db.Exec("UPdate  " & Cbase.Table("TabBl") & "  SET marge_art = &2, remartbl = &3, totalht = &4, totalttc = &5 where numbl = &1", numbon, marge, Remart, totalht, totalttc)
+                    If rlTck!type = "O" Then
+                      'Eco participation
+                      If rlTck!intitule = " Dont Eco-taxe" Then
+                        Inc numlig
+                        nmlig = Format$(Str(numlig), "0000")
+                        totalht = totalht + Val(.cpoint(rlTck!montant))
+                        totalttc = totalttc + Val(.cpoint(rlTck!montant))
+                        Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigbl") & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15})", numbon, nmlig, rlTck!code, rlTck!intitule, "", Format$(Val(rlTck!montant), "0.00"), "1", Format$(Val(rlTck!montant), "0.00"), 0, Format$(Val(rlTck!montant), "0.00"), Arttx, Format$(Val(rlTck!montant), "0.00"), "E", "0", Bloc)
+                      Endif
+                    Endif
+                  Until rlTck.MoveNext()
+                  Utils.db.Exec("UPdate  " & Cbase.Table("TabBl") & "  SET marge_art = &2, remartbl = &3, totalht = &4, totalttc = &5 where numbl = &1", numbon, marge, Remart, totalht, totalttc)
+                Endif
               Endif
             Endif
           Until rTck.MoveNext()
