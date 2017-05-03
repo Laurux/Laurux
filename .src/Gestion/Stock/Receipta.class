@@ -2220,18 +2220,20 @@ End
 '*******************************************
 Public Sub bas_doc()
 
-  Totalrcpt.Text = "0,00"
-  Tfrais.Text = "0,00"
-  totalttc.text = "0,00"
-  Colrcp.MoveFirst
-  Do
-    Colrcp.Item.Selected = True
-    Totalrcpt.Text = Format$(Val(Totalrcpt.Text) + (Val(Colrcp.Item[6]) * Val(Colrcp.Item[7])), "0.00")
-    Tfrais.Text = Format$(Val(Tfrais.Text) + (Val(Colrcp.Item[11]) * Val(Colrcp.Item[7]) * Txconv), "0.00")
-    Try Totalttc.Text = Format$(Val(Totalttc.Text) + (Val(Colrcp.Item[15])), "0.00")
-  Loop Until Colrcp.MoveNext()
-  Nbligne.Text = Colrcp.count
-  modif = "0"
+  With utils
+    Totalrcpt.Text = "0,00"
+    Tfrais.Text = "0,00"
+    totalttc.text = "0,00"
+    Colrcp.MoveFirst
+    Do
+      Colrcp.Item.Selected = True
+      Totalrcpt.Text = Format$(Val(Totalrcpt.Text) + (Val(.cpoint(Colrcp.Item[6])) * Val(.cpoint(Colrcp.Item[7]))), "0.00")
+      Tfrais.Text = Format$(Val(Tfrais.Text) + (Val(.cpoint(Colrcp.Item[11])) * Val(.cpoint(Colrcp.Item[7])) * Txconv), "0.00")
+      Try Totalttc.Text = Format$(Val(Totalttc.Text) + (Val(.cpoint(Colrcp.Item[15]))), "0.00")
+    Loop Until Colrcp.MoveNext()
+    Nbligne.Text = Colrcp.count
+    modif = "0"
+  End With
 
 End
 
@@ -2466,10 +2468,10 @@ Public Sub Enrgcoml()
                           Maj_Qta()
                           If ArtResult!art_etiq And Val(.cpoint(Colrcp.Item[7])) > 0 Then Maj_Etiqp()
                           If Etiqa = True And Val(.cpoint(Colrcp.Item[7])) > 0 Then Maj_Etiqg()
-                          Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET art_qte = &2, art_pmp = &3, art_dpa = &4, art_dfour = &5, art_ddate = &6 WHERE art_code = &1", ArtResult!art_code, Arts, Val(.cpoint(Pmp)), Colrcp.Item[6], codefour.text, Datej.text)
+                          Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET art_qte = &2, art_pmp = &3, art_dpa = &4, art_dfour = &5, art_ddate = &6 WHERE art_code = &1", ArtResult!art_code, Arts, Val(.cpoint(Pmp)), Val(.cpoint(Colrcp.Item[6])), codefour.text, Datej.text)
                         Else
                           Materiel = False
-                          Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET art_dpa = &2, art_dfour = &3, art_ddate = &4 WHERE art_code = &1", ArtResult!art_code, Colrcp.Item[6], codefour.text, Datej.text)
+                          Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET art_dpa = &2, art_dfour = &3, art_ddate = &4 WHERE art_code = &1", ArtResult!art_code, Val(.cpoint(Colrcp.Item[6])), codefour.text, Datej.text)
                         Endif
                       Endif
                       Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigrecpt") & "(code,design,numrecpt,four,daterecpt,qte,pbht,rm,paht,nligne, frais, prvt, pattc) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13})", Colrcp.Item[1], Colrcp.Item[2], numbl.Text, codefour.Text, .Cdate_Dbase(Datej.Text), Colrcp.Item[7], Colrcp.Item[4], Colrcp.Item[5], Colrcp.Item[6], Colrcp.Item[0], Colrcp.Item[11], Colrcp.Item[12], Colrcp.Item[15])
