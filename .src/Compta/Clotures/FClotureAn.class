@@ -429,6 +429,8 @@ Public Sub Button1_Click()
               "numeropdef Integer(11)," &
               "export Char(1)," &
               "control VARCHAR(40)," &
+              "supprimee TINYINT(1), " &
+              "datem date, " &
               "lind2 INT," &
               "lind INT NOT NULL AUTO_INCREMENT," &
               "PRIMARY KEY (lind))" & "ENGINE = MYISAM")
@@ -508,6 +510,17 @@ Public Sub Button1_Click()
                   Utils.db.Exec("DELETE FROM " & tabA1 & " WHERE numero = &1 and compte = &2 and poste = &3", rResult!numero, rResult!compte, rResult!poste)
                 Endif
               Until rResult.MoveNext()
+            Endif
+
+            'On récupère les écritures modifiées/supprimées
+            rResult = Utils.db.Exec("SELECT * FROM Fiches_MvtM1")
+            If rResult.Available Then
+              Repeat
+                If .Cdate_Comp(rResult!dte) > Datec3 Then
+                  Utils.db.Exec("INSERT INTO  Fiches_MvtM (jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,cloturee,pointee, dateech, control, supprimee, datem) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20})", rResult!jour, rResult!numero, rResult!compte, rResult!intitule, rResult!dte, rResult!numdoc, rResult!numlot, rResult!libelle, rResult!montantd, rResult!montantc, rResult!validee, rResult!provisoire, rResult!tresorerie, rResult!lettree, rResult!cloturee, rResult!pointee, rResult!dateech, rResult!control, rResult!supprimee, rResult!datem)
+                Endif
+              Until rResult.MoveNext()
+              Utils.db.Exec("DELETE FROM Fiches_MvtM1 WHERE dte > &1", datec3)
             Endif
 
             ' On recupere les comptes clients et fournisseurs
@@ -677,42 +690,9 @@ Public Sub Button1_Click()
 
             'On recalcule toutes les clés
             Sha1Calc.CalcSha12()
-            ' On renumérote les écritures
-            'numecr3 = 0
-            ' numecr1 = 0
-            '  num = ""
-            '  rResult = Utils.db.Exec("SELECT distinct numerop, cloturee FROM " & Tab & " order by numerop")
-            '  If rResult.Available Then
-            '    num = rResult!numerop
-            '     Repeat
-            '      cloturee = rResult!cloturee
-            '       If cloturee = True Then
-            '        Inc numecr3
-            '        Inc numecr1
-            '     Else
-            '       Inc numecr1
-            '      Endif
-            '      Eresult = Utils.db.Exec("SELECT * FROM " & Tab & " where numerop = &1", rResult!numerop)
-            '    Repeat
-            '        If CheckBox1.value Then
-            '          If EResult!cloturee = True Then Utils.db.Exec("UPdate  " & Tab & "  SET numerodef =  &1, numero = &2 where lind = &3", numecr3, numecr1, Eresult!lind)
-            '          If EResult!cloturee = False Then
-            '             Utils.db.Exec("UPdate  " & Tab & "  SET numero =  &1, numerodef = &3 where lind = &2", numecr1, Eresult!lind, 0)
-            '          Endif
-            '        Else
-            '          If EResult!cloturee = False Then Utils.db.Exec("UPdate  " & Tab & "  SET numerodef = &1 where lind = &2", 0, Eresult!lind)
-            '          If EResult!cloturee = True Then Utils.db.Exec("UPdate  " & Tab & "  SET numerodef = &1 where lind = &2", numecr3, Eresult!lind)
-            '         Endif
-            '       Until EResult.MoveNext()
-            '    Until rResult.MoveNext()
-            '    Endif
-            '   If CheckBox1.value Then
-            '    Utils.db.Exec("UPdate  " & Tab0 & "  SET  numecriture = &1, numecriture1 = &2, numecriture2 = &3 ", numecr1, 0, numecr3)
-            '  Else
-            '    Utils.db.Exec("UPdate  " & Tab0 & "  SET  numecriture1 = &1, numecriture2 = &2 ", 0, numecr3)
-            '  Endif
 
-            ' On lettre les écritures
+            ' On efface les écritures modifiées/supprimées.
+            Utils.db.Exec("delete FROM Fiches_MvtM where dte <= &1", datec3)
 
             Try Me.Mouse = Mouse.Default
             If son Then
