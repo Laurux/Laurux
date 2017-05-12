@@ -44,14 +44,12 @@ Private hfile As File
 Private type_jour As String
 Private Tab As String
 Private Tab0 As String
+Private Tab1 As String
 Private Db_ction As Float
 Private Cd_ction As Float
-Private Compt As String
 Private Type As String
 Private son As Integer = Start.Son
-Private Janx As String ' on recupère le numéro du journal des a nouveaux
-Private p[12] As String
-Private q[12] As String
+Private Ordre As String
 Private pdf As Ccompta
 
 Public Sub _New()
@@ -61,7 +59,7 @@ Public Sub _New()
   Music.Load(Start.Musique)
   filetxt = User.Home & "/tmp/journaux.txt"
   Me.Center
-  Toutes_Click()
+  RadioButton1_Click()
   E0_click()
   dteN0_GotFocus()
   dteN0.SetFocus
@@ -80,7 +78,6 @@ Public Sub Ex1()
     dte1 = ""
     dte2 = ""
     rResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
-    Janx = rResult!jdr
     dte = rResult!dteclec
     dteN0.Text = .Calc_mois(dte)
     jour = Format$(Now, "dd.mm.yyyy")
@@ -359,6 +356,7 @@ End
 Public Sub E0_Click()
 
   Tab0 = "Fiches_Mvt"
+  Tab1 = "Fiches_MvtM"
   Ex1()
 
 End
@@ -366,6 +364,7 @@ End
 Public Sub E1_Click()
 
   Tab0 = "Fiches_Mvt"
+  Tab1 = "Fiches_MvtM"
   Exo()
 
 End
@@ -373,6 +372,7 @@ End
 Public Sub N1_Click()
 
   Tab0 = "Fiches_Mvt1"
+  Tab1 = "Fiches_MvtM1"
   Exo1()
 
 End
@@ -380,6 +380,7 @@ End
 Public Sub N2_Click()
 
   Tab0 = "Fiches_Mvt2"
+  Tab1 = "Fiches_MvtM2"
   Exo2()
 
 End
@@ -387,6 +388,7 @@ End
 Public Sub N3_Click()
 
   Tab0 = "Fiches_Mvt3"
+  Tab1 = "Fiches_MvtM3"
   Exo3()
 
 End
@@ -394,6 +396,7 @@ End
 Public Sub N4_Click()
 
   Tab0 = "Fiches_Mvt4"
+  Tab1 = "Fiches_MvtM4"
   Exo4()
 
 End
@@ -401,6 +404,7 @@ End
 Public Sub N5_Click()
 
   Tab0 = "Fiches_Mvt5"
+  Tab1 = "Fiches_MvtM5"
   Exo5()
 
 End
@@ -423,12 +427,10 @@ Public Sub Button1_Click()
 
   Dim i As Integer
   Dim rResult As Result
-  Dim r2Result As Result
   Dim SteResult As Result
   Dim Nm As Result
   Dim Tab2 As String
   Dim Tab5 As String
-  Dim Intit As String
   Dim datep As String
   Dim copt As String
   Dim dateedition As String
@@ -483,16 +485,15 @@ Public Sub Button1_Click()
     Endif
     Datep = Now
     Datep = Mid$(Datep, 4, 2) & "-" & Left$(Datep, 2) & "-" & Mid$(Datep, 7, 4)
-    If RadioButton1 Then
-      rResult = Utils.db.Exec("SELECT * FROM Fiches_MvtM WHERE  dte >= &1 and dte <= &2 and " & type & " order by dte, numero, compte", Utils.Cdate_Dbase(dteN0.Text), Utils.Cdate_Dbase(dteN1.Text), False, True)
+    ' If RadioButton1 Then
+    If Toutes.value Then
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab1 & " WHERE  dte >= &1 and  dte <= &2 and supprimee is not true or dte >= &1 and  dte <= &2 and supprimee is true  order by " & Ordre & " ", Utils.Cdate_Dbase(dteN0.Text), Utils.Cdate_Dbase(dteN1.Text), False, True)
     Else
-      rResult = Utils.db.Exec("SELECT * FROM Fiches_MvtM WHERE  dte >= &1 and dte <= &2 and supprimee Like  \"%" & Type & "%\" order by numero, dte, compte", .Cdate_Dbase(dteN0.Text), .Cdate_Dbase(dteN1.Text))
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab1 & " WHERE  dte >= &1 and  dte <= &2 and " & type & "  order by  " & Ordre & "", Utils.Cdate_Dbase(dteN0.Text), Utils.Cdate_Dbase(dteN1.Text), False, True)
     Endif
     If rResult.count <> 0 Then
       i = 0
-
-      pdf.Entete("Impression des écritures modifiées/supprimées")
-      'pdf.Level0J(Compt, Intit, dateedition, Qual, Ste)
+      pdf.Entete("Impression des écritures modifiées du " & DteN0.Text & " au " & Dten1.text)
       pdf.Level1M()
       posy = 32
       If IsNull(Qual) Then
@@ -540,24 +541,15 @@ Public Sub Button1_Click()
         Endif
         If Settings["/Soc" & Start.Societe & "/Gestion"] Then
           If rResult!numero <> copt Then
-            If p1 <> 0 Then
-              'solde = 0
-            Endif
             pdf.Lines(posY)
           Endif
         Else
           If IsNull(Qual) Then
             If rResult!numerodef <> copt Then
-              If p1 <> 0 Then
-                'solde = 0
-              Endif
               pdf.Lines(posY)
             Endif
           Else
             If rResult!numero <> copt Then
-              If p1 <> 0 Then
-                'solde = 0
-              Endif
               pdf.Lines(posY)
             Endif
           Endif
@@ -580,13 +572,13 @@ Public Sub Button1_Click()
               Endif
             Endif
             If type_jour = "VE" And Left$(Libelle, 6) <> "Caisse" Then Libelle = libelle & " " & rResult!numdoc
-            pdf.level2M(rResult!intitule, rResult!compte, dte, copt, Libelle, rResult!montantd, rResult!montantc, solde, posy, Statut, rResult!datem)
+            pdf.level2M(rResult!intitule, rResult!compte, dte, copt, Libelle, rResult!montantd, rResult!montantc, solde, posy, Statut, Format$(rResult!datem, "dd.mm.yy"))
           Else
             Libelle = rResult!libelle
             If Tresorerie = 1 Then
-              pdf.level2M(Intitule, rResult!compte, dte, copt, Libelle, rResult!montantd, rResult!montantc, solde, posy, Statut, rResult!datem)
+              pdf.level2M(Intitule, rResult!compte, dte, copt, Libelle, rResult!montantd, rResult!montantc, solde, posy, Statut, Format$(rResult!datem, "dd.mm.yy"))
             Else
-              pdf.level2M(rResult!intitule, rResult!compte, dte, copt, Libelle, rResult!montantd, rResult!montantc, solde, posy, Statut, rResult!datem)
+              pdf.level2M(rResult!intitule, rResult!compte, dte, copt, Libelle, rResult!montantd, rResult!montantc, solde, posy, Statut, Format$(rResult!datem, "dd.mm.yy"))
             Endif
           Endif
           posy += 5
@@ -597,8 +589,7 @@ Public Sub Button1_Click()
         i = i + 1
         If posy > 283 Then
           pdf.Baspage2(ipage)
-          pdf.Entete("Impression des écritures modifiées/supprimées")
-          ' pdf.Level0J(Compt, Intit, dateedition, Qual, Ste)
+          pdf.Entete("Impression des écritures modifiées du " & DteN0.Text & " au " & Dten1.text)
           pdf.Level1M()
           p1 = 0
           posy = 32
@@ -614,22 +605,21 @@ Public Sub Button1_Click()
         pdf.Lines(posY)
       Endif
       posy += 2
-      ' If CheckBox1 Then pdf.level2J("", "", "", "", "Total journal", Totdeb2, Totcred2, Totdeb2 - totcred2, posy, "")
       posy += 4
-      ' totdeb3 = totdeb3 + totdeb2
-      ' totcred3 = totcred3 + totcred2
       Totdeb2 = 0
       Totcred2 = 0
       raz()
       pdf.BasPage2(ipage)
       iPage = 1
+      raz()
+      Solde = 0
+      pdf.Output(Filename, False)
+      Visualiseur.Prog_Editeur(Filename)
+      Journaux.Mouse = Mouse.Default
+    Else
+      Message.Warning("Aucune écriture pour cette sélection !")
     Endif
-    raz()
-    Solde = 0
-    pdf.Output(Filename, False)
-    Visualiseur.Prog_Editeur(Filename)
   End With
-  Journaux.Mouse = Mouse.Default
 
 End
 
@@ -672,20 +662,26 @@ Public Sub Button3_Click()
 
 End
 
-Public Sub Toutes_Click()
-
-  Type = " supprimee is not True or supprimee is true "
-
-End
-
 Public Sub Modifiee_Click()
 
-  Type = " supprimee is not True "
+  Type = "supprimee is not True"
 
 End
 
 Public Sub Supprimee_Click()
 
-  Type = " supprimee is true "
+  Type = "supprimee is true"
+
+End
+
+Public Sub RadioButton1_Click()
+
+  Ordre = "dte, numero, compte"
+
+End
+
+Public Sub RadioButton2_Click()
+
+  Ordre = "numero, dte, compte"
 
 End
