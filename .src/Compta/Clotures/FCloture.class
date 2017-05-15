@@ -95,7 +95,7 @@ Public Sub Button1_Click()
   Dim Dppc As Date
   Dim dtex As String
   Dim numecr As Integer
-  'Dim numdef As String
+  Dim $cle As String
 
   Tab = "Fiches_Mvt"
   Tab2 = "Fiches_Parametres"
@@ -105,11 +105,11 @@ Public Sub Button1_Click()
     Try numecr = rResult!numecriture2
     If Message.Question("Etes vous sur de vouloir lancer la cloture du mois de" & datecl.Text, "Oui", "Non") = 1 Then
       Me.mouse = Mouse.Wait
-      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE  Mid(dte,6,2)  = &1 and left(dte, 4) = &2 and provisoire = &3 ", dtepc, Right(dpc, 4), 1)
+      rResult = Utils.db.Exec("SELECT * FROM Fiches_Mvt WHERE  Mid(dte,6,2)  = &1 and left(dte, 4) = &2 and provisoire = &3 ", dtepc, Right(dpc, 4), 1)
       If rResult.Available Then
         Message.Warning(" Il reste des écritures non validées pour cette période. \n Cloture impossible. ! ", "OK")
       Else
-        rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE  Mid(dte,6,2)  = &1  and left(dte, 4) = &2 and provisoire = &3 order by numero", dtepc, Right(dpc, 4), 0)
+        rResult = Utils.db.Exec("SELECT * FROM Fiches_Mvt WHERE  Mid(dte,6,2)  = &1  and left(dte, 4) = &2 and provisoire = &3 order by numero", dtepc, Right(dpc, 4), 0)
         If rResult.Available Then
           num = rResult!numero
           numecr = numecr + 1
@@ -117,6 +117,15 @@ Public Sub Button1_Click()
             If rResult!numero <> num And IsNull(rResult!numerodef) Or If rResult!numero <> num And rResult!numerodef = 0 Then numecr = numecr + 1
             num = rResult!numero
             cpt = rResult!compte
+            If Format$(rResult!dte, "yyyy") >= "2018" Then
+              $cle = Sha1Calc.CalcSha2(rResult!lind)
+              If $cle <> rResult!control And Not IsNull(rResult!control) Then
+                Message.Error("Clôture impossible ! Une clé calculée ne correspond pas à celle mémorisée dans la table.")
+                Me.mouse = mouse.Default
+                FCloture.Close()
+                Return
+              Endif
+            Endif
             If IsNull(rResult!numerodef) Or If rResult!numerodef = 0 Then
               Utils.db.Exec("UPdate  " & Tab & "  SET cloturee =  &1,numerodef = &3, dteval =&5 where numero = &2 and compte = &4", 1, num, numecr, cpt, Format$(Now, "yyyymmdd"))
             Else
@@ -136,10 +145,9 @@ Public Sub Button1_Click()
         ' Met à jour la table des parametres
         rResult = Utils.db.Exec("SELECT * FROM " & Tab2 & "")
         Utils.db.Exec("UPdate  " & Tab2 & "  SET  dtepc  =  &1, numecriture2 = &2", .Cdate_Dbase(dtepc), numecr)
-        ' JournauxM.Imprime("01", "99", Dateimp1, Dateimp2, True, True, "Fiches_Mvt", True)
         Message.Warning(" Traitement terminé ! ", "OK")
-        Me.mouse = mouse.Default
       Endif
+      Me.mouse = mouse.Default
     Endif
   End With
   Me.Close
