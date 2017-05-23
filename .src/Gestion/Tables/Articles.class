@@ -64,7 +64,14 @@ Promo As Boolean = False
 Cpromo As String ' code promo en cours
 Apromo As Boolean = False 'flag pour savoir si le produit est en promo
 ComboTest As Boolean = False
-sCentrale As String
+Private sCentrale As String
+Private $cequ As String
+Private Bequ As Boolean = False
+Private $code As String
+Private $rpl1 As String
+Private $rpl2 As String
+Private Brpl1 As Boolean = False
+Private Brpl2 As Boolean = False
 Private NbEnreg As Integer = 0 ' Enregistrement de départ de la sélection
 Private NbEnregTot As Integer = 0 ' nombre d'enregistrement total de la table
 Private hImage As Image
@@ -76,6 +83,7 @@ Public CodeClient As String
 Private Tableau As String[]
 
 Private $grdv As Gridvi
+Private $rpl As String
 
 Public Sub _New()
 
@@ -622,7 +630,7 @@ Public Sub Deb4()
 
 End
 
-Public Sub Maj_Zones(Prod As String, Reaf As String)
+Public Sub Maj_Zones(Prod As String, Reaf As Integer)
 
   Dim Uv As String
   Dim Rligc As Result
@@ -634,206 +642,212 @@ Public Sub Maj_Zones(Prod As String, Reaf As String)
   With Utils
     Rart = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", Prod)
     If Rart.Available Then
-      If Reaf <> 1 Then CleanChamps()
-      code.Text = Rart!art_code
-      Desg.Text = Rart!art_design
-      Desg2.Text = Rart!art_design2
-      four.Text = Rart!art_four
-      Fam.Text = Rart!art_fam
-      Fam2()
-      Cequ.Text = Rart!art_cequ
-      Cbarre.clear
-      Rpl1.Clear
-      Rpl2.clear
-      Rbarre = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCdBarre") & " where codep = &1 order by codeb", Prod)
-      If Rbarre.Available Then
-        Repeat
-          Cbarre.Add(Rbarre!codeb)
-        Until Rbarre.MoveNext()
-      Endif
-      Rbarre = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabRpl1") & " where codep = &1 order by coderpl1", Prod)
-      If Rbarre.Available Then
-        Repeat
-          Rpl1.Add(Rbarre!coderpl1)
-        Until Rbarre.MoveNext()
-      Endif
-      Rbarre = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabRpl2") & " where codep = &1 order by coderpl2", Prod)
-      If Rbarre.Available Then
-        Repeat
-          Rpl2.Add(Rbarre!coderpl2)
-        Until Rbarre.MoveNext()
-      Endif
-      Rbarre = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCequ") & " where codep = &1 order by codequ", Prod)
-      If Rbarre.Available Then
-        Repeat
-          If Rbarre!codequ <> code.Text Then Cequ.Add(Rbarre!codequ)
-        Until Rbarre.MoveNext()
-      Endif
-      Nouveau = "0"
-      Cbarre.Text = Rart!art_cbarre
-      Cfour.Text = Rart!art_cfour
-      Fcfour = Cfour.Text
       If Reaf <> 1 Then
-        nbd.text = Rart!art_nbd
-        nbdec = .Find_nbdec(nbd.Text)
-        Dec.Text = Rart!art_dec
-      Endif
-      Try pbht.Text = Format$(Rart!art_pbht, nbdec)
-      If Error Then pbht.text = "0,00"
-      Tr.Text = Format$(Rart!art_tr, "0.00")
-      Try Rem1.Text = Format$(Rart!art_remcas1, "0.00")
-      Try Rem2.Text = Format$(Rart!art_remcas2, "0.00")
-      Try Rem3.Text = Format$(Rart!art_remcas3, "0.00")
-      PaUA.Text = Format$(Rart!art_pauaht, nbdec)
-      Txconv.Text = Format$(Rart!art_txconv, "0.0000")
-      Uv = Txconv.text
-      paht.Text = Format$(Rart!art_paht, nbdec)
-      Try Frais.Text = Format$(Rart!art_frais, nbdec)
-      If IsNull(Frais.Text) Then Frais.Text = "0,00"
-      Try Prvt.Text = Format$(Rart!art_prvt, nbdec)
-      If IsNull(Prvt.Text) Then Prvt.Text = "0,00"
-      Coef.Text = Format$(Rart!art_coef, "0.0000")
-      Pvht.Text = Format$(Rart!art_pvht, nbdec)
-      'Tva.Text = Rart!art_tva
-      Try Poids.Text = Format$(Rart!art_poids, "0.000")
-      Try Mincom.Text = Rart!art_mincom
-      Try PvTTc.Text = Format$(Rart!art_pvttc, nbdec)
-      Try Pvcons.Text = Format$(Rart!art_pvcons, nbdec)
-      If Error Then Pvcons.Text = "0,00"
-      Try Ect.value = Rart!art_ect
-      Try Ect2.value = Rart!art_ect2
-      Try Eco.Text = Format$(Rart!art_eco, "0.00")
-      Try Eco2.Text = Format$(Rart!art_eco2, "0.000")
-      CN8.Text = Rart!art_cn8
-      Try Mat.value = Rart!art_mat
-      If Mat.value And Gmateriel Then
-        Mat.Visible = True
-        ToggleButton2.Visible = True
-        'ToggleButton4.Visible = TRUE
-        'TextLabel52.Visible = TRUE
-        'Marque.Visible = TRUE
-      Endif
-      Try Stocke.value = Rart!art_stocke
-      Try Suspendu.value = Rart!art_suspendu
-      montante = Format$(Val(.cpoint(paUA.Text)), nbdec)
-      qte.text = .CDec(Dec.Text, .cpoint(Rart!art_qte))
-      If IsNull(qte.Text) Then qte.Text = "0"
-      If stocke.Value = False Then
-        Stkdep.Text = "0"
-      Endif
-      Poids2.Text = .cpoint(Rart!art_poids2)
-      Vol.Text = Rart!art_vol
-      Uembachat.Text = Rart!art_ua
-      Uembvente.text = Rart!art_uv
-      sCentrale = Rart!art_centrale
-      Aff_Centrale(sCentrale)
-      RefCentrale.Text = Rart!art_refcentrale
-      Artlie.Text = Rart!art_refliee
-      Rligc = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigcom") & " WHERE code = &1", code.Text)
-      If Rligc.Available Then
-        qtecom.Text = .Commande(Code.text, nbdec, Uv, "Four")
-      Endif
-      If stocke.Value = True Then
-        Pmp.Text = Format$(Rart!art_pmp, nbdec)
-        Stkdep.Text = .CDec(Dec.Text, .cpoint(Rart!art_stkdep))
-        If pmp.Text = "" Then pmp.Text = paht.Text
-      Endif
-      Dpa.Text = Format$(Rart!art_dpa, nbdec)
-      Dfour.Text = Rart!art_dfour
-      ddate.Text = Rart!art_ddate
-      If stocke.Value = True Then
-        Mincom.readonly = False
-        Stkmini.Text = Rart!art_stkmin
-        If Not Stkmini.Text Then Stkmini.Text = "0"
-        Stkmini.text = .CDec(Dec.text, Stkmini.text)
-        'Stkmini.Background = &HF9F9BD&
-        'Stkmini.ReadOnly = FALSE
-        Stkmaxi.Text = Rart!art_stkmax
-        If Not Stkmaxi.Text Then Stkmaxi.Text = "0"
-        Stkmaxi.text = .CDec(Dec.text, Stkmaxi.text)
-        'Stkmaxi.Background = &HF9F9BD&
-        'Stkmaxi.ReadOnly = FALSE
-        If IsNull(Mincom.Text) Then Mincom.Text = "0"
-        Mincom.text = .CDec(Dec.text, Mincom.text)
-      Else
-        Stkmini.Text = "0"
-        'Stkmini.ReadOnly = TRUE
-        'Stkmini.Background = &HD4D0C8&
-        Stkmaxi.Text = "0"
-        'Stkmaxi.ReadOnly = TRUE
-        'Stkmaxi.Background = &HD4D0C8&
-        Mincom.ReadOnly = True
-      Endif
-      Try Cpp.value = Rart!art_cpp
-      Try Copp.Text = Format$(Rart!art_copp, "0.00")
-      Try Pbfbt.Text = Format$(Rart!art_pbfbt, "0.00")
-      If Rart!art_datefbt <> Null
-        Try Datefbt.Text = .Cdate_Aff(Rart!art_datefbt)
-        If Error Then Datefbt.Text = ""
-      Else
-        Datefbt.Text = ""
-      Endif
-      If Rart!art_ddatefbt <> Null
-        Try Ddatefbt.Text = .Cdate_Aff(Rart!art_ddatefbt)
+        CleanChamps()
+        code.Text = Rart!art_code
+        Desg.Text = Rart!art_design
+        Desg2.Text = Rart!art_design2
+        four.Text = Rart!art_four
+        Fam.Text = Rart!art_fam
+        Fam2()
+        Cequ.Text = Rart!art_cequ
+        $cequ = Cequ.Text
+        $code = Code.Text
+        Cbarre.clear
+        Rpl1.Clear
+        Rpl2.clear
+        Rbarre = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCdBarre") & " where codep = &1 order by codeb", Prod)
+        If Rbarre.Available Then
+          Repeat
+            Cbarre.Add(Rbarre!codeb)
+          Until Rbarre.MoveNext()
+        Endif
+        Rbarre = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabRpl1") & " where codep = &1 order by coderpl1", Prod)
+        If Rbarre.Available Then
+          Repeat
+            Rpl1.Add(Rbarre!coderpl1)
+          Until Rbarre.MoveNext()
+          $Rpl1 = Rpl1.Text
+        Endif
+        Rbarre = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabRpl2") & " where codep = &1 order by coderpl2", Prod)
+        If Rbarre.Available Then
+          Repeat
+            Rpl2.Add(Rbarre!coderpl2)
+          Until Rbarre.MoveNext()
+          $Rpl2 = Rpl2.Text
+        Endif
+        Rbarre = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCequ") & " where codep = &1 order by codequ", Prod)
+        If Rbarre.Available Then
+          Repeat
+            If Rbarre!codequ <> code.Text Then Cequ.Add(Rbarre!codequ)
+          Until Rbarre.MoveNext()
+        Endif
+        Nouveau = "0"
+        Cbarre.Text = Rart!art_cbarre
+        Cfour.Text = Rart!art_cfour
+        Fcfour = Cfour.Text
+        If Reaf <> 1 Then
+          nbd.text = Rart!art_nbd
+          nbdec = .Find_nbdec(nbd.Text)
+          Dec.Text = Rart!art_dec
+        Endif
+        Try pbht.Text = Format$(Rart!art_pbht, nbdec)
+        If Error Then pbht.text = "0,00"
+        Tr.Text = Format$(Rart!art_tr, "0.00")
+        Try Rem1.Text = Format$(Rart!art_remcas1, "0.00")
+        Try Rem2.Text = Format$(Rart!art_remcas2, "0.00")
+        Try Rem3.Text = Format$(Rart!art_remcas3, "0.00")
+        PaUA.Text = Format$(Rart!art_pauaht, nbdec)
+        Txconv.Text = Format$(Rart!art_txconv, "0.0000")
+        Uv = Txconv.text
+        paht.Text = Format$(Rart!art_paht, nbdec)
+        Try Frais.Text = Format$(Rart!art_frais, nbdec)
+        If IsNull(Frais.Text) Then Frais.Text = "0,00"
+        Try Prvt.Text = Format$(Rart!art_prvt, nbdec)
+        If IsNull(Prvt.Text) Then Prvt.Text = "0,00"
+        Coef.Text = Format$(Rart!art_coef, "0.0000")
+        Pvht.Text = Format$(Rart!art_pvht, nbdec)
+        'Tva.Text = Rart!art_tva
+        Try Poids.Text = Format$(Rart!art_poids, "0.000")
+        Try Mincom.Text = Rart!art_mincom
+        Try PvTTc.Text = Format$(Rart!art_pvttc, nbdec)
+        Try Pvcons.Text = Format$(Rart!art_pvcons, nbdec)
+        If Error Then Pvcons.Text = "0,00"
+        Try Ect.value = Rart!art_ect
+        Try Ect2.value = Rart!art_ect2
+        Try Eco.Text = Format$(Rart!art_eco, "0.00")
+        Try Eco2.Text = Format$(Rart!art_eco2, "0.000")
+        CN8.Text = Rart!art_cn8
+        Try Mat.value = Rart!art_mat
+        If Mat.value And Gmateriel Then
+          Mat.Visible = True
+          ToggleButton2.Visible = True
+          'ToggleButton4.Visible = TRUE
+          'TextLabel52.Visible = TRUE
+          'Marque.Visible = TRUE
+        Endif
+        Try Stocke.value = Rart!art_stocke
+        Try Suspendu.value = Rart!art_suspendu
+        montante = Format$(Val(.cpoint(paUA.Text)), nbdec)
+        qte.text = .CDec(Dec.Text, .cpoint(Rart!art_qte))
+        If IsNull(qte.Text) Then qte.Text = "0"
+        If stocke.Value = False Then
+          Stkdep.Text = "0"
+        Endif
+        Poids2.Text = .cpoint(Rart!art_poids2)
+        Vol.Text = Rart!art_vol
+        Uembachat.Text = Rart!art_ua
+        Uembvente.text = Rart!art_uv
+        sCentrale = Rart!art_centrale
+        Aff_Centrale(sCentrale)
+        RefCentrale.Text = Rart!art_refcentrale
+        Artlie.Text = Rart!art_refliee
+        Rligc = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigcom") & " WHERE code = &1", code.Text)
+        If Rligc.Available Then
+          qtecom.Text = .Commande(Code.text, nbdec, Uv, "Four")
+        Endif
+        If stocke.Value = True Then
+          Pmp.Text = Format$(Rart!art_pmp, nbdec)
+          Stkdep.Text = .CDec(Dec.Text, .cpoint(Rart!art_stkdep))
+          If pmp.Text = "" Then pmp.Text = paht.Text
+        Endif
+        Dpa.Text = Format$(Rart!art_dpa, nbdec)
+        Dfour.Text = Rart!art_dfour
+        ddate.Text = Rart!art_ddate
+        If stocke.Value = True Then
+          Mincom.readonly = False
+          Stkmini.Text = Rart!art_stkmin
+          If Not Stkmini.Text Then Stkmini.Text = "0"
+          Stkmini.text = .CDec(Dec.text, Stkmini.text)
+          'Stkmini.Background = &HF9F9BD&
+          'Stkmini.ReadOnly = FALSE
+          Stkmaxi.Text = Rart!art_stkmax
+          If Not Stkmaxi.Text Then Stkmaxi.Text = "0"
+          Stkmaxi.text = .CDec(Dec.text, Stkmaxi.text)
+          'Stkmaxi.Background = &HF9F9BD&
+          'Stkmaxi.ReadOnly = FALSE
+          If IsNull(Mincom.Text) Then Mincom.Text = "0"
+          Mincom.text = .CDec(Dec.text, Mincom.text)
+        Else
+          Stkmini.Text = "0"
+          'Stkmini.ReadOnly = TRUE
+          'Stkmini.Background = &HD4D0C8&
+          Stkmaxi.Text = "0"
+          'Stkmaxi.ReadOnly = TRUE
+          'Stkmaxi.Background = &HD4D0C8&
+          Mincom.ReadOnly = True
+        Endif
+        Try Cpp.value = Rart!art_cpp
+        Try Copp.Text = Format$(Rart!art_copp, "0.00")
+        Try Pbfbt.Text = Format$(Rart!art_pbfbt, "0.00")
+        If Rart!art_datefbt <> Null
+          Try Datefbt.Text = .Cdate_Aff(Rart!art_datefbt)
+          If Error Then Datefbt.Text = ""
+        Else
+          Datefbt.Text = ""
+        Endif
+        If Rart!art_ddatefbt <> Null
+          Try Ddatefbt.Text = .Cdate_Aff(Rart!art_ddatefbt)
+          If Error Then Ddatefbt.Text = ""
+        Else
+          Ddatefbt.Text = ""
+        Endif
         If Error Then Ddatefbt.Text = ""
-      Else
-        Ddatefbt.Text = ""
+        Try Etiq.value = Rart!art_etiq
+        Try ImpCar.value = Rart!art_impcar
+        Try Casier.Text = Rart!art_casier
+        Try Prdcomp.Value = Rart!art_prdcomp
+        Try Impdetail.Value = Rart!art_impdetail
+        Try Depg.Value = Rart!art_depg
+        Try Cnsg.Value = Rart!art_cnsg
+        Marque.Text = Rart!art_marque
+        'Fam2()
+        Arr.Text = Rart!art_cdarr
+        fourMan()
+        'pbhtLF()
+        Calc_Percent()
+        'Calc_coeff()
+        'Arrondi()
+        'Ect_Click()
+        Calc_Marge()
+        'PvTTcLF()
+        Try Bonus.Text = Format$(Rart!art_bonus, "0.00")
+        If Error Then Bonus.Text = "0,00"
+        Try ColVte.Text = .CDec(Dec.Text, .cpoint(Rart!art_colvte))
+        Try PVHT2.Text = Format$(Val(.cpoint(Rart!art_pvht2)), nbdec)
+        Tbrem.clear
+        Tbrem.Refresh
+        Try Tbrem[0, 0].Text = Format$(Rart!qte1, "0.00")
+        Try Tbrem[0, 1].Text = Format$(Rart!qte2, "0.00")
+        Try Tbrem[0, 2].Text = Format$(Rart!rem1, "0.000")
+        Try Tbrem[1, 0].Text = Format$(Rart!qte3, "0.00")
+        Try Tbrem[1, 1].Text = Format$(Rart!qte4, "0.00")
+        Try Tbrem[1, 2].Text = Format$(Rart!rem2, "0.000")
+        Try Tbrem[2, 0].Text = Format$(Rart!qte5, "0.00")
+        Try Tbrem[2, 1].Text = Format$(Rart!qte6, "0.00")
+        Try Tbrem[2, 2].Text = Format$(Rart!rem3, "0.000")
+        Try Tbrem[3, 0].Text = Format$(Rart!qte7, "0.00")
+        Try Tbrem[3, 1].Text = Format$(Rart!qte8, "0.00")
+        Try Tbrem[3, 2].Text = Format$(Rart!rem4, "0.000")
+        Try Tbrem[4, 0].Text = Format$(Rart!qte9, "0.00")
+        Try Tbrem[4, 1].Text = Format$(Rart!qte10, "0.00")
+        Try Tbrem[4, 2].Text = Format$(Rart!rem5, "0.000")
+        Try Tbrem[5, 0].Text = Format$(Rart!qte11, "0.00")
+        Try Tbrem[5, 1].Text = Format$(Rart!qte12, "0.00")
+        Try Tbrem[5, 2].Text = Format$(Rart!rem6, "0.000")
+        Photo.Text = Rart!art_photo
+        If reaf <> "1" Then
+          If Not IsNull(Photo.text) Then aff_Photo("")
+        Endif
+        Crst.Text = Rart!art_crst
+        '                                   affiche les stats
+        $grdv.code = code.text
+        $grdv.dec = utils.Find_nbdec(dec.Text)
+        $grdv.razcol
+        $grdv.bouton_Click()
+        If Promo Then Apromo = ArtPromo.art_Promo(Code.text, Cpromo)
+        If apromo = True Then Balloon.Warning(("Ce produit est présent dans la promotion en cours " & Cpromo), Code)
       Endif
-      If Error Then Ddatefbt.Text = ""
-      Try Etiq.value = Rart!art_etiq
-      Try ImpCar.value = Rart!art_impcar
-      Try Casier.Text = Rart!art_casier
-      Try Prdcomp.Value = Rart!art_prdcomp
-      Try Impdetail.Value = Rart!art_impdetail
-      Try Depg.Value = Rart!art_depg
-      Try Cnsg.Value = Rart!art_cnsg
-      Marque.Text = Rart!art_marque
-      'Fam2()
-      Arr.Text = Rart!art_cdarr
-      fourMan()
-      'pbhtLF()
-      Calc_Percent()
-      'Calc_coeff()
-      'Arrondi()
-      'Ect_Click()
-      Calc_Marge()
-      'PvTTcLF()
-      Try Bonus.Text = Format$(Rart!art_bonus, "0.00")
-      If Error Then Bonus.Text = "0,00"
-      Try ColVte.Text = .CDec(Dec.Text, .cpoint(Rart!art_colvte))
-      Try PVHT2.Text = Format$(Val(.cpoint(Rart!art_pvht2)), nbdec)
-      Tbrem.clear
-      Tbrem.Refresh
-      Try Tbrem[0, 0].Text = Format$(Rart!qte1, "0.00")
-      Try Tbrem[0, 1].Text = Format$(Rart!qte2, "0.00")
-      Try Tbrem[0, 2].Text = Format$(Rart!rem1, "0.000")
-      Try Tbrem[1, 0].Text = Format$(Rart!qte3, "0.00")
-      Try Tbrem[1, 1].Text = Format$(Rart!qte4, "0.00")
-      Try Tbrem[1, 2].Text = Format$(Rart!rem2, "0.000")
-      Try Tbrem[2, 0].Text = Format$(Rart!qte5, "0.00")
-      Try Tbrem[2, 1].Text = Format$(Rart!qte6, "0.00")
-      Try Tbrem[2, 2].Text = Format$(Rart!rem3, "0.000")
-      Try Tbrem[3, 0].Text = Format$(Rart!qte7, "0.00")
-      Try Tbrem[3, 1].Text = Format$(Rart!qte8, "0.00")
-      Try Tbrem[3, 2].Text = Format$(Rart!rem4, "0.000")
-      Try Tbrem[4, 0].Text = Format$(Rart!qte9, "0.00")
-      Try Tbrem[4, 1].Text = Format$(Rart!qte10, "0.00")
-      Try Tbrem[4, 2].Text = Format$(Rart!rem5, "0.000")
-      Try Tbrem[5, 0].Text = Format$(Rart!qte11, "0.00")
-      Try Tbrem[5, 1].Text = Format$(Rart!qte12, "0.00")
-      Try Tbrem[5, 2].Text = Format$(Rart!rem6, "0.000")
-      Photo.Text = Rart!art_photo
-      If reaf <> "1" Then
-        If Not IsNull(Photo.text) Then aff_Photo("")
-      Endif
-      Crst.Text = Rart!art_crst
-      '                                   affiche les stats
-      $grdv.code = code.text
-      $grdv.dec = utils.Find_nbdec(dec.Current.Text)
-      $grdv.razcol
-      $grdv.bouton_Click()
-      If Promo Then Apromo = ArtPromo.art_Promo(Code.text, Cpromo)
-      If apromo = True Then Balloon.Warning(("Ce produit est présent dans la promotion en cours " & Cpromo), Code)
     Else
       Nouveau = "1"
       Stocke.value = True
@@ -1021,7 +1035,7 @@ Public Sub CleanChamps()
   Pbfbt.Clear
   Datefbt.Clear
   Ddatefbt.Clear
-  nbdec = Utils.Find_nbdec(2)
+  nbdec = 2
   Stkmini.Text = "0"
   Stkmaxi.Text = "0"
   Mincom.Text = "0"
@@ -1052,6 +1066,8 @@ Public Sub CleanChamps()
   CN8.Clear
   Rpl1.Clear
   Rpl2.Clear
+  Brpl1 = False
+  Brpl2 = False
 
 End
 
@@ -1117,6 +1133,8 @@ Public Sub colarts_Click()
   Chkfocus = False
   AfficheArt()
   Maj_Dssr()
+  Code.SetFocus
+  Reaf = 1
   If hColArts Then
     colarts.Height = Me.Window.Height / 4.12
     hColArts = False
@@ -1125,6 +1143,9 @@ Public Sub colarts_Click()
 End
 
 Public Sub AfficheArt()
+
+  Dim chkf As Integer
+  Dim Fml As String
 
   qte.Text = "0"
   Nouveau = "0"
@@ -1158,8 +1179,10 @@ Public Sub AfficheArt()
   code.SetFocus
   code.Select
   chkf = 0
+  Bequ = False
   Chkfocus = True
   Fml = Fam.Text
+  Reaf = 1
 Catch
 
 End
@@ -1830,7 +1853,7 @@ Public Sub Ard_click()
         Stop Event
 
       Case 2
-        Reaff()
+        If Chkfocus Then Reaff()
         Stop Event
     End Select
   Endif
@@ -1978,8 +2001,13 @@ End
 
 Public Sub Cmpt_Change()
 
+  Select Case Last.Tag
+    Case 1
+      If Not IsNull(Code.Text) And If Code.text <> $code And If Chkf = 1 Then Reaf = 0
+    Case 5
+      If Not IsNull(Cequ.Text) And If Cequ.text <> $cequ And If Chkf = 1 Then Bequ = True
+  End Select
   Chkf = 1
-  ' b2 = 0
 
 End
 
@@ -2295,8 +2323,8 @@ Public Sub ArtLF()
     Endif
   Else
     If ibarre <> 1 Then
-      Reaf = 0
-      Maj_Zones(code.Text, Reaf)
+      '  Reaf = 0
+      If nouveau = "0" And reaf <> 1 Then Maj_Zones(code.Text, Reaf)
       If B = 1 Then
         code.SetFocus
         code.Select
@@ -4115,6 +4143,12 @@ Public Sub Stock_GotFocus()
   With Utils
     .SetEditColor(Me, Last)
   End With
+  Select Case Last.tag
+    Case 7
+      $rpl1 = Rpl1.Text
+    Case 8
+      $rpl2 = Rpl2.Text
+  End Select
 
 End
 
@@ -4484,7 +4518,6 @@ Public Sub EnrgArt()
   Dim Fm As Result
   Dim Countrow As Integer
   Dim bcreation As Boolean = False
-  Dim Nouveau As String
   Dim b As Integer
 
   With Utils
@@ -4557,15 +4590,15 @@ Public Sub EnrgArt()
                 Utils.db.Exec("Update  " & Cbase.Table("TabArt") & "  SET  art_pvcons = &2, art_stocke = &3, art_prdcomp = &4, art_impdetail = &5, art_remcas1 = &6, art_remcas2 = &7, art_remcas3 = &8, art_vol = &9, art_bonus = &{10}, art_centrale = &{11}, art_refcentrale = &{12}, art_colvte = &{13}, art_pvht2 = &{14}, art_cn8 = &{15}, art_casier = &{16}, art_ect2 = &{17}, art_eco2 = &{18}, art_depg = &{19}, art_cnsg = &{19}, art_ua = &{20}, art_uv = &{21}, art_refliee = &{22} where art_code = &1", code.Text, Val(Pvcons.Text), .convBool(Stocke.Value), .convBool(Prdcomp.Value), .convBool(Impdetail.Value), Val(Rem1.Text), Val(Rem2.Text), Val(Rem3.Text), Vol.Text, Val(.cpoint(Bonus.Text)), Centrale.Text, "", Val(ColVte.text), Val(PVHT2.Text), CN8.Text, casier.text, .convBool(Ect2.Value), Val(eco2.text), .convBool(Depg.Value), .convBool(Cnsg.Value), Uembachat.Text, Uembvente.Text, Artlie.text)
                 skey = Code.Text
                 b = 0
-                ' Serveur.Pass("Art", "C", code.Text)
+                Serveur.Pass("Art", "C", code.Text, "")
                 If Not IsNull(Cbarre.text) Then Maj_CodeBarre()
-                If Not IsNull(Rpl2.text) Then
+                If Not IsNull(Rpl2.text) And If $rpl2 <> Rpl2.Text Then
                   Maj_Rpl2()
                 Endif
-                If Not IsNull(Rpl1.text) Then
+                If Not IsNull(Rpl1.text) And If $rpl1 <> Rpl1.Text Then
                   Maj_Rpl1()
                 Endif
-                If Not IsNull(Cequ.text) Then MajEqu.Maj(code.Text, Cequ.text)
+                If Not IsNull(Cequ.text) And If Bequ Then MajEqu.Maj(code.Text, Cequ.text)
                 ComboTest = False
                 Cb1.Text = "Equivalent"
                 ComboTest = True
@@ -4582,19 +4615,19 @@ Public Sub EnrgArt()
             Else
               Utils.db.Exec("Update  " & Cbase.Table("TabArt") & "  SET  art_code = &1 , art_design = &2 , art_fam = &3 , art_four = &4 , art_cequ = &5,art_cbarre = &6, art_cfour = &7, art_pbht = &8 , art_tr = &9 , art_pauaht = &{10} , art_coef = &{11}, art_pvht = &{12}, art_tva = &{13}, art_pvttc = &{14}, art_cdarr = &{15}, art_dec = &{16}, art_stocke = &{17}, art_nbd = &{20}, art_design2 = &{21}, art_ect= &{22}, art_eco = &{23}, art_paht = &{24}, art_txconv = &{25} , art_pmp = &{26}, art_stkmin = &{27}, art_stkmax = &{28}, art_suspendu = &{29}, art_cpp = &{30}, art_copp = &{31}, art_frais = &{32}, art_prvt = &{33}, art_ect2 = &{34}, art_eco2 = &{35}, art_depg = &{36}, art_cnsg = &{37}, art_qte = &{38}, art_refliee = &{39} where art_code = &1", code.Text, Desg.Text, Fam.Text, four.Text, Cequ.Text, CBarre.Text, Cfour.Text, Val(pbht.Text), Val(Tr.Text), Val(Paua.Text), Val(utils.cpoint(Coef.Text)), Val(Pvht.Text), Tva.Text, Val(Pvttc.Text), Arr.Text, Dec.Text, .convBool(Stocke.Value), Val(qte.Text), Val(Stkdep.Text), nbd.Text, Desg2.Text, .convBool(Ect.Value), Val(Eco.Text), Val(paht.Text), Val(Txconv.Text), Val(Pmp.Text), Val(Stkmini.Text), Val(Stkmaxi.Text), .convBool(Suspendu.Value), .convBool(Cpp.Value), Val(Copp.Text), Val(Frais.Text), Val(Prvt.Text), .convBool(Ect2.Value), Val(Eco2.Text), .convBool(Depg.Value), .convBool(Cnsg.Value), Val(qte.Text), Artlie.Text)
               Try Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET  qte1 = &2, qte2 = &3, rem1 = &4, qte3 = &5, qte4 = &6, rem2 = &7, qte5 = &8, qte6 = &9, rem3 = &{10}, qte7 = &{11}, qte8 = &{12}, rem4 = &{13}, qte9 = &{14}, qte10 = &{15}, rem5 = &{16}, qte11 = &{17}, qte12=  &{18}, rem6 = &{19}, art_etiq = &{20}, art_poids = &{21}, art_vol = &{22}, art_mincom = &{23}, art_poids2 = &{24}, art_mat = &{25}, art_marque = &{26}, art_photo = &{27}, art_crst = &{28}, art_impcar = &{29}, art_casier = &{30}, art_pvcons = &{31}, art_prdcomp = &{32}, art_impdetail = &{33}, art_remcas1 = &{34}, art_remcas2 = &{35}, art_remcas3 = &{36}, art_bonus = &{37}, art_pbfbt = &{38}, art_datefbt = &{39}, art_centrale = &{40}, art_refcentrale = &{41}, art_colvte = &{42}, art_pvht2 = &{43}, art_cn8 = &{44}, art_crpl1 = &{45}, art_ua = &{46}, art_uv = &{47}  WHERE art_code = &1", Code.Text, Val(Tbrem[0, 0].Text), Val(Tbrem[0, 1].Text), Val(Tbrem[0, 2].Text), Val(Tbrem[1, 0].Text), Val(Tbrem[1, 1].Text), Val(Tbrem[1, 2].Text), Val(Tbrem[2, 0].Text), Val(Tbrem[2, 1].Text), Val(Tbrem[2, 2].Text), Val(Tbrem[3, 0].Text), Val(Tbrem[3, 1].Text), Val(Tbrem[3, 2].Text), Val(Tbrem[4, 0].Text), Val(Tbrem[4, 1].Text), Val(Tbrem[4, 2].Text), Val(Tbrem[5, 0].Text), Val(Tbrem[5, 1].Text), Val(Tbrem[5, 2].Text), .convBool(Etiq.Value), Val(Poids.Text), Vol.Text, Mincom.text, Val(.CPoint(Poids2.Text)), .convBool(Mat.Value), Marque.Text, photo.text, Crst.text, .convBool(Impcar.Value), Casier.text, Val(pvcons.Text), .convBool(Prdcomp.Value), .convBool(Impdetail.Value), Val(.cpoint(Rem1.Text)), Val(.cpoint(Rem2.Text)), Val(.cpoint(Rem3.Text)), Val(.CPoint(Bonus.Text)), Val(.cpoint(Pbfbt.Text)), .Cdate_Dbase(Datefbt.Text), Centrale.Text, RefCentrale.Text, Val(ColVte.text), Val(PVHT2.Text), CN8.Text, rpl1.Text, Uembachat.text, Uembvente.text)
-              'Serveur.Pass("Art", "M", code.Text)
+              Serveur.Pass("Art", "M", code.Text, "")
               If Chkf = 1 Then Try Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET  art_ddatefbt = &2  WHERE art_code = &1", code.Text, Format$(Now, "yyyymmdd"))
               b = 0
               skey = Code.Text
               If Not Error Then
                 If Not IsNull(Cbarre.text) Then Maj_CodeBarre()
-                If Not IsNull(Rpl2.text) Then
+                If Not IsNull(Rpl2.text) And If $rpl2 <> Rpl2.Text Then
                   Maj_Rpl2()
                 Endif
-                If Not IsNull(Rpl1.text) Then
+                If Not IsNull(Rpl1.text) And If $rpl1 <> Rpl1.Text Then
                   Maj_Rpl1()
                 Endif
-                If Not IsNull(Cequ.text) Then MajEqu.Maj(code.Text, Cequ.text)
+                If Not IsNull(Cequ.text) And If Bequ Then MajEqu.Maj(code.Text, Cequ.text)
                 ComboTest = False
                 Cb1.Text = "Equivalent"
                 ComboTest = True
@@ -4653,12 +4686,15 @@ Public Sub Maj_CodeBarre()
 
   Rbarre = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCdBarre") & " where codeb = &1", Cbarre.Text)
   If Not Rbarre.Available Then Utils.db.Exec("INSERT INTO " & Cbase.Table("TabCdBarre") & " (codep, codeb) VALUES (&1, &2)", code.Text, Cbarre.Text)
+  Serveur.Pass("CB", "M", code.Text, Cbarre.Text)
 
 End
 
 Public Sub Del_CodeBarre()
 
-  Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabCdBarre") & " WHERE codeb = &1", Cbarre.Text)
+  Utils.db.Exec("DELETE FROM " & Cbase.Table("TabCdBarre") & " WHERE codeb = &1", Cbarre.Text)
+  Utils.db.Exec("DELETE FROM Fiches_Art WHERE art_code = &1 and art_cbarre = &2", Code.text, Cbarre.Text)
+  Serveur.Pass("CB", "S", code.Text, Cbarre.Text)
   Colarts_Click()
 
 End
@@ -4671,6 +4707,7 @@ Public Sub Maj_Rpl1()
   If Not Rpl.Available Then Utils.db.Exec("INSERT INTO " & Cbase.Table("TabRpl1") & " (codep, coderpl1) VALUES (&1, &2)", code.Text, Rpl1.Text)
   Rpl = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabRpl2") & " where codep = &1 and coderpl2 = &2", Rpl1.Text, code.Text)
   If Not Rpl.Available Then Utils.db.Exec("INSERT INTO " & Cbase.Table("TabRpl2") & " (codep, coderpl2) VALUES (&1, &2)", Rpl1.Text, code.Text)
+  Serveur.Pass("Rpl1", "C", code.Text, Rpl1.Text)
 
 End
 
@@ -4679,6 +4716,7 @@ Public Sub Del_Rpl1()
   If message.Question("Voulez-vous retirer le produit de remplacement " & Rpl1.Text & " ?", "Oui", "Non") = 1 Then
     Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabRpl1") & " WHERE codep = &1 and coderpl1 = &2", code.Text, Rpl1.Text)
     Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabRpl2") & " WHERE codep = &1 and coderpl2 = &2", Rpl1.Text, code.Text)
+    Serveur.Pass("Rpl2", "S", code.Text, Rpl1.Text)
     Colarts_Click()
   Endif
 
@@ -4692,6 +4730,7 @@ Public Sub Maj_Rpl2()
   If Not Rpl.Available Then Utils.db.Exec("INSERT INTO " & Cbase.Table("TabRpl2") & " (codep, coderpl2) VALUES (&1, &2)", code.Text, Rpl2.Text)
   Rpl = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabRpl1") & " where codep = &1 and coderpl1 = &2", Rpl2.Text, code.Text)
   If Not Rpl.Available Then Utils.db.Exec("INSERT INTO " & Cbase.Table("TabRpl1") & " (codep, coderpl1) VALUES (&1, &2)", Rpl2.Text, code.Text)
+  Serveur.Pass("Rpl2", "C", code.Text, Rpl2.Text)
 
 End
 
@@ -4700,6 +4739,7 @@ Public Sub Del_Rpl2()
   If message.Question("Le produit " & Code.Text & " ne remplacera plus la référence " & Rpl2.Text & " ?", "Oui", "Non") = 1 Then
     Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabRpl1") & " WHERE codep = &1 and coderpl1 = &2", Rpl2.Text, code.Text)
     Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabRpl2") & " WHERE codep = &1 and coderpl2 = &2", code.Text, Rpl2.Text)
+    Serveur.Pass("Rpl2", "S", code.Text, Rpl2.Text)
     Colarts_Click()
   Endif
 
@@ -4711,6 +4751,7 @@ Public Sub Del_Codequ()
 
   Rbarre = Utils.db.Exec("Update " & Cbase.Table("TabArt") & " set art_cequ = &3 where art_code = &1 and art_cequ = &2", code.text, Cequ.Text, "")
   Utils.db.Exec("DELETE FROM " & Cbase.Table("TabCequ") & " WHERE codequ = &2 or codep = &2", code.Text, Cequ.Text)
+  Serveur.Pass("Rpl1", "S", code.Text, Rpl1.Text)
   Colarts_Click()
 
 End
@@ -4797,26 +4838,13 @@ Public Sub art_Suppr()
         Endif
       Endif
       If Suppr = 1 Then
+        Serveur.Pass("Art", "S", code.Text, Cequ.Text)
         Utils.db.Exec("DELETE FROM " & Cbase.Table("TabArt") & " WHERE art_code = &1", code.Text)
-        Rbarre = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCdBarre") & " where codep = &1 order by codeb", code.Text)
-        If Rbarre.Available Then
-          Repeat
-            Utils.db.Exec("DELETE FROM " & Cbase.Table("TabCdBarre") & " WHERE codep = &1", code.Text)
-          Until Rbarre.MoveNext()
-        Endif
-        Rbarre = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabRpl1") & " where codep = &1 order by coderpl1", code.Text)
-        If Rbarre.Available Then
-          Repeat
-            Utils.db.Exec("DELETE FROM " & Cbase.Table("TabRpl1") & " WHERE codep = &1", code.Text)
-          Until Rbarre.MoveNext()
-        Endif
-        Rbarre = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabRpl2") & " where codep = &1 order by coderpl2", code.Text)
-        If Rbarre.Available Then
-          Repeat
-            Utils.db.Exec("DELETE FROM " & Cbase.Table("TabRpl2") & " WHERE codep = &1", code.Text)
-          Until Rbarre.MoveNext()
-        Endif
-        Utils.db.Exec("DELETE FROM " & Cbase.Table("TabPdocs") & " WHERE code = &1", Code.Text)
+        Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabCdBarre") & " WHERE codep = &1", code.Text)
+        Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabRpl1") & " WHERE codep = &1", code.Text)
+        Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabRpl2") & " WHERE codep = &1", code.Text)
+        Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabPdocs") & " WHERE code = &1", Code.Text)
+        Try Utils.db.Exec("DELETE FROM " & Cbase.Table("TabCequ") & " WHERE codequ = &2 or codep = &2 or  codequ = &1 or codep = &1", code.Text, Cequ.Text)
         sKey = colarts.row
         ComboTest = False
         Cb1.Text = "Equivalent"
