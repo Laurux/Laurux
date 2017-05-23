@@ -33,6 +33,7 @@ Public intitule As String
 Public Version As String
 Public PsX As Integer
 Public PsY As Integer
+Public CpTable[5] As String
 
 Public Sub _new()
 
@@ -58,7 +59,7 @@ Public Sub Form_Open()
   Dim $con_ok As Boolean = True ' flag d'autorisation de connexion
   Dim promo As Boolean
   Dim cpromo, lpromo As String
-  Dim rResult As Result
+  Dim rResult, Rdep As Result
   Dim Tab As String = "Fiches_Societes"
   'Dim Chemin As String = User.home & "/Laurux3/Fonds_Laurux/"
   Dim Chemin As String = Application.Path & "/Fonds_Laurux/"
@@ -180,6 +181,19 @@ Public Sub Form_Open()
     Message.Warning("Le tunnel SSH n'a pu être établi, la connexion SQL est impossible")
     Config()
   Endif
+  If Settings["/Soc" & Start.Societe & "/Taches"] Then
+    Label3.Text = "Bonjour " & User.name & " nous sommes le " & Format(Now, "dd.mm.yyyy")
+    ColTaches.Columns.count = 5
+    ColTaches.Columns[0].Width = 0
+    ColTaches.Columns[1].Width = 100
+    ColTaches.Columns[2].Width = 180
+    ColTaches.Columns[3].Width = 180
+    ColTaches.Columns[1].Text = "Documents"
+    ColTaches.Columns[2].Text = "Utilisateur"
+    ColTaches.Columns[3].Text = "Poste"
+    ColTaches.Columns[4].Text = "Libellé de la tâche"
+    RecupTaches()
+  Endif
   If Settings["/Soc" & Start.Societe & "/AffFacture"] Then
     Menu42_Click()
     Me.Close
@@ -208,6 +222,40 @@ Catch
   Endif
   preferences()
   Config()
+
+End
+
+Public Sub RecupTaches()
+
+  Dim itaches As Integer = 0
+  Dim $taches As String
+
+  With Coltaches
+    .Columns.count = 5
+    .Columns[0].Width = 0
+    .Columns[1].Width = 90
+    .Columns[2].Width = 100
+    .Columns[3].Width = 180
+    .Columns[4].Width = 300
+  End With
+  Utils.Base(Coltaches, "select * from  Fiches_Taches  where nom like   \"" & User.name & "%\" ")
+  Coltaches.Refresh
+  itaches = Coltaches.rows.count
+  If itaches > 1 Then Panel2.Visible = True
+
+End
+
+Public Sub Coltaches_Data(Row As Integer, Column As Integer)
+
+  With Utils
+    CpTable[0] = "lind"
+    CpTable[1] = "numdoc"
+    CpTable[2] = "nom"
+    CpTable[3] = "poste"
+    CpTable[4] = "texte"
+    Try .rs1.MoveTo(Row)
+    Try Coltaches.data.Text = Str(.rs1[CpTable[Column]])
+  End With
 
 End
 
@@ -2214,5 +2262,11 @@ End
 Public Sub Menu323_Click()
 
   EcrM.Show()
+
+End
+
+Public Sub Button1_Click()
+
+  Panel2.Visible = False
 
 End
