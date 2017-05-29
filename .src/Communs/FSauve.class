@@ -57,37 +57,42 @@ Public Sub Button2_Click()
   If Exist(Sauves.Text & "/" & Utils.db.Name & ".sql") Then Kill Sauves.Text & "/" & Utils.db.Name & ".sql"
   If Exist(User.home & "/" & Utils.db.Name & ".sql") Then Kill User.home & "/" & Utils.db.Name & ".sql"
   lg = Mmysql.Process_List(0)
-  If lg > 7 Then
+  If lg = 0 Then
+    Message.Error("Mot de passe invalide !")
     Me.Mouse = Mouse.Default
-    Hbox1.Visible = True
   Else
-    Shell "mysqldump --lock-tables=0 -h " & Settings["/dbase/Host"] & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " " & Utils.db.Name & " --add-drop-table > " & Sauves.Text & "/" & Utils.db.Name & ".sql" Wait
-    If Exist(Sauves.Text & "/" & Utils.db.Name & ".sql") Then
-      txterror = Sauves.Text & "/" & Utils.db.Name & ".sql"
-      If Left$(Txterror, 9) = "mysqldump" Then
-        If son Then
-          Music.Play
-        Endif
-        Me.Mouse = Mouse.Default
-        Message.Info(Txterror & "La base " & Utils.db.Name & " n'a pas pu être sauvegardée ! \n Veuillez vérifier le chemin de sauvegarde ou le support de sauvegarde SVP ! ")
-      Else
-        Shell "cp" & " " & User.Home & "/.config/gambas3/Laurux3.conf" & " " & Sauves.Text Wait
-        If Exist(Sauves.Text & "/" & Utils.db.Name & ".sql") Then
-          If Compb.Value Then
-            cp.File(Sauves.Text & "/" & Utils.db.Name & ".sql", Sauves.Text & "/" & Utils.db.Name & ".sql.gz", cp.Max)
-          Endif
+    If lg > 7 Then
+      Me.Mouse = Mouse.Default
+      Hbox1.Visible = True
+    Else
+      Shell "mysqldump --lock-tables=0 -h " & Settings["/dbase/Host"] & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " " & Utils.db.Name & " --add-drop-table > " & Sauves.Text & "/" & Utils.db.Name & ".sql" Wait
+      If Exist(Sauves.Text & "/" & Utils.db.Name & ".sql") Then
+        txterror = Sauves.Text & "/" & Utils.db.Name & ".sql"
+        If Left$(Txterror, 9) = "mysqldump" Then
           If son Then
             Music.Play
           Endif
           Me.Mouse = Mouse.Default
-          Message.Info("La base " & Utils.db.Name & " a été correctement sauvegardée.")
+          Message.Info(Txterror & "La base " & Utils.db.Name & " n'a pas pu être sauvegardée ! \n Veuillez vérifier le chemin de sauvegarde ou le support de sauvegarde SVP ! ")
         Else
-          If son Then
-            Music.Play
+          Shell "cp" & " " & User.Home & "/.config/gambas3/Laurux3.conf" & " " & Sauves.Text Wait
+          If Exist(Sauves.Text & "/" & Utils.db.Name & ".sql") Then
+            If Compb.Value Then
+              cp.File(Sauves.Text & "/" & Utils.db.Name & ".sql", Sauves.Text & "/" & Utils.db.Name & ".sql.gz", cp.Max)
+            Endif
+            If son Then
+              Music.Play
+            Endif
+            Me.Mouse = Mouse.Default
+            Message.Info("La base " & Utils.db.Name & " a été correctement sauvegardée.")
+          Else
+            If son Then
+              Music.Play
+            Endif
+            Me.Mouse = Mouse.Default
+            Message.Error("La base " & Utils.db.Name & " n'a pas pu être sauvegardée ! \n Veuillez vérifier le chemin de sauvegarde ou le support de sauvegarde SVP ! ")
+            Me.Close
           Endif
-          Me.Mouse = Mouse.Default
-          Message.Error("La base " & Utils.db.Name & " n'a pas pu être sauvegardée ! \n Veuillez vérifier le chemin de sauvegarde ou le support de sauvegarde SVP ! ")
-          Me.Close
         Endif
       Endif
     Endif

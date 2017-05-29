@@ -120,35 +120,40 @@ Public Sub Button2_Click()
     hnew = Open filename For Create 'On vide le fichier
     Me.Mouse = Mouse.Default
     lg = Mmysql.Process_List(0)
-    If lg > 7 Then
+    If lg = 0 Then
+      Message.Error("Mot de passe invalide !")
       Me.Mouse = Mouse.Default
-      Panel1.Visible = True
     Else
-      hnew = Open filename For Create 'On vide le fichier
-      Syntheses.Message("Attention ! Vous allez effectuer une restauration.")
-      If Message.Question("Vous allez restaurer la base " & Utils.db.Name & ".sql" & " sauvegardée par " & Utilisateur & " le " & Date_Sauve & " à " & Heure_Sauve & " heures ! ", "Oui", "Non") = 1 Then
-        Me.Mouse = Mouse.Wait
-        Shell "mysql -h " & Settings["/dbase/Host"] & " -u " & Utils.db.login & " -p" & Utils.db.Password & " -e \"Drop database " & Utils.db.Name & ";\" " Wait
-        Shell "mysql -h " & Settings["/dbase/Host"] & " -u " & Utils.db.login & " -p" & Utils.db.Password & " -e \"Create database " & Utils.db.Name & ";\" " Wait
-        If IsNull(Utils.db.Password) Then  'Gère l'absence de mot de passe
-          Shell "mysql -h " & Settings["/dbase/Host"] & " -u " & Utils.db.login & " " & Utils.db.Name & " < " & SauveB.Text & "/" & Utils.db.Name & ".sql > " & User.home & "/tmp/resultat 2>&1" Wait
-        Else
-          Shell "mysql -h " & Settings["/dbase/Host"] & " -u " & Utils.db.login & " -p" & Utils.db.Password & " " & Utils.db.Name & " < " & SauveB.Text & "/" & Utils.db.Name & ".sql >  " & User.home & "/tmp/resultat 2>&1" Wait
-        Endif
-        Shell "mysql -h " & Settings["/dbase/Host"] & " " & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " -e \"use " & Utils.db.Name & ";" & "SET @@global.sql_mode= NO_ENGINE_SUBSTITUTION " & "; \"" Wait
-        If Exist(User.Home & "/tmp/resultat") Then txterror = File.Load(User.Home & "/tmp/resultat")
-        If InStr(txterror, "Using a password") <> 18 And Not bmariadb Or If Not IsNull(txterror) And bmariadb Then
-          If son Then
-            Music.Play
+      If lg > 7 Then
+        Me.Mouse = Mouse.Default
+        Panel1.Visible = True
+      Else
+        hnew = Open filename For Create 'On vide le fichier
+        Syntheses.Message("Attention ! Vous allez effectuer une restauration.")
+        If Message.Question("Vous allez restaurer la base " & Utils.db.Name & ".sql" & " sauvegardée par " & Utilisateur & " le " & Date_Sauve & " à " & Heure_Sauve & " heures ! ", "Oui", "Non") = 1 Then
+          Me.Mouse = Mouse.Wait
+          Shell "mysql -h " & Settings["/dbase/Host"] & " -u " & Utils.db.login & " -p" & Utils.db.Password & " -e \"Drop database " & Utils.db.Name & ";\" " Wait
+          Shell "mysql -h " & Settings["/dbase/Host"] & " -u " & Utils.db.login & " -p" & Utils.db.Password & " -e \"Create database " & Utils.db.Name & ";\" " Wait
+          If IsNull(Utils.db.Password) Then  'Gère l'absence de mot de passe
+            Shell "mysql -h " & Settings["/dbase/Host"] & " -u " & Utils.db.login & " " & Utils.db.Name & " < " & SauveB.Text & "/" & Utils.db.Name & ".sql > " & User.home & "/tmp/resultat 2>&1" Wait
+          Else
+            Shell "mysql -h " & Settings["/dbase/Host"] & " -u " & Utils.db.login & " -p" & Utils.db.Password & " " & Utils.db.Name & " < " & SauveB.Text & "/" & Utils.db.Name & ".sql >  " & User.home & "/tmp/resultat 2>&1" Wait
           Endif
-          Me.Mouse = Mouse.Default
-          If son Then Music.play
-          Message.Error(Txterror & "La base " & Utils.db.Name & ".sql" & " n'a pas pu être restaurée ! \n Veuillez verifier l'utilisateur utilisé ainsi que ses droits d'accés.")
-        Else
-          If son Then Music.Play
-          Try Utils.db.Exec("Truncate " & Tactive & "")
-          Me.Mouse = Mouse.Default
-          Message.Info("La base " & Utils.db.Name & ".sql" & "  a été correctement restaurée.")
+          Shell "mysql -h " & Settings["/dbase/Host"] & " " & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " -e \"use " & Utils.db.Name & ";" & "SET @@global.sql_mode= NO_ENGINE_SUBSTITUTION " & "; \"" Wait
+          If Exist(User.Home & "/tmp/resultat") Then txterror = File.Load(User.Home & "/tmp/resultat")
+          If InStr(txterror, "Using a password") <> 18 And Not bmariadb Or If Not IsNull(txterror) And bmariadb Then
+            If son Then
+              Music.Play
+            Endif
+            Me.Mouse = Mouse.Default
+            If son Then Music.play
+            Message.Error(Txterror & "La base " & Utils.db.Name & ".sql" & " n'a pas pu être restaurée ! \n Veuillez verifier l'utilisateur utilisé ainsi que ses droits d'accés.")
+          Else
+            If son Then Music.Play
+            Try Utils.db.Exec("Truncate " & Tactive & "")
+            Me.Mouse = Mouse.Default
+            Message.Info("La base " & Utils.db.Name & ".sql" & "  a été correctement restaurée.")
+          Endif
         Endif
       Endif
     Endif
