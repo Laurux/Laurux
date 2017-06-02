@@ -21,24 +21,27 @@ Frais As String
 son As Integer = Start.Son
 
 Public Sub _new()
-  
+
   If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
   Music.Load(Start.Musique)
   Me.Center
-  
+
 End
 
 Public Sub Button3_Click()
-  
+
   Me.close
-  
+
 End
 
 Public Sub Button2_Click()
-  
+
   Dim rArt As Result
+  'Dim hfile As File
+  'Dim Filename As String
+  'Dim Lig As String
   Dim i As Integer = 0
-  
+
   With Utils
     rArt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_datefbt = &1", .Cdate_Dbase(date.text))
     If rArt.Available Then
@@ -46,6 +49,17 @@ Public Sub Button2_Click()
       Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabArt") & " WRITE, " & Cbase.Table("TabTvav") & " Write")
       Me.mouse = Mouse.Wait
       i = rArt.count
+      'If Variables.Sprix And Variables.Sexport And Variables.SMajArt Then
+      '  Filename = Variables.Schmprix & "/MajTarif2_Serveur.txt"
+      '  If Exist(filename) Then
+      '   Try hFile = Open filename For Read Write
+      ' Else
+      '   Try hFile = Open filename For Write Create
+      '  Endif
+      'While Not Eof(hFile)
+      '   Line Input #hFile, Lig
+      '  Wend
+      '  Endif
       Repeat
         Paua = rArt!art_pbfbt
         nbdec = Rart!art_nbd
@@ -64,6 +78,7 @@ Public Sub Button2_Click()
         Calc_Percent()
         Calc_coeff()
         Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET  art_pbht = &1, art_tr = &2, art_pauaht =&3, art_pvht = &4, art_pvttc = &5, art_prvt = &6, art_paht = &7, art_coef = &8, art_pbfbt = &9, art_datefbt = &{10},  art_ddatefbt = &{11} WHERE art_code = &{12}", Val(pbht), Val(remise), Val(Paua), Val(Pvht), Val(Pvttc), Val(Prvt), Val(paht), Val(Coeff), "", "", Format$(Now, "yyyymmdd"), rArt!art_code)
+        'If Variables.Sprix And Variables.Sexport And Variables.SMajArt Then Print #hFile, Val(pbht) & ";" & Val(remise) & ";" & Val(Paua) & ";" & Val(Pvht) & ";" & Val(Pvttc) & ";" & Val(Prvt) & ";" & Val(paht) & ";" & Val(Coeff) & ";" & "" & ";" & "" & ";" & Format$(Now, "yyyymmdd") & ";" & rArt!art_code & ";"
       Until rArt.MoveNext()
       Utils.db.Exec("UNLOCK TABLES")
       Me.Mouse = mouse.Default
@@ -72,31 +87,31 @@ Public Sub Button2_Click()
       Message.Info("Aucune mise à jour n'est à faire pour cette date !")
     Endif
   End With
-  
+
 End
 
 Public Sub ToggleButton2_Click()
-  
+
   If DateChooser1.Visible = False Then
     DateChooser1.visible = True
   Else
     DateChooser1.Visible = False
   Endif
-  
+
 End
 
 Public Sub DateChooser1_Activate()
-  
+
   Date.text = Format$(DateChooser1.Value, "dd.mm.yyyy")
   DateChooser1.Visible = False
-  
+
 End
 
 '***********************************
 '*   On gère le prix de base ht    *
 '***********************************
 Public Sub prix_base()
-  
+
   With Utils
     pbht = PaUA
     pbht = Format$(Val(.cpoint(pbht)), nbdec)
@@ -114,26 +129,26 @@ Catch
     Music.Play
   Endif
   message.Error(Error.Text & " " & Error.where)
-  
+
 End
 
 '***********************************
 '*  On gère le prix de vente HT    *
 '***********************************
 Public Sub PvTTcLF()
-  
+
   Dim tx As Float
-  
+
   tx = (1 + (Val(Utils.cpoint(Mtva)) / 100))
   Pvht = Format$(Val(PvTTc) / tx, nbdec)
-  
+
 End
 
 '*********************************************
 '*    On gère le taux de remise fournisseur  *
 '*********************************************
 Public Sub TrC()
-  
+
   With Utils
     remise = .cpoint(remise)
     If Val(remise) = Null Then remise = "0"
@@ -145,11 +160,11 @@ Catch
     Music.Play
   Endif
   message.Error(Error.Text & " " & Error.where)
-  
+
 End
 
 Public Sub Prix_achat()
-  
+
   With Utils
     PaUA = .cpoint(PaUA)
     If Val(PaUA) = Null Then PaUA = "0"
@@ -170,42 +185,42 @@ Catch
     Music.Play
   Endif
   message.Error(Error.Text & " " & Error.where)
-  
+
 End
 
 '*****************************************
 '*      Récupération de la tva           *
 '*****************************************
 Public Sub rTva()
-  
+
   Dim Rtvaav As Result
-  
+
   Rtvaav = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTvav") & " WHERE code_tva = &1", Mtva)
   If Rtvaav.Available Then
     Mtva = Rtvaav!taux_tva
   Endif
-  
+
 End
 
 '***************************************************************
 '*   On calcule le montant de la tva et le prix de vente TTC   *
 '***************************************************************
 Public Sub Tva_Calcul()
-  
+
   With Utils
     If PvTTc <> "" Or Pvht <> "" Then
       Mtva = Format$(Val(.cpoint(Mtva)), "00.00")
       PvTTc = Format$(Val(Pvht) + (Val(Pvht) * Val(Mtva) / 100), nbdec)
     End If
   End With
-  
+
 End
 
 '***********************************
 '*       On calcule la marge       *
 '***********************************
 Public Sub Calc_Marge()
-  
+
   If IsNull(Pmp) Then Pmp = prvt
   If stocke Then
     Margem = Format$(Val(Pvht) - Val(Pmp), nbdec)
@@ -216,14 +231,14 @@ Public Sub Calc_Marge()
       Try Margep = Format$((Val(Pvht) - Val(Pmp)) / Val(Pvht) * 100, nbdec)
     Endif
   Endif
-  
+
 End
 
 '***********************************
 '*        On gère l' arrondi       *
 '***********************************
 Public Sub PvTTC_arrondi()
-  
+
   If Not PvTTc Then PvTTc = "0,00"
   Pvttc = Utils.cpoint(Pvttc)
   If arr = "0,05" Then
@@ -234,12 +249,12 @@ Public Sub PvTTC_arrondi()
       PvTTC = Format$(PvTTC, nbdec)
     Endif
   Endif
-  
+
   If arr = "0,10" Then
     PvTTC = Round(Val(PvTTC), -1)
     PvTTC = Format$(PvTTC, nbdec)
   Endif
-  
+
   If arr = "0,50" Then
     If Val(pvTTc) <= Val(Left$(pvTTc, (Len(pvTTc) - 2)) & 25) Then
       PvTTC = Left$(PvTTC, (Len(PvTTC) - 2)) & "00"
@@ -253,37 +268,37 @@ Public Sub PvTTC_arrondi()
       Endif
     Endif
   Endif
-  
+
   If arr = "1,00" Then
     PvTTC = Round(Val(PvTTC))
     PvTTC = Format$(PvTTC, nbdec)
   Endif
-  
+
 End
 
 '********************************************
 '*       On calcule le taux de marque       *
 '********************************************
 Public Sub Calc_Percent()
-  
+
   Try Percent = Format$(((Val(Pvht) - Val(prvt)) / Val(Pvht)) * 100, "0.000")
-  
+
 End
 
 '***************************************************
 '*        On calcule le coefficient de marge       *
 '***************************************************
 Public Sub Calc_coeff()
-  
+
   Try Coeff = Format$(1 / (1 - (Val(Percent)) / 100), "0.0000")
-  
+
 End
 
 '***************************************
 '*      Appel de la documentation      *
 '***************************************
 Public Sub Button1_Click()
-  
+
   Exec ["xdg-open", Application.Path &/ "Ecrans/Majtarif.html"]
-  
+
 End
