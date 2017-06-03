@@ -687,11 +687,12 @@ Public Sub Maj_Equ()
             'On met à jour les codes équivalents ou les codes barres
             If Champs = "codequ" Then
               Utils.db.Exec("Update  " & Cbase.Table("TabArt") & "  SET  art_cequ = &2 where art_code = &1", codep, codequ)
+              If Variables.Sprix And Variables.Sexport And Variables.SMajArt Then Serveur.Pass("Art", "M", codep, "")
               MajEqu.Maj(codep, codequ)
             Else
               Utils.db.Exec("Update  " & Cbase.Table("TabArt") & "  SET  art_cbarre = &2 where art_code = &1", codep, codequ)
               Try Utils.db.Exec("INSERT INTO " & TableM & " (codep, " & Champs & ") VALUES (&1, &2)", codep, Codequ)
-              If champs = "codequ" Then Try Utils.db.Exec("INSERT INTO " & TableM & " (" & Champs & ", codep) VALUES (&1, &2)", codep, Codequ)
+              If Variables.Sprix And Variables.Sexport And Variables.SMajArt Then Serveur.Pass("CB", "M", codep, Codequ)
             Endif
           Else
             Message.Warning("Mise à jour impossible ! Aucun champs code équivalent ou code barre n'est défini !")
@@ -704,6 +705,7 @@ Public Sub Maj_Equ()
             If champs = "art_stkmin" And Not IsNull(codequ) Then Utils.db.Exec("Update  Fiches_Art  SET  art_stkmin = &2 where art_code = &1", codep, codequ)
             If champs = "art_stkmax" And Not IsNull(codequ) Then Utils.db.Exec("Update  Fiches_Art  SET  art_stkmax = &2 where art_code = &1", codep, codequ)
             If champs = "art_casier" And Not IsNull(codequ) Then Utils.db.Exec("Update  Fiches_Art  SET  art_casier = &2 where art_code = &1", codep, codequ)
+            If Variables.Sprix And Variables.Sexport And Variables.SMajArt Then Serveur.Pass("Art", "M", codep, "")
           Endif
         Endif
       Endif
@@ -766,6 +768,7 @@ Public Sub Maj_Divers()
           If Not IsNull($casier) Then Utils.db.Exec("Update  Fiches_Art  SET  art_casier = &2 where art_code = &1", CodeA, $casier)
           If Not IsNull($poids) Then Utils.db.Exec("Update  Fiches_Art  SET  art_poids = &2 where art_code = &1", CodeA, bpoids)
           If Stockes.value Then Utils.db.Exec("Update  Fiches_Art  SET  art_stocke = &2 where art_code = &1", CodeA, True)
+          If Variables.Sprix And Variables.Sexport And Variables.SMajArt Then Serveur.Pass("CB", "M", CodeA, "")
         Endif
       Endif
     Wend
@@ -1234,6 +1237,7 @@ Public Sub Import()
                 Endif
                 Try Utils.db.Exec("INSERT INTO " & Cbase.Table("TabArt") & " (art_code,art_design,art_fam,art_four,art_cequ,art_cbarre,art_cfour,art_pbht,art_tr,art_pauaht,art_coef,art_pvht,art_tva,art_pvttc,art_cdarr, art_dec, art_stocke, art_qte, art_pmp, art_dpa, art_stkdep, art_nbd, art_design2, art_ect, art_eco, art_paht, art_txconv, art_stkmin, art_stkmax, art_suspendu, art_cpp, art_copp, art_frais, art_prvt, qte1, qte2, rem1, qte3, qte4, rem2, qte5, qte6, rem3, qte7, qte8, rem4, qte9, qte10, rem5, qte11, qte12, rem6, art_etiq, art_poids2, art_mincom, art_photo, art_crst, art_marque) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24}, &{25}, &{26}, &{27}, &{28}, &{29}, &{30}, &{31}, &{32}, &{33}, &{34}, &{35}, &{36}, &{37}, &{38}, &{39}, &{40}, &{41}, &{42}, &{43}, &{44}, &{45}, &{46}, &{47}, &{48}, &{49}, &{50}, &{51}, &{52}, &{53}, &{54}, &{55}, &{56}, &{57}, &{58})", code, Left$(Intitule, 50), FamImport, fourImport, Cequ, CBarre, Ref, Val(pbht), Val(remise), Val(Paua), Val(.cpoint(Coef.Text)), Val(Pvht), Tva.Text, Val(Pvttc), "0,01", "0", 0, 0, Val(Prvt), 0, 0, 2, "", 0, 0, Val(paht), 1, $mini, $maxi, 0, 0, 0, 0, Val(Prvt), "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", 0, Val($Cond), minCom, "", "", Marque)
                 If Not Error Then
+                  If Variables.Sprix And Variables.Sexport And Variables.SMajArt Then Serveur.Pass("Art", "C", code, "")
                   If Stockes Then
                     stck = 1
                   Else
@@ -1241,7 +1245,11 @@ Public Sub Import()
                   Endif
                   'stck = Stockes.value
                   Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET  art_design2 = &2, art_remcas1 = &3, art_remcas2 = &4, art_remcas3 = &5, art_pvcons = &6, art_stocke = &7, art_ddatefbt = &8, art_casier = &9, art_refliee = &{10}, art_poids = &{11}, art_vol = &{12}, art_uv = &{13}, art_ua = &{14}  WHERE art_code = &1", Code, Left$(Intitule2, 50), Val(remise2), Val(remise3), Val(Remise4), Val(Pvcons), Utils.convBool(Stockes.Value), Format$(Now, "yyyymmdd"), $casier, Refliee, bPoids, Volumes, $unite, $ua)
+                  If Variables.Sprix And Variables.Sexport And Variables.SMajArt Then Serveur.Pass("Art", "M", code, "")
                   If Not IsNull(Cbarre) Then Try Utils.db.Exec("INSERT INTO " & Cbase.Table("TabCdBarre") & " (codep,codeb) VALUES (&1, &2)", code, CBarre)
+                  If Not Error Then
+                    If Variables.Sprix And Variables.Sexport And Variables.SMajArt Then Serveur.Pass("CB", "M", code, Cbarre)
+                  Endif
                   Intitule = Left$(Intitule, 50)
                   Try Print #Hnew, code & String$(13 - Len(code), " ") & " ; " & Intitule & String$(50 - Len(Intitule), " ") & " ; " & ref & String$(15 - Len(ref), " ") & " ; " & cbarre & String$(13 - Len(cbarre), " ") & " ; " & pbht & String$(10 - Len(pbht), " ") & " ; " & remise & String$(5 - Len(remise), " ") & " ; " & Paua & String$(10 - Len(paua), " ") & " ; " & Coef.Text & String$(5 - Len(Coef.Text), " ") & " ; " & Pvht & String$(10 - Len(pvht), " ") & " ; " & Tva.Text & " ; " & Pvttc & String$(10 - Len(pvttc), " ")
                   If Error Then Try Print #Hnew, code & " ; " & Intitule & " ; " & ref & " ; " & cbarre & " ; " & pbht & " ; " & remise & " ; " & Paua & " ; " & Coef.Text & " ; " & Pvht & " ; " & Tva.Text & " ; " & Pvttc
@@ -1300,6 +1308,7 @@ Public Sub Import()
               If Majpvcons.Value = True Then
                 Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET art_pvcons = &1 WHERE art_code = &2", Val(Pvcons), rArt!art_code)
               Endif
+              If Variables.Sprix And Variables.Sexport And Variables.SMajArt Then Serveur.Pass("Art", "M", rArt!art_code, "")
             Else
               Try Print #Hmaj, "Un produit ne peut pas être mis à jour ou créé car les fournisseurs sont différents ou bien parce qu'il n'y a pas de PBHT ou de PAHT."
               mj = 1
