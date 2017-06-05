@@ -38,6 +38,7 @@ Public Sub Button2_Click()
 
   Dim rArt As Result
   Dim i As Integer = 0
+  Dim code As String
 
   With Utils
     rArt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_datefbt = &1", .Cdate_Dbase(date.text))
@@ -47,6 +48,7 @@ Public Sub Button2_Click()
       Me.mouse = Mouse.Wait
       i = rArt.count
       Repeat
+        Code = rArt!art_code
         Paua = rArt!art_pbfbt
         nbdec = Rart!art_nbd
         nbdec = .Find_nbdec(nbdec)
@@ -64,6 +66,14 @@ Public Sub Button2_Click()
         Calc_Percent()
         Calc_coeff()
         Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET  art_pbht = &1, art_tr = &2, art_pauaht =&3, art_pvht = &4, art_pvttc = &5, art_prvt = &6, art_paht = &7, art_coef = &8, art_pbfbt = &9, art_datefbt = &{10},  art_ddatefbt = &{11} WHERE art_code = &{12}", Val(pbht), Val(remise), Val(Paua), Val(Pvht), Val(Pvttc), Val(Prvt), Val(paht), Val(Coeff), "", "", Format$(Now, "yyyymmdd"), rArt!art_code)
+        If RArt!art_etiq Then
+          Maj_Etiqp(code, Rart!art_qte)
+          If Variables.Sprix And Variables.Sexport And Variables.SMajArt Then Serveur.Pass("Etiq", "P", rArt!art_code, Rart!art_qte)
+        Endif
+        If Val(Utils.cpoint(Rart!art_qte)) > 0 Then
+          Maj_Etiqg(code)
+          If Variables.Sprix And Variables.Sexport And Variables.SMajArt Then Serveur.Pass("Etiq", "G", rArt!art_code, "")
+        Endif
         If Variables.Sprix And Variables.Sexport And Variables.SMajArt Then Serveur.Pass("Art", "M", rArt!art_code, "")
       Until rArt.MoveNext()
       Utils.db.Exec("UNLOCK TABLES")
@@ -277,6 +287,41 @@ End
 Public Sub Calc_coeff()
 
   Try Coeff = Format$(1 / (1 - (Val(Percent)) / 100), "0.0000")
+
+End
+
+'***********************************On gère les étiquettes articles*****************************
+Public Sub Maj_Etiqp(Cart As String, Stk As Integer)
+
+  Dim Tabp As String
+  Dim Qteetiq As Integer
+  Dim Etiqp As Result
+
+  Tabp = "Fiches_EtiProd"
+  Etiqp = Utils.db.Exec("SELECT * FROM " & Tabp & " where code = &1", Cart)
+  If Etiqp.Available Then
+    'Qteetiq = Etiqp!nombre + Stk
+    Utils.db.Exec("UPdate  " & tabp & "  SET code = &1, nombre = &2 WHERE code = &1", Cart, Stk)
+  Else
+    'Qteetiq = Stk
+    Utils.db.Exec("INSERT INTO " & Tabp & "(code,nombre) VALUES (&1, &2)", Cart, Stk)
+  Endif
+
+End
+
+'***********************************On gère les étiquettes de gondole*****************************
+Public Sub Maj_Etiqg(Cart As String)
+
+  Dim Tabp As String
+  Dim Etiqg As Result
+
+  Tabp = "Fiches_EtiGond"
+  Etiqg = Utils.db.Exec("SELECT * FROM " & Tabp & " where code = &1", Cart)
+  If Etiqg.Available Then
+    Utils.db.Exec("UPdate  " & tabp & "  SET code = &1, nombre = &2 WHERE code = &1", Cart, 1)
+  Else
+    Utils.db.Exec("INSERT INTO " & Tabp & "(code,nombre) VALUES (&1, &2)", Cart, 1)
+  Endif
 
 End
 
