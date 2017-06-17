@@ -4,7 +4,43 @@ Public Sub _New()
 
   Me.center
   If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
-  Prg.SetFocus
+  If Settings["/Soc" & Start.Societe & "/Admin"] Then
+    HBox1.Visible = True
+    Mdp.SetFocus
+    Mdp.select
+  Else
+    Prg.SetFocus
+  Endif
+
+End
+
+'*******************************************************
+'*          On gère le mot de passe admin               *
+'*******************************************************
+Public Sub Mdp_KeyPress()
+
+  If Key.code = Key.enter Or Key.code = Key.RETURN Or Key.code = Key.Tab Then Mdp_LF()
+
+End
+
+Public Sub Mdp_LF()
+
+  Dim admn As Integer
+  Dim mdpadm As String
+
+  mdpadm = hexdblKey.crypt("de", Settings["/Soc" & Start.Societe & "/MdpPrefs"], "Laurux")
+  If mdpadm = Mdp.Text Then admn = 1
+  If admn = 0 Then
+    If Start.son Then
+      Music.Play
+    Endif
+    Message.Error("Le mot de passe n'est pas valable ! Vérifiez votre saisie SVP !")
+    Mdp.Select
+  Endif
+  If admn = 1 Then
+    Mdp.Clear
+    HBox1.visible = False
+  Endif
 
 End
 
@@ -18,7 +54,6 @@ Public Sub Button1_Click()
   If Prg.Text = "CalcRem" Then CalcRem.show
   If Prg.Text = "Expcontact" Then Expcontact.show
   If Prg.Text = "Impcpostaux" Then Impcpostaux.Show
-  If Prg.Text = "Database" Then Database()
   If Prg.Text = "RecupN" Then RecupN.run()
   If Prg.Text = "Pmp" Then VisPmp.Show
   If Prg.Text = "Dcfour" Then Dcfour.Show
@@ -69,19 +104,6 @@ End
 Public Sub Button2_Click()
 
   Me.Close()
-
-End
-
-Public Sub Database()
-
-  Dim Prog As String
-  Dim aExec As New String[]
-
-  Prog = "gambas" & System.Version & "-database-manager.gambas"
-
-  aExec.Add(System.Path &/ "bin" &/ Prog)
-
-  Exec aExec
 
 End
 
