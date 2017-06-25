@@ -491,7 +491,7 @@ Public Sub Button2_Click()
 
   Dim rResult As Result
   Dim HResult As Result
-  Dim code, libell As String
+  Dim code, libell, $cli As String
   Dim codeclient, nomclient As String
   Dim Pvht As Float
   Dim dte As String
@@ -524,12 +524,18 @@ Public Sub Button2_Click()
   With Utils
     rResult = Utils.db.Exec("SELECT * FROM Fiches_HistoFac  WHERE cdclifac between &1 and &2 and datefac between &3 and &4 union SELECT * from Fiches_HistoFacM WHERE cdclifac between &1 and &2 and datefac between &3 and &4 order by cdclifac, datefac", Cli.Text, Cli2.Text, Utils.Cdate_Dbase(dteN0.Text), Utils.Cdate_Dbase(dteN1.Text))
     If rResult.Available Then
+      $cli = rResult!cdclifac
       Repeat
         codeclient = rResult!cdclifac
+        If codeclient <> $cli Then
+          pdf.Lines(PosY)
+          PosY += 2
+          $cli = codeclient
+        Endif
         nomclient = rResult!cvclifac & " " & rResult!nmclifac & " " & rResult!pnmclifac
         'On récupère les données archivées.
         If Facn.value = True Then
-          HResult = Utils.db.Exec("SELECT * FROM Fiches_HistoLigfac WHERE num_ligfac = &1 and typel_ligfac = &2", rResult!numfac, "A")
+          HResult = Utils.db.Exec("SELECT * FROM Fiches_HistoLigfac WHERE num_ligfac = &1 and typel_ligfac = &2 order by code_ligfac", rResult!numfac, "A")
           If Hresult.Available Then
             Bflag = True
           Else
@@ -537,7 +543,7 @@ Public Sub Button2_Click()
           Endif
         Endif
         If Face.value = True Then
-          HResult = Utils.db.Exec("SELECT * FROM Fiches_HistoLigfacM WHERE num_ligfac = &1 and typel_ligfac = &2", rResult!numfac, "A")
+          HResult = Utils.db.Exec("SELECT * FROM Fiches_HistoLigfacM WHERE num_ligfac = &1 and typel_ligfac = &2  order by code_ligfac", rResult!numfac, "A")
           If Hresult.Available Then
             Bflag = True
           Else
@@ -557,28 +563,35 @@ Public Sub Button2_Click()
             Repeat
               code = Hresult!code_ligfac
               libell = Hresult!libel_ligfac
+              libell = Hresult!num_ligfac
               If IsNull(Hresult!qte_ligfac) Then
                 qte = qte + 1
               Else
                 qte = qte + Val(.cpoint(Hresult!qte_ligfac))
                 pvht = pvht + Val(.cpoint(Hresult!netht_ligfac))
               Endif
+
+              '   Endif
+              Bflag = False
+              If Val(.cpoint(qte)) <> 0 Then
+                pdf.level2(codeclient, nomclient, code, libell, qte, Format$(pvht, "0.00"), PosY)
+                PosY += 5
+                ligne = 1
+                qte = 0
+                pvht = 0
+              Endif
             Until HResult.MoveNext()
           Endif
         Endif
-        Bflag = False
-        If Val(.cpoint(qte)) <> 0 Then
-          pdf.level2(codeclient, nomclient, code, libell, qte, Format$(pvht, "0.00"), PosY)
-          PosY += 5
-          ligne = 1
-          qte = 0
-        Endif
-        If PosY >= 283 Then
+        If PosY >= 268 Then
           pdf.Footer()
           PosY = 22
           pdf.Entete("Impression des historiques des ventes de produits du " & Dten0.text & " au " & dten1.text)
           pdf.Level1()
         Endif
+
+        ' pdf.Lines(posy)
+        PosY += 2
       Until rResult.MoveNext()
     Endif
     If ligne = 1 Then
