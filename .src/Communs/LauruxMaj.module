@@ -1084,10 +1084,6 @@ Public Sub Verif_Version()
     Try Utils.db.Exec("update Fiches_Parametres set version = &1 ", "3.61")
   Endif
 
-  If bMaj Then
-    Shell "xdg-open 'http://www.laurux.fr/index.php?id=quoi-de-neuf'"
-  Endif
-
   '************************* Maj 3.62 *********************
   rResult = Utils.db.Exec("SELECT * from  Fiches_Parametres")
   If rResult!version = "3.61" Then
@@ -1095,11 +1091,14 @@ Public Sub Verif_Version()
     Try Utils.db.Exec("update Fiches_Parametres set version = &1 ", "3.62")
   Endif
 
-  If bMaj Then
-    Shell "xdg-open 'http://www.laurux.fr/index.php?id=quoi-de-neuf'"
-    Message.Warning("Mise à jour terminée ! Veuillez relancer Laurux SVP !")
-    Quit
+  '************************* Maj 3.62 *********************
+  rResult = Utils.db.Exec("SELECT * from  Fiches_Parametres")
+  If rResult!version = "3.62" Then
+    If Settings["/dbase/Maj"] Then Maj363()
+    Try Utils.db.Exec("update Fiches_Parametres set version = &1 ", "3.63")
   Endif
+
+  If bMaj Then Shell "xdg-open 'http://www.laurux.fr/index.php?id=quoi-de-neuf'"
 
 End
 
@@ -4846,6 +4845,28 @@ Public Sub Maj362()
 
   Try Utils.db.Exec("ALTER TABLE Fiches_Bl ADD (email VARCHAR(150))")
   Try Utils.db.Exec("ALTER TABLE Fiches_BlM ADD (email VARCHAR(150))")
+
+  If Not Error Then bmaj = True
+
+End
+
+Public Sub Maj363()
+
+  Tab = "Fiches_EntTicketz"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (control VARCHAR(40))")
+
+  'Mise à jour des caisses
+  Tab1 = "Fiches_Caisses"
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab1 & " ")
+  If rResult.Available Then
+    Repeat
+      Tab = "Fiches_EntTickets" & rResult!code
+      Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (control VARCHAR(40))")
+    Until rResult.MoveNext()
+  Endif
+
+  Tab = "Fiches_HisEntTickets"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (control VARCHAR(40))")
 
   If Not Error Then bmaj = True
 
