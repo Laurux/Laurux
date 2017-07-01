@@ -56,3 +56,24 @@ Public Function CalcSha2(lind As String) As String
   Endif
 
 End
+
+Public Function CalcShaC($Ncaisse As String, $numero As String)
+
+  Dim sresult As Result
+  Dim $cle, $cle2, $Tab As String
+
+  $Tab = "Fiches_EntTickets" & $Ncaisse
+  sResult = Utils.db.Exec("SELECT * FROM  " & $Tab & " WHERE caisse = &1 and numero = &2", $Ncaisse, $numero)
+  If sResult.Available Then
+    Repeat
+      $cle = sResult!caisse & sResult!numero & sResult!date & sResult!client & sResult!scheque & sResult!mcheque & sResult!nmcheque & sResult!scarte & sResult!mcarte & sResult!nmcarte & sResult!sespeces & sResult!mespeces & sResult!scredit & sResult!mcredit & sResult!mht & sResult!mtva & sResult!mttc & sResult!statut & sResult!savoir
+      $cle &= sResult!scavoir & sResult!mavoir & sResult!type & sResult!vendeur & sResult!carte & sResult!points & sResult!sbonus & sResult!mbonus & sResult!sresto & sResult!mresto & sResult!sbachat & sResult!mbachat & sResult!nom & sResult!suppr & sResult!retro
+      $cle = Replace$($cle, ")", "")
+      $cle = Replace$($cle, "(", "")
+      $cle = Replace$($cle, "'", "")
+      Shell "echo " & $cle & " | sha1sum 2>&1" To $cle2
+      Utils.db.Exec("update  " & $Tab & " set  control = &2 where lInd = &1", sResult!lInd, Left$($cle2, 40))
+    Until sResult.MoveNext()
+  Endif
+
+End
