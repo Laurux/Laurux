@@ -194,6 +194,7 @@ Public Sub Form_Open()
   Desg.SetFocus
   code.Text = ""
   Balloon.delay = 2000
+  Label7.Text = "Remises par type client"
   code.SetFocus
 
 End
@@ -1134,6 +1135,7 @@ Public Sub colarts_Click()
   Chkfocus = False
   AfficheArt()
   Maj_Dssr()
+  Maj_ColType()
   Code.SetFocus
   Reaf = 1
   If hColArts Then
@@ -5382,6 +5384,56 @@ Public Sub Button9_Click() ' Gestion tarif coefficient par type client
     Variables.ArtTva = Txtva.Text
     Variables.ArtHt = Prvt.text
     CoefTypeC.ShowModal()
+  Endif
+
+End
+
+Public Sub Button16_Click() ' Gestion tarif par type client
+
+  If Coltype.Visible Then
+    Coltype.Visible = False
+    Label7.Text = "Remises quantitatives"
+    Button16.Text = "Remises par type client"
+  Else
+    Coltype.Visible = True
+    Label7.Text = "Remises par type client"
+    Button16.Text = "Remises quantitatives"
+  Endif
+  Button16.Tooltip = "Affichage " & Button16.Text
+
+End
+
+Public Sub Maj_ColType()
+
+  Dim rType As Result
+  Dim rResult As Result
+  Dim Mtva As Float
+
+  Coltype.Clear
+  ColType.Columns.Count = 5
+  ColType.Columns[0].Width = 30
+  ColType.Columns[1].Width = 154
+  ColType.Columns[2].Width = 50
+  ColType.Columns[3].Width = 60
+  ColType.Columns[4].Width = 60
+  ColType.Columns[0].Text = "Type"
+  ColType.Columns[1].Text = "Intitulé"
+  ColType.Columns[2].Text = "Coef"
+  ColType.Columns[3].Text = "Montant HT"
+  ColType.Columns[4].Text = "Montant TTC"
+  rType = Utils.db.Exec("SELECT * FROM Fiches_TarTypcli as e inner join Fiches_Typec as a on a.code = e.type  order by type")
+  If rType.Available Then
+    Repeat
+      If rType!cart = code.text Then
+        rResult = Utils.db.Exec("SELECT * FROM  Fiches_Art where art_code = &1", rType!cart)
+        Coltype.Add(rType!type, rType!type)
+        Coltype.Item[1] = rType!libelle
+        Coltype.Item[2] = rType!coef
+        Try Coltype.Item[3] = Format$(Val(Utils.cpoint(rResult!art_prvt)) * Val(Utils.cpoint(rType!coef)), "0.00")
+        Mtva = CPrix.CTva(rResult!art_tva)
+        Coltype.Item[4] = Format$(Val(Utils.cpoint(Coltype.Item[3])) + (Val(Utils.cpoint(Coltype.Item[3])) * Val(Utils.cpoint(Mtva)) / 100), "0.00")
+      Endif
+    Until rType.MoveNext()
   Endif
 
 End
