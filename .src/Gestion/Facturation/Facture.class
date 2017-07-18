@@ -1379,87 +1379,94 @@ End
 Public Sub Button2_Click()
 
   Dim Tactive As String
+  Dim Btunnel As Boolean = True
 
-  Tactive = "Fiches_Docactif"
-  Try Utils.db.Exec("DELETE FROM " & Tactive & " where numerobl = &1 and nom = &2", $numbl, User.name)
-  CleanChamps()
-  If bTypeFacture Then CleanChampsMat()
-  modif = "0"
-  Code.ReadOnly = False
-  Nom.ReadOnly = False
-  Pnm.ReadOnly = False
-  tribl = "numbl"
-  tribl2 = "numbl"
-  Tab = "Fiches_Parametres"
-  Utils.db.Exec("LOCK TABLES " & Tab & " WRITE, Fiches_Bl WRITE, Fiches_BlM WRITE, Fiches_EntMat WRITE, " & Cbase.Table("TabCli") & " Write,  " & Tactive & " WRITE")
-  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
-  If rResult.Available Then
-    num.Text = rResult!dnbon
-  Endif
-  If num.Text = "" Then num.Text = "000000"
-  num.Text = Val(num.Text) + 1
-  num.Text = Format$(num.Text, "000000")
-  num2.Text = num.Text
-  Datej.Text = Format$(Now, "dd.mm.yyyy")
-  rResult = Utils.db.Exec("SELECT * FROM Fiches_Bl where numbl = &1", num.text)
-  If Gmateriel Then
-    If Not rResult.Available Then rResult = Utils.db.Exec("SELECT * FROM Fiches_BlM where numbl = &1", num.text)
-  Endif
-  If rResult.available Then
-    If start.son Then
-      Music.Play
+  'On vérifie que le tunnel SSH soit actif
+  If Settings["/dbase/Con-ssh"] Then Btunnel = Utils.ControlTunnel()
+  If Btunnel Then
+    Tactive = "Fiches_Docactif"
+    Try Utils.db.Exec("DELETE FROM " & Tactive & " where numerobl = &1 and nom = &2", $numbl, User.name)
+    CleanChamps()
+    If bTypeFacture Then CleanChampsMat()
+    modif = "0"
+    Code.ReadOnly = False
+    Nom.ReadOnly = False
+    Pnm.ReadOnly = False
+    tribl = "numbl"
+    tribl2 = "numbl"
+    Tab = "Fiches_Parametres"
+    Utils.db.Exec("LOCK TABLES " & Tab & " WRITE, Fiches_Bl WRITE, Fiches_BlM WRITE, Fiches_EntMat WRITE, " & Cbase.Table("TabCli") & " Write,  " & Tactive & " WRITE")
+    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
+    If rResult.Available Then
+      num.Text = rResult!dnbon
     Endif
-    Try Message.Warning("Création impossible ce numéro de BL est déjà attribué")
-    Num.text = ""
-    Coldetail.Clear
-  Else
-    Nv = 1
-    Nvc = 0
-    ' on met a jour les parametres
-    Utils.db.Exec("UPDATE  " & Tab & "  SET  dnbon = &1", num.Text)
-    datej.SetFocus
-    datej.Select
-    Coldetail.Clear
-    Button8.Visible = False
-    Button6.Visible = True
-    Impfac = "0"
-    'ikey = ""
-    button4_click()
-    $desc = False
-    deb1()
-    Colbl.MoveTo(0, 0)
-    $numbl = colbl[colbl.row, 2].Text
-    Utils.db.Exec("INSERT INTO " & Tactive & "(numerobl, nom) VALUES (&1, &2)", colbl[colbl.row, 2].Text, User.name)
-  Endif
-  Utils.db.Exec("UNLOCK TABLES")
-  Nv = 1
-  If Settings["/Soc" & Start.Societe & "/Factdef"] Then
-    BFac.value = True
-  Else
-    If Settings["/Soc" & Start.Societe & "/Bldef"] Then
-      Bbon.value = True
+    If num.Text = "" Then num.Text = "000000"
+    num.Text = Val(num.Text) + 1
+    num.Text = Format$(num.Text, "000000")
+    num2.Text = num.Text
+    Datej.Text = Format$(Now, "dd.mm.yyyy")
+    rResult = Utils.db.Exec("SELECT * FROM Fiches_Bl where numbl = &1", num.text)
+    If Gmateriel Then
+      If Not rResult.Available Then rResult = Utils.db.Exec("SELECT * FROM Fiches_BlM where numbl = &1", num.text)
+    Endif
+    If rResult.available Then
+      If start.son Then
+        Music.Play
+      Endif
+      Try Message.Warning("Création impossible ce numéro de BL est déjà attribué")
+      Num.text = ""
+      Coldetail.Clear
     Else
-      If Settings["/Soc" & Start.Societe & "/Devisdef"] Then
-        Bdevis.value = True
+      Nv = 1
+      Nvc = 0
+      ' on met a jour les parametres
+      Utils.db.Exec("UPDATE  " & Tab & "  SET  dnbon = &1", num.Text)
+      datej.SetFocus
+      datej.Select
+      Coldetail.Clear
+      Button8.Visible = False
+      Button6.Visible = True
+      Impfac = "0"
+      'ikey = ""
+      button4_click()
+      $desc = False
+      deb1()
+      Colbl.MoveTo(0, 0)
+      $numbl = colbl[colbl.row, 2].Text
+      Utils.db.Exec("INSERT INTO " & Tactive & "(numerobl, nom) VALUES (&1, &2)", colbl[colbl.row, 2].Text, User.name)
+    Endif
+    Utils.db.Exec("UNLOCK TABLES")
+    Nv = 1
+    If Settings["/Soc" & Start.Societe & "/Factdef"] Then
+      BFac.value = True
+    Else
+      If Settings["/Soc" & Start.Societe & "/Bldef"] Then
+        Bbon.value = True
       Else
-        If Settings["/Soc" & Start.Societe & "/Prodef"] Then
-          Bprof.value = True
+        If Settings["/Soc" & Start.Societe & "/Devisdef"] Then
+          Bdevis.value = True
+        Else
+          If Settings["/Soc" & Start.Societe & "/Prodef"] Then
+            Bprof.value = True
+          Endif
         Endif
       Endif
     Endif
+    'Nv = 0
+    If Settings["/Soc" & Start.Societe & "/Fht"] Then
+      sFacht.Value = True
+      sTTC.value = True
+    Endif
+    If Impauto Or If Franchise Then
+      Exo.Value = True
+      Exo.Enabled = False
+    Endif
+    TabStrip1[2].Text = "Taches"
+    Dep.Enabled = True
+    Dep.Text = ""
+  Else
+    Message.Error("Création de document impossible ! Le tunnel SSH est inactif.")
   Endif
-  'Nv = 0
-  If Settings["/Soc" & Start.Societe & "/Fht"] Then
-    sFacht.Value = True
-    sTTC.value = True
-  Endif
-  If Impauto Or If Franchise Then
-    Exo.Value = True
-    Exo.Enabled = False
-  Endif
-  TabStrip1[2].Text = "Taches"
-  Dep.Enabled = True
-  Dep.Text = ""
 
 End
 
