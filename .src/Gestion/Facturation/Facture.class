@@ -9598,7 +9598,7 @@ Public Sub Impression(Org As String)
   Dim Cfac, ImpRef As Boolean = False
   Dim Dateech2 As String
   Dim Datef2 As String
-  Dim Nomclient, Tel2, Portable2 As String
+  Dim Nomclient, Tel2, Portable2, Commercial As String
   Dim ftotal, ftotalttc, sRecap As String
   Dim $Reg, $Reg2, $Mreg, $Mreg2 As String
   Dim rResult As Result
@@ -9644,7 +9644,7 @@ Public Sub Impression(Org As String)
     pdf.AliasNbPages()
   Endif
   If b <> "1" Then
-    Utils.db.Exec("LOCK TABLES " & "Fiches_Parametres" & " WRITE, " & "Fiches_AdrlivC" & " WRITE, " & "Fiches_Bl" & " WRITE, " & "Fiches_Ligbl" & " WRITE, " & "Fiches_BlM" & " WRITE, " & "Fiches_LigblM" & " WRITE, " & "Fiches_Societes" & " WRITE," & "Fiches_LibelFac" & " WRITE, " & "Fiches_Echeances" & " WRITE, " & "Fiches_Cli" & " WRITE, " & "Fiches_Art" & " WRITE, " & "Fiches_Mo" & " WRITE," & Cbase.Table("TabTleg") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, " & Cbase.Table("TabHisFac") & " WRITE, " & Cbase.Table("TabHisFacm") & " WRITE, " & "Totalisation" & " WRITE, " & "Fiches_Suivis" & " WRITE, " & "Docs_Clients" & " WRITE")
+    Utils.db.Exec("LOCK TABLES " & "Fiches_Parametres" & " WRITE, " & "Fiches_AdrlivC" & " WRITE, " & "Fiches_Bl" & " WRITE, " & "Fiches_Ligbl" & " WRITE, " & "Fiches_BlM" & " WRITE, " & "Fiches_LigblM" & " WRITE, " & "Fiches_Societes" & " WRITE," & "Fiches_LibelFac" & " WRITE, " & "Fiches_Echeances" & " WRITE, " & "Fiches_Cli" & " WRITE, " & "Fiches_Art" & " WRITE, " & "Fiches_Mo" & " WRITE," & Cbase.Table("TabTleg") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, " & Cbase.Table("TabHisFac") & " WRITE, " & Cbase.Table("TabHisFacm") & " WRITE, " & "Totalisation" & " WRITE, " & "Fiches_Suivis" & " WRITE, " & "Docs_Clients" & " WRITE, " & "Fiches_Commerciaux" & " Write ")
     With Utils
       ye = Right$(dtef.Text, 4)
       mo = Mid$(dtef.Text, 4, 2)
@@ -9652,7 +9652,7 @@ Public Sub Impression(Org As String)
       Dtef.Text = Quittedate2(Dtef.Text, Imp) 'test si la date pour l'impression de la facture est bonne
       If b <> "1" Then
         If Editfac = "1" Then
-          rResult = Utils.db.Exec("SELECT * FROM " & tab5 & " where cli_code = &1", Code3.Text)
+          rResult = Utils.db.Exec("SELECT * FROM " & tab5 & " left join Fiches_Commerciaux on code = cli_comm where cli_code = &1", Code3.Text)
           If Not rResult.Available Then Return
           Ech = rResult!cli_cdech
           Cfac = rResult!cli_copie
@@ -9664,6 +9664,7 @@ Public Sub Impression(Org As String)
           Else
             dateech = Dtech.Text
           Endif
+          Commercial = rResult!nom
           Pays = rResult!cli_pays
           If Pays = "France" Then Pays = ""
           If Not IsNull(rResult!cli_id_tva) Then
@@ -9836,6 +9837,7 @@ Public Sub Impression(Org As String)
                 Ville2 = Cp.Text & " " & Burd.Text
               Endif
               Cde = "Code client " & Code3.text
+              If Not IsNull(Commercial) Then Cde &= "    Commercial : " & commercial
               If Org = "Mail" Then
                 Variables.EnvoiMail = "Mail"
               Else
