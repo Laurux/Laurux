@@ -62,6 +62,7 @@ Public Sub Form_Open()
   Dim Cai As String
   Dim Chemin As String = Application.Path & "/Fonds_Laurux/"
 
+  SetObserver(ScrollView1)
   titre = fmenu.text
   Try Soc = Settings["/Soc"]
   Try intitule = Settings["/intitule"]
@@ -105,7 +106,6 @@ Public Sub Form_Open()
       $con_ok = False
     Endif
   Endif
-
   If $con_ok Then
     Utils.db.Open
     Utils.db.exec("SET NAMES 'latin1'")
@@ -144,7 +144,6 @@ Public Sub Form_Open()
     Endif
     Variables.RecupVersion()
     LauruxMaj.Verif_Version()
-    SetObserver(ScrollView1)
     Try rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabPromo") & " where datedeb = &1", Format$(Now, "yyyy-mm-dd"))
     If Not Error Then
       If rResult.Available Then
@@ -196,17 +195,23 @@ Public Sub Form_Open()
     Me.Close
   Endif
 Catch
-  If Left$(error.Text, 19) = "Driver name missing" Then
-    Message.Warning("Attention, le fichier de configuration n'existe pas ! \n Veuillez completer les zones nécéssaires à sa création SVP !")
+  If Error.text = "Connection is not opened" Then
+    Message.Warning("Attention, la base Laurux " & Settings["/Soc"] & " n 'existe pas !\n Veuillez remplir le fichier de configuration SVP !")
   Else
-    If Left$(error.Text, 13) = "type mismatch" Then
-      Message.Warning("Attention, le fichier de configuration n'existe pas ou est corrompu !")
+    If Left$(error.Text, 19) = "Driver name missing" Then
+      Message.Warning("Attention, le fichier de configuration n'existe pas ! \n Veuillez completer les zones nécéssaires à sa création SVP !")
     Else
-      If Left$(error.Text, 27) = "Cannot open database: Acces" Then
-        Message.Warning("Attention, l' utilisateur ou le mot de passe est erroné ! \n Veuillez controler votre saisie SVP !")
+      If Left$(error.Text, 13) = "type mismatch" Then
+        Message.Warning("Attention, le fichier de configuration n'existe pas ou est corrompu !")
       Else
-        If Left$(error.Text, 38) = "Cannot open database: Unknown database" Then
-          Message.Warning("Attention, la base Laurux01 n'existe pas !\n Veuillez remplir le fichier de configuration SVP !")
+        If Left$(error.Text, 27) = "Cannot open database: Acces" Then
+          Message.Warning("Attention, l' utilisateur ou le mot de passe est erroné ! \n Veuillez controler votre saisie SVP !")
+        Else
+          If Left$(error.Text, 38) = "Cannot open database: Unknown database" Then
+            Message.Warning("Attention, la base Laurux " & Settings["/Soc"] & " n 'existe pas !\n Veuillez remplir le fichier de configuration SVP !")
+          Else
+            message.Error(Error.Text & " " & Error.Where)
+          Endif
         Endif
       Endif
     Endif
@@ -626,6 +631,16 @@ End
 
 Public Sub Menu30_Click()
 
+  Dim Btunnel As Boolean = True
+
+  If Settings["/dbase/Con-ssh"] And If Settings["/Soc" & Start.Societe & "/Replique"] Then
+    Btunnel = Utils.ControlTunnel()
+    If Not Btunnel Then
+      Message.Error("Problème de réplication ! Clôture impossible.")
+      Return
+    Endif
+  Endif
+
   ClotureF.Show
 
 End
@@ -763,6 +778,15 @@ Public Sub Menu42_Click()
 
   Dim hForm As Facture
   Dim hForm2 As ConVendeurs
+  Dim Btunnel As Boolean = True
+
+  If Settings["/dbase/Con-ssh"] And If Settings["/Soc" & Start.Societe & "/Replique"] Then
+    Btunnel = Utils.ControlTunnel()
+    If Not Btunnel Then
+      Message.Error("Problème de réplication ! Saisie de document impossible.")
+      Return
+    Endif
+  Endif
 
   hForm = New Facture(False)
   If Settings["/Soc" & Start.Societe & "/Vendeurs"] <> 0 And Not IsNull(Settings["/Soc" & Start.Societe & "/CodeVendeur"]) Then
@@ -1148,6 +1172,16 @@ End
 
 Public Sub Menu5_Click()
 
+  Dim Btunnel As Boolean = True
+
+  If Settings["/dbase/Con-ssh"] And If Settings["/Soc" & Start.Societe & "/Replique"] Then
+    Btunnel = Utils.ControlTunnel()
+    If Not Btunnel Then
+      Message.Error("Problème de réplication ! Facturation impossible.")
+      Return
+    Endif
+  Endif
+
   Facturefm.Show
 
 End
@@ -1171,6 +1205,16 @@ Public Sub Menu33_Click()
 End
 
 Public Sub Menu31_Click()
+
+  Dim Btunnel As Boolean = True
+
+  If Settings["/dbase/Con-ssh"] And If Settings["/Soc" & Start.Societe & "/Replique"] Then
+    Btunnel = Utils.ControlTunnel()
+    If Not Btunnel Then
+      Message.Error("Problème de réplication ! Clôture impossible.")
+      Return
+    Endif
+  Endif
 
   EpurMvtexp.ShowModal()
 
@@ -1352,6 +1396,16 @@ End
 
 Public Sub Menu66_Click()
 
+  Dim Btunnel As Boolean = True
+
+  If Settings["/dbase/Con-ssh"] And If Settings["/Soc" & Start.Societe & "/Replique"] Then
+    Btunnel = Utils.ControlTunnel()
+    If Not Btunnel Then
+      Message.Error("Problème de réplication ! Saisie impossible.")
+      Return
+    Endif
+  Endif
+
   TresorFac.ShowModal()
 
 End
@@ -1363,6 +1417,16 @@ Public Sub Menu75_Click()
 End
 
 Public Sub Menu116_Click()
+
+  Dim Btunnel As Boolean = True
+
+  If Settings["/dbase/Con-ssh"] And If Settings["/Soc" & Start.Societe & "/Replique"] Then
+    Btunnel = Utils.ControlTunnel()
+    If Not Btunnel Then
+      Message.Error("Problème de réplication ! Saisie impossible.")
+      Return
+    Endif
+  Endif
 
   Visreglements.Show
 
@@ -1405,6 +1469,15 @@ Public Sub Menu141_Click()
 
   Dim hForm As Facture
   Dim hForm2 As ConVendeurs
+  Dim Btunnel As Boolean = True
+
+  If Settings["/dbase/Con-ssh"] And If Settings["/Soc" & Start.Societe & "/Replique"] Then
+    Btunnel = Utils.ControlTunnel()
+    If Not Btunnel Then
+      Message.Error("Problème de réplication ! Saisie de document impossible.")
+      Return
+    Endif
+  Endif
 
   hForm = New Facture(True)
   If Settings["/Soc" & Start.Societe & "/Vendeurs"] <> 0 And Not IsNull(Settings["/Soc" & Start.Societe & "/CodeVendeur"]) Then
@@ -1507,6 +1580,16 @@ Public Sub Menu161_Click()
 End
 
 Public Sub Menu162_Click()
+
+  Dim Btunnel As Boolean = True
+
+  If Settings["/dbase/Con-ssh"] And If Settings["/Soc" & Start.Societe & "/Replique"] Then
+    Btunnel = Utils.ControlTunnel()
+    If Not Btunnel Then
+      Message.Error("Problème de réplication ! Saisie impossible.")
+      Return
+    Endif
+  Endif
 
   Moulinage.ShowModal()
 
@@ -1857,6 +1940,16 @@ Public Sub Menu239_Click()
 End
 
 Public Sub Menu241_Click()
+
+  Dim Btunnel As Boolean = True
+
+  If Settings["/dbase/Con-ssh"] And If Settings["/Soc" & Start.Societe & "/Replique"] Then
+    Btunnel = Utils.ControlTunnel()
+    If Not Btunnel Then
+      Message.Error("Problème de réplication ! Facturation impossible.")
+      Return
+    Endif
+  Endif
 
   Fimport.ShowModal()
 

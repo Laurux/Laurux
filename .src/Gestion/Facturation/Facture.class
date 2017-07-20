@@ -1382,7 +1382,7 @@ Public Sub Button2_Click()
   Dim Btunnel As Boolean = True
 
   'On vérifie que le tunnel SSH soit actif
-  If Settings["/dbase/Con-ssh"] Then Btunnel = Utils.ControlTunnel()
+  If Settings["/dbase/Con-ssh"] And If Settings["/Soc" & Start.Societe & "/Replique"] Then Btunnel = Utils.ControlTunnel()
   If Btunnel Then
     Tactive = "Fiches_Docactif"
     Try Utils.db.Exec("DELETE FROM " & Tactive & " where numerobl = &1 and nom = &2", $numbl, User.name)
@@ -1465,7 +1465,7 @@ Public Sub Button2_Click()
     Dep.Enabled = True
     Dep.Text = ""
   Else
-    Message.Error("Création de document impossible ! Le tunnel SSH est inactif.")
+    Message.Error("Problème de réplication ! Création de document impossible.")
   Endif
 
 End
@@ -2894,7 +2894,7 @@ Public Sub mo_KeyPress()
           Stop Event
 
         Case 3
-          Tm.Text = Upper$(Tm.Text)
+          Tm.Text = UCase$(Tm.Text)
           If Tm.text <> "T" And Tm.text <> "M" Then Tm.text = "T"
           Txhr.SetFocus
           Txhr.Select
@@ -3086,7 +3086,7 @@ Public Sub mo_Lostfocus()
         Stop Event
 
       Case 3
-        Tm.Text = Upper$(Tm.Text)
+        Tm.Text = UCase$(Tm.Text)
         If Tm.text <> "T" And Tm.text <> "M" Then Tm.text = "T"
         Txhr.SetFocus
         Txhr.Select
@@ -8952,6 +8952,7 @@ Public Sub Bl_Edit()
   Dim Viautre As String
   Dim modreg As String
   Dim ech As Variant
+  Dim Btunnel As Boolean
 
   If bTypeFacture Then
     Tab = "Fiches_BlM"
@@ -8990,6 +8991,13 @@ Public Sub Bl_Edit()
   Else
     Edit.Visible = True
     If Imp <> "1" And BFac.value Then
+      If Settings["/dbase/Con-ssh"] And If Settings["/Soc" & Start.Societe & "/Replique"] Then
+        Btunnel = Utils.ControlTunnel()
+        If Not Btunnel Then
+          Message.Error("Le tunnel SSH est out! Impression de facture impossible.")
+          Edit.Visible = True
+        Endif
+      Endif
       Rglt.text = Replace$(Tottc.Text, "-", "")
       If Settings["/Soc" & Start.Societe & "/Rglt"] Then
         Rgmt.Value = True
@@ -9609,6 +9617,7 @@ Public Sub Impression(Org As String)
   Dim ftotal, ftotalttc, sRecap As String
   Dim $Reg, $Reg2, $Mreg, $Mreg2 As String
   Dim rResult As Result
+  Dim Totalht As String
 
   variables.typel = ""
   Try ImpRef = Settings["/Soc" & Start.Societe & "/AffArt"]
@@ -10072,10 +10081,11 @@ Public Sub Impression(Org As String)
                       If Prxdec Then Trem = Round(Val(Trem))
                       totht = Format$(Val(totht) + Val(totttc), "0.00")
                       If Prxdec Then
+                        Bruttc = Round(Val(bruttc))
                         Bruttc = Format$(Val(Bruttc), "0")
+                        Puttc = Round(Val(Puttc))
                         Puttc = Format$(Val(Puttc), "0")
-                        Totttc = Format$(Val(Totttc), "0")
-                        Puttc = Format$(Val(Puttc), "0")
+                        Totttc = Round(Val(Totttc))
                         Totttc = Format$(Val(Totttc), "0")
                       Endif
                       If Blch.Value = True Then
@@ -10123,8 +10133,11 @@ Public Sub Impression(Org As String)
                       If Prxdec Then
                         Totht = Round(Val(totht))
                         Totht = Format$(Val(Totht), "0")
+                        Totalht = Round(Val(totalht))
                         Totalht = Format$(Val(totalht), "0")
+                        Brutht = Round(Val(Brutht))
                         Brutht = Format$(Val(Brutht), "0")
+                        pu = Round(Val(pu))
                         pu = Format$(Val(pu), "0")
                       Endif
                       If impref And Tp = "D" Then code = ""
@@ -10708,7 +10721,7 @@ Public Sub Impression(Org As String)
             Maj_Suivis()
             Utils.db.Exec("UNLOCK TABLES")
             If cfac Then Copie.Dupli2CPT(numrd, copie.spiece, Code3.text, ty)
-            If Upper$(Regmt.Text) = "TRAITE" Or If Upper$(Regmt.Text) = "LCR" Then Maj_Traite()
+            If UCase$(Regmt.Text) = "TRAITE" Or If UCase$(Regmt.Text) = "LCR" Then Maj_Traite()
             Form_Open()
           Else
             If Visudoc = False Then Utils.db.Exec("UPDATE  " & Tab1 & "  SET  ech = &2 WHERE numbl = &1", num.Text, .Cdate_Dbase(dateech))
