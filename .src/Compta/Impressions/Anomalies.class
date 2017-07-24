@@ -1,0 +1,63 @@
+' Gambas class file
+
+Public Sub Button2_Click()
+
+  Dim rResult As Result
+  Dim $cle, $cle2 As String
+  Dim Filename, Ste, Dte As String
+  Dim PosY As Integer
+  Dim Nbpage, i As Integer
+  Dim pdf As Ccompta
+
+  i = 0
+  rResult = Utils.db.Exec("SELECT * FROM  Fiches_Mvt")
+  Shell "cd " & User.Home & ""
+  Filename = User.Home & "/tmp/Anomalies.pdf"
+  pdf = New Ccompta("Portrait", "mm", "A4")
+  pdf.Open()
+  pdf.AliasNbPages()
+  pdf.Entete("Impression des anomalies des clés")
+  pdf.Level0P(ste)
+  PosY = PosY + 160
+  dte = Format$(Now, "dd.mm.yyyy")
+  pdf.Level1A2()
+  PosY = 32
+  rResult = Utils.db.Exec("SELECT * FROM  Fiches_Mvt Order by numero asc")
+  If rResult.Available Then
+    Me.Mouse = Mouse.wait
+    Repeat
+      $cle = rResult!control
+      $cle2 = Sha1Calc.CalcSha2(rResult!lind)
+      If $cle <> $cle2 Then
+        pdf.Level2A2(rResult!numero, rResult!compte, rResult!intitule, rResult!dte, $cle, $cle2, posy)
+        PosY += 5
+        Inc i
+        If posy > 283 Then
+          pdf.Baspage()
+          pdf.Entete("Impression du plan comptable")
+          pdf.Level0P(ste)
+          PosY = PosY + 160
+          dte = Format$(Now, "dd.mm.yyyy")
+          pdf.Level1A2()
+          PosY = 32
+        Endif
+      Endif
+    Until rResult.movenext()
+    Me.mouse = Mouse.Default
+    If i > 0 Then
+      pdf.Lines(PosY)
+      pdf.BasPage()
+      pdf.Output(Filename, False)
+      Impression.Prog_Editeur(Filename)
+    Else
+      Message.Info("Aucune anomalie !")
+    Endif
+  Endif
+
+End
+
+Public Sub Button1_Click()
+
+  Me.Close()
+
+End
