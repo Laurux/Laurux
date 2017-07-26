@@ -44,27 +44,29 @@ Public Sub TextLabel1_GotFocus()
     Try Me.close
   Endif
   Support = Settings["/Soc" & Start.Societe & "/Support"]
-  Api = Settings["/Soc" & Start.Societe & "/Api"]
-  $contrat = Right$(Settings["/Soc" & Start.Societe & "/Type"], -3)
-  Expediteur = Settings["/Soc" & Start.Societe & "/Expediteur"]
-  Shell "curl " & "\"http://www.spot-hit.fr/api/credits/?key=" & Api & "\"" & " >" & User.Home & "/tmp/sms.txt 2>&1" Wait
-  If Exist(User.Home & "/tmp/sms.txt") Then
-    $txt = Trim$(File.Load(User.Home & "/tmp/sms.txt"))
-    If InStr($txt, "erreur") = 0 Then
-      premium = Mid$($txt, InStr($txt, "premium\":\"") + 10, InStr($txt, "\",\"lowcost") - InStr($txt, "premium\":\"") - 10)
-      lowcost = Mid$($txt, InStr($txt, "lowcost\":\"") + 10, InStr($txt, "\",\"mobile") - InStr($txt, "lowcost\":\"") - 10)
-      If premium = 0 Then
-        Message.Info("Votre crédit premium est épuisé !\n" & "il vous reste " & lowcost & " sms lowcost")
-      Else
-        If lowcost = 0 Then
-          Message.Info("Il vous reste " & premium & " sms premium\n" & "Votre crédit lowcost est épuisé !")
+  If Left$(Support, 1) = "2" Then
+    Api = Settings["/Soc" & Start.Societe & "/Api"]
+    $contrat = Right$(Settings["/Soc" & Start.Societe & "/Type"], -3)
+    Expediteur = Settings["/Soc" & Start.Societe & "/Expediteur"]
+    Shell "curl " & "\"http://www.spot-hit.fr/api/credits/?key=" & Api & "\"" & " >" & User.Home & "/tmp/sms.txt 2>&1" Wait
+    If Exist(User.Home & "/tmp/sms.txt") Then
+      $txt = Trim$(File.Load(User.Home & "/tmp/sms.txt"))
+      If InStr($txt, "erreur") = 0 Then
+        premium = Mid$($txt, InStr($txt, "premium\":\"") + 10, InStr($txt, "\",\"lowcost") - InStr($txt, "premium\":\"") - 10)
+        lowcost = Mid$($txt, InStr($txt, "lowcost\":\"") + 10, InStr($txt, "\",\"mobile") - InStr($txt, "lowcost\":\"") - 10)
+        If premium = 0 Then
+          Message.Info("Votre crédit premium est épuisé !\n" & "il vous reste " & lowcost & " sms lowcost")
         Else
-          Message.Info("Il vous reste " & premium & " sms premium\n" & "il vous reste " & lowcost & " sms lowcost")
+          If lowcost = 0 Then
+            Message.Info("Il vous reste " & premium & " sms premium\n" & "Votre crédit lowcost est épuisé !")
+          Else
+            Message.Info("Il vous reste " & premium & " sms premium\n" & "il vous reste " & lowcost & " sms lowcost")
+          Endif
         Endif
+      Else
+        Message.Error("Votre clé API est mauvaise !\nVeuillez la contrôler dans les préférences SVP")
+        Try Me.close
       Endif
-    Else
-      Message.Error("Votre clé API est mauvaise !\nVeuillez la contrôler dans les préférences SVP")
-      Try Me.close
     Endif
   Endif
   comcode.Select
@@ -180,14 +182,21 @@ Public Sub Button2_Click()
   Dim Api As String = Settings["/Soc" & Start.Societe & "/Api"]
   Dim Type As String = Right$(Settings["/Soc" & Start.Societe & "/Type"], -3)
   Dim Expediteur As String = Settings["/Soc" & Start.Societe & "/Expediteur"]
+  Dim Hidentifiant As String = Settings["/Soc" & Start.Societe & "/Hidentifiant"]
+  Dim Hmdp As String = Settings["/Soc" & Start.Societe & "/Hmdp"]
 
   If Left$(Support, 1) = "1" Then
     mesg = Replace$(mesg, "\\n", " ")
     mesg &= "."
-  Else
+  Endif
+  If Left$(Support, 1) = "2" Then
     mesg = Replace$(mesg, "\\n", " ")
     mesg = Replace$(mesg, " ", "+")
   Endif
+  If Left$(Support, 1) = "3" Then
+    mesg = Intitule.Text
+  Endif
+  Print mesg
   If Not IsNull(TextBox1.text) And Not IsNull(TextLabel1.Text) Then
     Me.Mouse = Mouse.Wait
     If Left$(Support, 1) = "1" Then
@@ -202,14 +211,30 @@ Public Sub Button2_Click()
         Endif
       Endif
     Else
-      Shell "curl " & "\"http://www.spot-hit.fr/api/envoyer/sms?key=" & Api & "&type=" & Type & "&destinataires=" & Tel & "&message=" & mesg & "&expediteur=" & Replace$(Expediteur, " ", "+") & "\"" & " >" & User.Home & "/tmp/sms.txt 2>&1" Wait
-      Me.mouse = Mouse.Default
-      If Exist(User.Home & "/tmp/sms.txt") Then
-        $txt = Trim$(File.Load(User.Home & "/tmp/sms.txt"))
-        If InStr($txt, "{\"resultat\":1") = 0 Then
-          Message.Error("Problème ! Le message n'a pas pu être envoyé.")
-        Else
-          Message.Info("Le message a été envoyé.")
+      If Left$(Support, 1) = "2" Then
+        Shell "curl " & "\"http://www.spot-hit.fr/api/envoyer/sms?key=" & Api & "&type=" & Type & "&destinataires=" & Tel & "&message=" & mesg & "&expediteur=" & Replace$(Expediteur, " ", "+") & "\"" & " >" & User.Home & "/tmp/sms.txt 2>&1" Wait
+        Me.mouse = Mouse.Default
+        If Exist(User.Home & "/tmp/sms.txt") Then
+          $txt = Trim$(File.Load(User.Home & "/tmp/sms.txt"))
+          If InStr($txt, "{\"resultat\":1") = 0 Then
+            Message.Error("Problème ! Le message n'a pas pu être envoyé.")
+          Else
+            Message.Info("Le message a été envoyé.")
+          Endif
+        Endif
+      Else
+        If Left$(Support, 1) = "3" Then
+          Print "curl " & "\"http://sms.hosteur.com/api.php?login=" & Hidentifiant & "&pass=" & Hmdp & "&msg=" & mesg & "&dest=" & "33" & Tel & "&origine=" & Expediteur
+          Shell "curl " & "\"http://sms.hosteur.com/api.php?login=" & Hidentifiant & "&pass=" & Hmdp & "&msg=" & mesg & "&dest=" & "33" & Tel & "&origine=" & Expediteur & "encodage = 0" & "\"" & " >" & User.Home & "/tmp/sms.txt 2>&1" Wait
+          Me.mouse = Mouse.Default
+          If Exist(User.Home & "/tmp/sms.txt") Then
+            $txt = Trim$(File.Load(User.Home & "/tmp/sms.txt"))
+            'If InStr($txt, "{\"resultat\":1") = 0 Then
+            ' Message.Error("Problème ! Le message n'a pas pu être envoyé.")
+            ' Else
+            'Message.Info("Le message a été envoyé.")
+            ' Endif
+          Endif
         Endif
       Endif
     Endif
