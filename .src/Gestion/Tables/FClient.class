@@ -2604,7 +2604,10 @@ Public Sub Button15_Click()
     If adrResult.Available Then
       Utils.db.Exec("Update " & Cbase.Table("TabAdrC") & " set rs_soc = &2, nom = &3, pnm = &4, adr1 = &5 , adr2 = &6, cd_ptl = &7, ville = &8 where code = &9 and num = &1", Numero.Text, CV2.text, Nm2.text, Pnm2.text, Adresse4.text, Adresse3.text, cp2.text, Burdist2.text, cd.text)
     Else
-      Utils.db.Exec("Insert INTO " & Cbase.Table("TabAdrC") & " (code, rs_soc, nom, pnm, adr1, adr2, cd_ptl, ville) VALUE (&1, &2, &3, &4, &5, &6, &7, &8)", Cd.text, CV2.text, Nm2.text, Pnm2.text, Adresse4.text, Adresse3.text, cp2.text, Burdist2.text)
+      AdrResult = Utils.db.Exec("SELECT num FROM " & Cbase.Table("TabAdrC") & " order by num desc")
+      Try Numero.Text = AdrResult!num + 1
+      If Error Then Numero.Text = "1"
+      Utils.db.Exec("Insert INTO " & Cbase.Table("TabAdrC") & " (code, rs_soc, nom, pnm, adr1, adr2, cd_ptl, ville, num) VALUE (&1, &2, &3, &4, &5, &6, &7, &8, &9)", Cd.text, CV2.text, Nm2.text, Pnm2.text, Adresse4.text, Adresse3.text, cp2.text, Burdist2.text, Numero.Text)
     Endif
   Endif
   CleanChampsAdr()
@@ -2615,6 +2618,7 @@ End
 Public Sub Aff_AdrC()
 
   Dim AdrResult As Result
+  Dim iNumero As Integer = 0
 
   AdrResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabAdrC") & " where code = &1 order by num ", Cd.text)
   If AdrResult.Available Then
@@ -2627,7 +2631,10 @@ Public Sub Aff_AdrC()
       Colal.Item[4] = AdrResult!adr1
       Colal.Item[5] = AdrResult!cd_ptl
       Colal.Item[6] = AdrResult!ville
+      iNumero = AdrResult!num
     Until AdrResult.MoveNext()
+    Numero.Text = inumero + 1
+    If Error Then Numero.Text = "1"
     Colal.Columns[0].Width = 0
     Colal.MoveFirst
     Colal.SetFocus
@@ -2693,9 +2700,9 @@ Public Sub Button16_Click()
       If Variables.Sprix And Variables.Sexport And Variables.SMajCli Then Serveur.Pass("ContactC", "M", Cd.Text, Numero2.text)
     Else
       CrtResult = Utils.db.Exec("SELECT num FROM " & Cbase.Table("TabContact") & " order by num desc")
-      Try Numero.Text = CrtResult!num + 1
-      If Error Then Numero.Text = "1"
-      Utils.db.Exec("Insert INTO " & Cbase.Table("TabContact") & " (code, nom, pnm, fonction, tel, mail, portable, num) VALUE (&1, &2, &3, &4, &5, &6, &7, &8)", Cd.text, Nm3.text, Pnm3.text, fonction.Text, Tel2.Text, Mail2.text, Portable2.text, Numero.text)
+      Try Numero2.Text = CrtResult!num + 1
+      If Error Then Numero2.Text = "1"
+      Utils.db.Exec("Insert INTO " & Cbase.Table("TabContact") & " (code, nom, pnm, fonction, tel, mail, portable, num) VALUE (&1, &2, &3, &4, &5, &6, &7, &8)", Cd.text, Nm3.text, Pnm3.text, fonction.Text, Tel2.Text, Mail2.text, Portable2.text, Numero2.text)
       If Variables.Sprix And Variables.Sexport And Variables.SMajCli Then Serveur.Pass("ContactC", "C", Cd.Text, Numero2.text)
     Endif
   Endif
@@ -2707,6 +2714,7 @@ End
 Public Sub Aff_Ct()
 
   Dim CrtResult As Result
+  Dim iNumero As Integer = 0
 
   Colal2.Clear
   CrtResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabContact") & " where code = &1 order by num ", Cd.text)
@@ -2717,7 +2725,9 @@ Public Sub Aff_Ct()
       Colal2.Item[1] = CrtResult!nom
       Colal2.Item[2] = CrtResult!pnm
       Colal2.Item[3] = CrtResult!fonction
+      iNumero = CrtResult!num
     Until CrtResult.MoveNext()
+    Numero.Text = iNumero + 1
     Colal2.MoveFirst
     Colal2.SetFocus
     Colal2.Item.Selected = True
