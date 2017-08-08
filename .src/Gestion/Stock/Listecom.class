@@ -1,0 +1,80 @@
+' Gambas class file
+
+Private $snumcli As String
+
+Public Sub _new(snumcli As String)
+
+  Dim res, res1 As Result
+  Dim i, j, k As Integer
+
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  $snumcli = snumcli
+
+  res = Utils.db.Exec("SELECT datefac AS dte FROM Fiches_HistoFac WHERE cdclifac=&1 UNION(SELECT datebl as dte FROM Fiches_Bl WHERE cdclibl=&1) ORDER BY dte DESC LIMIT 10", $snumcli)
+  If res.Available Then
+    res.MoveFirst
+    GridView1.Header = GridView.Both
+    GridView1.ScrollBar = Scroll.Both
+    GridView1.Columns.Count = 1 + (res.Count * 3)
+    GridView1.Columns[0].Text = "Designation"
+    GridView1.Columns[0].Width = 200
+    GridView1.Mode = Select.Single
+    i = 1
+    Repeat
+      GridView1.Columns[i].Text = Format(res!dte, "dd/mm/yyyy")
+      Inc i
+      GridView1.Columns[i].Text = "Quantité"
+      Inc i
+      GridView1.Columns[i].Text = "Px HT"
+      Inc i
+      res.MoveNext
+    Until i >= GridView1.Columns.Max
+
+    i = 0
+    res.MoveFirst
+    Repeat
+      res1 = Utils.db.Exec("SELECT SUM(REPLACE(qte_ligfac,',','.')) AS qte,SUM(REPLACE(netht_ligfac,',','.')) as net,code_ligfac as code FROM Fiches_HistoFac JOIN Fiches_HistoLigfac ON  numfac=num_ligfac WHERE datefac=&1 AND cdclifac=&2 And typel_ligfac='A' GROUP BY code_ligfac UNION(SELECT SUM(REPLACE(qte_ligbl,',','.')) AS qte,SUM(REPLACE(netht_ligbl,',','.')) AS net,code_ligbl as code FROM Fiches_Bl JOIN Fiches_Ligbl ON num_ligbl=numbl WHERE datebl=&1 AND cdclibl=&2 AND typel_ligbl='A' GROUP BY code_ligbl)", res!dte, $snumcli)
+      res1.MoveFirst
+      For k = 0 To res1.Max
+        If GridView1.Rows.Count = 0 Then ajouart(res1!code)
+        i = rechart(res1!code)
+        If i = -2 Then
+          ajouart(res1!code)
+          i = rechart(res1!code)
+        Endif
+        j = 2 + (res.Index * 3)
+        Try GridView1[i, j].Text = Format(res1!qte, "0.000")
+        Inc j
+        Try GridView1[i, j].Text = Format(res1!net / res1!qte, "0.000")
+        res1.MoveNext
+      Next
+      res.MoveNext
+    Until j >= GridView1.Columns.Max
+
+  Endif
+
+End
+
+Private Sub ajouart(code As String)
+
+  Dim i As Integer
+  Dim res As Result
+
+  GridView1.Rows.Count += 1
+  i = GridView1.Rows.Max
+  res = Utils.db.Exec("SELECT * FROM Fiches_Art WHERE art_code=&1", code)
+  Try GridView1.Rows[i].Text = res!art_code
+  Try GridView1[i, 0].Text = res!art_design
+
+End
+
+Private Function rechart(code As String) As Integer
+
+  Dim i As Integer
+
+  For i = 0 To GridView1.Rows.Max
+    If GridView1.rows[i].Text = code Then Return i
+  Next
+  Return -2
+
+End
