@@ -62,16 +62,13 @@ Public Sub Button1_Click()
   Dim entete As String
   Dim pdf As Cdocuments
   Dim Posy As Integer
-  Dim Filename As String
+  Dim Filename, Filename2 As String
 
   Nbpage = 1
   Shell "cd " & User.Home & ""
   Filename = User.Home & "/tmp/ListeDocs.pdf"
-  If RadioButton12.value Then
-    pdf = New Cdocuments("Portrait", "mm", "A4")
-  Else
-    pdf = New Cdocuments("l", "mm", "A4")
-  Endif
+  Filename2 = User.Home & "/tmp/Liste2Docs.pdf"
+  pdf = New Cdocuments("l", "mm", "A4")
   pdf.Open()
   pdf.AliasNbPages()
   If RadioButton1.value Then Entete = "Liste des documents en cours"
@@ -84,108 +81,118 @@ Public Sub Button1_Click()
   If RadioButton9.value Then Ordre = "datebl, numbl"
   If RadioButton10.value Then Ordre = "cdclibl, nmclibl, type, datebl, numbl"
   If RadioButton11.value Then Ordre = "livraison, cdclibl, type, datebl, numbl"
-  If RadioButton12.value Then Ordre = "cdclibl, nmclibl"
-  If Not RadioButton12.value Then
-    pdf.EnteteP(Entete)
-    Me.Mouse = Mouse.Wait
-    Posy = 16
-    pdf.Level1d(posy)
-    Posy = posy + 10
-    If Not IsNull(TypeD) Then
-      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBl") & " left join " & Cbase.Table("TabCli") & " on cli_code = cdclibl where type = &1 order by " & Ordre & "", Typed)
-    Else
-      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBl") & "  left join " & Cbase.Table("TabCli") & " on cli_code = cdclibl order by " & Ordre & "")
-    Endif
-    If rResult.Available Then
-      Type2 = rResult!type
-      pdf.LinesLG(PosY)
-      Repeat
-        Type = rResult!type
-        intitule = rResult!cvclibl & " " & rResult!nmclibl & " " & rResult!pnmclibl & " "
-        Intitule = Left$(Intitule, 27)
-        Adr1 = rResult!adr1bl
-        Adr1 = Left$(Adr1, 27)
-        Adr2 = rResult!adr2bl
-        Adr2 = Left$(Adr2, 27)
-        Burdis = rResult!cpbl & " " & rResult!villebl
-        Burdis = Left$(Burdis, 30)
-        Tel = rResult!cli_tel_bur
-        Tel2 = rResult!cli_tel_poste
-        Tel3 = rResult!cli_pble
-        Datebl = Utils.Cdate_Aff(rResult!datebl)
-        Datefac = Utils.Cdate_Aff(rResult!dtefac)
-        Numbl = rResult!numbl
-        Numfac = rResult!numfac
-        Try Total = Format$(rResult!totalttc, "0.00")
-        If Error Then Total = "*******"
-        If Type2 <> type Then
-          pdf.LinesP(PosY)
-          PosY = PosY + 4
-        Endif
-        Type2 = type
-        If Type = "F" And rResult!imp = 1 Then
-          pdf.level2d(Type, intitule, Adr1, Adr2, Burdis, Datefac, Numfac, Total, posy, TypeD, RadioButton7.value, rResult!livraison)
-        Else
-          pdf.level2d(Type, intitule, Adr1, Adr2, Burdis, Datebl, Numbl, Total, posy, TypeD, RadioButton7.value, rResult!livraison)
-        Endif
+  If RadioButton12.value Then Entete = "Liste des commandes en cours"
+  pdf.EnteteP(Entete)
+  Me.Mouse = Mouse.Wait
+  Posy = 16
+  pdf.Level1d(posy)
+  Posy = posy + 10
+  If Not IsNull(TypeD) Then
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBl") & " left join " & Cbase.Table("TabCli") & " on cli_code = cdclibl where type = &1 order by " & Ordre & "", Typed)
+  Else
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBl") & "  left join " & Cbase.Table("TabCli") & " on cli_code = cdclibl order by " & Ordre & "")
+  Endif
+  If rResult.Available Then
+    Type2 = rResult!type
+    pdf.LinesLG(PosY)
+    Repeat
+      Type = rResult!type
+      intitule = rResult!cvclibl & " " & rResult!nmclibl & " " & rResult!pnmclibl & " "
+      Intitule = Left$(Intitule, 27)
+      Adr1 = rResult!adr1bl
+      Adr1 = Left$(Adr1, 27)
+      Adr2 = rResult!adr2bl
+      Adr2 = Left$(Adr2, 27)
+      Burdis = rResult!cpbl & " " & rResult!villebl
+      Burdis = Left$(Burdis, 30)
+      Tel = rResult!cli_tel_bur
+      Tel2 = rResult!cli_tel_poste
+      Tel3 = rResult!cli_pble
+      Datebl = Utils.Cdate_Aff(rResult!datebl)
+      Datefac = Utils.Cdate_Aff(rResult!dtefac)
+      Numbl = rResult!numbl
+      Numfac = rResult!numfac
+      Try Total = Format$(rResult!totalttc, "0.00")
+      If Error Then Total = "*******"
+      If Type2 <> type Then
+        pdf.LinesP(PosY)
+      Endif
+      Type2 = type
+      If Type = "F" And rResult!imp = 1 Then
+        pdf.level2d(Type, intitule, Adr1, Adr2, Burdis, Datefac, Numfac, Total, posy, TypeD, RadioButton7.value, rResult!livraison)
+      Else
+        pdf.level2d(Type, intitule, Adr1, Adr2, Burdis, Datebl, Numbl, Total, posy, TypeD, RadioButton7.value, rResult!livraison)
+      Endif
+      PosY = PosY + 4
+      If Not IsNull(Tel) Or Not IsNull(Tel2) Or Not IsNull(Tel3) Then
+        pdf.level2d("", "", Tel, tel2, tel3, "", "", "", posy, "", RadioButton7.value, "")
         PosY = PosY + 4
-        If Not IsNull(Tel) Or Not IsNull(Tel2) Or Not IsNull(Tel3) Then
-          pdf.level2d("", "", Tel, tel2, tel3, "", "", "", posy, "", RadioButton7.value, "")
-          PosY = PosY + 4
-        Endif
-        If PosY >= 194 Then
-          pdf.BaspageP()
-          pdf.EnteteP(Entete)
-          Posy = 26
-          pdf.Level1d(posy)
-          Posy = posy + 10
-        Endif
-        If RadioButton7.value Then
-          Resultlg = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigbl") & " where num_ligbl = &1 and typel_ligbl = &2 or num_ligbl = &1 and code_ligbl = &3", rResult!numbl, "A", "YY")
-          If Resultlg.Available Then
-            Repeat
-              If Resultlg!code_ligbl <> "YY" Then
-                pdf.level2DLG(Resultlg!code_ligbl, Resultlg!libel_ligbl, Resultlg!qte_ligbl, Format$(Val(Utils.cpoint(Resultlg!nettc_ligbl)), "0.00"), posy)
-              Else
-                If RadioButton2.value Then
-                  For Each sline In Split(Resultlg!com_ligbl, "\n")
-                    PosY = PosY + 4
-                    If PosY >= 194 Then
-                      pdf.BaspageP()
-                      pdf.EnteteP(Entete)
-                      Posy = 26
-                      pdf.Level1d(posy)
-                      Posy = posy + 10
-                    Endif
-                    pdf.level2DLG2(sline, posy)
-                  Next
-                Endif
+      Endif
+      If PosY >= 194 Then
+        pdf.BaspageP()
+        pdf.EnteteP(Entete)
+        Posy = 26
+        pdf.Level1d(posy)
+        Posy = posy + 10
+      Endif
+      If RadioButton7.value Then
+        Resultlg = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigbl") & " where num_ligbl = &1 and typel_ligbl = &2 or num_ligbl = &1 and code_ligbl = &3", rResult!numbl, "A", "YY")
+        If Resultlg.Available Then
+          Repeat
+            If Resultlg!code_ligbl <> "YY" Then
+              pdf.level2DLG(Resultlg!code_ligbl, Resultlg!libel_ligbl, Resultlg!qte_ligbl, Format$(Val(Utils.cpoint(Resultlg!nettc_ligbl)), "0.00"), posy)
+            Else
+              If RadioButton2.value Then
+                For Each sline In Split(Resultlg!com_ligbl, "\n")
+                  PosY = PosY + 4
+                  If PosY >= 194 Then
+                    pdf.BaspageP()
+                    pdf.EnteteP(Entete)
+                    Posy = 26
+                    pdf.Level1d(posy)
+                    Posy = posy + 10
+                  Endif
+                  pdf.level2DLG2(sline, posy)
+                Next
               Endif
-              PosY = PosY + 4
-              If PosY >= 194 Then
-                pdf.BaspageP()
-                pdf.EnteteP(Entete)
-                Posy = 26
-                pdf.Level1d(posy)
-                Posy = posy + 10
-              Endif
-            Until Resultlg.MoveNext()
-            pdf.LinesLG(PosY)
-          Endif
+            Endif
+            PosY = PosY + 4
+            If PosY >= 194 Then
+              pdf.BaspageP()
+              pdf.EnteteP(Entete)
+              Posy = 26
+              pdf.Level1d(posy)
+              Posy = posy + 10
+            Endif
+          Until Resultlg.MoveNext()
+          pdf.LinesLG(PosY)
         Endif
-      Until rResult.MoveNext()
-      pdf.LinesLG(PosY)
-      pdf.BaspageP()
-      pdf.Output(Filename, False)
+      Endif
+    Until rResult.MoveNext()
+    pdf.LinesLG(PosY)
+    pdf.BaspageP()
+    pdf.Output(Filename, False)
+    If Not Radiobutton12.value Then
       Impression.Prog_Editeur(Filename)
     Else
-      If son Then
-        Music.Play
-      Endif
-      message(" Aucun document en cours n'est a imprimer", "OK")
+      pdf = New Cdocuments("Portrait", "mm", "A4")
+      pdf.Open()
+      pdf.Entetebpc(Intitule & " " & Burdis)
+      pdf.AliasNbPages()
+      Ordre = "cdclibl, nmclibl"
+      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBl") & " left join " & Cbase.Table("TabCli") & " on cli_code = cdclibl where type = &1 order by " & Ordre & "", "C")
+      Posy = 16
+      pdf.Level1bpc(posy)
+      Posy = posy + 10
+      pdf.Output(Filename2, False)
+      Impression.Prog_Editeur(Filename2)
+      Impression.Prog_Editeur(Filename)
     Endif
   Else
-
+    If son Then
+      Music.Play
+    Endif
+    message(" Aucun document en cours n'est a imprimer", "OK")
   Endif
   Me.Mouse = Mouse.Pointing
 
