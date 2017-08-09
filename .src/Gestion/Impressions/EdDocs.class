@@ -47,12 +47,12 @@ Public Sub Button1_Click()
 
   Dim rResult As Result
   Dim Resultlg As Result
-  Dim Type, Ordre As String
+  Dim Type, Ordre, codeC As String
   Dim Type2 As String
   Dim intitule, sline As String
   Dim Adr1 As String
   Dim Adr2 As String
-  Dim Burdis, tel, tel2, tel3 As String
+  Dim Burdis, tel, tel2, tel3, fax, mel As String
   Dim datebl As String
   Dim datefac As String
   Dim Numbl As String
@@ -61,13 +61,10 @@ Public Sub Button1_Click()
   Dim Nbpage As Integer
   Dim entete As String
   Dim pdf As Cdocuments
-  Dim Posy As Integer
-  Dim Filename, Filename2 As String
 
   Nbpage = 1
   Shell "cd " & User.Home & ""
   Filename = User.Home & "/tmp/ListeDocs.pdf"
-  Filename2 = User.Home & "/tmp/Liste2Docs.pdf"
   pdf = New Cdocuments("l", "mm", "A4")
   pdf.Open()
   pdf.AliasNbPages()
@@ -76,12 +73,10 @@ Public Sub Button1_Click()
   If RadioButton4.value Then Entete = "Liste des commandes en cours"
   If RadioButton3.value Then Entete = "Liste des BL en cours"
   If RadioButton5.value Then Entete = "Liste des factures en cours"
-  If RadioButton12.value Then Entete = "Impression des bons de préparation"
   If RadioButton8.value Then Ordre = "numbl"
   If RadioButton9.value Then Ordre = "datebl, numbl"
   If RadioButton10.value Then Ordre = "cdclibl, nmclibl, type, datebl, numbl"
   If RadioButton11.value Then Ordre = "livraison, cdclibl, type, datebl, numbl"
-  If RadioButton12.value Then Entete = "Liste des commandes en cours"
   pdf.EnteteP(Entete)
   Me.Mouse = Mouse.Wait
   Posy = 16
@@ -105,9 +100,12 @@ Public Sub Button1_Click()
       Adr2 = Left$(Adr2, 27)
       Burdis = rResult!cpbl & " " & rResult!villebl
       Burdis = Left$(Burdis, 30)
+      CodeC = rResult!cdclibl
       Tel = rResult!cli_tel_bur
       Tel2 = rResult!cli_tel_poste
       Tel3 = rResult!cli_pble
+      Fax = rResult!cli_fx1
+      Mel = rResult!cli_email
       Datebl = Utils.Cdate_Aff(rResult!datebl)
       Datefac = Utils.Cdate_Aff(rResult!dtefac)
       Numbl = rResult!numbl
@@ -172,22 +170,7 @@ Public Sub Button1_Click()
     pdf.LinesLG(PosY)
     pdf.BaspageP()
     pdf.Output(Filename, False)
-    If Not Radiobutton12.value Then
-      Impression.Prog_Editeur(Filename)
-    Else
-      pdf = New Cdocuments("Portrait", "mm", "A4")
-      pdf.Open()
-      pdf.Entetebpc(Intitule & " " & Burdis)
-      pdf.AliasNbPages()
-      Ordre = "cdclibl, nmclibl"
-      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBl") & " left join " & Cbase.Table("TabCli") & " on cli_code = cdclibl where type = &1 order by " & Ordre & "", "C")
-      Posy = 16
-      pdf.Level1bpc(posy)
-      Posy = posy + 10
-      pdf.Output(Filename2, False)
-      Impression.Prog_Editeur(Filename2)
-      Impression.Prog_Editeur(Filename)
-    Endif
+    Impression.Prog_Editeur(Filename)
   Else
     If son Then
       Music.Play

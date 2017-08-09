@@ -1,0 +1,267 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : EdDocs.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 13.04.2011
+'# Edition des documents clients en cours
+'################################################
+'
+Private Filename As String
+Private Filename2 As String
+Private son As Integer = Start.Son
+Private PosY As Integer
+Private Coulfond As New String[]
+Private TypeD As String
+
+Public Sub _New()
+
+  Dim Frmt As New String[]
+
+  Frmt = Utils.FColr(Settings["/Coul/Fnets"])
+  Coulfond = Utils.Coulfd()
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+
+  Music.Load(Start.Musique)
+  Me.Center
+
+End
+
+Public Sub Button1_Click()
+
+  Dim rResult, rResult2 As Result
+  Dim Resultlg As Result
+  Dim Type, Ordre, codeC, codeF As String
+  Dim Type2 As String
+  Dim intitule, intitule2, sline As String
+  Dim Adr1, Adr12 As String
+  Dim Adr2, Adr22 As String
+  Dim Burdis, Burdis2, tel, tel2, tel3, fax, mel As String
+  Dim datebl As String
+  Dim datefac As String
+  Dim Numbl As String
+  Dim Numfac As String
+  Dim Total As String
+  Dim Nbpage As Integer
+  Dim entete As String
+  Dim pdf As Cdocuments
+  Dim pdf2 As Cdocuments3
+  Dim i As Integer
+
+  Nbpage = 1
+  Shell "cd " & User.Home & ""
+  Filename = User.Home & "/tmp/ListeDocs.pdf"
+  Filename2 = User.Home & "/tmp/Liste2Docs.pdf"
+  pdf = New Cdocuments("l", "mm", "A4")
+  pdf.Open()
+  pdf.AliasNbPages()
+  Entete = "Impression des bons de préparation"
+  Ordre = "cdclibl, nmclibl, type, datebl, numbl"
+
+  pdf.EnteteP(Entete)
+  Me.Mouse = Mouse.Wait
+  Posy = 16
+  pdf.Level1d(posy)
+  Posy = posy + 10
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBl") & " left join " & Cbase.Table("TabCli") & " on cli_code = cdclibl where type = &1 order by " & Ordre & "", "C")
+  If rResult.Available Then
+    Type2 = rResult!type
+    pdf.LinesLG(PosY)
+    Repeat
+      Type = rResult!type
+      intitule = rResult!cvclibl & " " & rResult!nmclibl & " " & rResult!pnmclibl & " "
+      Intitule = Left$(Intitule, 27)
+      Adr1 = rResult!adr1bl
+      Adr1 = Left$(Adr1, 27)
+      Adr2 = rResult!adr2bl
+      Adr2 = Left$(Adr2, 27)
+      Burdis = rResult!cpbl & " " & rResult!villebl
+      Burdis = Left$(Burdis, 30)
+      CodeC = rResult!cdclibl
+      Tel = rResult!cli_tel_bur
+      Tel2 = rResult!cli_tel_poste
+      Tel3 = rResult!cli_pble
+      Fax = rResult!cli_fx1
+      Mel = rResult!cli_email
+      Datebl = Utils.Cdate_Aff(rResult!datebl)
+      Datefac = Utils.Cdate_Aff(rResult!dtefac)
+      Numbl = rResult!numbl
+      Numfac = rResult!numfac
+      Try Total = Format$(rResult!totalttc, "0.00")
+      If Error Then Total = "*******"
+      If Type2 <> type Then
+        pdf.LinesP(PosY)
+      Endif
+      Type2 = type
+      pdf.level2d(Type, intitule, Adr1, Adr2, Burdis, Datebl, Numbl, Total, posy, TypeD, RadioButton7.value, rResult!livraison)
+      PosY = PosY + 4
+      If Not IsNull(Tel) Or Not IsNull(Tel2) Or Not IsNull(Tel3) Then
+        pdf.level2d("", "", Tel, tel2, tel3, "", "", "", posy, "", RadioButton7.value, "")
+        PosY = PosY + 4
+      Endif
+      If PosY >= 194 Then
+        pdf.BaspageP()
+        pdf.EnteteP(Entete)
+        Posy = 26
+        pdf.Level1d(posy)
+        Posy = posy + 10
+      Endif
+      If RadioButton7.value Then
+        Resultlg = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigbl") & " where num_ligbl = &1 and typel_ligbl = &2 or num_ligbl = &1 and code_ligbl = &3", rResult!numbl, "A", "YY")
+        If Resultlg.Available Then
+          Repeat
+            If Resultlg!code_ligbl <> "YY" Then
+              pdf.level2DLG(Resultlg!code_ligbl, Resultlg!libel_ligbl, Resultlg!qte_ligbl, Format$(Val(Utils.cpoint(Resultlg!nettc_ligbl)), "0.00"), posy)
+            Else
+              For Each sline In Split(Resultlg!com_ligbl, "\n")
+                PosY = PosY + 4
+                If PosY >= 194 Then
+                  pdf.BaspageP()
+                  pdf.EnteteP(Entete)
+                  Posy = 26
+                  pdf.Level1d(posy)
+                  Posy = posy + 10
+                Endif
+                pdf.level2DLG2(sline, posy)
+              Next
+            Endif
+            PosY = PosY + 4
+            If PosY >= 194 Then
+              pdf.BaspageP()
+              pdf.EnteteP(Entete)
+              Posy = 26
+              pdf.Level1d(posy)
+              Posy = posy + 10
+            Endif
+          Until Resultlg.MoveNext()
+          pdf.LinesLG(PosY)
+        Endif
+      Endif
+    Until rResult.MoveNext()
+    pdf.LinesLG(PosY)
+    pdf.BaspageP()
+    pdf.Output(Filename, False)
+    pdf2 = New Cdocuments3("Portrait", "mm", "A4")
+    pdf2.Open()
+    pdf2.AliasNbPages()
+    Ordre = "cdclibl, nmclibl"
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBl") & " left join " & Cbase.Table("TabCli") & " on cli_code = cdclibl where type = &1 order by " & Ordre & "", "C")
+    If rResult.Available Then
+      Repeat
+        i = 0
+        Type = rResult!type
+        intitule = rResult!cvclibl & " " & rResult!nmclibl & " " & rResult!pnmclibl & " "
+        Intitule = Left$(Intitule, 27)
+        Adr1 = rResult!adr1bl
+        Adr1 = Left$(Adr1, 27)
+        Adr2 = rResult!adr2bl
+        Adr2 = Left$(Adr2, 27)
+        Burdis = rResult!cpbl & " " & rResult!villebl
+        Burdis = Left$(Burdis, 30)
+        CodeC = rResult!cdclibl
+        Tel = rResult!cli_tel_bur
+        Tel2 = rResult!cli_tel_poste
+        Tel3 = rResult!cli_pble
+        Fax = rResult!cli_fx1
+        Mel = rResult!cli_email
+        Datebl = Utils.Cdate_Aff(rResult!datebl)
+        Datefac = Utils.Cdate_Aff(rResult!dtefac)
+        Numbl = rResult!numbl
+        Numfac = rResult!numfac
+        Try Total = Format$(rResult!totalttc, "0.00")
+        If Error Then Total = "*******"
+        pdf2.Entete(Settings["/intitule"])
+        pdf2.Entete2("Commande N° " & rResult!numbl & " du " & rResult!datebl)
+        pdf2.cadre
+        pdf2.adresse(intitule, Adr1, Adr2, Burdis, tel, tel3, fax, mel)
+        If Not IsNull(CodeC) Then
+          rResult2 = Utils.db.Exec("SELECT * FROM Fiches_AdrlivC where code = &1 order by num limit 1", CodeC)
+          If rResult2.Available Then
+            intitule2 = rResult2!rs_soc & " " & rResult2!nom & " " & rResult2!pnm & " "
+            Intitule2 = Left$(Intitule2, 27)
+            Adr12 = rResult2!adr1
+            Adr12 = Left$(Adr1, 27)
+            Adr22 = rResult2!adr2
+            Adr22 = Left$(Adr2, 27)
+            Burdis2 = rResult2!cd_ptl & " " & rResult2!ville
+            Burdis2 = Left$(Burdis, 30)
+          Else
+            intitule2 = intitule
+            Adr12 = Adr1
+            Adr22 = Adr2
+            Burdis2 = Burdis
+          Endif
+        Endif
+        pdf2.adresse2(intitule2, Adr12, Adr22, Burdis2)
+        Resultlg = Utils.db.Exec("SELECT * FROM Fiches_Ligbl left join Fiches_Art on art_code = code_ligbl where num_ligbl = &1 and typel_ligbl = &2 or num_ligbl = &1 and code_ligbl = &3", rResult!numbl, "A", "YY")
+        If Resultlg.available Then
+          pdf2.Level1()
+          posy = 86
+          Repeat
+            CodeF = Resultlg!art_four
+            If CodeF <> Resultlg!four_ligbl And Not IsNull(Resultlg!four_ligbl) Then CodeF = Resultlg!four_ligbl
+            pdf2.Level2(Resultlg!code_ligbl, Resultlg!art_casier, CodeF, Resultlg!libel_ligbl, Resultlg!qte_ligbl, "20", posy, i)
+            pdf2.carre(posy)
+            posy += 5
+            Inc i
+            If PosY >= 270 Then
+              pdf2.Baspage()
+              pdf2.Entete(Settings["/intitule"])
+              pdf2.Entete2("Commande N° " & rResult!numbl & " du " & rResult!datebl)
+              pdf2.cadre
+              pdf2.adresse(intitule, Adr1, Adr2, Burdis, tel, tel3, fax, mel)
+              pdf2.adresse2(intitule2, Adr12, Adr22, Burdis2)
+              pdf2.Level1()
+              posy = 86
+              i = 0
+            Endif
+          Until Resultlg.MoveNext()
+        Endif
+        pdf2.Basep()
+        pdf2.BasPage()
+        i = 1
+        Intitule2 = Left$(Intitule2, 27)
+        Adr12 = ""
+        Adr22 = ""
+        Burdis2 = ""
+      Until rResult.MoveNext()
+
+    Endif
+    pdf2.Output(Filename2, False)
+    Impression.Prog_Editeur(Filename2)
+    Wait 0.5
+    Impression.Prog_Editeur(Filename)
+  Else
+    If son Then
+      Music.Play
+    Endif
+    message(" Aucun document en cours n'est a imprimer", "OK")
+  Endif
+  Me.Mouse = Mouse.Pointing
+
+End
+
+Public Sub Button2_Click()
+
+  If Exist(Filename) Then Try Kill Filename
+  If Exist(Filename2) Then Try Kill Filename2
+  Me.Close
+
+End
