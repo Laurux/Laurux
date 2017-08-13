@@ -47,7 +47,7 @@ End
 Public Sub Button1_Click()
 
   Dim rResult, rResult2 As Result
-  Dim Resultlg As Result
+  Dim Resultlg, Fresult As Result
   Dim Type, Ordre, codeC, codeF As String
   Dim Type2 As String
   Dim intitule, intitule2, sline As String
@@ -213,18 +213,42 @@ Public Sub Button1_Click()
           Endif
         Endif
         pdf2.adresse2(intitule2, Adr12, Adr22, Burdis2)
-        Resultlg = Utils.db.Exec("SELECT * FROM Fiches_Ligbl left join Fiches_Art on art_code = code_ligbl where num_ligbl = &1 and typel_ligbl = &2 or num_ligbl = &1 and code_ligbl = &3", rResult!numbl, "A", "YY")
+        Resultlg = Utils.db.Exec("SELECT * FROM Fiches_Ligbl left join Fiches_Art on art_code = code_ligbl where num_ligbl = &1 or num_ligbl = &1 and code_ligbl = &2", rResult!numbl, "YY")
         If Resultlg.available Then
           pdf2.Level1()
           posy = 86
           Repeat
             CodeF = Resultlg!art_four
             If CodeF <> Resultlg!four_ligbl And Not IsNull(Resultlg!four_ligbl) Then CodeF = Resultlg!four_ligbl
-            pdf2.Level2(Resultlg!code_ligbl, Resultlg!art_casier, CodeF, Resultlg!libel_ligbl, Resultlg!qte_ligbl, "20", posy, i)
-            pdf2.carre(posy)
-            posy += 5
-            Inc i
-            If PosY >= 270 Then
+            Fresult = Utils.db.Exec("SELECT fo_nom FROM Fiches_Four where fo_code = &1", CodeF)
+            If Fresult.Available Then CodeF = Fresult!fo_nom
+            If Resultlg!typel_ligbl = "A" Then
+              pdf2.Level2(Resultlg!code_ligbl, Resultlg!art_casier, CodeF, Resultlg!libel_ligbl, Resultlg!art_qte, Resultlg!qte_ligbl, "", posy, i)
+              pdf2.carre(posy)
+              posy += 5
+              Inc i
+            Else
+              If RadioButton7.value Then
+                For Each sline In Split(Resultlg!com_ligbl, "\n")
+                  If PosY >= 266 Then
+                    pdf2.Baspage()
+                    pdf2.Entete(Settings["/intitule"])
+                    pdf2.Entete2("Commande N° " & rResult!numbl & " du " & rResult!datebl)
+                    pdf2.cadre
+                    pdf2.adresse(intitule, Adr1, Adr2, Burdis, tel, tel3, fax, mel)
+                    pdf2.adresse2(intitule2, Adr12, Adr22, Burdis2)
+                    pdf2.Level1()
+                    posy = 86
+                    i = 0
+                  Endif
+                  i = 1
+                  pdf2.Level2b(sline, posy, i)
+                  PosY += 4
+                Next
+                Inc i
+              Endif
+            Endif
+            If PosY >= 266 Then
               pdf2.Baspage()
               pdf2.Entete(Settings["/intitule"])
               pdf2.Entete2("Commande N° " & rResult!numbl & " du " & rResult!datebl)
