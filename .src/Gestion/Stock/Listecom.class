@@ -1,55 +1,107 @@
 ' Gambas class file
 
+Private $snumart As String
 Private $snumcli As String
+Private design As String
 
-Public Sub _new(snumcli As String, Org As String, code As String)
+Public Sub _new(snumcli As String, snumart As String)
 
   Dim res, res1 As Result
   Dim i, j, k As Integer
 
   If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
   $snumcli = snumcli
-
-  res = Utils.db.Exec("SELECT datefac AS dte FROM Fiches_HistoFac WHERE cdclifac=&1 UNION(SELECT datebl as dte FROM Fiches_Bl WHERE cdclibl=&1) ORDER BY dte DESC LIMIT 10", $snumcli)
+  $snumart = snumart
+  If $snumart Then
+    res = Utils.db.Exec("SELECT datefac AS dte FROM Fiches_HistoFac,Fiches_HistoLigfac WHERE cdclifac=&1 AND num_ligfac=numfac AND code_ligfac=&2 UNION(SELECT datebl as dte FROM Fiches_Bl,Fiches_Ligbl WHERE cdclibl=&1 AND num_ligbl=numbl AND code_ligbl=&2) ORDER BY dte DESC", $snumcli, $snumart)
+  Else
+    res = Utils.db.Exec("SELECT datefac AS dte FROM Fiches_HistoFac WHERE cdclifac=&1 UNION(SELECT datebl as dte FROM Fiches_Bl WHERE cdclibl=&1 AND totalht<>0) ORDER BY dte DESC LIMIT 10", $snumcli)
+  Endif
   If res.Available Then
-    GridView1.Header = GridView.Both
-    GridView1.ScrollBar = Scroll.Both
-    GridView1.Columns.Count = 4
-    GridView1.Columns[0].Text = "Designation"
-    GridView1.Columns[0].Width = 380
-    GridView1.Mode = Select.Single
-    GridView1.Columns[1].Text = "Date"
-    GridView1.Columns[1].Width = 100
-    Inc i
-    GridView1.Columns[2].Text = "Quantité"
-    Inc i
-    GridView1.Columns[3].Text = "Px HT"
-    Inc i
-
-    i = 0
     res.MoveFirst
-    Repeat
-      If Org = "H" Then
-        res1 = Utils.db.Exec("SELECT SUM(REPLACE(qte_ligfac,',','.')) AS qte,SUM(REPLACE(netht_ligfac,',','.')) as net,code_ligfac as code, datefac as dte FROM Fiches_HistoFac JOIN Fiches_HistoLigfac ON  numfac=num_ligfac WHERE datefac=&1 AND cdclifac=&2 And typel_ligfac='A' GROUP BY code_ligfac UNION(SELECT SUM(REPLACE(qte_ligbl,',','.')) AS qte,SUM(REPLACE(netht_ligbl,',','.')) AS net,code_ligbl as code, datebl as dte FROM Fiches_Bl JOIN Fiches_Ligbl ON num_ligbl=numbl WHERE datebl=&1 AND cdclibl=&2 AND typel_ligbl='A' GROUP BY code_ligbl)", res!dte, $snumcli)
-      Else
-        res1 = Utils.db.Exec("SELECT SUM(REPLACE(qte_ligfac,',','.')) AS qte,SUM(REPLACE(netht_ligfac,',','.')) as net,code_ligfac as code, datefac as dte FROM Fiches_HistoFac JOIN Fiches_HistoLigfac ON  numfac=num_ligfac WHERE datefac=&1 AND cdclifac=&2 And typel_ligfac='A' and  code_ligfac = &3 GROUP BY code_ligfac UNION(SELECT SUM(REPLACE(qte_ligbl,',','.')) AS qte,SUM(REPLACE(netht_ligbl,',','.')) AS net,code_ligbl as code, datebl as dte FROM Fiches_Bl JOIN Fiches_Ligbl ON num_ligbl=numbl WHERE datebl=&1 AND cdclibl=&2 AND code_ligbl= &3 GROUP BY code_ligbl)", res!dte, $snumcli, Code)
-      Endif
-      res1.MoveFirst
-      For k = 0 To res1.Max
-        ajouart(res1!code)
-        j = 1
-        Try GridView1[i, j].Text = Format(res1!dte, "dd/mm/yyyy")
-        Inc j
-        Try GridView1[i, j].Text = Format(res1!qte, "0.000")
-        Inc j
-        Try GridView1[i, j].Text = Format(res1!net / res1!qte, "0.000")
-        res1.MoveNext
+    If $snumart Then
+      GridView1.Header = GridView.Both
+      GridView1.ScrollBar = Scroll.Vertical
+      GridView1.Columns.Count = 1 + res.Count * 4
+      GridView1.Columns[0].Text = "Code"
+      GridView1.Columns[0].Width = 160
+      GridView1.Columns[1].Text = "Designation"
+      GridView1.Columns[1].Width = 400
+      GridView1.Columns[2].Text = "Date"
+      GridView1.Columns[2].Width = 100
+      GridView1.Columns[3].Text = "Quantité"
+      GridView1.Columns[3].Width = 100
+      GridView1.Columns[4].Text = "Px HT"
+      GridView1.Columns[4].Width = 140
+      GridView1.Mode = Select.single
+      GridView1.Font = Font["serif,-1"]
+      i = 0
+      Repeat
+        res1 = Utils.db.Exec("SELECT SUM(REPLACE(qte_ligfac,',','.')) AS qte,SUM(REPLACE(netht_ligfac,',','.')) as net,code_ligfac as code, libel_ligfac as design FROM Fiches_HistoFac JOIN Fiches_HistoLigfac ON  numfac=num_ligfac WHERE datefac=&1 AND cdclifac=&2 And typel_ligfac='A' AND code_ligfac=&3 GROUP BY code_ligfac UNION(SELECT SUM(REPLACE(qte_ligbl,',','.')) AS qte,SUM(REPLACE(netht_ligbl,',','.')) AS net,code_ligbl as code, libel_ligbl as design FROM Fiches_Bl JOIN Fiches_Ligbl ON num_ligbl=numbl WHERE datebl=&1 AND cdclibl=&2 AND typel_ligbl='A' AND code_ligbl=&3 GROUP BY code_ligbl)", res!dte, $snumcli, $snumart)
+        GridView1.Rows.Count += res1.count
+        res1.MoveFirst
+        Repeat
+          GridView1[i, j].Text = res1!code
+          Inc j
+          GridView1[i, j].Text = res1!design
+          Inc j
+          GridView1[i, j].Text = Format(res!dte, "dd/mm/yyyy")
+          Inc j
+          GridView1[i, j].Text = Format(res1!qte, "0.000")
+          Inc j
+          GridView1[i, j].Text = Format(res1!net / res1!qte, "0.000")
+          j = 0
+          Inc i
+        Until res1.MoveNext()
+      Until res.MoveNext()
+    Else
+      Me.Width = Screen.AvailableWidth - 100
+      GridView1.Width = Me.Width
+      GridView1.Header = GridView.Both
+      GridView1.ScrollBar = Scroll.Both
+      GridView1.Columns.Count = 1 + (res.Count * 3)
+      GridView1.Columns[0].Text = "Designation"
+      GridView1.Columns[0].Width = 400
+      GridView1.Mode = Select.Single
+      GridView1.Font = Font["Serif,-1"]
+      i = 1
+      Repeat
+        GridView1.Columns[i].Text = "Date"
+        GridView1.Columns[i].Width = 100
         Inc i
-        j = 1
-      Next
+        GridView1.Columns[i].Text = "Quantité"
+        GridView1.Columns[i].Width = 100
+        Inc i
+        GridView1.Columns[i].Text = "Px HT"
+        GridView1.Columns[i].Width = 100
+        Inc i
+        res.MoveNext
+      Until i >= GridView1.Columns.Max
+      i = 0
+      res.MoveFirst
+      Repeat
 
-    Until res.MoveNext()
-
+        res1 = Utils.db.Exec("SELECT SUM(REPLACE(qte_ligfac,',','.')) AS qte,SUM(REPLACE(netht_ligfac,',','.')) as net,code_ligfac as code, libel_ligfac as design FROM Fiches_HistoFac JOIN Fiches_HistoLigfac ON  numfac=num_ligfac WHERE datefac=&1 AND cdclifac=&2 And typel_ligfac='A' GROUP BY code_ligfac UNION(SELECT SUM(REPLACE(qte_ligbl,',','.')) AS qte,SUM(REPLACE(netht_ligbl,',','.')) AS net,code_ligbl as code, libel_ligbl as design FROM Fiches_Bl JOIN Fiches_Ligbl ON num_ligbl=numbl WHERE datebl=&1 AND cdclibl=&2 AND typel_ligbl='A' GROUP BY code_ligbl)", res!dte, $snumcli)
+        res1.MoveFirst
+        For k = 0 To res1.Max
+          design = res1!design
+          If GridView1.Rows.Count = 0 Then ajouart(res1!code)
+          i = rechart(res1!code)
+          If i = -2 Then
+            ajouart(res1!code)
+            i = rechart(res1!code)
+          Endif
+          j = 1 + (res.Index * 3)
+          GridView1[i, j].Text = Format(res!dte, "dd/mm/yyyy")
+          Inc j
+          GridView1[i, j].Text = Format(res1!qte, "0.000")
+          Inc j
+          GridView1[i, j].Text = Format(res1!net / res1!qte, "0.000")
+          res1.MoveNext
+        Next
+        res.MoveNext
+      Until j >= GridView1.Columns.Max
+    Endif
   Endif
 
 End
@@ -62,7 +114,28 @@ Private Sub ajouart(code As String)
   GridView1.Rows.Count += 1
   i = GridView1.Rows.Max
   res = Utils.db.Exec("SELECT * FROM Fiches_Art WHERE art_code=&1", code)
-  Try GridView1.Rows[i].Text = res!art_code
-  Try GridView1[i, 0].Text = res!art_design
+  Try GridView1.Rows[i].Text = code
+  If Not Error Then
+    GridView1[i, 0].Text = res!art_design
+  Else
+    GridView1[i, 0].Text = design
+  Endif
+
+End
+
+Private Function rechart(code As String) As Integer
+
+  Dim i As Integer
+
+  For i = 0 To GridView1.Rows.Max
+    If GridView1.rows[i].Text = code Then Return i
+  Next
+  Return -2
+
+End
+
+Public Sub Form_Close()
+
+  Me.Delete
 
 End

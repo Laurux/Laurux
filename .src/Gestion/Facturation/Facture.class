@@ -232,6 +232,7 @@ Private bnumfac As Boolean = False
 Private basc As Boolean = False
 Private bacquitte As Boolean = False
 Private $lcom As Listecom
+Private $lcart As Listecom
 
 '**********************************************************
 '*initialisation écrans et gestion onglet client          *
@@ -4976,22 +4977,24 @@ Public Sub Art_KeyPress()
   T = 0
 
   If key.Control Then
-
-    If Key.code = 65 Then 'A
-      If Not IsNull(Cart.Text) Then
-        $lcom = New Listecom(Code.Text, "A", Cart.Text)
-        $lcom.Y = Screen.AvailableHeight - 200
-        $lcom.Show
-        Stop Event
-      Endif
-    Endif
-    If Key.code = 68 Then Dupli3() 'CTRL+D
-
-    If Key.code = 72 Then 'CTRL+H
-      $lcom = New Listecom(Code.Text, "H", "")
-      $lcom.Y = Screen.AvailableHeight - 200
+    If Key.Code = 72 Then
+      Try $lcom.Close
+      Try $lcart.Close
+      $lcom = New Listecom(Code.Text, "")
+      $lcom.Y = Screen.AvailableHeight - 100
       $lcom.Show
     Endif
+    If Key.Code = 65 Then
+      Try $lcart.Close
+      Try $lcom.Close
+      $lcart = New Listecom(Code.Text, cart.Text)
+      $lcart.Y = Screen.AvailableHeight - 100
+      $lcart.Show
+      ' artpu.Select
+      ' artpu.SetFocus
+    Endif
+
+    If Key.code = 68 Then Dupli3() 'CTRL+D
 
     If Key.code = 80 Then 'CTRL+P
       Select Case Last.tag
@@ -12574,12 +12577,22 @@ End
 '**********************************************************
 '*      Le bouton sert a rechercher les clients           *
 '**********************************************************
-Public Sub ToggleButton1_click()
+Public Sub ToggleButton1_MouseDown()
 
-  If Impfac = "0" Then
-    SelectionClient()
+  If Not Mouse.Right Then
+    If Impfac = "0" Then
+      SelectionClient()
+    Else
+      Balloon.Warning(("La facture a été imprimée ! Modification de client impossible."), Code)
+    Endif
   Else
-    Balloon.Warning(("La facture a été imprimée ! Modification de client impossible."), Code)
+    If Not IsNull(Code.text) Then
+      Try $lcom.Close
+      Try $lcart.Close
+      $lcom = New Listecom(Code.Text, "")
+      $lcom.Y = Screen.AvailableHeight - 100
+      $lcom.Show
+    Endif
   Endif
 
 End
