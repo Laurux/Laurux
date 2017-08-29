@@ -9124,9 +9124,19 @@ End
 
 Public Sub AffBledit2_Click()
 
+  Dim rAdrbl As Result
+
   If AffBledit2.value = True Then
     If Edit2.Visible = False Then
       Edit2.Visible = True
+      rAdrbl = Utils.db.Exec("SELECT * FROM Fiches_AdrlivBL where numbl = &1", Numero.Text)
+      If rAdrbl.Available Then
+        Nombl.text = rAdrbl!nom
+        Adr1Bl.Text = rAdrbl!adr1
+        Adr2Bl.Text = rAdrbl!adr2
+        CpBl.Text = rAdrbl!cp
+        Villebl.Text = rAdrbl!ville
+      Endif
       Nombl.SetFocus
       Blch.Value = False
     Endif
@@ -10741,6 +10751,7 @@ Public Sub Impression(Org As String)
             Maj_Compta()
             Maj_Suivis()
             Utils.db.Exec("UNLOCK TABLES")
+            Utils.db.Exec("DELETE FROM Fiches_AdrlivBL where numbl = &1", num.Text)
             If cfac Then Copie.Dupli2CPT(numrd, copie.spiece, Code3.text, ty)
             If UCase$(Regmt.Text) = "TRAITE" Or If UCase$(Regmt.Text) = "LCR" Then Maj_Traite()
             Form_Open()
@@ -10757,6 +10768,16 @@ Public Sub Impression(Org As String)
     End With
     Utils.db.Exec("UNLOCK TABLES")
     Me.Mouse = Mouse.Default
+    If AffBledit2.visible And If Bbon.Value Then
+      If Not IsNull(Rs2) Then
+        BlRslt = Utils.db.Exec("SELECT * FROM Fiches_AdrlivBL where numbl = &1", Numero.text)
+        If BlRslt.Available Then
+          Utils.db.Exec("Update Fiches_AdrlivBL set nom = &2, adr1 = &3 , adr2 = &4, cp = &5, ville = &6 where numbl = &1", num.Text, Nombl.text, Adr1Bl.Text, Adr2Bl.Text, CpBl.Text, Villebl.Text)
+        Else
+          Utils.db.Exec("Insert INTO Fiches_AdrlivBL (numbl,nom, adr1, adr2, cp, ville) VALUE (&1, &2, &3, &4, &5, &6)", num.Text, Nombl.text, Adr1Bl.Text, Adr2Bl.Text, CpBl.Text, Villebl.Text)
+        Endif
+      Endif
+    Endif
     Button16_Click()
     'Visudoc = False
     If Not IsNull(num.text) Then
@@ -14045,5 +14066,9 @@ Public Sub Button30_Click()
   Telp = Replace$(Telport.Text, " ", "")
   hForm = New Gsm(telp)
   hForm.Showmodal()
+
+End
+
+Public Sub Edit2_MouseDown()
 
 End
