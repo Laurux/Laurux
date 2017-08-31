@@ -9049,6 +9049,7 @@ Public Sub Bl_Edit()
     Try ImpPDF.Value = Settings["/Soc" & Start.Societe & "/ImpPDF"]
     Try Imptotbl.value = Settings["/Soc" & Start.Societe & "/ImpTotbl"]
     Try Recap.Value = Settings["/Soc" & Start.Societe & "/Recap"]
+    Try Cond.Value = Settings["/Soc" & Start.Societe & "/Cond"]
     If Settings["/Soc" & Start.Societe & "/Sms"] Then
       Button30.Visible = True
     Else
@@ -9395,6 +9396,7 @@ Public Sub Button16_Click()
   Settings["/Soc" & Start.Societe & "/ImpTotbl"] = Imptotbl.value
   Settings["/Soc" & Start.Societe & "/Recap"] = Recap.Value
   Settings["/Soc" & Start.Societe & "/Cimp"] = Cimp.text
+  Settings["/Soc" & Start.Societe & "/Cond"] = Cond.value
   Settings.Save
   Settings.Reload
   Edit.Visible = False
@@ -9644,7 +9646,8 @@ Public Sub Impression(Org As String)
   Dim ftotal, ftotalttc, sRecap As String
   Dim $Reg, $Reg2, $Mreg, $Mreg2 As String
   Dim rResult As Result
-  Dim Totalht As String
+  Dim Totalht, $cond As String
+  Dim Ardi As Variant
 
   variables.typel = ""
   Try ImpRef = Settings["/Soc" & Start.Societe & "/AffArt"]
@@ -9928,7 +9931,11 @@ Public Sub Impression(Org As String)
                 Else
                   PosY = 104
                   If bTypeFacture Then PosY = 108
-                  pdf.Level2F(Coulfond, Impttc.Value, PosY)
+                  If Cond.value Then
+                    pdf.Level2FAC(Coulfond, Impttc.Value, PosY)
+                  Else
+                    pdf.Level2F(Coulfond, Impttc.Value, PosY)
+                  Endif
                 Endif
               Else
                 If BlA5.value And Not Bfac.value Then
@@ -9996,6 +10003,7 @@ Public Sub Impression(Org As String)
                       If typeL = "A" Then
                         ArtRslt = Utils.db.Exec("SELECT * FROM " & tab6 & " where art_code = &1", Code)
                         Try Ardi = ArtRslt!art_cdarr
+                        $cond = ArtRslt!art_vol
                         If Error Then ardi = "0"
                         Nbdec = ArtRslt!art_nbd
                         Nbdec = .Find_Nbdec(Nbdec)
@@ -10056,6 +10064,7 @@ Public Sub Impression(Org As String)
                           Nbdec = .Find_Nbdec(Nbdec)
                           ArtRslt = Utils.db.Exec("SELECT * FROM " & tab7 & " where mo_code = &1", Code)
                           Try Ardi = ArtRslt!mo_cdarr
+                          $cond = ArtRslt!art_vol
                           If Error Then
                             Me.mouse = Mouse.Default
                             If start.son Then
@@ -10119,7 +10128,11 @@ Public Sub Impression(Org As String)
                         If BlA5.Value And Not Bfac.value Then
                           pdf2.Level3F(code, intitule, Puttc, qte, Bruttc, Rem, Totttc, Txtva, PosY)
                         Else
-                          pdf.Level3F(code, intitule, Puttc, qte, Bruttc, Rem, Totttc, Txtva, PosY)
+                          If Cond.value Then
+                            pdf.Level3FAC(code, intitule, Puttc, qte, $cond, Bruttc, Rem, Totttc, Txtva, PosY)
+                          Else
+                            pdf.Level3F(code, intitule, Puttc, qte, Bruttc, Rem, Totttc, Txtva, PosY)
+                          Endif
                         Endif
                       Else
                         Puttc = ""
@@ -10130,7 +10143,11 @@ Public Sub Impression(Org As String)
                         If BlA5.Value And Not Bfac.value Then
                           pdf2.Level3F(code, intitule, Puttc, qte, Bruttc, Rem, Totttc, Txtva, PosY)
                         Else
-                          pdf.Level3F(code, intitule, Puttc, qte, Bruttc, Rem, Totttc, Txtva, PosY)
+                          If Cond.value Then
+                            pdf.Level3FAC(code, intitule, Puttc, qte, $cond, Bruttc, Rem, Totttc, Txtva, PosY)
+                          Else
+                            pdf.Level3F(code, intitule, Puttc, qte, Bruttc, Rem, Totttc, Txtva, PosY)
+                          Endif
                         Endif
                       Endif
                       PosY += 4
@@ -10139,6 +10156,7 @@ Public Sub Impression(Org As String)
                         Tart = Format$(Val(Tart) + Val(totalht), "0.00")
                         ArtRslt = Utils.db.Exec("SELECT * FROM " & tab6 & " where art_code = &1", Code)
                         Try Impdetail = ArtRslt!art_impdetail
+                        $cond = ArtRslt!art_vol
                         If Error Then Impdetail = False
                         If Tp = "B" And ArtRslt!art_stocke And Impstock.value Then
                           Variables.typel = "B"
@@ -10172,7 +10190,11 @@ Public Sub Impression(Org As String)
                         If BlA5.Value And Not Bfac.value Then
                           pdf2.Level3F(code, intitule, Pu, qte, Brutht, Rem, Totalht, Txtva, PosY)
                         Else
-                          pdf.Level3F(code, intitule, Pu, qte, Brutht, Rem, Totalht, Txtva, PosY)
+                          If Cond.value Then
+                            pdf.Level3FAC(code, intitule, Pu, qte, $cond, Brutht, Rem, Totalht, Txtva, PosY)
+                          Else
+                            pdf.Level3F(code, intitule, Pu, qte, Brutht, Rem, Totalht, Txtva, PosY)
+                          Endif
                         Endif
                       Else
                         Pu = ""
@@ -10183,7 +10205,11 @@ Public Sub Impression(Org As String)
                         If BlA5.Value And Not Bfac.value Then
                           pdf2.Level3F(code, intitule, Pu, qte, Brutht, Rem, Totalht, Txtva, PosY)
                         Else
-                          pdf.Level3F(code, intitule, Pu, qte, Brutht, Rem, Totalht, Txtva, PosY)
+                          If Cond.value Then
+                            pdf.Level3FAC(code, intitule, Pu, qte, $cond, Brutht, Rem, Totalht, Txtva, PosY)
+                          Else
+                            pdf.Level3F(code, intitule, Pu, qte, Brutht, Rem, Totalht, Txtva, PosY)
+                          Endif
                         Endif
                       Endif
                       PosY += 4
@@ -10774,7 +10800,7 @@ Public Sub Impression(Org As String)
         If BlRslt.Available Then
           Utils.db.Exec("Update Fiches_AdrlivBL set nom = &2, adr1 = &3 , adr2 = &4, cp = &5, ville = &6 where numbl = &1", num.Text, Nombl.text, Adr1Bl.Text, Adr2Bl.Text, CpBl.Text, Villebl.Text)
         Else
-          Utils.db.Exec("Insert INTO Fiches_AdrlivBL (numbl,nom, adr1, adr2, cp, ville) VALUE (&1, &2, &3, &4, &5, &6)", num.Text, Nombl.text, Adr1Bl.Text, Adr2Bl.Text, CpBl.Text, Villebl.Text)
+          Try Utils.db.Exec("Insert INTO Fiches_AdrlivBL (numbl,nom, adr1, adr2, cp, ville) VALUE (&1, &2, &3, &4, &5, &6)", num.Text, Nombl.text, Adr1Bl.Text, Adr2Bl.Text, CpBl.Text, Villebl.Text)
         Endif
       Endif
     Endif
