@@ -289,7 +289,7 @@ Public Sub Button3_Click()
 
   Dim rResult, Resultlg As Result
   Dim Type, Ordre, Intitule As String
-  Dim Numbl As String
+  Dim Numbl, Reliquat As String
   Dim Vehicule As New String[]
 
   Shell "cd " & User.Home & ""
@@ -308,12 +308,22 @@ Public Sub Button3_Click()
       Type = rResult!type
       intitule = rResult!cvclibl & " " & rResult!nmclibl & " " & rResult!pnmclibl & " "
       Numbl = rResult!numbl
-      Resultlg = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigbl") & " where num_ligbl = &1 and  code_ligbl = &2", rResult!numbl, "XX")
+      Resultlg = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigbl") & " where num_ligbl = &1 and  typel_ligbl = &2", rResult!numbl, "C")
       If Resultlg.Available Then
-        Vehicule = Split(Resultlg!com_ligbl, "\n")
-        Donnees1(CStr(intitule), CStr(Replace$(Vehicule[1], "IMMAT --------> ", "")), CStr(Replace$(Vehicule[2], "MODELE -----> ", "")), CStr(Replace$(Vehicule[3], ",", "")), CStr(rResult!numbl))
+        Repeat
+          If Resultlg!code_ligbl = "XX" Then
+            Vehicule = Split(Resultlg!com_ligbl, "\n")
+          Endif
+          If Left$(Resultlg!com_ligbl, 8) = "Reliquat" Then
+            Reliquat = "Reliquat"
+          Endif
+        Until Resultlg.MoveNext()
+        Try Donnees1(CStr(intitule), CStr(Replace$(Vehicule[1], "IMMAT --------> ", "")), CStr(Replace$(Vehicule[2], "MODELE -----> ", "")), CStr(Replace$(Vehicule[3], ",", "")), CStr(rResult!numbl), CStr(Reliquat))
+        If Error Then Donnees1(CStr(intitule), CStr(""), CStr(""), CStr(""), CStr(rResult!numbl), "")
+        Reliquat = ""
+        Vehicule.Clear
       Else
-        Donnees1(CStr(intitule), CStr(""), CStr(""), CStr(""), CStr(rResult!numbl))
+        Donnees1(CStr(intitule), CStr(""), CStr(""), CStr(""), CStr(rResult!numbl), "")
       Endif
     Until rResult.MoveNext()
     Close #hFile
@@ -359,8 +369,8 @@ Public Sub RadioButton7_Click()
 
 End
 
-Public Sub donnees1(p1 As String, p2 As String, p3 As String, p4 As String, p5 As String)
+Public Sub donnees1(p1 As String, p2 As String, p3 As String, p4 As String, p5 As String, p6 As String)
 
-  Print #hFile, p1 & ";" & p2 & ";" & p3 & ";" & p4 & ";" & p5
+  Print #hFile, p1 & ";" & p2 & ";" & p3 & ";" & p4 & ";" & p5 & ";" & p6
 
 End
