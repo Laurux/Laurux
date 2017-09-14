@@ -387,6 +387,7 @@ Public Sub Button3_Click()
   Detk.Visible = False
   Detk.Clear
   Button3.Visible = False
+  Button4.Visible = False
   Panel1.Visible = False
   Coltk.SetFocus
 
@@ -493,7 +494,8 @@ Public Sub Coltk_Click()
   If Not Error Then
     Detk.visible = True
     Button3.Visible = True
-    LkResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisLigTck") & " where numero = &1 order by numlig", ColTk[ColTk.row, 0].Text)
+    Button4.Visible = True
+    LkResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisLigTck") & " where numero = &1 order by cast(numlig as unsigned)", ColTk[ColTk.row, 0].Text)
     If LkResult.Available Then
       Repeat
         detk.Add(LkResult!lInd & LkResult!code, LkResult!lInd & LkResult!code)
@@ -579,9 +581,9 @@ Public Sub Button4_Click()
     Try pdf.Entete2(sline, Posx, Posy)
     Posy = Posy + 5
   Next
-  rntck = Utils.db.Exec(" select * from " & Cbase.Table("TabHisLigTck") & " where numero = &1 order by numlig", Label3.text & Label5.Text)
+  rntck = Utils.db.Exec(" select * from " & Cbase.Table("TabHisLigTck") & " where numero = &1 order by cast(numlig as unsigned)", Label3.text & Label5.Text)
   If rntck.Available Then
-    rTva2 = Utils.db.Exec(" select * from " & Cbase.Table("TabHisLigTck") & " where numero = &1 and type <> &2 order by numlig", Label3.text & Label5.Text, "M")
+    rTva2 = Utils.db.Exec(" select * from " & Cbase.Table("TabHisLigTck") & " where numero = &1 and type <> &2 order by cast(numlig as unsigned)", Label3.text & Label5.Text, "M")
     If rTva2.Available Then
       Repeat
         If rtva2!type <> "L" And rtva2!type <> "T" Then
@@ -608,7 +610,7 @@ Public Sub Button4_Click()
       Until rtva2.MoveNext()
     Endif
     Repeat
-      If rntck!type <> "K"
+      If Not IsNull(rntck!type) And rntck!type <> "K"
         If Not IsNull(rntck!montant) Then
           Pdf.Level4(rntck!code, rntck!intitule, Format$(Val(Utils.cpoint(rntck!montant)), "0.00"), rntck!qte, PosY)
         Else
