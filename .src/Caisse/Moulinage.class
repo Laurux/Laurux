@@ -369,6 +369,8 @@ Public Sub Moulinage()
   Dim dnfac As String
   Dim snfac As String
   Dim Verif_Caisse As Float
+  Dim bl_cli_credit As Float
+  Dim bl_cli_debit As Float
 
   RegroupBL = New Facturergbl
   Virements()
@@ -460,7 +462,6 @@ Public Sub Moulinage()
                                 If rDep.Available Then vente = rDep!compte
                               Endif
                               rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", vente)
-                              Print vente
                               If rResult.Available Then
                                 ivente = rResult!intitule_cc
                               Endif
@@ -606,14 +607,22 @@ Public Sub Moulinage()
                     utils.db.Exec("UPDATE Fiches_Parametres set dnfac = &1", dnfac)
                     Utils.db.Exec("UPDATE " & Cbase.Table("TabBl") & " set type = \"F\", numtick = NULL, imp = 1, reg = \"Caisse\", mtreg = &2, numfac = &3, dtefac = &4, ech = &4 where numbl = &1", numbon, Blg!totalttc, snfac, Utils.Cdate2_Dbase(Left$(rtck!date, 10)))
                     'On genere les Mvt pour le clients
-                    Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnl, numr, Blg!cdclibl, "Reglement BL Caisse", Utils.Cdate_Dbase(Datem), snfac, snfac, Left$("Facture " & Blg!nmclibl, 30), 0, Blg!totalttc, 1, 0, 1, 1, 1, Utils.Cdate_Dbase(Datem), numr2)
+                    If Blg!totalttc < 0 Then
+                      bl_cli_credit = 0
+                      bl_cli_debit = Abs(Blg!totalttc)
+                    Else
+                      bl_cli_credit = Blg!totalttc
+                      bl_cli_debit = 0
+                    Endif
+                    Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnl, numr, Blg!cdclibl, "Reglement BL Caisse", Utils.Cdate_Dbase(Datem), snfac, snfac, Left$("Facture " & Blg!nmclibl, 30), bl_cli_debit, bl_cli_credit, 1, 0, 1, 1, 1, Utils.Cdate_Dbase(Datem), numr2)
                     Sha1Calc.CalcSha1(numr)
-                    Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnl, numr, Client, "Reglement BL Caisse", Utils.Cdate_Dbase(Datem), snfac, snfac, Left$("Facture " & Blg!nmclibl, 30), Blg!totalttc, 0, 1, 0, 1, 1, 1, Utils.Cdate_Dbase(Datem), numr2)
+                    Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnl, numr, Client, "Reglement BL Caisse", Utils.Cdate_Dbase(Datem), snfac, snfac, Left$("Facture " & Blg!nmclibl, 30), bl_cli_credit, bl_cli_debit, 1, 0, 1, 1, 1, Utils.Cdate_Dbase(Datem), numr2)
                     Sha1Calc.CalcSha1(numr)
                     numr = numr + 1
                     numr2 = numr2 + 1
+                    Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, Blg!cdclibl, "Reglement BL Caisse", Utils.Cdate_Dbase(Datem), snfac, snfac, Left$("Rglt Caisse Facture " & Blg!nmclibl, 30), bl_cli_credit, bl_cli_debit, 1, 0, 1, 1, 1, Utils.Cdate_Dbase(Datem), numr2)
                     Sha1Calc.CalcSha1(numr)
-                    Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, Client, "Reglement BL Caisse", Utils.Cdate_Dbase(Datem), snfac, snfac, Left$("Rglt Caisse Facture " & Blg!nmclibl, 30), 0, Blg!totalttc, 1, 0, 1, 1, 1, Utils.Cdate_Dbase(Datem), numr2)
+                    Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jnal, numr, Client, "Reglement BL Caisse", Utils.Cdate_Dbase(Datem), snfac, snfac, Left$("Rglt Caisse Facture " & Blg!nmclibl, 30), bl_cli_debit, bl_cli_credit, 1, 0, 1, 1, 1, Utils.Cdate_Dbase(Datem), numr2)
                     Sha1Calc.CalcSha1(numr)
                     'on incremente le numero d'ecriture pour la suite des Mvt
                     numr = numr + 1
@@ -709,7 +718,7 @@ Public Sub Moulinage()
           Message.Info("Traitement terminé !")
         Else
           If start.son Then Music.Play
-          Message.Info("Acune donnée n'est a traiter pour cette sélection !")
+          Message.Info("Aucune donnée n'est a traiter pour cette sélection !")
         Endif
       Endif
     Else
