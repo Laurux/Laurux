@@ -47,6 +47,12 @@ Public Sub Calc_stock(Art As String, art2 As String)
         'On initialise la quantité avec le stock de départ
         If qte_art = 0 Then Try qte_art = ArtResult!art_stkdep
         If Error Then qte_Art = 0
+        ' On regarde si inventaire tournant
+        MvtexpResult = Utils.db.Exec("SELECT * FROM  Fiches_HisInvT WHERE inv_code = &1 and inv_date >= &2 order by inv_date desc", ArtResult!art_code, dte2)
+        If MvtexpResult.Available Then
+          dte2 = Left$(Str(MvtexpResult!inv_date), 10)
+          qte_art = MvtexpResult!inv_qtecomptee
+        Endif
         ' Puis on sélectionne tous les BL et les factures
         BlResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBl") & " WHERE datebl >= &3 and type = &1 or datebl > &3 and type = &2", "B", "F", dte2)
         If BlResult.Available Then
