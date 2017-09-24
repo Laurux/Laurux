@@ -29,6 +29,8 @@ son As Integer = Start.Son
 PosY As Integer
 Coulfond As New String[]
 Private TypeD As String
+Tab As String
+Org As String
 
 Public Sub _New()
 
@@ -47,8 +49,8 @@ Public Sub Button1_Click()
 
   Dim rResult As Result
   Dim Resultlg As Result
-  Dim Type, Ordre, codeC As String
-  Dim Type2 As String
+  Dim Type, Ordre, clic As String
+  Dim Type2, clic2 As String
   Dim intitule, sline As String
   Dim Adr1 As String
   Dim Adr2 As String
@@ -58,10 +60,20 @@ Public Sub Button1_Click()
   Dim Numbl As String
   Dim Numfac As String
   Dim Total As String
+  Dim GdTotal As String = "0.00"
+  Dim CliTotal As String = "0.00"
   Dim Nbpage As Integer
   Dim entete As String
   Dim pdf As Cdocuments
+  Dim date_start As String = "19700101"
+  Dim date_end As String = "99991231"
+  Dim cli_start As String = "411001"
+  Dim cli_end As String = "411999"
 
+  If Not IsNull(datej.Text) Then date_start = Right$(datej.Text, 4) & Mid$(datej.Text, 4, 2) & Left$(datej.Text, 2)
+  If Not IsNull(datej2.Text) Then date_end = Right$(datej2.Text, 4) & Mid$(datej2.Text, 4, 2) & Left$(datej2.Text, 2)
+  If Not IsNull(Cli.Text) Then cli_start = Cli.Text
+  If Not IsNull(Cli2.Text) Then cli_end = Cli2.Text
   Nbpage = 1
   Shell "cd " & User.Home & ""
   Filename = User.Home & "/tmp/ListeDocs.pdf"
@@ -83,15 +95,17 @@ Public Sub Button1_Click()
   pdf.Level1d(posy)
   Posy = posy + 10
   If Not IsNull(TypeD) Then
-    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBl") & " left join " & Cbase.Table("TabCli") & " on cli_code = cdclibl where type = &1 order by " & Ordre & "", Typed)
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBl") & " left join " & Cbase.Table("TabCli") & " on cli_code = cdclibl where cli_code >= &1 and cli_code <= &2 and datebl >= &3 and datebl <= &4 and type = &5 order by " & Ordre & "", cli_start, cli_end, date_start, date_end, Typed)
   Else
-    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBl") & "  left join " & Cbase.Table("TabCli") & " on cli_code = cdclibl order by " & Ordre & "")
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBl") & "  left join " & Cbase.Table("TabCli") & " on cli_code = cdclibl where cli_code >= &1 and cli_code <= &2 and datebl >= &3 and datebl <= &4 order by " & Ordre & "", cli_start, cli_end, date_start, date_end)
   Endif
   If rResult.Available Then
     Type2 = rResult!type
+    clic2 = rResult!cli_code
     pdf.LinesLG(PosY)
     Repeat
       Type = rResult!type
+      clic = rResult!cli_code
       intitule = rResult!cvclibl & " " & rResult!nmclibl & " " & rResult!pnmclibl & " "
       Intitule = Left$(Intitule, 27)
       Adr1 = rResult!adr1bl
@@ -100,7 +114,6 @@ Public Sub Button1_Click()
       Adr2 = Left$(Adr2, 27)
       Burdis = rResult!cpbl & " " & rResult!villebl
       Burdis = Left$(Burdis, 30)
-      CodeC = rResult!cdclibl
       Tel = rResult!cli_tel_bur
       Tel2 = rResult!cli_tel_poste
       Tel3 = rResult!cli_pble
@@ -112,10 +125,24 @@ Public Sub Button1_Click()
       Numfac = rResult!numfac
       Try Total = Format$(rResult!totalttc, "0.00")
       If Error Then Total = "*******"
+      Try GdTotal = Format$(rResult!totalttc + Val(Utils.cpoint(GdTotal)), "0.00")
       If Type2 <> type Then
         pdf.LinesP(PosY)
       Endif
       Type2 = type
+      If RadioButton10.value Then
+        If clic2 <> clic
+          pdf.LinesP(PosY)
+          PosY = PosY + 4
+          pdf.level2d("T", "TOTAL", "des Documents du client", clic2, "", "", "", CliTotal, posy, TypeD, False, False)
+          pdf.LinesP(PosY + 4)
+          pdf.LinesP(PosY + 6)
+          PosY = PosY + 8
+          CliTotal = "0.00"
+        Endif
+        Try CliTotal = Format$(rResult!totalttc + Val(Utils.cpoint(CliTotal)), "0.00")
+        clic2 = clic  
+      Endif
       If Type = "F" And rResult!imp = 1 Then
         pdf.level2d(Type, intitule, Adr1, Adr2, Burdis, Datefac, Numfac, Total, posy, TypeD, RadioButton7.value, rResult!livraison)
       Else
@@ -126,7 +153,7 @@ Public Sub Button1_Click()
         pdf.level2d("", "", Tel, tel2, tel3, "", "", "", posy, "", RadioButton7.value, "")
         PosY = PosY + 4
       Endif
-      If PosY >= 194 Then
+      If PosY >= 180 Then
         pdf.BaspageP()
         pdf.EnteteP(Entete)
         Posy = 26
@@ -168,6 +195,7 @@ Public Sub Button1_Click()
       Endif
     Until rResult.MoveNext()
     pdf.LinesLG(PosY)
+    pdf.Level4(GdTotal, PosY + 8)
     pdf.BaspageP()
     pdf.Output(Filename, False)
     Impression.Prog_Editeur(Filename)
@@ -222,4 +250,156 @@ Public Sub RadioButton12_Click()
 
   TypeD = "C"
 
+End
+
+'************************************On affiche les clients**********************************
+Public Sub ToggleButton1_Click()
+
+  Org = "Cli1"
+  Aff_Clients()
+
+End
+
+Public Sub ToggleButton2_Click()
+
+  Org = "Cli2"
+  Aff_Clients()
+
+End
+
+Public Sub Aff_Clients()
+
+  Dim rResult As Result
+  Dim cpt As Integer = 0
+
+  Tab = "Fiches_Cli"
+  With Utils
+    If Colcli.visible Then
+      Colcli.clear
+      Colcli.visible = False
+    Else
+      Colcli.visible = True
+      Colcli.Columns.count = 2
+      Colcli.Columns[0].Alignment = 2
+      Colcli.Columns[0].Width = 100
+      Colcli.Columns[1].Width = 280
+      Colcli.Columns[0].Text = "Code"
+      Colcli.Columns[1].Text = "Intitulé"
+      If Not IsNull(Val(Cli.Text)) And Org = "Cli2" Then cpt = Val(Cli.Text)
+      rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where cli_code >= &1 order by cli_code", cpt)
+      If rResult.Available Then
+        Repeat
+          Colcli.Add(rResult!cli_code, rResult!cli_code)
+          Colcli.Item[0] = rResult!cli_code
+          Colcli.Item[1] = rResult!cli_nom
+        Until rResult.MoveNext()
+      Endif
+      If Colcli.Count Then
+        Colcli.MoveFirst
+        Colcli.SetFocus
+        Colcli.Item.Selected = True
+      Endif
+    Endif
+  End With
+
+End
+
+Public Sub Colcli_Click()
+
+  Select Case Org
+    Case "Cli1"
+      Cli.Text = Colcli.Item[0]
+      Colcli.clear
+      Colcli.visible = False
+      Cli2.Select
+      Cli2.SetFocus
+
+    Case "Cli2"
+      Cli2.Text = Colcli.Item[0]
+      Colcli.clear
+      Colcli.visible = False
+      Button1.SetFocus
+  End Select
+
+End
+
+'***********************************************************
+'* Gestion du columnview Colcli lors d'une saisie manuelle *
+'***********************************************************
+
+Public Sub Colcli_KeyPress()
+
+  If Key.code = Key.Enter Or Key.code = Key.Return Then
+    Colcli.MoveCurrent
+    Colcli_Click()
+  Endif
+
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+
+  If Key.code = Key.Escape Or Key.code = Key.F2 Then
+    Colcli.visible = False
+    Colcli.clear
+    Cli.SetFocus
+    Cli.Select
+    Stop Event
+  Endif
+
+End
+
+
+Public Sub Datej_DblClick()
+  Org = "Date1"
+  Select_Date()
+End
+
+Public Sub Datej2_DblClick()
+  Org = "Date2"
+  Select_Date()
+End
+
+Public Sub Select_Date()
+
+  If DateChooser1.visible = False Then
+    DateChooser1.visible = True
+  Else
+    DateChooser1.Visible = False
+  Endif
+
+End
+
+Public Sub DateChooser1_Activate()
+
+  DateChooser1.Visible = False
+  Select Case Org
+    Case "Date1"
+      Datej.Text = Format$(DateChooser1.Value, "dd.mm.yyyy")
+      Datej2.SetFocus
+
+    Case "Date2"
+      Datej2.Text = Format$(DateChooser1.Value, "dd.mm.yyyy")
+      Button1.SetFocus
+  End Select
+
+End
+
+Public Sub Datej_KeyPress()
+
+  If Key.code = Key.Escape Then
+    If DateChooser1.Visible = True Then DateChooser1.Visible = False
+  Endif
+  If Key.code = Key.F2 Then
+    If DateChooser1.Visible = True Then
+      DateChooser1.Visible = False
+    Else
+      DateChooser1.Visible = True
+    Endif
+  Endif
+
+End
+
+Public Sub Datej2_KeyPress()
+  Datej_KeyPress()
 End
