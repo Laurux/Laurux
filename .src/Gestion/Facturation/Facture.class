@@ -233,6 +233,9 @@ Private basc As Boolean = False
 Private bacquitte As Boolean = False
 Private $lcom As Listecom
 Private $lcart As Listecom
+Private refl As String 'Référence longue
+Private hTxtb As Textbox
+Private hpanel As Panel
 
 '**********************************************************
 '*initialisation écrans et gestion onglet client          *
@@ -2085,6 +2088,7 @@ Public Sub Recup_ligbl()
   Mrgmo = 0
   Mrg.text = "0,00"
   Poids.text = "0,000"
+  Refl = ""
   chkfocus = 1
   Coldetail.Clear
   With utils
@@ -2171,6 +2175,7 @@ Public Sub Recup_ligbl()
                     Poids.text = Format$(Val(.cpoint(Poids.text)) + Coldetail.item[17], "0.000")
                   Endif
                   Coldetail.item[18] = Rligbl!mrgart_ligbl
+                  Coldetail.item[21] = Rligbl!refl_ligbl
                   If Not IsNull(Rligbl!mrgart_ligbl) Then Mrgart = Mrgart + Rligbl!mrgart_ligbl
                 Endif
                 If Rligbl!typel_ligbl = "M" Then
@@ -4894,6 +4899,7 @@ End
 '****************************
 '* Gestion du panel Art     *
 '****************************
+
 Public Sub Art_Mouseup()
 
   Select Case Last.Tag
@@ -4969,14 +4975,72 @@ Public Sub aff_photo()
 
 End
 
+Public Sub RefLongue()
+
+  Dim hTxtl As Label
+
+  hpanel = New Panel(Panel3)
+  HPanel.Border = Border.Etched
+  HPanel.Background = &HD4D0C8&
+  hTxtb = New TextBox(hPanel) As "Txtb"
+  hTxtl = New Label(hPanel)
+  hTxtb.Font = Desg.Font
+  hpanel.w = 480
+  HPanel.Y = Desg.Y + 40
+  HPanel.h = 60
+  HPanel.X = 280
+  hTxtl.w = Desg.W - 60
+  hTxtl.Y = 6
+  hTxtl.h = 18
+  hTxtl.X = 6
+  hTxtl.Text = "Saisie de la référence longue."
+  hTxtl.Alignment = Align.center
+  hTxtl.Font = Desg.Font
+  hTxtb.w = Desg.W - 60
+  hTxtb.Y = HPanel.h - (Desg.H + 4)
+  hTxtb.h = Desg.H
+  hTxtb.X = 6
+  hTxtb.MaxLength = 15
+  If Not IsNull(Refl) Then hTxtb.Text = Refl
+  hTxtb.SetFocus
+  Try Utils.ObsGotf(hTxtb)
+  HPanel.Visible = True
+
+End
+
+Public Sub Txtb_Keypress()
+
+  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+    Refl = hTxtb.Text
+    hTxtb.Clear
+    HPanel.Visible = False
+    Stop Event
+  Endif
+  If Key.code = Key.Esc Or Key.code = Key.Escape Then
+    hTxtb.Clear
+    HPanel.Visible = False
+    Stop Event
+  Endif
+
+End
+
 Public Sub Art_KeyPress()
 
   Dim Rep As Boolean = False
   Dim hform2 As Form
+  Dim T As Integer
 
   T = 0
-
   If key.Control Then
+    If Key.code = 82 Then 'R
+      Select Case Last.Tag
+        Case 2
+          RefLongue()
+        Case 4
+          RefLongue()
+      End Select
+    Endif
+
     If Key.Code = 72 Then
       Try $lcom.Close
       Try $lcart.Close
@@ -6217,6 +6281,7 @@ Public Sub Enrg_Art()
           PdxArt.text = Format$(Val(Utils.cpoint(Pdx)) * Val(Utils.cpoint(Artqte.Text)), "0.000")
         Endif
         Coldetail.current[4] = Artqte.Text
+        If Not IsNull(Refl) Then Coldetail.current[21] = Refl
         If Len(Artnet.text) - InStr(Artnet.text, ",") = 2 Then Coldetail.current[7] = Artnet.text & "  "
         Qteecot = Val(Utils.cpoint(Artqte.Text))
         If Left$(Cart.Text, 1) = "*" Then Cart.Text = Mid$(Cart.Text, 2, Len(Cart.Text))
@@ -6256,6 +6321,7 @@ Public Sub Enrg_Art()
     Coldetail.item[12] = Arttx.text
     Coldetail.item[13] = ArtFam.text
     Coldetail.item[20] = ArtFour.text
+    Coldetail.item[21] = Refl
     Coldetail.item[14] = Dec.text
     Bloc = Nlgart.text & Cart.text & Round(Rnd(1000, 9999))
     Coldetail.item[16] = Bloc
@@ -7703,6 +7769,7 @@ Public Sub Coldetail_Activate()
           Arttx.Text = Coldetail.current[12]
           Artfam.Text = Coldetail.current[13]
           ArtFour.Text = Coldetail.current[20]
+          Refl = Coldetail.current[21]
           PdxArt.Text = Coldetail.current[17]
           Nlgn = Nlgart.text
           Artdsg.Select
@@ -8439,9 +8506,9 @@ Public Sub Enrg_LigArt()
     If Cart.Text <> "" Or typeL = "E" Or typeL = "P" Or typeL = "D" Then
       rResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE num_ligbl = &1 and numlig_ligbl = &2", num.text, Nlgart.text)
       If rResult.Available Then
-        Utils.db.Exec("UPDATE  " & tab & "  SET  num_ligbl = &1 , numlig_ligbl = &2 , code_ligbl = &3, libel_ligbl = &4, fam_ligbl = &5, pu_ligbl = &6, qte_ligbl = &7, brut_ligbl = &8, rem_ligbl = &9, netht_ligbl = &{10}, tx_ligbl = &{11}, nettc_ligbl = &{12}, typel_ligbl = &{13}, dec_ligbl = &{14}, pdstotal_ligbl = &{15}, mrgart_ligbl = &{16}, four_ligbl = &{17} WHERE num_ligbl = &1 and numlig_ligbl = &2", num.Text, Nlgart.Text, Cart.Text, Artdsg.Text, ArtFam.Text, Artpu.Text, Artqte.Text, Artbrut.Text, rm, Artnet.Text, Arttx.Text, Arttc.Text, typeL, Dec.Text, Val(Pdxart.text), .PointBase(Marge.Text), ArtFour.Text)
+        Utils.db.Exec("UPDATE  " & tab & "  SET  num_ligbl = &1 , numlig_ligbl = &2 , code_ligbl = &3, libel_ligbl = &4, fam_ligbl = &5, pu_ligbl = &6, qte_ligbl = &7, brut_ligbl = &8, rem_ligbl = &9, netht_ligbl = &{10}, tx_ligbl = &{11}, nettc_ligbl = &{12}, typel_ligbl = &{13}, dec_ligbl = &{14}, pdstotal_ligbl = &{15}, mrgart_ligbl = &{16}, four_ligbl = &{17}, refl_ligbl = &{18} WHERE num_ligbl = &1 and numlig_ligbl = &2", num.Text, Nlgart.Text, Cart.Text, Artdsg.Text, ArtFam.Text, Artpu.Text, Artqte.Text, Artbrut.Text, rm, Artnet.Text, Arttx.Text, Arttc.Text, typeL, Dec.Text, Val(Pdxart.text), .PointBase(Marge.Text), ArtFour.Text, Refl)
       Else
-        Utils.db.Exec("INSERT INTO " & tab & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl, pdstotal_ligbl, mrgart_ligbl, four_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18})", num.Text, Nlgart.Text, Cart.Text, Artdsg.Text, ArtFam.Text, Artpu.Text, Artqte.Text, Artbrut.Text, rm, Artnet.Text, Arttx.Text, Arttc.Text, typeL, Dec.Text, Bloc, Val(Pdxart.text), .PointBase(Marge.Text), ArtFour.Text)
+        Utils.db.Exec("INSERT INTO " & tab & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl, pdstotal_ligbl, mrgart_ligbl, four_ligbl, refl_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19})", num.Text, Nlgart.Text, Cart.Text, Artdsg.Text, ArtFam.Text, Artpu.Text, Artqte.Text, Artbrut.Text, rm, Artnet.Text, Arttx.Text, Arttc.Text, typeL, Dec.Text, Bloc, Val(Pdxart.text), .PointBase(Marge.Text), ArtFour.Text, Refl)
       Endif
     Endif
     Coldetail.Clear
@@ -9605,7 +9672,7 @@ Public Sub Impression(Org As String)
   Dim Fax As String
   Dim Ty, Ty2 As String
   Dim Stry As String[]
-  Dim Code As String
+  Dim Code, Codi As String
   Dim intitule As String
   Dim Txtva As String
   Dim Pu As String
@@ -10126,14 +10193,15 @@ Public Sub Impression(Org As String)
                         Totttc = Round(Val(Totttc))
                         Totttc = Format$(Val(Totttc), "0")
                       Endif
+                      Codi = Code
                       If Blch.Value = True Then
                         If BlA5.Value And Not Bfac.value Then
-                          pdf2.Level3F(code, intitule, Puttc, qte, Bruttc, Rem, Totttc, Txtva, PosY)
+                          pdf2.Level3F(codi, intitule, Puttc, qte, Bruttc, Rem, Totttc, Txtva, PosY)
                         Else
                           If Cond.value Then
-                            pdf.Level3FAC(code, intitule, Puttc, qte, $cond, Bruttc, Rem, Totttc, Txtva, PosY)
+                            pdf.Level3FAC(codi, intitule, Puttc, qte, $cond, Bruttc, Rem, Totttc, Txtva, PosY)
                           Else
-                            pdf.Level3F(code, intitule, Puttc, qte, Bruttc, Rem, Totttc, Txtva, PosY)
+                            pdf.Level3F(codi, intitule, Puttc, qte, Bruttc, Rem, Totttc, Txtva, PosY)
                           Endif
                         Endif
                       Else
@@ -10143,12 +10211,12 @@ Public Sub Impression(Org As String)
                         Totttc = ""
                         Txtva = ""
                         If BlA5.Value And Not Bfac.value Then
-                          pdf2.Level3F(code, intitule, Puttc, qte, Bruttc, Rem, Totttc, Txtva, PosY)
+                          pdf2.Level3F(codi, intitule, Puttc, qte, Bruttc, Rem, Totttc, Txtva, PosY)
                         Else
                           If Cond.value Then
-                            pdf.Level3FAC(code, intitule, Puttc, qte, $cond, Bruttc, Rem, Totttc, Txtva, PosY)
+                            pdf.Level3FAC(codi, intitule, Puttc, qte, $cond, Bruttc, Rem, Totttc, Txtva, PosY)
                           Else
-                            pdf.Level3F(code, intitule, Puttc, qte, Bruttc, Rem, Totttc, Txtva, PosY)
+                            pdf.Level3F(codi, intitule, Puttc, qte, Bruttc, Rem, Totttc, Txtva, PosY)
                           Endif
                         Endif
                       Endif
@@ -10188,14 +10256,19 @@ Public Sub Impression(Org As String)
                         pu = Format$(Val(pu), "0")
                       Endif
                       If impref And Tp = "D" Then code = ""
+                      If Not IsNull(Coldetail.current[21]) Then
+                        Codi = Coldetail.current[21]
+                      Else
+                        Codi = Code
+                      Endif
                       If Blch.Value = True Then
                         If BlA5.Value And Not Bfac.value Then
-                          pdf2.Level3F(code, intitule, Pu, qte, Brutht, Rem, Totalht, Txtva, PosY)
+                          pdf2.Level3F(codi, intitule, Pu, qte, Brutht, Rem, Totalht, Txtva, PosY)
                         Else
                           If Cond.value Then
-                            pdf.Level3FAC(code, intitule, Pu, qte, $cond, Brutht, Rem, Totalht, Txtva, PosY)
+                            pdf.Level3FAC(codi, intitule, Pu, qte, $cond, Brutht, Rem, Totalht, Txtva, PosY)
                           Else
-                            pdf.Level3F(code, intitule, Pu, qte, Brutht, Rem, Totalht, Txtva, PosY)
+                            pdf.Level3F(codi, intitule, Pu, qte, Brutht, Rem, Totalht, Txtva, PosY)
                           Endif
                         Endif
                       Else
@@ -10205,12 +10278,12 @@ Public Sub Impression(Org As String)
                         Totalht = ""
                         Txtva = ""
                         If BlA5.Value And Not Bfac.value Then
-                          pdf2.Level3F(code, intitule, Pu, qte, Brutht, Rem, Totalht, Txtva, PosY)
+                          pdf2.Level3F(codi, intitule, Pu, qte, Brutht, Rem, Totalht, Txtva, PosY)
                         Else
                           If Cond.value Then
-                            pdf.Level3FAC(code, intitule, Pu, qte, $cond, Brutht, Rem, Totalht, Txtva, PosY)
+                            pdf.Level3FAC(codi, intitule, Pu, qte, $cond, Brutht, Rem, Totalht, Txtva, PosY)
                           Else
-                            pdf.Level3F(code, intitule, Pu, qte, Brutht, Rem, Totalht, Txtva, PosY)
+                            pdf.Level3F(codi, intitule, Pu, qte, Brutht, Rem, Totalht, Txtva, PosY)
                           Endif
                         Endif
                       Endif
@@ -13477,15 +13550,15 @@ Public Sub Deb2()
     TriType = ""
   Endif
   If bTypeFacture Then
-    Tab = "Fiches_LigblM"
+    Tab = "Fiches_BlM"
   Else
-    Tab = "Fiches_Ligbl"
+    Tab = "Fiches_Bl"
   Endif
   Colbl.Clear
   If TYB.Text = "T" Or If IsNull(TYB.Text) Then
-    Utils.Base3(Colbl, "select imp, type, numbl, datebl, cdclibl, nmclibl, pnmclibl, numfac from " & Cbase.Table("TabBl") & "  where " & TriBl & " like  \"%" & sel & "%\" order by " & tribl2 & " asc")
+    Utils.Base3(Colbl, "select imp, type, numbl, datebl, cdclibl, nmclibl, pnmclibl, numfac from " & Tab & "  where " & TriBl & " like  \"%" & sel & "%\" order by " & tribl2 & " asc")
   Else
-    Utils.Base3(Colbl, "select imp, type, numbl, datebl, cdclibl, nmclibl, pnmclibl, numfac from " & Cbase.Table("TabBl") & "  where  type  like  \"%" & TriType & "%\" and  " & TriBl & " like  \"%" & sel & "%\" order by " & tribl2 & " asc")
+    Utils.Base3(Colbl, "select imp, type, numbl, datebl, cdclibl, nmclibl, pnmclibl, numfac from " & Tab & "  where  type  like  \"%" & TriType & "%\" and  " & TriBl & " like  \"%" & sel & "%\" order by " & tribl2 & " asc")
   Endif
   Colbl.Refresh
 
