@@ -147,8 +147,10 @@ Public Sub Button2_Click()
     If facn.value = True Then rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE dtefac = &1  or datebl = &1 order by reg, numfac", .Cdate_Dbase(date1.Text))
     If rResult.Available Then
       Repeat
+        'If Not IsNull(rResult!reg) Then Utils.db.Exec("INSERT INTO " & Tab3 & " (numero, type, montant) Values (&1, &2, &3)", rResult!numbl, rResult!mreg, rResult!mtreg)
         If Not IsNull(rResult!reg) Then Utils.db.Exec("INSERT INTO " & Tab3 & " (numero, type, montant) Values (&1, &2, &3)", rResult!numbl, rResult!reg, rResult!mtreg)
-        If Not IsNull(rResult!mreg) Then Utils.db.Exec("INSERT INTO " & Tab3 & " (numero, type, montant) Values (&1, &2, &3)", rResult!numbl, rResult!mreg, rResult!acpt)
+        ' If Not IsNull(rResult!reg2) Then Utils.db.Exec("INSERT INTO " & Tab3 & " (numero, type, montant) Values (&1, &2, &3)", rResult!numbl, rResult!reg2, rResult!mtreg2)
+        If Not IsNull(rResult!reg2) Then Utils.db.Exec("INSERT INTO " & Tab3 & " (numero, type, montant) Values (&1, &2, &3)", rResult!numbl, rResult!reg2, rResult!mtreg2)
       Until rResult.MoveNext()
     Endif
     rResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " order by type, numero")
@@ -165,55 +167,57 @@ Public Sub Button2_Click()
           Endif
         Endif
         If BlResult.Available Then
-          code = BlResult!cdclibl
-          intitule = BlResult!cvclibl & " " & BlResult!nmclibl & " " & BlResult!pnmclibl
-          Nfac = BlResult!numfac
-          Montant = Format$(Val(Utils.cpoint(rResult!montant)), "0.00")
-          MontantFac = Format$(Val(Utils.cpoint(BlResult!totalttc)), "0.00")
-          If IsNull(rglt) Then
-            PosY = 10
-            pdf.EnteteP("Liste des règlements par " & Modreg & " du " & date1.Text, PosY)
-            pdf.Level1()
-            PosY = 30
-          Else
-            If rglt <> Modreg Then
-              pdf.Ligne(PosY)
-              If nbrglt <> 0 Then
-                If Nbrglt = 1 Then
-                  Total = Nbrglt & " réglement par " & Rglt & "  " & "pour un montant de " & Total & " " & Devise
+          Repeat
+            code = BlResult!cdclibl
+            intitule = BlResult!cvclibl & " " & BlResult!nmclibl & " " & BlResult!pnmclibl
+            Nfac = BlResult!numfac
+            Montant = Format$(Val(Utils.cpoint(rResult!montant)), "0.00")
+            MontantFac = Format$(Val(Utils.cpoint(BlResult!totalttc)), "0.00")
+            If IsNull(rglt) Then
+              PosY = 10
+              pdf.EnteteP("Liste des règlements par " & Modreg & " du " & date1.Text, PosY)
+              pdf.Level1()
+              PosY = 30
+            Else
+              If rglt <> Modreg Then
+                pdf.Ligne(PosY)
+                If nbrglt <> 0 Then
+                  If Nbrglt = 1 Then
+                    Total = Nbrglt & " réglement par " & Rglt & "  " & "pour un montant de " & Total & " " & Devise
+                  Else
+                    Total = Nbrglt & " réglements par " & Rglt & "  " & "pour un montant total de " & Total & " " & Devise
+                  Endif
+                  pdf.Level3(Total, posY)
+                  pdf.footer()
+                  Total = ""
+                  PosY = 10
+                  pdf.EnteteP("Liste des règlements par " & Modreg & " du " & date1.Text, PosY)
+                  pdf.Level1()
+                  PosY = 30
+                  Total = "0"
+                  Nbrglt = 0
                 Else
-                  Total = Nbrglt & " réglements par " & Rglt & "  " & "pour un montant total de " & Total & " " & Devise
+                  If son Then
+                    Music.Play
+                  Endif
+                  message(" Aucun mouvement pour cette demande", "OK")
                 Endif
-                pdf.Level3(Total, posY)
-                pdf.footer()
-                Total = ""
-                PosY = 10
-                pdf.EnteteP("Liste des règlements par " & Modreg & " du " & date1.Text, PosY)
-                pdf.Level1()
-                PosY = 30
-                Total = "0"
-                Nbrglt = 0
-              Else
-                If son Then
-                  Music.Play
-                Endif
-                message(" Aucun mouvement pour cette demande", "OK")
               Endif
             Endif
-          Endif
-          rglt = Modreg
-          Try Total = Format$(Val(.cpoint(Total)) + Val(.cpoint(Montant)), "0.00")
-          Inc Nbrglt
-          Inc p
-          pdf.level2(code, Left$(intitule, 100), Nfac, MontantFac, Montant, PosY)
-          PosY += 5
-          If PosY >= 288 Then
-            pdf.footer()
-            PosY = 10
-            pdf.EnteteP("Liste des règlements par " & Modreg & " du " & date1.Text, PosY)
-            pdf.Level1()
-            PosY = 30
-          Endif
+            rglt = Modreg
+            Try Total = Format$(Val(.cpoint(Total)) + Val(.cpoint(Montant)), "0.00")
+            Inc Nbrglt
+            Inc p
+            pdf.level2(code, Left$(intitule, 100), Nfac, MontantFac, Montant, PosY)
+            PosY += 5
+            If PosY >= 288 Then
+              pdf.footer()
+              PosY = 10
+              pdf.EnteteP("Liste des règlements par " & Modreg & " du " & date1.Text, PosY)
+              pdf.Level1()
+              PosY = 30
+            Endif
+          Until Blresult.MoveNext()
         Endif
         pdf.Ligne(PosY)
       Until rResult.MoveNext()
