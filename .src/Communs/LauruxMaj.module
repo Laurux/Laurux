@@ -1124,6 +1124,15 @@ Public Sub Verif_Version()
     Try Utils.db.Exec("update Fiches_Parametres set version = &1 ", "3.67")
   Endif
 
+  '************************* Maj 3.68 *********************
+  rResult = Utils.db.Exec("SELECT * from  Fiches_Parametres")
+  If rResult!version = "3.67" Then
+    If Settings["/dbase/Maj"] Then Maj368()
+    Try Utils.db.Exec("update Fiches_Parametres set version = &1 ", "3.68")
+    'Laurux-Pos compatibility version
+    Try Utils.db.Exec("update Fiches_Parametres set version_pos = &1 ", "3.25")
+  Endif
+
   If bMaj Then Shell "xdg-open 'http://www.laurux.fr/index.php?id=quoi-de-neuf'"
 
 End
@@ -4537,8 +4546,8 @@ Public Sub Maj358()
     "datee date, " &
     "dateech date, " &
     "numcol Char(3)," &
-    "numdoc CHAR(10) NOT NULL," &
-    "numlot CHAR(10) NOT NULL," &
+    "numdoc CHAR(10)," &
+    "numlot CHAR(10)," &
     "libelle VarChar(50)," &
     "montantd Decimal(12,2)," &
     "montantc Decimal(12,2)," &
@@ -4575,8 +4584,8 @@ Public Sub Maj358()
     "datee date, " &
     "dateech date, " &
     "numcol Char(3)," &
-    "numdoc CHAR(10) NOT NULL," &
-    "numlot CHAR(10) NOT NULL," &
+    "numdoc CHAR(10)," &
+    "numlot CHAR(10)," &
     "libelle VarChar(50)," &
     "montantd Decimal(12,2)," &
     "montantc Decimal(12,2)," &
@@ -4613,8 +4622,8 @@ Public Sub Maj358()
     "datee date, " &
     "dateech date, " &
     "numcol Char(3)," &
-    "numdoc CHAR(10) NOT NULL," &
-    "numlot CHAR(10) NOT NULL," &
+    "numdoc CHAR(10)," &
+    "numlot CHAR(10)," &
     "libelle VarChar(50)," &
     "montantd Decimal(12,2)," &
     "montantc Decimal(12,2)," &
@@ -4651,8 +4660,8 @@ Public Sub Maj358()
     "datee date, " &
     "dateech date, " &
     "numcol Char(3)," &
-    "numdoc CHAR(10) NOT NULL," &
-    "numlot CHAR(10) NOT NULL," &
+    "numdoc CHAR(10)," &
+    "numlot CHAR(10)," &
     "libelle VarChar(50)," &
     "montantd Decimal(12,2)," &
     "montantc Decimal(12,2)," &
@@ -4689,8 +4698,8 @@ Public Sub Maj358()
     "datee date, " &
     "dateech date, " &
     "numcol Char(3)," &
-    "numdoc CHAR(10) NOT NULL," &
-    "numlot CHAR(10) NOT NULL," &
+    "numdoc CHAR(10)," &
+    "numlot CHAR(10)," &
     "libelle VarChar(50)," &
     "montantd Decimal(12,2)," &
     "montantc Decimal(12,2)," &
@@ -4727,8 +4736,8 @@ Public Sub Maj358()
     "datee date, " &
     "dateech date, " &
     "numcol Char(3)," &
-    "numdoc CHAR(10) NOT NULL," &
-    "numlot CHAR(10) NOT NULL," &
+    "numdoc CHAR(10)," &
+    "numlot CHAR(10)," &
     "libelle VarChar(50)," &
     "montantd Decimal(12,2)," &
     "montantc Decimal(12,2)," &
@@ -4979,6 +4988,44 @@ Public Sub Maj367()
   Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (refl_ligbl VarChar(40))")
   Tab = "Fiches_LigblM"
   Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (refl_ligbl VarChar(40))")
+
   If Not Error Then bmaj = True
 
 End
+
+Public Sub Maj368()
+
+  Tab = "Fiches_EntTicketz"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (prev_numero Char(7))")
+  
+  Tab = "Fiches_Parametres"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (version_pos Char(5))")
+
+  Tab = "Fiches_Mvt"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " modify numdoc CHAR(10)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " modify numlot CHAR(10)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " modify numero Integer(11) NOT NULL")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " modify numerodef Integer(11)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " modify intitule VarChar(40)")
+  
+  Tab = "Fiches_MvtM"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " modify numdoc CHAR(10)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " modify numlot CHAR(10)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " modify numero Integer(11) NOT NULL")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " modify numerodef Integer(11)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " modify intitule VarChar(40)")
+
+  'Mise à jour des caisses
+  Tab1 = "Fiches_Caisses"
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab1 & " ")
+  If rResult.Available Then
+    Repeat
+      Tab = "Fiches_EntTickets" & rResult!code
+      Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (prev_numero Char(7))")
+    Until rResult.MoveNext()
+  Endif
+
+  If Not Error Then bmaj = True
+
+End
+
