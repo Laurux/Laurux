@@ -1,9 +1,127 @@
-' Gambas module file
+' Gambas class file
 
 Private hlb As Label
 Private hpb As ProgressBar
+Public Version As String
+'To test new web site interface
+'Private wwwpath As String = "https://devel.laurux.fr/" & Application.Name & "/"  '
+Private wwwpath As String = "http://www.laurux.fr/file/"
 
-Public Sub Verif_Maj()
+
+Public Sub _New()
+
+  'Message.Info("Hello")
+
+End
+
+Public Sub Form_Open()
+  
+  Dim VersionWebArr As String[]
+  Dim hClient As HttpClient
+  Dim hDoc As HtmlDocument
+  Dim sBuffer As String
+  Dim Elem As XmlElement[]
+  Dim i As Integer = 1
+  Dim wwwlpath As String = wwwpath
+  
+  Majtitle.Text = "Mise à Jour de " & Application.Name
+
+  hClient = New HttpClient As "hClient"
+  hDoc = New HtmlDocument As "hDoc"
+  hClient.URL = wwwpath
+  hClient.Async = False
+  hClient.Timeout = 60
+  hClient.Get
+
+  Print "Begin"
+  If hClient.Status < 0 Then
+    Print "ERROR"
+  Else
+    ' Succès - données lue.
+    If Lof(hClient) Then
+      Read #hClient, sBuffer, Lof(hClient)
+      'Print sBuffer
+      hDoc.HtmlFromString(sBuffer)
+      Elem = hDoc.GetElementsByTagName("a")
+    Endif
+  Endif
+  
+  If Not (IsNull(Elem)) Then
+    While (i < Elem.Length)
+      Type.Add(Elem[i].GetAttribute("href"))
+      Type.Enabled = True
+      i = i + 1
+    Wend
+  
+    hClient.URL = wwwpath & Type.Current.Text
+    hClient.Async = False
+    hClient.Timeout = 60
+    hClient.Get
+
+    Print "Begin"
+    If hClient.Status < 0 Then
+      Print "ERROR"
+    Else
+      ' Succès - données lue.
+      If Lof(hClient) Then
+        Read #hClient, sBuffer, Lof(hClient)
+        'Print sBuffer
+        hDoc.HtmlFromString(sBuffer)
+        Elem = hDoc.GetElementsByTagName("a")
+      Endif
+    Endif
+  
+    i = 1
+    While (i < Elem.Length)
+      ListVersion.Add(Elem[i].GetAttribute("href"))
+      ListVersion.Enabled = True
+      i = i + 1
+    Wend
+    
+    wwwpath = wwwlpath & Type.Current.Text & ListVersion.Current.Text
+  
+  Endif
+  
+  RecupVersion()
+  VerAct.Text = "Version Actuelle: " & Version & " (" & Application.Version & ")"
+  
+  VersionWebArr = Verif_Maj(wwwpath, False)
+  If (VersionWebArr.Length >= 2) Then
+    If VersionWebArr.Length = 2 Then VersionWebArr.Add("?") 'backward compat
+    VerWeb.Text = "Version Web: " & VersionWebArr[0] & "." & VersionWebArr[1] & " (" & VersionWebArr[0] & "." & VersionWebArr[1] & "." & VersionWebArr[2] & ")"
+  Else
+    VerWeb.Text = "Version Web: Not found"
+  Endif
+  
+End
+
+
+Public Sub OK_Click()
+
+  Verif_Maj(wwwpath, True)
+
+End
+
+
+Public Sub Annuler_Click()
+
+  Me.Close()
+
+End
+
+
+Public Sub RecupVersion()
+
+  Dim rResult As Result
+
+  rResult = Utils.db.Exec("SELECT * FROM Fiches_Parametres ")
+  Try Version = rResult!version
+  If Settings["/Majver"] And If Not Exist("/usr/bin/laurux") Then Verif_Maj()
+
+End
+
+
+Public Sub Verif_Maj(Optional wwwlpath As String = wwwpath, Optional Update As Boolean = True) As String[]
 
   Dim txt As String
   Dim $hform As Form
@@ -47,42 +165,50 @@ Public Sub Verif_Maj()
   If Exist(User.Home & "/tmp/pb1.txt") Then Kill User.Home & "/tmp/pb1.txt"
   If Exist(User.Home & "/tmp/ping.txt") Then Kill User.Home & "/tmp/ping.txt"
   If Exist(User.Home & "/tmp/version.txt") Then Kill User.Home & "/tmp/version.txt"
-  If Exist(User.Home & "/Laurux3.tar.gz") Then Kill User.Home & "/Laurux3.tar.gz"
+  If Exist(User.Home & "/Laurux.tar.gz") Then Kill User.Home & "/Laurux.tar.gz"
   Shell "ping -c 1 www.laurux.fr >" & User.Home & "/tmp/ping.txt 2>&1" Wait
   If Exist(User.Home & "/tmp/ping.txt") Then
     txt = Trim$(File.Load(User.Home & "/tmp/ping.txt"))
   Endif
   If InStr(txt, "cpanel1") <> 0 Then
-    Shell "wget -q" & " " & "http://www.laurux.fr/file/version.txt" & " -P " & User.Home & "/tmp" Wait
+    Shell "wget -q" & " " & wwwlpath & "/version.txt" & " -P " & User.Home & "/tmp" Wait
     If Exist(User.Home & "/tmp/version.txt") Then
       VersionWebFull = File.Load(User.Home & "/tmp/version.txt")
       VersionWeb = Trim$(Split(VersionWebFull, "\n")[0])
-      VersionWeb = Replace(VersionWeb, "Laurux V", "")
+      VersionWeb = Replace(VersionWeb, "Laurux ", "")
+      VersionWeb = Replace(VersionWeb, "V", "")
+      VersionWeb = Replace(VersionWeb, "v", "")
       VersionWebArr = Split(VersionWeb, ".")
       VersionWeb = VersionWebArr[0] & "." & VersionWebArr[1]
-      If Val(VersionWebArr[1]) > Val(VersionAppArr[1]) Then
-        Maj(VersionWebFull)
-      Else
-        If Message.Question("Aucune mise à jour n'est a faire !", "OK", "Forcer") = 2 Then
-          Maj(VersionWebFull)
+      If update Then
+        If Val(VersionWebArr[1]) > Val(VersionAppArr[1]) Then
+          Maj(VersionWebFull, wwwlpath)
+        Else
+          If Message.Question("Aucune mise à jour n'est a faire !", "OK", "Forcer") = 2 Then
+            Maj(VersionWebFull, wwwlpath)
+          Endif
         Endif
       Endif
+      Return VersionWebArr
     Else
       $hform.Mouse = Mouse.Default
-      Message.Warning("Problème de mise à jour! Veuillez vérifier votre connexion SVP.")
+      If update Then Message.Warning("Problème de mise à jour! Veuillez vérifier votre connexion SVP.")
+      Return []
     Endif
   Else
     $hform.Mouse = Mouse.Default
-    Message.Warning("Problème de mise à jour! Veuillez vérifier votre connexion SVP.")
+    If update Then Message.Warning("Problème de mise à jour! Veuillez vérifier votre connexion SVP.")
+    Return []
   Endif
 Catch
   Music.Load(Start.Musique)
   Music.Play
   message.Error(Error.Text & " " & Error.where)
+  Return []
 
 End
 
-Public Sub Maj(FullVersion As String)
+Public Sub Maj(FullVersion As String, Optional wwwlpath As String = wwwpath)
 
   Dim $hform As Form
   Dim hLabel As Label
@@ -91,7 +217,7 @@ Public Sub Maj(FullVersion As String)
   $hform.Width = 600
   $hform.Height = 400
   $hForm.Border = Border.Etched
-  $hform.Title = "Mise à jour de Laurux"
+  $hform.Title = Majtitle.Text
   hLabel = New Label($hForm)
   hLabel.Text = "La mise à jour prend un peu de temps.\n Veuillez patienter SVP."
   hLabel.Width = 600
@@ -112,8 +238,8 @@ Public Sub Maj(FullVersion As String)
   $hForm.Move($hForm.ScreenX, $hForm.ScreenY, 600, 200)
   $hform.Center
   If Exist(User.Home & "/version.txt") Then Kill User.Home & "/version.txt"
-  If Exist(User.Home & "/Laurux3.tar.gz") Then Kill User.Home & "/Laurux3.tar.gz"
-  Shell "wget -q" & " " & "http://www.laurux.fr/file/version.txt" & " -P " & User.Home Wait
+  If Exist(User.Home & "/Laurux.tar.gz") Then Kill User.Home & "/Laurux.tar.gz"
+  Shell "wget -q" & " " & wwwlpath & "/version.txt" & " -P " & User.Home Wait
   If Exist(User.Home & "/version.txt") Then
     If Message.Question("Attention ! Vous allez mettre à jour votre logiciel Laurux\n" & FullVersion & "\nVous devez être connecté au réseau internet. \n Etes-vous d'accord ?", "Oui", "Non") = "1" Then
       Try Move Application.Path & "/Laurux3.gambas" To Application.Path & "/Laurux3.old.gambas"
@@ -121,11 +247,11 @@ Public Sub Maj(FullVersion As String)
       $hForm.Show
       Wait 1
       $hform.Mouse = Mouse.Wait
-      Shell "wget http://www.laurux.fr/file/Laurux3.tar.gz -P " & User.Home & " -o ~/tmp/pb1.txt"
+      Shell "wget " & wwwlpath & "/Laurux.tar.gz -P " & User.Home & " -o ~/tmp/pb1.txt"
       Avancement()
-      Shell "cd " & User.Home & " " & "; tar xvfz " & User.Home & "/Laurux3.tar.gz" Wait
+      Shell "cd " & User.Home & " " & "; tar xvfz " & User.Home & "/Laurux.tar.gz" Wait
       Wait 2
-      Kill User.Home & "/Laurux3.tar.gz"
+      Kill User.Home & "/Laurux.tar.gz"
       Kill User.Home & "/version.txt"
       $hform.Mouse = Mouse.Default
       $hform.Close
@@ -179,3 +305,4 @@ Public Sub Avancement()
   Try Kill User.Home & "/tmp/pb1.txt"  '--- Suppression du fichier temporaire ---
 
 End
+
