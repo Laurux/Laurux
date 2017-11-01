@@ -39,6 +39,8 @@ Public Sub Histo_ventes()
   Dim HisResult As Result
   Dim lind As Integer = 1
   Dim libelle As String
+  Dim Dtejour2 As String
+  Dim Dtejour3, dte3 As String
 
   Dtejour = Format$(Now, "yyyymm")
   Dtejour = (Val(Left$(Dtejour, 4)) - Periode) & Right$(Dtejour, 2) & "01"
@@ -101,24 +103,26 @@ Public Sub Histo_ventes()
       Histolig = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisLigFac") & " where code_ligfac = &1 and typel_ligfac = &2 ", code, "A")
       If Histolig.Available Then
         Do
-          Histofac = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisFac") & " where numfac = &1 and datefac >= &2 and datefac <= &3", Histolig!num_ligfac, dtejour, Format$(Now, "yyyymmdd"))
+          Histofac = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisFac") & " where numfac = &1 and datefac >= &2", Histolig!num_ligfac, dtejour)
           If Histofac.Available Then
             Try Utils.db.Exec("INSERT INTO " & Cbase.Table("TabStat") & " VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10})", Histofac!cdclifac, Histofac!datefac, Histofac!nmclifac, Val(Utils.cpoint(Histolig!pu_ligfac)), Val(Utils.cpoint(Histolig!rem_ligfac)), Val(Utils.cpoint(Histolig!netht_ligfac)), Val(Utils.CPoint(Histolig!qte_ligfac)), Histofac!numfac, Histolig!numlig_ligfac, lind)
           Endif
           Inc lind
         Loop Until Histolig.MoveNext()
       Endif
-      Try LigcaiR = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisLigTck") & " where code = &1 and type = &2 ", code, "A")
+      dte3 = Left$(dtejour, 4) & "-" & Mid$(dtejour, 5, 2) & "-" & Right$(dtejour, 2)
+      LigcaiR = Utils.db.Exec("SELECT * FROM Fiches_HisLigTickets as e inner join Fiches_HisEntTickets as a on a.numero = e.numero where code = &1 And type = &2 and left(date,10) >= &3", code, "A", dte3)
       If Not Error Then
         If LigcaiR.Available Then
           Do
-            CaiR = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisEntTck") & " where numero = &1 and date >= &2 and date <= &3 ", LigcaiR!numero, dtejour, Format$(Now, "yyyymmdd"))
-            Try Utils.db.Exec("INSERT INTO " & Cbase.Table("TabStat") & " VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10})", CaiR!client, CaiR!date, "Caisse", Val(Utils.cpoint(LigcaiR!montant)), "", Val(Utils.cpoint(LigcaiR!montant)), Val(Utils.cpoint(LigcaiR!qte)), LigcaiR!numero, LigcaiR!numlig, LigcaiR!lInd)
+            Dtejour2 = Mid$(LigCaiR!date, 7, 4) & Mid$(LigCaiR!date, 4, 2) & Left$(LigCaiR!date, 2)
+            Dtejour3 = Left(Dtejour2, 4) & "/" & Mid(Dtejour2, 5, 2) & "/" & Right(Dtejour2, 2)
+            Utils.db.Exec("INSERT INTO " & Cbase.Table("TabStat") & " VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10})", LigCaiR!client, Dtejour3, "Caisse", Val(Utils.cpoint(LigcaiR!montant)), "", Val(Utils.cpoint(LigcaiR!montant)), Val(Utils.cpoint(LigcaiR!qte)), LigcaiR!numero, LigcaiR!numlig, LigcaiR!lInd)
             Inc lind
           Loop Until LigcaiR.MoveNext()
         Endif
       Endif
-      rexp = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvtexp") & " where code = &1 and qtem is not null", code, "")
+      rexp = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvtexp") & " where code = &1 and qtem is not null  and daterecpt >= &2", code, dtejour)
       If Not Error Then
         If rexp.Available Then
           Do
