@@ -326,7 +326,6 @@ Public Sub Livre_caisse()
 
 End
 
-
 Public Function VerifSha1(sha1 As String, numero As String, prev_numero As String) As Boolean
 
   Dim sresult As Result
@@ -442,7 +441,7 @@ Public Sub Moulinage()
               Error_Verif_Tck.Add(rTck!numero)
             Endif
           Until rTck.MoveNext()
-          
+
           If Error_Verif_Tck.Length > 0 Then
             If Message.Error("les Tickets suivants ont des champs de contrôle altéré ou absent, voulez vous poursuivre le moulinage!\n" & Error_Verif_Tck.Join(","), "OK", "ANNULER") <> 1 Then
               Return
@@ -467,7 +466,8 @@ Public Sub Moulinage()
               resto = ""
             Endif
             bretro = rtck!retro
-            Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisEntTck") & " (caisse, numero, date, client, scheque, mcheque, scarte, mcarte, sespeces, mespeces, scredit, mcredit, mht, mtva, mttc, savoir, scavoir, mavoir, vendeur, carte, points, sresto, mresto, nom, suppr) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24}, &{25})", rtck!caisse, rtck!numero, rtck!date, rtck!client, rtck!scheque, rtck!mcheque, rtck!scarte, rtck!mcarte, rtck!sespeces, rtck!mespeces, rtck!scredit, rtck!mcredit, rtck!mht, rtck!mtva, rtck!mttc, rtck!savoir, rtck!scavoir, rtck!mavoir, rtck!vendeur, rtck!carte, rtck!points, resto, rtck!mresto, rtck!nom, rtck!suppr)
+            sDate = Mid(rtck!date, 7, 4) & Mid(rtck!date, 4, 2) & Left(rtck!date, 2) & Mid(rtck!date, 13, 2) & Mid(rtck!date, 16, 2) & "00"
+            Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisEntTck") & " (caisse, numero, date, client, scheque, mcheque, scarte, mcarte, sespeces, mespeces, scredit, mcredit, mht, mtva, mttc, savoir, scavoir, mavoir, vendeur, carte, points, sresto, mresto, nom, suppr) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24}, &{25})", rtck!caisse, rtck!numero, sdate, rtck!client, rtck!scheque, rtck!mcheque, rtck!scarte, rtck!mcarte, rtck!sespeces, rtck!mespeces, rtck!scredit, rtck!mcredit, rtck!mht, rtck!mtva, rtck!mttc, rtck!savoir, rtck!scavoir, rtck!mavoir, rtck!vendeur, rtck!carte, rtck!points, resto, rtck!mresto, rtck!nom, rtck!suppr)
             Sha1Calc.CalcShaC(rtck!caisse, rtck!numero)
             If Jnl Then
               If rTck!type = "0" Then
@@ -626,7 +626,11 @@ Public Sub Moulinage()
                           Endif
                         Endif
                       Endif
-                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, rltck!numlig, code, $intit, rltck!montant, qte, rltck!type, Fam, rltck!mht, rltck!mrem, rltck!tva)
+                      If rltck!type = "T" Then
+                        Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, rltck!numlig, code, $intit, rltck!montant, qte, "A", Fam, rltck!mht, rltck!mrem, rltck!tva)
+                      Else
+                        Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, rltck!numlig, code, $intit, rltck!montant, qte, rltck!type, Fam, rltck!mht, rltck!mrem, rltck!tva)
+                      Endif
                       If Not rTck!suppr Then
                         If rTck!savoir = "1" Then
                           If rlTck!type <> "L" And If rlTck!type <> "M" And If rlTck!type <> "C" Then Maj_Totalisation(Tva, iTva, "-" & montant)
