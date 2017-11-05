@@ -29,6 +29,8 @@ Private Fontes As String
 Private hImage As Image
 Private hImage2 As Image
 Private ipos As Integer
+Private $check As New CheckBox[]
+Private $ipr As New Integer[]           'ou sont les points de rupture familles
 
 Public Sub Form_Open()
 
@@ -265,6 +267,10 @@ Public Sub Form_Open()
     IpZebra.Visible = True
     Try IpZebra.Text = Settings["/Soc" & Start.Societe & "/IpZebra"]
   Endif
+  Try Textfam.Text = Settings["/Soc" & Start.Societe & "/nbfam"]
+  If Error Or Utils.totobs([Textfam.Text]) = 0 Then Textfam.Text = "5"
+  Try $ipr = Settings["/Soc" & Start.Societe & "/ipr"]
+  afffam
 
 End
 
@@ -326,6 +332,7 @@ Public Sub form_close()
   Dim Mat As String
   Dim Cai As String
   Dim $mdp As String
+  Dim i As Integer
 
   $mdp = hexdblKey.crypt("en", Mdp2.text, "Laurux")
   Settings["/Soc" & Start.Societe & "/Tme"] = Tme.value
@@ -487,6 +494,12 @@ Public Sub form_close()
   Settings["/Soc" & Start.Societe & "/Breplique"] = Breplique.Value
   'Settings["/Soc" & Start.Societe & "/Hidentifiant"] = Api2.Text
   ' Settings["/Soc" & Start.Societe & "/Hmdp"] = Api3.Text
+    Settings["/Soc" & Start.Societe & "/nbfam"] = Textfam.Text 
+  $ipr.Clear
+  For i = 0 To $check.Max
+    If $check[i].Value Then $ipr.Add(i + 1)
+  Next
+  Settings["/Soc" & Start.Societe & "/ipr"] = $ipr
   If Exp.Value = True Then
     Exprt = "1"
   Else
@@ -1091,7 +1104,47 @@ Public Sub api_LostFocus()
 
 End
 
-Public Sub TabStrip1_Click()
+Public Sub Textfam_LostFocus()
+
+  Textfam.Text = Format(Utils.totobs([Textfam.Text]), "0")
+  If Val(Textfam.Text) = 0 Or Val(Textfam.Text) > 20 Then
+    Textfam.Clear
+    Textfam.SetFocus
+  Endif
+  afffam
+End
+
+Public Sub Textfam_KeyPress()
+
+  If Key.Code = Key.Enter Or Key.Code = Key.Return Or Key.Code = Key.Tab Then
+    Taxe.SetFocus
+    Taxe.Select
+    Stop Event
+  Endif
+
+End
+
+Public Sub afffam()
+
+  Dim i, sup As Integer
+  
+  $check.Resize(Utils.totobs([Textfam.Text]))
+  Panelfam.Children.Clear
+  For i = 0 To Val(Textfam.Text) - 1
+    $check[i] = New CheckBox(Panelfam)
+    $check[i].Height = 20
+    $check[i].Width = 20
+  Next
+  Try i = $ipr.Count
+  If Error Then
+    $ipr = New Integer[]
+    $ipr.Add(1)
+  Endif
+  sup = $ipr.Max
+  If $ipr.Max > $check.Max Then sup = $check.Max
+  For i = 0 To sup
+    $check[$ipr[i] - 1].Value = True
+  Next
 
 End
 
