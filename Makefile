@@ -1,5 +1,5 @@
 PROJECT:=Laurux
-APP:=Laurux3.gambas
+APP:=Laurux
 GIT_SHA1:=$(shell git rev-list HEAD | head -n 1)
 GIT_BRANCH:=$(shell git branch | grep "*" | sed -e "s/^* //g")
 VERSION:=$(shell grep "Version=" .project | sed -e "s/Version=//g")
