@@ -1,0 +1,180 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Edinv.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 28/01/2005
+'# Impression de l'inventaire chiffré
+'################################################
+
+Filename As String
+son As Integer = Start.Son
+Decm As Integer ' nombre de décimales
+nbd As String
+nbdec As String ' nombre de décimales pour les prix
+PosY As Integer
+Coulfond As New String[]
+pdf As Cstocks
+Private $familles As Trifam
+Private Nbpage As Integer
+
+Public Sub _New()
+
+  Dim rResult As Result
+  Dim Tab As String
+
+  Me.Center
+  Coulfond = Utils.Coulfd()
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Music.Load(Start.Musique)
+  Tab = "Fiches_Inv"
+  Try rResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
+  If Not Error Then
+    If rResult.Available Then
+      dte.Text = Format(rResult!inv_date, "dd.mm.yyyy")
+'      dte.Text = Mid$(dte.Text, 4, 2) & "." & Left$(dte.Text, 2) & "." & Right$(dte.Text, 4)
+    Else
+      If son Then
+        Music.Play
+      Endif
+      Message.Warning("Attention! Il n'existe aucun inventaire\n Veuillez passer par la procédure d'initialisation d'inventaire SVP")
+      Me.Close
+    Endif
+  Else
+    Message.Warning("Attention! Il n'existe aucun inventaire\n Veuillez passer par la procédure d'initialisation d'inventaire SVP")
+    Me.Close
+  Endif
+
+End
+
+Private Sub TriArticles(fam As Trifam)
+
+  Dim fm, fmtot As Trifam
+  Dim Rinv As Result
+  Dim code As String
+  Dim designation As String
+  Dim qtecomptee As String
+  Dim Pu As String
+  Dim Pht As String
+  Dim Pmp As String
+  Dim Nlig As String
+  
+  For Each fm In fam
+    If Not IsNull(fm.precedant) Then TriArticles(fm.precedant)
+Print fm.cle, fm.Text
+    pdf.Entetefam(fm.cle, fm.Text, posy)
+    posy += 8
+    If posy > 270 Then sautpage
+    Rinv = Utils.db.Exec("SELECT * FROM Fiches_Inv,Fiches_Art,Fiches_Fam WHERE inv_code=art_code AND art_fam=code_fam AND art_fam=&1 AND  inv_comptee = '1'", fm.cle)
+    If Rinv.Available Then
+      Repeat
+        Nlig = Rinv!inv_nlig
+        code = Rinv!inv_code
+        designation = Rinv!art_design
+        Decm = Rinv!art_dec
+        Pu = Rinv!art_paht
+        nbd = Rinv!art_nbd
+        nbdec = Utils.Find_nbdec(nbd)
+        Pmp = Utils.PointBase(Rinv!art_pmp)
+        qtecomptee = Utils.CDec(Decm, Rinv!inv_qtecomptee)
+        If Decm < 3 Then qtecomptee = qtecomptee & String$(4 - (Decm + 1), "  ")
+        If Not qtecomptee Then qtecomptee = "0"
+        qtecomptee = Utils.cpoint(qtecomptee)
+        Pht = Format$(Pu * Val(qtecomptee), nbdec)
+        If Len(pht) - InStr(pht, ",") = 2 Then pht = pht & " "
+        Pmp = Format$(Pmp * Val(qtecomptee), nbdec)
+        If Len(Pmp) - InStr(Pmp, ",") = 2 Then Pmp = Pmp & " "
+        Pu = Format$(Pu, nbdec)
+        If Len(Pu) - InStr(Pu, ",") = 2 Then Pu = Pu & " "
+        fm.soustotpa = Pht
+        fm.soustotpmp = Pmp
+        pdf.Level2(code, designation, qtecomptee, pu, Pht, Pmp, PosY)
+        posy += 5
+        If PosY >= 270 Then sautpage()
+      Until Rinv.MoveNext()
+    Endif
+  Next
+  fmtot = fm
+  While fmtot <> fam
+    pdf.Level3fam(fmtot.cle, fmtot.Text, fmtot.soustotpa, fmtot.soustotpmp, posy)
+    posy += 6
+    If posy > 270 Then sautpage
+    fmtot = fmtot.parent
+  Wend
+    pdf.Level3fam(fam.cle, fam.Text, fam.soustotpa, fam.soustotpmp, posy)
+    posy += 6
+    If posy > 270 Then sautpage
+
+End
+
+Private Sub sautpage()
+  
+  pdf.Baspage()
+  pdf.Entete("Impression de l'inventaire du " & dte.Text)
+  posy = 20
+  pdf.Level1()
+  posy += 5
+End
+
+Public Sub Button1_Click()
+  
+  Me.Mouse = Mouse.Wait
+  Nbpage = 1
+  Shell "cd " & User.Home & ""
+  filename = User.Home & "/tmp/Inventaire.pdf"
+  pdf = New Cstocks("Portrait", "mm", "A4")
+  pdf.Open()
+  pdf.AliasNbPages()
+  pdf.Entete("Impression de l'inventaire du " & dte.Text)
+  posy = 20
+  pdf.Level1()
+  posy += 5
+  $familles = New Trifam("1")
+  TriArticles($familles.enfant)
+  If posy > 270 Then sautpage
+      posy += 5
+      pdf.Level3($familles.soustotpa, $familles.soustotpmp, posy)
+      pdf.BasPage()
+      pdf.Output(Filename, False)
+      Visualiseur.Prog_Editeur(Filename)
+ '   Else
+  '    If son Then
+   '     Music.Play
+    '  Endif
+     ' message(" Aucun article pour cette demande", "OK")
+    'Endif
+    Me.Mouse = Mouse.Pointing
+  
+
+End
+
+Public Sub button2_Click()
+
+  If Exist(filename) Then Try Kill filename
+  Me.Close
+
+End
+
+Public Sub Button4_Click()
+
+  Exec ["xdg-open", Application.Path &/ "Ecrans/Edinv.html"]
+
+End
+
