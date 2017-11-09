@@ -1,0 +1,178 @@
+' Gambas class file
+
+Private user_name As String = Left$(User.name, 50)
+Private process_id As Integer = Application.Id
+Private machine_id As String
+Private host_id As String
+Private userdb_name As String
+Private Tactive As String = Cbase.Table("TabActif")
+
+Public Sub _new()
+  Dim host_name As String
+  Shell "cat /etc/machine-id" To machine_id
+  Shell "hostname" To host_name
+  Shell "hostid" To host_id
+  machine_id = Left$(Trim$(machine_id), 50)
+  host_id = Left$(Trim$(host_name) & "(" & Trim$(host_id) & ")", 50)
+  userdb_name = Left$(Utils.db.Login, 50)
+  
+End
+
+Public Sub Form_Open()
+  
+  DOCT.Text = "Type"
+  DOCN.Text = "Num"
+  USERN.Text = "Utilisateur"
+  PID.Text = "Process"
+  HID.Text = "Hostname"
+  MID.Text = "Machine-ID" 
+  USERDBN.Text = "Database login"
+  
+    With listdoc
+  
+    .Columns.count = 7
+    .Columns[0].Width = DOCT.Width
+    .Columns[1].Width = DOCN.Width
+    .Columns[2].Width = USERN.Width
+    .Columns[3].Width = PID.Width
+    .Columns[4].Width = HID.width
+    .Columns[5].Width = MID.Width
+    .Columns[6].Width = USERDBN.Width
+
+  End With
+  
+  Deb1()
+  
+End
+
+Public Sub Deb1()
+
+  Utils.Base2(listdoc, "SELECT * FROM " & Tactive)
+  listdoc.Refresh
+
+End
+
+
+Public Sub listdoc_Data(Row As Integer, Column As Integer)
+
+  Dim Frmt As New String[]
+
+  With Utils
+    Frmt.Add("doc_type")
+    Frmt.Add("doc_num")
+    Frmt.Add("user_name")
+    Frmt.Add("process_id")
+    Frmt.Add("host_id")
+    Frmt.Add("machine_id")
+    Frmt.Add("userdb_name")
+    .rs2.MoveTo(Row)
+    listdoc.data.Text = Str(.rs2[Frmt[Column]])
+  End With
+  
+End
+
+
+'*****************************************************
+'*        Gestion des ouvertures des documents       *
+'*****************************************************
+Public Sub Get_Lock(DocType As String, DocNum As String) As Boolean
+
+  Dim rParam As Result
+  Dim Bok As String
+  Dim psExist As Process
+  
+  Utils.db.Exec("LOCK TABLES " & Tactive & " WRITE")
+  rParam = Utils.db.Exec("SELECT * FROM " & Tactive & " where doc_type = &1 and doc_num = &2", DocType, DocNum)
+  If rParam.Available Then
+    bok = False
+    If rParam!user_name = user_name And rParam!machine_id = machine_id And rParam!host_id = host_id And rParam!userdb_name = userdb_name Then
+      If rParam!process_id = process_id Then
+        Message.Warning("Lock sur le document " & DocType & " Numéro: " & DocNum & " déjà pris par le process courant : " & rParam!process_id & ".", "Continuer")
+        bok = True
+      Else
+        psExist = Shell "ps -p " & rParam!process_id Wait
+        If psExist.Value <> 0 Then
+          If Message.Warning("Lock sur le document " & DocType & " Numéro: " & DocNum & "\npris par un process inexistant sur cette machine\n" & rParam!process_id & "\nVerifiez l'etat du process avant de supprimer!", "Supprimer", "Annuler") = 1 Then
+            Utils.db.Exec("UPDATE  " & Tactive & " SET process_id = &3 WHERE doc_type = &1 and doc_num = &2", DocType, DocNum, process_id)
+            bok = True
+          Endif
+        Else
+          Message.Warning("Lock sur le document " & DocType & " Numéro: " & DocNum & "\ndéjà pris par un autre de vos process de cette machine\n" & rParam!process_id & "\nVerifiez l'existence de plusieurs instance du logiciel.", " Sortir ")
+        Endif
+      Endif
+    Else
+      Message.Warning("Lock sur le document " & DocType & " Numéro: " & DocNum & "\ndéjà pris par quelqu'un d'autre\n- utilisateur@host : " & rParam!user_name & "@" & rParam!host_id & "\n- machine-id : " & rParam!machine_id & "\nVeuillez contacter cet utilisateur.", "Sortir")
+    Endif
+  Else
+    bok = True
+    Utils.db.Exec("INSERT INTO " & Tactive & "(doc_type, doc_num, user_name, process_id, machine_id, host_id, userdb_name) VALUES (&1, &2, &3, &4, &5, &6, &7)", DocType, DocNum, user_name, process_id, machine_id, host_id, userdb_name)
+  Endif
+  Utils.db.Exec("UNLOCK TABLES")
+
+  Return bok
+
+End
+
+Public Sub Free_Lock(DocType As String, DocNum As String) As Boolean
+  
+  Dim rParam As Result
+  Dim Bok As String
+  Utils.db.Exec("LOCK TABLES " & Tactive & " WRITE")
+  rParam = Utils.db.Exec("SELECT * FROM " & Tactive & " where doc_type = &1 and doc_num = &2", DocType, DocNum)
+  If rParam.Available Then
+    If rParam.Count > 1 Then
+      'ceci devrait etre impossible
+      If Message.Warning("UnLock sur un document ayant plusieurs lock!\nErreur Grave!", "Continuer", "Annuler") = 2 Then
+        Return False
+      Endif
+    Endif
+    bok = True
+    If rParam!user_name = user_name And rParam!machine_id = machine_id And rParam!host_id = host_id And rParam!userdb_name = userdb_name Then
+      If rParam!process_id <> process_id Then
+        'Tentative de libération d'un lock qui nous appartient mais sur un autre process
+        If Message.Warning("UnLock sur le document " & DocType & " Numéro: " & DocNum & "\npris par un autre de vos process\n" & rParam!process_id & "\nErreur Grave!", "Forcer Libérer", "Annuler") = 2 Then
+          bok = False
+        Endif
+      Endif
+    Else
+      'Tentative de libération d'un lock qui ne nous appartient pas
+      If Message.Warning("UnLock sur le document " & DocType & " Numéro: " & DocNum & "\npris par quelqu'un d'autre\n- utilisateur@host : " & rParam!user_name & "@" & rParam!host_id & "\n- machine-id : " & rParam!machine_id & "\nErreur Grave!", "Forcer Libérer", "Annuler") = 2 Then
+        bok = False
+      Endif
+    Endif
+    If bok = True Then Utils.db.Exec("DELETE FROM " & Tactive & " where doc_type = &1 and doc_num = &2", DocType, DocNum)
+  Else
+    'ne devrait pas arriver sauf si liberation forcé par quelqu'un d'autre
+    Message.Warning("UnLock sur le document " & DocType & " Numéro: " & DocNum & "\nErreur Lock inexistant.", "Continuer")
+    bok = True
+  Endif
+
+  Utils.db.Exec("UNLOCK TABLES")
+End
+
+Public Sub listdoc_Click()
+
+  Dim DocTypeSup As String
+  Dim DocNumSup As String
+  
+  DocTypeSup = listdoc[listdoc.row, 0].Text
+  DocNumSup = listdoc[listdoc.row, 1].Text
+  
+  If Message.Warning("Etes-vous sur de vouloir supprimer le lock sur le document " & DocTypeSup & " Numéro: " & DocNumSup, "OK", "Annuler") = 1 Then
+    Try Utils.db.Exec("DELETE FROM " & Tactive & " where doc_type = &1 and doc_num = &2", DocTypeSup, DocNumSup)
+    If Error
+      Message.Error("Impossible de supprimer le Lock du document " & DocTypeSup & " Numéro: " & DocNumSup)
+    Endif
+  Endif
+  
+  Deb1()
+  listdoc.Refresh()
+  
+End
+
+
+Public Sub Button1_Click()
+
+  Me.Close()
+
+End

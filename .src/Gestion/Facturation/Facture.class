@@ -222,7 +222,7 @@ Private typedoc As String
 Private date2doc As Date
 Private date1doc As Date
 Private dt As String[] = Scan(Format$(Now, "yyyy/mm/dd"), "*/*/*")
-Private $numbl As String
+Private $numbl As String = ""
 Private Nmuser As String 'nom user
 Private Ecran As String
 Private $photo As String
@@ -659,6 +659,12 @@ Public Sub CleanChamps()
   Regmt2.Text = ""
   Rgmt.value = False
   XX = ""
+  Bcomde.Enabled = True
+  Bbon.Enabled = True
+  Bdevis.Enabled = True
+  Bprof.Enabled = True
+  BFac.Enabled = True
+  BFacA.Enabled = True
 
 End
 
@@ -1211,7 +1217,6 @@ Public Sub Button15_Click()
     Frame4.visible = False
     Try $lcom.Close
     Cv.setfocus
-    'Utils.db.Exec("DELETE FROM Fiches_Docactif where numerobl = &1 and nom = &2", $numbl, User.name)
     'CleanChamps()
     'If bTypeFacture Then CleanChampsMat()
   Endif
@@ -1278,10 +1283,7 @@ End
 Public Sub Form_Close()
 
   Dim sortie As Boolean = True
-  Dim Tactive As String
 
-  Tactive = "Fiches_Docactif"
-  Try Utils.db.Exec("DELETE FROM " & Tactive & " where numerobl = &1 and nom = &2", $numbl, User.name)
   If Panel5.visible = True Then
     If Val(Utils.cpoint(Mrg.text)) <= 0 And If Settings["/Soc" & Start.Societe & "/Marge"] Then
       If start.son Then
@@ -1308,6 +1310,8 @@ Public Sub Form_Close()
       Tot_Remises()
     Endif
   Endif
+
+  If $numbl <> "" Then DocActif.Free_Lock("Facturation", $numbl)
 
 End
 
@@ -1458,14 +1462,19 @@ End
 '**********************************************************
 Public Sub Button2_Click()
 
-  Dim Tactive As String
   Dim Btunnel As Boolean = True
+  Dim bok As Boolean
 
   'On vérifie que le tunnel SSH soit actif
   If Settings["/dbase/Con-ssh"] And If Settings["/Soc" & Start.Societe & "/Replique"] And If Settings["/Soc" & Start.Societe & "/Breplique"] Then Btunnel = Utils.ControlTunnel()
   If Btunnel Then
-    Tactive = "Fiches_Docactif"
-    Try Utils.db.Exec("DELETE FROM " & Tactive & " where numerobl = &1 and nom = &2", $numbl, User.name)
+    If $numbl <> "" Then
+      bok = DocActif.Free_Lock("Facturation", $numbl)
+      If bok Then
+        Colbl_Deselect()
+        Return
+      Endif
+    Endif
     CleanChamps()
     If bTypeFacture Then CleanChampsMat()
     modif = "0"
@@ -1475,7 +1484,7 @@ Public Sub Button2_Click()
     tribl = "numbl"
     tribl2 = "numbl"
     Tab = "Fiches_Parametres"
-    Utils.db.Exec("LOCK TABLES " & Tab & " WRITE, Fiches_Bl WRITE, Fiches_BlM WRITE, Fiches_EntMat WRITE, " & Cbase.Table("TabCli") & " Write,  " & Tactive & " WRITE")
+    Utils.db.Exec("LOCK TABLES " & Tab & " WRITE, Fiches_Bl WRITE, Fiches_BlM WRITE, Fiches_EntMat WRITE, " & Cbase.Table("TabCli") & " Write")
     rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
     If rResult.Available Then
       num.Text = rResult!dnbon
@@ -1513,7 +1522,7 @@ Public Sub Button2_Click()
       deb1()
       Colbl.MoveTo(0, 0)
       $numbl = colbl[colbl.row, 2].Text
-      Utils.db.Exec("INSERT INTO " & Tactive & "(numerobl, nom) VALUES (&1, &2)", colbl[colbl.row, 2].Text, User.name)
+      DocActif.Get_Lock("Facturation", $numbl)
     Endif
     Utils.db.Exec("UNLOCK TABLES")
     If $soption = "B" Or $soption = "T" Then 
@@ -1568,8 +1577,6 @@ Public Sub Button4_Click()
   type = "C"
   $Desc = False
   If Not IsNull(num.Text) Then
-    'Tactive = "Fiches_Docactif"
-    'Try Utils.db.Exec("DELETE FROM " & Tactive & " where numerobl = &1 and nom = &2", colbl[colbl.row, 2].Text, User.name)
     If Bcomde.Value Then Tp = "C"
     If Bbon.Value Then Tp = "B"
     If Bdevis.Value Then Tp = "D"
@@ -1823,36 +1830,6 @@ Public Sub RdimColbl()
 
 End
 
-'*****************************************************
-'*        Gestion des ouvertures des documents       *
-'*****************************************************
-Public Sub NumUtil() As Boolean
-
-  Dim rParam As Result
-  Dim Tactive As String
-  Dim Bok As String
-
-  Tactive = "Fiches_Docactif"
-  'Try Utils.db.Exec("DELETE FROM " & Tactive & " where numerobl = &1 and nom = &2", colbl[colbl.row, 2].Text, User.name)
-  rParam = Utils.db.Exec("SELECT * FROM " & Tactive & " where numerobl = &1 and nom <> &2", colbl[colbl.row, 2].Text, User.name)
-  If rParam.Available Then
-    bok = False
-    Nmuser = rParam!nom
-    Ecran = ""
-  Else
-    rParam = Utils.db.Exec("SELECT * FROM " & Tactive & " where numerobl = &1 and nom = &2 and ecran <> &3", colbl[colbl.row, 2].Text, User.name, Desktop.Current)
-    If rParam.Available Then
-      bok = False
-      Nmuser = rParam!nom
-      Ecran = rParam!ecran
-    Else
-      bok = True
-      Try Utils.db.Exec("INSERT INTO " & Tactive & "(numerobl, nom, ecran) VALUES (&1, &2, &3)", colbl[colbl.row, 2].Text, User.name, Desktop.Current)
-    Endif
-  Endif
-  Return bok
-
-End
 
 '*****************************************************
 '*    Gestion d'une selection d'un bon a la souris   *
@@ -1867,10 +1844,22 @@ Public Sub Colbl_Click()
 
 End
 
+Public Sub Colbl_Deselect()
+
+  $numbl = ""
+  colbl.Row = -1
+  Bcomde.Enabled = False
+  Bbon.Enabled = False
+  Bdevis.Enabled = False
+  Bprof.Enabled = False
+  BFac.Enabled = False
+  BFacA.Enabled = False
+  
+End
+
 Public Sub ColblSelection(bright As Boolean)
 
   Dim bok As Boolean = False
-  Dim Tactive, bureau As String
   Dim res As Result
 
   If bTypeFacture Then
@@ -1878,9 +1867,14 @@ Public Sub ColblSelection(bright As Boolean)
   Else
     tab = "Fiches_Bl"
   Endif
-  Tactive = "Fiches_Docactif"
-  Utils.db.Exec("DELETE FROM " & Tactive & " where numerobl = &1 and nom = &2", $numbl, User.Name)
-  Try $numbl = colbl[colbl.row, 2].Text
+  'Free lock sur doc precedent
+  If $numbl <> "" Then
+    bok = DocActif.Free_Lock("Facturation", $numbl)
+    If bok Then
+      Colbl_Deselect()
+      Return
+    Endif
+  Endif
   bencours = False
   CleanChamps()
   If bTypeFacture Then CleanChampsMat()
@@ -1889,8 +1883,11 @@ Public Sub ColblSelection(bright As Boolean)
   Nvc = 0
   Panel10.Visible = False
   With utils
-    bok = NumUtil()
+    'tentative de prise de lock
+    bok = DocActif.Get_Lock("Facturation", colbl[colbl.row, 2].Text)
     If bok Then
+      ' On met a jour le numero de BL selectionné
+      $numbl = colbl[colbl.row, 2].Text
       ' On récupère les taches associées au bl séléctionné
       If Settings["/Soc" & Start.Societe & "/Taches"] Then
         ColTaches.Columns.count = 5
@@ -1905,11 +1902,11 @@ Public Sub ColblSelection(bright As Boolean)
         RecupTaches()
       Endif
       Variables.bRemise = False
-      Try rResult = Utils.db.Exec("select * from " & Tab & " where numbl = &1", colbl[colbl.row, 2].Text)
+      Try rResult = Utils.db.Exec("select * from " & Tab & " where numbl = &1", $numbl)
       If Not Error Then
         'ikey = colbl[colbl.row, 1].Text
         If rResult.count = 0 Then
-          rResult = Utils.db.Exec("select * from " & Tab & " where numfac = &1", colbl[colbl.row, 2].Text)
+          rResult = Utils.db.Exec("select * from " & Tab & " where numfac = &1", $numbl)
         Endif
         If rResult.Available Then
           Datej.text = .Cdate_Aff(rResult!datebl)
@@ -2142,21 +2139,8 @@ Public Sub ColblSelection(bright As Boolean)
         bright = False
       Endif
     Else
-      If IsNull(ecran) Then
-        Message.Warning("Sélection impossible ! Ce document est utilisé par " & Nmuser)
-      Else
-        Select Case Ecran
-          Case 0
-            bureau = "premier"
-          Case 1
-            bureau = "deuxième"
-          Case 2
-            bureau = "troisième"
-          Case 3
-            bureau = "quatrième"
-        End Select
-        Message.Warning("Sélection impossible ! Ce document est utilisé sur le " & bureau & " bureau virtuel")
-      Endif
+      Colbl_Deselect()
+      Return
     Endif
   End With
 
@@ -9308,10 +9292,8 @@ End
 Public Sub Bl_Suppr()
 
   Dim Blrslt As Result
-  Dim Tactive As String
   Dim Bannul As Boolean = True
 
-  Tactive = "Fiches_Docactif"
   If Not bTypeFacture Then
     Tab2 = "Fiches_Ligbl"
     Tab = "Fiches_Bl"
@@ -9344,9 +9326,9 @@ Public Sub Bl_Suppr()
             Music.Play
           Endif
           If Message.Question("Etes-vous sur de vouloir supprimer ce bon ?", "Oui", "Non") = 1 Then
-            Try Utils.db.Exec("DELETE FROM " & Tactive & " where numerobl = &1 and nom = &2", $numbl, User.name)
-            Utils.db.Exec("DELETE FROM " & tab & " where numbl = &1", num.Text)
-            Utils.db.Exec("DELETE FROM " & tab2 & " where num_ligbl = &1", num.Text)
+            DocActif.Free_Lock("Facturation", $numbl)
+            Utils.db.Exec("DELETE FROM " & tab & " where numbl = &1", $numbl)
+            Utils.db.Exec("DELETE FROM " & tab2 & " where num_ligbl = &1", $numbl)
             If $soption = "B" Or $soption = "T" Then
               utils.db.Exec("DELETE FROM Fiches_ligcons WHERE num=&1 AND type='B'", num.Text) 
               $opt.affcons(num.Text)
@@ -9362,6 +9344,7 @@ Public Sub Bl_Suppr()
                 Maj_QteDep2()
               Endif
             Endif
+            Colbl_Deselect()
             CleanChamps()
             If bTypeFacture Then CleanChampsMat()
             Coldetail.Clear
