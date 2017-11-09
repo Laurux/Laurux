@@ -177,6 +177,7 @@ Private spiece As String
 Private spvcons As String ' Prix de vente conseillé
 Private sreg As String
 Private ImpAuto As Boolean = False
+Private Impdclient As Boolean = False
 Private Franchise As Boolean = False
 Private Prxdec As Boolean = False
 Private sDsg As String ' dernière désignation. Rappelée par * dans zone désignation
@@ -8816,7 +8817,7 @@ Public Sub Maj_Quantite()
   Dim Qstock As Float
   Dim Qline As Float
 
-  '  Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabArt") & " WRITE, " & Cbase.Table("TabArtPromo") & " WRITE, " & Cbase.Table("TabLigbl") & " WRITE ")
+  Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabArt") & " WRITE, " & Cbase.Table("TabArtPromo") & " WRITE, " & Cbase.Table("TabLigbl") & " WRITE ")
   With utils
     If Coldetail.Count <> 0 Then
       Coldetail.MoveFirst
@@ -9730,7 +9731,7 @@ Public Sub Impression(Org As String)
   Dim Tvarslt As Result
   Dim Tvaintra As String
   Dim sline As String
-  Dim Impdetail, impclient As Boolean = False
+  Dim Impdetail As Boolean = False
   Dim Tab9 As String
   Dim iskey As Integer = 0
   Dim Txt_ttc As String
@@ -9986,21 +9987,21 @@ Public Sub Impression(Org As String)
               Endif
               If Settings["/Soc" & Start.Societe & "/AffClient"] And If tp = "C" Then
                 If Message.Question("Voulez-vous masquer les coordonées du client ?", "Oui", "Non") = 1 Then
-                  impclient = True
+                  impdclient = True
                 Else
-                  Impclient = False
+                  impdclient = False
                 Endif
               Endif
               If Entete.Value Or If Org = "Mail" Then
                 If BlA5.value And Not Bfac.value Then
                   pdf2.Entete(rs, adr11, adr22, ville, cap, rcs, siret, ape, Tvaintra, Tel, portable, fax, mail, site, Visudoc, Pays, Iban, Coln.value)
-                  If Not impclient Then pdf2.Entete2(rs2, adr211, adr222, ville2, Pays, Coln.value, False)
+                  If Not impdclient Then pdf2.Entete2(rs2, adr211, adr222, ville2, Pays, Coln.value, False)
                 Else
                   pdf.Entete(rs, adr11, adr22, ville, cap, rcs, siret, ape, Tvaintra, Tel, portable, fax, mail, site, Visudoc, Pays, Iban, Coln.value, Libre)
                   If Tp = "T"
-                    If Not impclient Then pdf.Entete3(rs2, adr211, adr222, ville2, Pays, tel2, portable2, Coln.Value, False)
+                    If Not impdclient Then pdf.Entete3(rs2, adr211, adr222, ville2, Pays, tel2, portable2, Coln.Value, False)
                   Else
-                    If Not impclient Then pdf.Entete2(rs2, adr211, adr222, ville2, Pays, Coln.value, False)
+                    If Not impdclient Then pdf.Entete2(rs2, adr211, adr222, ville2, Pays, Coln.value, False)
                   Endif
                 Endif
               Else
@@ -10015,13 +10016,13 @@ Public Sub Impression(Org As String)
                 Endif
               Endif
               If BlA5.value And Not Bfac.value Then
-                If Not impclient Then
+                If Not impdclient Then
                   pdf2.Level1F(Jour, Cde, Page, TvaCli)
                 Else
                   pdf2.Level1F(Jour, "", Page, "")
                 Endif
               Else
-                If Not impclient Then
+                If Not impdclient Then
                   pdf.Level1F(Jour, Cde, Page, TvaCli)
                 Else
                   pdf.Level1F(Jour, "", Page, "")
@@ -10034,7 +10035,7 @@ Public Sub Impression(Org As String)
                 pdf.LevelM(Marque.Text, Numserie.text, Desg.Text, Desg2.Text, Typemat.Text, Coulfond, Tp)
                 PosY = 114
               Endif
-              If Blch.value = True Then
+              If Blch.value = True And Not impdclient Then
                 If BlA5.value And Not Bfac.value Then
                   PosY = 74
                   pdf2.Level2F(Coulfond, Impttc.Value, PosY)
@@ -10235,7 +10236,7 @@ Public Sub Impression(Org As String)
                         Totttc = Format$(Val(Totttc), "0")
                       Endif
                       Codi = Code
-                      If Blch.Value = True Then
+                      If Blch.Value = True And Not impdclient Then
                         If BlA5.Value And Not Bfac.value Then
                           pdf2.Level3F(codi, intitule, Puttc, qte, Bruttc, Rem, Totttc, Txtva, PosY)
                         Else
@@ -10302,7 +10303,7 @@ Public Sub Impression(Org As String)
                       Else
                         Codi = Code
                       Endif
-                      If Blch.Value = True Then
+                      If Blch.Value = True And Not impdclient Then
                         If BlA5.Value And Not Bfac.value Then
                           pdf2.Level3F(codi, intitule, Pu, qte, Brutht, Rem, Totalht, Txtva, PosY)
                         Else
@@ -10371,7 +10372,7 @@ Public Sub Impression(Org As String)
                   Endif
                   If typeL = "E" Then
                     Totalht = Coldetail.current[7]
-                    If Blch.Value = True Then
+                    If Blch.Value = True And Not impdclient Then
                       If Impttc.Value = True Then
                         If Ttva = 0 Or If exo.Value = True Then
                           Totalht = Coldetail.current[7]
@@ -10413,7 +10414,7 @@ Public Sub Impression(Org As String)
                         Coldetail.item.Selected = True
                       Endif
                     Endif
-                    If Blch.Value = True Then
+                    If Blch.Value = True And Not impdclient Then
                       If BlA5.Value And Not Bfac.value Then
                         pdf2.Level4aF(intitule, PosY)
                         PosY = PosY + 4
@@ -10426,7 +10427,7 @@ Public Sub Impression(Org As String)
 
                   If typeL = "D" Then
                     Totalht = Coldetail.current[7]
-                    If Blch.Value = True Then
+                    If Blch.Value = True And Not impdclient Then
                       If Impttc.Value = True Then
                         If Ttva = 0 Or If exo.Value = True Then
                           Totalht = Coldetail.current[7]
@@ -10440,7 +10441,7 @@ Public Sub Impression(Org As String)
                       If Settings["/Soc" & Start.Societe & "/AutoEnt"] Or If Settings["/Soc" & Start.Societe & "/Franchise"] Then intitule = "Dont " & Totalht & " " & devises & "  d' Eco-participation DEA"
                     Endif
                     Teco2 = Teco2 + Val(Totalht)
-                    If Blch.Value = True Then
+                    If Blch.Value = True And Not impdclient Then
                       If BlA5.Value And Not Bfac.value Then
                         pdf2.Level4aF(intitule, PosY)
                         PosY = PosY + 4
@@ -10481,7 +10482,7 @@ Public Sub Impression(Org As String)
                         Totht = Round(Val(Totht))
                         Totht = Format$(Val(Totht), "0")
                       Endif
-                      If Blch.Value = True Then
+                      If Blch.Value = True And Not impdclient Then
                         If BlA5.Value And Not Bfac.value Then
 
                         Else
@@ -10491,10 +10492,10 @@ Public Sub Impression(Org As String)
                       If Entete.Value Or If Org = "Mail" Then
                         If BlA5.Value And Not Bfac.value Then
                           pdf2.Entete(rs, adr11, adr22, ville, cap, rcs, siret, ape, Tvaintra, Tel, portable, fax, mail, site, Visudoc, Pays, Iban, Coln.value)
-                          If Not impclient Then pdf2.Entete2(rs2, adr211, adr222, ville2, Pays, "", False)
+                          If Not impdclient Then pdf2.Entete2(rs2, adr211, adr222, ville2, Pays, "", False)
                         Else
                           pdf.Entete(rs, adr11, adr22, ville, cap, rcs, siret, ape, Tvaintra, Tel, portable, fax, mail, site, Visudoc, Pays, Iban, Coln.value, Libre)
-                          If Not impclient Then pdf.Entete2(rs2, adr211, adr222, ville2, Pays, Coln.value, False)
+                          If Not impdclient Then pdf.Entete2(rs2, adr211, adr222, ville2, Pays, Coln.value, False)
                         Endif
                       Else
                         If BlA5.Value And Not Bfac.value Then
@@ -10504,13 +10505,13 @@ Public Sub Impression(Org As String)
                         Endif
                       Endif
                       If BlA5.value And Not Bfac.value Then
-                        If Not impclient Then
+                        If Not impdclient Then
                           pdf2.Level1F(Jour, Cde, Page, TvaCli)
                         Else
                           pdf2.Level1F(Jour, "", Page, "")
                         Endif
                       Else
-                        If Not impclient Then
+                        If Not impdclient Then
                           pdf.Level1F(Jour, Cde, Page, TvaCli)
                         Else
                           pdf.Level1F(Jour, "", Page, "")
@@ -10526,7 +10527,7 @@ Public Sub Impression(Org As String)
                         Endif
                       Endif
 
-                      If Blch.value = True Then
+                      If Blch.value = True And Not impdclient Then
                         If BlA5.value And Not Bfac.value Then
                           PosY = 74
                           pdf2.Level2F(Coulfond, Impttc.Value, PosY)
@@ -10567,7 +10568,7 @@ Public Sub Impression(Org As String)
             If Nbl > P Then
               Inc Pge
               Page = "Page " & Pge
-              If Blch.Value = True Then
+              If Blch.Value = True And Not impdclient Then
                 If BlA5.Value And Not Bfac.value Then
                   pdf2.Level12F(Totht, PosY, Devises)
                 Else
@@ -10577,10 +10578,10 @@ Public Sub Impression(Org As String)
               If Entete.Value Or If Org = "Mail" Then
                 If BlA5.Value And Not Bfac.value Then
                   pdf2.Entete(rs, adr11, adr22, ville, cap, rcs, siret, ape, Tvaintra, Tel, portable, fax, mail, site, Visudoc, Pays, Iban, Coln.value)
-                  If Not impclient Then pdf2.Entete2(rs2, adr211, adr222, ville2, Pays, "", False)
+                  If Not impdclient Then pdf2.Entete2(rs2, adr211, adr222, ville2, Pays, "", False)
                 Else
                   pdf.Entete(rs, adr11, adr22, ville, cap, rcs, siret, ape, Tvaintra, Tel, portable, fax, mail, site, Visudoc, Pays, Iban, Coln.value, Libre)
-                  If Not impclient Then pdf.Entete2(rs2, adr211, adr222, ville2, Pays, Coln.value, False)
+                  If Not impdclient Then pdf.Entete2(rs2, adr211, adr222, ville2, Pays, Coln.value, False)
                 Endif
               Else
                 If BlA5.Value And Not Bfac.value Then
@@ -10590,13 +10591,13 @@ Public Sub Impression(Org As String)
                 Endif
               Endif
               If BlA5.value And Not Bfac.value Then
-                If Not impclient Then
+                If Not impdclient Then
                   pdf2.Level1F(Jour, Cde, Page, TvaCli)
                 Else
                   pdf2.Level1F(Jour, "", Page, "")
                 Endif
               Else
-                If Not impclient Then
+                If Not impdclient Then
                   pdf.Level1F(Jour, Cde, Page, TvaCli)
                 Else
                   pdf.Level1F(Jour, "", Page, "")
@@ -10611,7 +10612,7 @@ Public Sub Impression(Org As String)
                   PosY = 104
                 Endif
               Endif
-              If Blch.value = True Then
+              If Blch.value = True And Not impdclient Then
                 If BlA5.value And Not Bfac.value Then
                   PosY = 74
                   pdf2.Level2F(Coulfond, Impttc.Value, PosY)
@@ -10644,7 +10645,7 @@ Public Sub Impression(Org As String)
               posy = 241
             Endif
           Endif
-          If Blch.Value = True Then
+          If Blch.Value = True And Not impdclient Then
             If Teco <> 0 Or If Teco2 <> 0 Then
               If Prxdec Then
                 Toteco = Round(Val(.cpoint(Teco)))
@@ -10671,7 +10672,7 @@ Public Sub Impression(Org As String)
               Endif
             Endif
           Endif
-          If Blch.Value = True Then
+          If Blch.Value = True And Not impdclient Then
             If Impttc.Value Then
               If Val(Trem) <> 0 Then
                 Trem = "Total remise : " & Trem & Txt_ttc
@@ -10728,7 +10729,7 @@ Public Sub Impression(Org As String)
             Else
               posy = 241
             Endif
-            If Imptotbl.value And Not Cdivers Then
+            If Imptotbl.value And Not Cdivers And Not impdclient Then
               posy -= 4
               sRecap = Sbl(ftotal, ftotalttc)
               sRecap = "Total BL a facturer : " & sRecap
@@ -10787,7 +10788,7 @@ Public Sub Impression(Org As String)
           Else
             posy = 255
           Endif
-          If Blch.Value = True And Tp <> "T" Then
+          If Blch.Value = True And Tp <> "T" And Not impdclient Then
             If BlA5.Value And Not Bfac.value Then
               pdf2.Level7F(Coulfond, PosY, ImpAuto, Franchise, Exo.value)
               PosY = PosY + 5
@@ -10796,7 +10797,7 @@ Public Sub Impression(Org As String)
               PosY = PosY + 5
             Endif
           Endif
-          If Tp <> "T" Then Calc_tva(Org)
+          If Tp <> "T" And Not impdclient Then Calc_tva(Org)
           If Tp = "T" Then pdf.Level14F()
           If Settings["/Soc" & Start.Societe & "/Pdf5"] Or If Settings["/Soc" & Start.Societe & "/Pdf6"] Then
             If Exist(Settings["/Soc" & Start.Societe & "/FactcheminV"]) Then
@@ -10928,7 +10929,7 @@ Public Sub Impression(Org As String)
     Me.Mouse = Mouse.Default
     If AffBledit2.Value And If Bbon.Value Then
       If Not IsNull(Rs2) Then
-        BlRslt = Utils.db.Exec("SELECT * FROM Fiches_AdrlivBL where numbl = &1", Numero.text)
+        BlRslt = Utils.db.Exec("SELECT * FROM Fiches_AdrlivBL where numbl = &1", Num.text)
         If BlRslt.Available Then
           Utils.db.Exec("Update Fiches_AdrlivBL set nom = &2, adr1 = &3 , adr2 = &4, cp = &5, ville = &6 where numbl = &1", num.Text, Nombl.text, Adr1Bl.Text, Adr2Bl.Text, CpBl.Text, Villebl.Text)
         Else
@@ -11670,7 +11671,7 @@ Public Sub Calc_tva(Org As String)
               If Val(Mtva2) <> 0 Then
                 Mtva = Mtva2
                 If ImpAuto = False And If Franchise = False And If Not exo.value Then
-                  If Blch.Value = True Then
+                  If Blch.Value = True And Not impdclient Then
                     If BlA5.Value And Not Bfac.value Then
                       pdf2.Level9F(Ctx, Mht, Ttx, Mtva, Mttc, PosY)
                       PosY = PosY + 3
@@ -11700,7 +11701,7 @@ Public Sub Calc_tva(Org As String)
     Else
       Toteuros = Format$(Val(Tottc1.Text), ",0.00") & " " & devises
     Endif
-    If Blch.Value = True Then
+    If Blch.Value = True And Not impdclient Then
       Try rg = Val(Rglt.text)
       If Error Then rg = 0
       Try rg2 = Val(Rglt2.text)
