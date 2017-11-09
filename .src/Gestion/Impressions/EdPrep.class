@@ -97,6 +97,17 @@ Public Sub Button1_Click()
       Adr2 = Left$(Adr2, 27)
       Burdis = rResult!cpbl & " " & rResult!villebl
       Burdis = Left$(Burdis, 30)
+      rResult2 = Utils.db.Exec("SELECT * FROM Fiches_AdrlivBL where numbl = &1", rResult!numbl)
+      If rResult2.Available Then
+        intitule2 = rResult2!nom
+        Intitule2 = Left$(Intitule2, 27)
+        Adr1 = rResult2!adr1
+        Adr1 = Left$(Adr1, 27)
+        Adr2 = rResult2!adr2
+        Adr2 = Left$(Adr2, 27)
+        Burdis = rResult2!cp & " " & rResult2!ville
+        Burdis = Left$(Burdis, 30)
+      Endif
       CodeC = rResult!cdclibl
       Tel = rResult!cli_tel_bur
       Tel2 = rResult!cli_tel_poste
@@ -169,7 +180,7 @@ Public Sub Button1_Click()
     pdf2 = New Cdocuments3("Portrait", "mm", "A4")
     pdf2.Open()
     pdf2.AliasNbPages()
-    Ordre = "cdclibl, nmclibl"
+    'Ordre = "cdclibl, nmclibl"
     rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBl") & " left join " & Cbase.Table("TabCli") & " on cli_code = cdclibl where type = &1 order by " & Ordre & "", "C")
     If rResult.Available Then
       Repeat
@@ -198,26 +209,22 @@ Public Sub Button1_Click()
         pdf2.Entete(Settings["/intitule"])
         pdf2.Entete2("Commande N° " & rResult!numbl & " du " & rResult!datebl)
         pdf2.cadre
-        pdf2.adresse(intitule, Adr1, Adr2, Burdis, tel, tel3, fax, mel)
+        'pdf2.adresse(intitule, Adr1, Adr2, Burdis, tel, tel3, fax, mel)
         If Not IsNull(CodeC) Then
-          rResult2 = Utils.db.Exec("SELECT * FROM Fiches_AdrlivC where code = &1 order by num limit 1", CodeC)
+          rResult2 = Utils.db.Exec("SELECT * FROM Fiches_AdrlivBL where numbl = &1", rResult!numbl)
           If rResult2.Available Then
-            intitule2 = rResult2!rs_soc & " " & rResult2!nom & " " & rResult2!pnm & " "
-            Intitule2 = Left$(Intitule2, 27)
-            Adr12 = rResult2!adr1
-            Adr12 = Left$(Adr1, 27)
-            Adr22 = rResult2!adr2
-            Adr22 = Left$(Adr2, 27)
-            Burdis2 = rResult2!cd_ptl & " " & rResult2!ville
-            Burdis2 = Left$(Burdis, 30)
-          Else
-            intitule2 = intitule
-            Adr12 = Adr1
-            Adr22 = Adr2
-            Burdis2 = Burdis
+            intitule = rResult2!nom
+            Intitule = Left$(Intitule2, 27)
+            Adr1 = rResult2!adr1
+            Adr1 = Left$(Adr1, 27)
+            Adr2 = rResult2!adr2
+            Adr2 = Left$(Adr2, 27)
+            Burdis = rResult2!cp & " " & rResult2!ville
+            Burdis = Left$(Burdis, 30)
           Endif
         Endif
-        pdf2.adresse2(intitule2, Adr12, Adr22, Burdis2)
+        pdf2.adresse2(intitule, Adr1, Adr2, Burdis)
+        'pdf2.adresse2(intitule2, Adr12, Adr22, Burdis2)
         Resultlg = Utils.db.Exec("SELECT * FROM Fiches_Ligbl left join Fiches_Art on art_code = code_ligbl where num_ligbl = &1 or num_ligbl = &1 and code_ligbl = &2", rResult!numbl, "YY")
         If Resultlg.available Then
           pdf2.Level1()
