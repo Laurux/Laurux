@@ -55,6 +55,9 @@ Public Sub Form_Open()
 
   Dim rResult As Result
   Dim Tab As String
+  
+  Colcol.Visible = True
+  BcrSelect.Visible = False
 
   Tab = "Fiches_Rubriques"
   rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by numrub")
@@ -272,6 +275,14 @@ End
 '********************************************
 Public Sub Button5_Click()
 
+  BcrSelect.Visible = True
+  Colcol.Visible = False
+  BcrSelect.Raise()
+
+End
+
+Public Sub BcrSelect_Activate()
+
   Dim hfil As File
   Dim Lig As String
   Dim sKey As String
@@ -284,6 +295,17 @@ Public Sub Button5_Click()
   Dim num, numrub2, intitule2 As String
   Dim Compt1, Compt2 As String
   Dim Amort As Boolean
+  Dim Path As String
+  
+  BcrSelect.Hide()
+  BcrSelect.Visible = False
+  Colcol.Visible = True
+  Path = BcrSelect.SelectedPath
+  
+  If Not Exist(Path & "/Bcr.txt") Or Not Exist(Path & "/Bcr.txt") Then
+    Message.Error("Impossible de Trouver les fichiers Bcr.txt et/ou Bcrcpt.txt!\nVérifier le répertoire selectionné: " & Path)
+    Return
+  Endif
 
   Tab = "Fiches_Rubriques"
   Utils.db.Exec("Truncate " & Tab & "")
@@ -295,7 +317,7 @@ Public Sub Button5_Click()
     "detail Char(2)," &
     "num Char(2)," &
     "PRIMARY KEY (numrub))" & "ENGINE = MYISAM")
-  HFil = Open Application.Path & "/Bcr.txt" For Read
+  HFil = Open Path & "/Bcr.txt" For Read
   Me.Mouse = Mouse.Wait
   While Not Eof(hFil)
     Line Input #hFil, Lig
@@ -333,8 +355,7 @@ Public Sub Button5_Click()
     "compte2 Char(8)," &
     "amortissement TINYINT(1)," &
     "PRIMARY KEY (numrub, compte1))" & "ENGINE = MYISAM")
-  HFil = Open Application.Path & "/Bcrcpt.txt" For Read
-  HFil = Open Application.Path & "/Bcrcpt.txt" For Read
+  HFil = Open Path & "/Bcrcpt.txt" For Read
   While Not Eof(hFil)
     Line Input #hFil, Lig
     For x = 1 To 4
