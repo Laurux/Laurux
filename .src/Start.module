@@ -4,16 +4,16 @@ Public Societe As String
 Public son As Integer
 Public Musique As String = "son/warning.ogg"
 Public Caisse As Boolean
-Public Proform As String = Settings["/Coul/Prf"]
-Public Commande As String = Settings["/Coul/Cmde"]
-Public Devis As String = Settings["/Coul/Devis"]
-Public Devis2 As String = Settings["/Coul/Devis2"]
-Public Bon As String = Settings["/Coul/Bl"]
-Public Facture As String = Settings["/Coul/Facts"]
-Public Epuises As String = Settings["/Coul/Eps"]
-Public Stockes As String = Settings["/Coul/Stk"]
-Public Nstockes As String = Settings["/Coul/Nstk"]
-Public Suspendus As String = Settings["/Coul/Spd"]
+Public Proform As String
+Public Commande As String
+Public Devis As String
+Public Devis2 As String
+Public Bon As String
+Public Facture As String
+Public Epuises As String
+Public Stockes As String
+Public Nstockes As String
+Public Suspendus As String
 Private Lig2 As String[]
 Private Fontes As String
 Private hpb As ProgressBar
@@ -31,6 +31,8 @@ Public Sub Main()
   Dim $cle, $cle2, txt, sha As String
   Dim bcle As Boolean = False
   Dim Btunnel As Boolean = True
+  Dim Pids As String
+  Dim psExist As Process
 
   If Settings["/dbase/Con-ssh"] And If Settings["/Soc" & Start.Societe & "/Replique"] And If Settings["/Soc" & Start.Societe & "/Breplique"] Then
     Btunnel = Utils.ControlTunnel()
@@ -43,6 +45,16 @@ Public Sub Main()
   Try Societe = Settings["/Soc"]
   Try Son = Settings["/son"]
   Music.Load(Musique)
+  Proform = Settings["/Coul/Prf"]
+  Commande = Settings["/Coul/Cmde"]
+  Devis = Settings["/Coul/Devis"]
+  Devis2 = Settings["/Coul/Devis2"]
+  Bon = Settings["/Coul/Bl"]
+  Facture = Settings["/Coul/Facts"]
+  Epuises = Settings["/Coul/Eps"]
+  Stockes = Settings["/Coul/Stk"]
+  Nstockes = Settings["/Coul/Nstk"]
+  Suspendus = Settings["/Coul/Spd"]
   If Error Or If IsNull(Settings["/Coul" & "/Fnets"]) Then
     Settings["/Coul" & "/Fnets"] = "Background: &HDDDDDD&; "
     Settings["/Coul" & "/Btns"] = "Background: &HBDBDBD&; "
@@ -79,15 +91,20 @@ Public Sub Main()
     Application.Font = Font[Fontes]
   Endif
   Coul()
-  If Exist(User.home & "/Laurux.lock") Then
+  If Exist(User.home & "/" & Application.Name & ".lock") Then
     If son Then
       Music.Play
     Endif
-    If Message.Warning(("Il semblerait que Laurux soit déjà ouvert ou qu'il a été fermé anormalement.\n\nOuvrir deux fois Laurux peut causer des dysfonctionnements (erreur de stock etc...)\net utiliser un programme qui n'a pas été fermé normalement \nsignifie que la base n'est peut-être pas à jour et que vous devriez faire une restauration."), ("Ouvrir"), ("Ne pas ouvrir")) = 1 Then
-      Try Kill User.home & "/Laurux.lock"
-      Lancement()
+    Pids = File.Load(User.home & "/" & Application.Name & ".lock")
+    psExist = Shell "ps -p " & Pids Wait
+    If psExist.Value = 0 Then
+      If Message.Warning(("Il semblerait que " & Application.Name & "\nProcess : " & Pids & "\nsoit encore ouvert!\n\nOuvrir deux fois Laurux peut causer des dysfonctionnements (erreur de stock etc...)\net utiliser un programme qui n'a pas été fermé normalement \nsignifie que la base n'est peut-être pas à jour et que vous devriez faire une restauration."), ("Ne pas ouvrir"), ("Ouvrir")) = 2 Then
+        Lancement()
+      Endif
     Else
-      Try Kill User.home & "/Laurux.lock"
+      'le process est inexistant
+      Try Kill User.home & "/" & Application.Name & ".lock"
+      Lancement()
     Endif
   Else
     Lancement()
@@ -132,8 +149,12 @@ End
 
             Try Kill User.home & "/Laurux.lock"
 Public Sub Lancement()
-
-  File.Save(User.home & "/Laurux.lock", "")
+  
+  Dim Pids As String = ""
+  
+  Try Pids = File.Load(User.home & "/" & Application.Name & ".lock") & " "
+  File.Save(User.home & "/" & Application.Name & ".lock", Pids & Application.Id)
+  
   If IsNull(proform) Then Proform = "&HF9F9BD&"
   If IsNull(Commande) Then Commande = "&HF9F9BD&" ""
   If IsNull(Devis) Then Devis = "&HF9F9BD&"
