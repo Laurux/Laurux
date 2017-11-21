@@ -30,8 +30,8 @@ Private Compb As Boolean
 
 Public Sub _New()
 
-  Try SauveB.Text = Settings["/Rep_Sauv"]
-  Try Compb = Settings["/Compression"]
+  Try SauveB.Text = Start.LocalSettings["/Rep_Sauv"]
+  Try Compb = Start.LocalSettings["/Compression"]
 
   Music.Load(Start.Musique)
   Me.Center
@@ -69,7 +69,7 @@ Public Sub Button2_Click()
   Uncp.type = "zlib"
   Me.Mouse = Mouse.Wait
   Utilisateur = Recup.Utilisateur()
-  Shell "mysql -h " & Settings["/dbase/Host"] & " -u " & Utils.db.login & " -p" & Utils.db.Password & " -e " & "\"" & "show variables Like " & "\\" & "\"" & "version" & "\\" & "\"" & ";\"" & "> " & User.home & "/tmp/resultat 2>&1 " Wait
+  Shell "mysql -h " & Start.LocalSettings["/dbase/Host"] & " -u " & Utils.db.login & " -p" & Utils.db.Password & " -e " & "\"" & "show variables Like " & "\\" & "\"" & "version" & "\\" & "\"" & ";\"" & "> " & User.home & "/tmp/resultat 2>&1 " Wait
   $version = File.Load(User.Home & "/tmp/resultat")
   sversion = Split($version, "\n")
   If sversion.Count >= 2 Then
@@ -132,14 +132,14 @@ Public Sub Button2_Click()
         Syntheses.Message("Attention ! Vous allez effectuer une restauration.")
         If Message.Question("Vous allez restaurer la base " & Utils.db.Name & ".sql" & " sauvegardée par " & Utilisateur & " le " & Date_Sauve & " à " & Heure_Sauve & " heures ! ", "Oui", "Non") = 1 Then
           Me.Mouse = Mouse.Wait
-          Shell "mysql -h " & Settings["/dbase/Host"] & " -u " & Utils.db.login & " -p" & Utils.db.Password & " -e \"Drop database " & Utils.db.Name & ";\" " Wait
-          Shell "mysql -h " & Settings["/dbase/Host"] & " -u " & Utils.db.login & " -p" & Utils.db.Password & " -e \"Create database " & Utils.db.Name & ";\" " Wait
+          Shell "mysql -h " & Start.LocalSettings["/dbase/Host"] & " -u " & Utils.db.login & " -p" & Utils.db.Password & " -e \"Drop database " & Utils.db.Name & ";\" " Wait
+          Shell "mysql -h " & Start.LocalSettings["/dbase/Host"] & " -u " & Utils.db.login & " -p" & Utils.db.Password & " -e \"Create database " & Utils.db.Name & ";\" " Wait
           If IsNull(Utils.db.Password) Then  'Gère l'absence de mot de passe
-            Shell "mysql -h " & Settings["/dbase/Host"] & " -u " & Utils.db.login & " " & Utils.db.Name & " < " & SauveB.Text & "/" & Utils.db.Name & ".sql > " & User.home & "/tmp/resultat 2>&1" Wait
+            Shell "mysql -h " & Start.LocalSettings["/dbase/Host"] & " -u " & Utils.db.login & " " & Utils.db.Name & " < " & SauveB.Text & "/" & Utils.db.Name & ".sql > " & User.home & "/tmp/resultat 2>&1" Wait
           Else
-            Shell "mysql -h " & Settings["/dbase/Host"] & " -u " & Utils.db.login & " -p" & Utils.db.Password & " " & Utils.db.Name & " < " & SauveB.Text & "/" & Utils.db.Name & ".sql >  " & User.home & "/tmp/resultat 2>&1" Wait
+            Shell "mysql -h " & Start.LocalSettings["/dbase/Host"] & " -u " & Utils.db.login & " -p" & Utils.db.Password & " " & Utils.db.Name & " < " & SauveB.Text & "/" & Utils.db.Name & ".sql >  " & User.home & "/tmp/resultat 2>&1" Wait
           Endif
-          Shell "mysql -h " & Settings["/dbase/Host"] & " " & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " -e \"use " & Utils.db.Name & ";" & "SET @@global.sql_mode= NO_ENGINE_SUBSTITUTION " & "; \"" Wait
+          Shell "mysql -h " & Start.LocalSettings["/dbase/Host"] & " " & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " -e \"use " & Utils.db.Name & ";" & "SET @@global.sql_mode= NO_ENGINE_SUBSTITUTION " & "; \"" Wait
           If Exist(User.Home & "/tmp/resultat") Then txterror = File.Load(User.Home & "/tmp/resultat")
           If InStr(txterror, "Using a password") <> 18 And Not bmariadb Or If Not IsNull(txterror) And bmariadb Then
             If son Then

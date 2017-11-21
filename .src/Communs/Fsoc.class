@@ -39,9 +39,9 @@ Private chkNbase As Boolean = False
 
 Public Sub _New()
 
-  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
   Music.Load(Start.Musique)
-  Label11.text = Settings["/Soc" & Start.Societe & "/Siret"]
+  Label11.text = Start.LocalSettings["/Soc" & Start.Societe & "/Siret"]
   s = 0
   Me.Center
   Soclist.Columns.count = 3
@@ -62,7 +62,7 @@ Public Sub Recup_Soc()
   Soclist.MoveFirst()
   Repeat
     Soclist.Item.Selected = True
-    If Soclist.Item[0] = Settings["/Soc"] Then Break
+    If Soclist.Item[0] = Start.LocalSettings["/Soc"] Then Break
   Until Soclist.MoveNext()
 Catch
   Me.Close
@@ -90,7 +90,7 @@ Public Sub Init_base()
   Soclist.Clear
   For Each elements In Utils.db.Databases
     Lig = elements.name
-    If Settings["/Soc" & Start.Societe & "/Prefixe"] Then
+    If Start.LocalSettings["/Soc" & Start.Societe & "/Prefixe"] Then
       Lig2 = Split(Lig, "_")
       If lig2.Count = 2 Then
         If Left$(Lig2[1], 6) = "Laurux" Then
@@ -110,7 +110,7 @@ Public Sub Init_base()
     Endif
     If bBase Then
       Tab2 = Lig & "." & "Fiches_Societes"
-      If Settings["/Soc" & Start.Societe & "/Prefixe"] Then
+      If Start.LocalSettings["/Soc" & Start.Societe & "/Prefixe"] Then
         Try rResult = Utils.db.Exec("Select * From  " & Tab2 & "")
       Else
         Try rResult = Utils.db.Exec("Select * From  " & Tab2 & " where cd_sc = &1", Right$(Lig, Len(Lig) - 6))
@@ -392,7 +392,7 @@ Public Sub Btn_Click()
       Me.Close
 
     Case 6
-      If Settings["/Soc" & Start.Societe & "/Admin"] Then
+      If Start.LocalSettings["/Soc" & Start.Societe & "/Admin"] Then
         MDP.showmodal()
         If Start.Motdepasse = "OK" Then
           Dup.showModal
@@ -473,7 +473,7 @@ Public Sub Button1_Click()
         Utils.db.name = "Laurux" & code.Text
         Utils.db.Open
         Utils.db.exec("SET NAMES 'latin1'")
-        If Not IsNull(Utils.db.Login) Then Shell "mysql -h " & Settings["/dbase/Host"] & " " & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " -e \"use " & Utils.db.Name & ";" & "SET @@global.sql_mode= NO_ENGINE_SUBSTITUTION " & "; \"" Wait
+        If Not IsNull(Utils.db.Login) Then Shell "mysql -h " & Start.LocalSettings["/dbase/Host"] & " " & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " -e \"use " & Utils.db.Name & ";" & "SET @@global.sql_mode= NO_ENGINE_SUBSTITUTION " & "; \"" Wait
         Create()
         Me.mouse = Mouse.Default
         bUpdateOk = True
@@ -487,9 +487,9 @@ Public Sub Button1_Click()
     Init_base()
     chkNbase = True
     soc = code.Text
-    Settings["/Soc"] = soc
-    Settings["/intitule"] = intitule.Text
-    Settings["/dbase/Name"] = Settings["/dbase/Prefixe"] & "Laurux" & Code.Text
+    Start.LocalSettings["/Soc"] = soc
+    Start.LocalSettings["/intitule"] = intitule.Text
+    Start.LocalSettings["/dbase/Name"] = Start.LocalSettings["/dbase/Prefixe"] & "Laurux" & Code.Text
     Settings.Save
     Settings.Reload
     Start.Societe = soc
@@ -522,9 +522,9 @@ Public Sub Button3_Click()
     If Not Error Then
       Me.mouse = mouse.Default
       Message.Info("Société " & Tables & " supprimée !\nVeuillez sélectionner une autre société de travail SVP !")
-      Settings["Soc"] = ""
-      Settings["/Societes/Soc"] = ""
-      Settings["/Societes/intitule"] = ""
+      Start.LocalSettings["Soc"] = ""
+      Start.LocalSettings["/Societes/Soc"] = ""
+      Start.LocalSettings["/Societes/intitule"] = ""
       Settings.Save
       Settings.reload
       Init_base()
@@ -553,7 +553,7 @@ Public Sub Button4_Click()
 
   montitre = "Laurux"
   If code.Text Then
-    If Settings["/Soc" & Start.Societe & "/Compta"] Then
+    If Start.LocalSettings["/Soc" & Start.Societe & "/Compta"] Then
       Fmenuc.Text = montitre & " ( Société  " " " & code.Text & " " & intitule.Text & ") "
     Else
       Fmenu.Text = montitre & " ( Société  " " " & code.Text & " " & intitule.Text & ") "
@@ -561,24 +561,24 @@ Public Sub Button4_Click()
     Syntheses.Message(" Vous venez de sélectionner la société " & Soc & " " & intitule.Text)
     message.Warning(" Vous venez de sélectionner la société " & Soc & " " & intitule.Text & " ! \n Celle-ci sera donc votre société de travail par défaut.\n Laurux va être fermé.")
     soc = code.Text
-    Settings["/Soc"] = soc
-    Settings["/intitule"] = intitule.Text
-    Settings["/dbase/Name"] = Settings["/dbase/Prefixe"] & "Laurux" & Code.Text
+    Start.LocalSettings["/Soc"] = soc
+    Start.LocalSettings["/intitule"] = intitule.Text
+    Start.LocalSettings["/dbase/Name"] = Start.LocalSettings["/dbase/Prefixe"] & "Laurux" & Code.Text
     Settings.Save
     Settings.Reload
     Utils.db.Close
     Utils.db.name = "Laurux" & code.Text
     Utils.db.Open
     Utils.db.exec("SET NAMES 'latin1'")
-    If Not IsNull(Utils.db.Login) Then Shell "mysql -h " & Settings["/dbase/Host"] & " " & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " -e \"use " & Utils.db.Name & ";" & "SET @@global.sql_mode= NO_ENGINE_SUBSTITUTION " & "; \"" Wait
+    If Not IsNull(Utils.db.Login) Then Shell "mysql -h " & Start.LocalSettings["/dbase/Host"] & " " & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " -e \"use " & Utils.db.Name & ";" & "SET @@global.sql_mode= NO_ENGINE_SUBSTITUTION " & "; \"" Wait
     Start.Societe = soc
     Fmenu.text = "Laurux : " & "Société " & Code.Text & " " & Civilite.text & " " & intitule.Text
     Try Kill User.home & "/Laurux.lock"
     Me.Close
-    If Settings["/Soc" & Soc & "/Compta"] Then
+    If Start.LocalSettings["/Soc" & Soc & "/Compta"] Then
       Fmenuc.Close
     Else
-      If Settings["/Soc" & Soc & "/Gestion"] Then
+      If Start.LocalSettings["/Soc" & Soc & "/Gestion"] Then
         Fmenuf.Close
       Else
         Fmenu.Close
@@ -689,9 +689,11 @@ Public Sub CREATE()
       "viremchq Char(8), " &
       "virema Char(8), " &
       "dteinv date ," &
-      "version Char(5), " &
       "frais decimal(6,2), " &
       "cptfrais char(8), " &
+      "version Char(5), " &
+      "version_pos Char(5), " &
+      "conf BLOB, " &
       "tvafrais char(2), " &
       "PRIMARY KEY (ind))" & "ENGINE = MYISAM")
     Try Utils.db.Exec("insert into " & Tab & " (numecriture, numecriture1, numecriture2, dnfac, son, dnc, dnf, dnbon, version ) values (&1, &2, &3, &4, &5, &6, &7, &8, &9)", 0, 0, 0, "00000", 0, "411000", "401000", 0, 3.63)
@@ -2372,6 +2374,7 @@ Public Sub CREATE()
     "suppr TINYINT(1)," &
     "retro TINYINT(1)," &
     "control VARCHAR(40)," &
+    "prev_numero Char(7))," &
     "PRIMARY KEY (lInd))" & "ENGINE = MYISAM")
 
   Tab = "Fiches_LigTicketz"
@@ -3196,7 +3199,7 @@ Public Sub CREATE()
     "texte Varchar(100), " &
     "PRIMARY KEY (lind))")
 
-  If Not IsNull(Utils.db.Login) Then Shell "mysql -h " & Settings["/dbase/Host"] & " " & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " -e \"use " & Utils.db.Name & ";" & "SET @@global.sql_mode= NO_ENGINE_SUBSTITUTION " & "; \"" Wait
+  If Not IsNull(Utils.db.Login) Then Shell "mysql -h " & Start.LocalSettings["/dbase/Host"] & " " & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " -e \"use " & Utils.db.Name & ";" & "SET @@global.sql_mode= NO_ENGINE_SUBSTITUTION " & "; \"" Wait
 
   If son Then
     Music.Play
@@ -3204,25 +3207,25 @@ Public Sub CREATE()
   Message.Info("La Nouvelle société est enregistrée", "OK!")
   Tab = "Fiches_Societes"
   Utils.db.Exec("INSERT INTO " & Tab & " (cd_sc) VALUES ('" & code.text & "')")
-  Settings["/Tips"] = 1
-  Settings["/Soc" & Soc & "/Entete"] = 1
-  Settings["/Soc" & Soc & "/Conditions"] = 1
-  Settings["/Soc" & Soc & "/Tva550"] = 0
-  Settings["/Soc" & Soc & "/Codetva"] = " "
-  Settings["/Soc" & Soc & "/Compta"] = 0
-  Settings["/Soc" & Soc & "/Qt1"] = 0
-  Settings["/Soc" & Soc & "/Font"] = "Serif,+1"
-  Settings["/Soc" & Soc & "/Copie"] = 0
-  Settings["/Soc" & Soc & "/Siret"] = "Siret"
-  Settings["/Soc" & Soc & "/Prxdec"] = 0
-  Settings["/Soc" & Soc & "/Taxe"] = "TVA"
-  Settings["/son"] = 0
-  Settings["/Tips"] = 1
-  Settings["/Soc" & Soc & "/Coul_fen"] = 0
-  Settings["/Soc" & Soc & "/Ctrlstk"] = 0
-  Settings["/Soc" & Soc & "/AutoEnt"] = 0
-  Settings["/Societes/Soc" & Soc] = Variables.version
-  Settings["/Societes/Soc" & Start.societe] = "Laurux V" & Variables.Version
+  Start.LocalSettings["/Tips"] = 1
+  Start.LocalSettings["/Soc" & Soc & "/Entete"] = 1
+  Start.LocalSettings["/Soc" & Soc & "/Conditions"] = 1
+  Start.LocalSettings["/Soc" & Soc & "/Tva550"] = 0
+  Start.LocalSettings["/Soc" & Soc & "/Codetva"] = " "
+  Start.LocalSettings["/Soc" & Soc & "/Compta"] = 0
+  Start.LocalSettings["/Soc" & Soc & "/Qt1"] = 0
+  Start.LocalSettings["/Soc" & Soc & "/Font"] = "Serif,+1"
+  Start.LocalSettings["/Soc" & Soc & "/Copie"] = 0
+  Start.LocalSettings["/Soc" & Soc & "/Siret"] = "Siret"
+  Start.LocalSettings["/Soc" & Soc & "/Prxdec"] = 0
+  Start.LocalSettings["/Soc" & Soc & "/Taxe"] = "TVA"
+  Start.LocalSettings["/son"] = 0
+  Start.LocalSettings["/Tips"] = 1
+  Start.LocalSettings["/Soc" & Soc & "/Coul_fen"] = 0
+  Start.LocalSettings["/Soc" & Soc & "/Ctrlstk"] = 0
+  Start.LocalSettings["/Soc" & Soc & "/AutoEnt"] = 0
+  Start.LocalSettings["/Societes/Soc" & Soc] = Variables.version
+  Start.LocalSettings["/Societes/Soc" & Start.societe] = "Laurux V" & Variables.Version
   Settings["/Soc" & Soc & "/nbfam"] = "5"
   $ipr.Add(2)
   $ipr.Add(5)
@@ -3255,18 +3258,18 @@ End
 
 Public Sub Soclist_Click()
 
-  If Soclist.Item[0] <> Settings["/Soc"] Then
+  If Soclist.Item[0] <> Start.LocalSettings["/Soc"] Then
     Utils.db.Close
     Utils.db.name = Soclist.Item[2]
     Utils.db.Open
     Utils.db.exec("SET NAMES 'latin1'")
     cs = Soclist.Item[0]
-    If Not IsNull(Utils.db.Login) Then Shell "mysql -h " & Settings["/dbase/Host"] & " " & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " -e \"use " & Utils.db.Name & ";" & "SET @@global.sql_mode= NO_ENGINE_SUBSTITUTION " & "; \"" Wait
+    If Not IsNull(Utils.db.Login) Then Shell "mysql -h " & Start.LocalSettings["/dbase/Host"] & " " & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " -e \"use " & Utils.db.Name & ";" & "SET @@global.sql_mode= NO_ENGINE_SUBSTITUTION " & "; \"" Wait
     Maj_Zones()
     soc = code.Text
-    Settings["/Soc"] = soc
-    Settings["/intitule"] = intitule.Text
-    Settings["/dbase/Name"] = Soclist.Item[2]
+    Start.LocalSettings["/Soc"] = soc
+    Start.LocalSettings["/intitule"] = intitule.Text
+    Start.LocalSettings["/dbase/Name"] = Soclist.Item[2]
     Settings.Save
     Settings.Reload
     Start.Societe = soc

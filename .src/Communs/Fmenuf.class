@@ -40,8 +40,8 @@ Public Sub _new()
   Dim WidthME As String
   Dim spl As New String[2]
 
-  If Settings["/Soc" & Start.Societe & "/Tme"] Then
-    WidthME = Trim(Settings["/Soc" & Start.Societe & "/Ecran"])
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Tme"] Then
+    WidthME = Trim(Start.LocalSettings["/Soc" & Start.Societe & "/Ecran"])
     spl = Scan(WidthME, "*;*")
     Try Me.Width = Trim(spl[0])
     Try Me.height = Trim(spl[1])
@@ -62,32 +62,33 @@ Public Sub Form_Open()
   Dim Tab As String = "Fiches_Societes"
   Dim Cai As String
   Dim Chemin As String = "Fonds_Laurux/"
+  Dim Pr As Prefs
 
   SetObserver(ScrollView1)
   titre = fmenu.text
-  Try Soc = Settings["/Soc"]
-  Try intitule = Settings["/intitule"]
-  If Settings["/Soc" & Start.Societe & "/Btq"] = True Then Btq = "1"
+  Try Soc = Start.LocalSettings["/Soc"]
+  Try intitule = Start.LocalSettings["/intitule"]
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Btq"] = True Then Btq = "1"
   Menu2showhide(Btq)
   Try Music.Load("son/menu.ogg")
-  If Settings["/Soc" & Start.Societe & "/Materiel"] = True Then Mat = "1"
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Materiel"] = True Then Mat = "1"
   Menu3showhide(Mat)
-  If Settings["/Soc" & Start.Societe & "/Blocsoc"] = True Then
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Blocsoc"] = True Then
     Menu26.Visible = False
     'Menu65.visible = False
     'Menu49.visible = False
   Endif
-  If Settings["/Soc" & Start.Societe & "/Vendeurs"] = False Then
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Vendeurs"] = False Then
     Menu232.Visible = False
   Else
     Menu232.Visible = True
   Endif
-  If Not Settings["/Soc" & Start.Societe & "/Taches"] Then Menu50.Visible = False
-  If Settings["/Soc" & Start.Societe & "/Admin"] = True Then Menu120.Visible = False
-  If Settings["/Soc" & Start.Societe & "/Caisse"] = True Then Cai = "1"
+  If Not Start.LocalSettings["/Soc" & Start.Societe & "/Taches"] Then Menu50.Visible = False
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Admin"] = True Then Menu120.Visible = False
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Caisse"] = True Then Cai = "1"
   Menu4showhide(Cai)
-  If Settings["/Soc" & Start.Societe & "/Faca"] = 0 Then Menu239.visible = False
-  If Settings["/Soc" & Start.Societe & "/Sms"] = 0 Then
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Faca"] = 0 Then Menu239.visible = False
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Sms"] = 0 Then
     Menu251.visible = False
     Menu253.visible = False
   Endif
@@ -102,7 +103,7 @@ Public Sub Form_Open()
 
   '# -- montage éventuel du tunnel ssh
   '* MG - 07 janvier 2010
-  If Settings["/dbase/Con-ssh"] Then
+  If Start.LocalSettings["/dbase/Con-ssh"] Then
     If Not Utils.monteTunnel() Then
       $con_ok = False
     Endif
@@ -110,37 +111,43 @@ Public Sub Form_Open()
   If $con_ok Then
     Utils.db.Open
     Utils.db.exec("SET NAMES 'latin1'")
-    If Not IsNull(Utils.db.Login) Then Shell "mysql -h " & Settings["/dbase/Host"] & " " & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " -e \"use " & Utils.db.Name & ";" & "SET @@global.sql_mode= NO_ENGINE_SUBSTITUTION " & "; \"" Wait
+    If Not IsNull(Utils.db.Login) Then Shell "mysql -h " & Start.LocalSettings["/dbase/Host"] & " " & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " -e \"use " & Utils.db.Name & ";" & "SET @@global.sql_mode= NO_ENGINE_SUBSTITUTION " & "; \"" Wait
     rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where cd_sc = &1", Soc)
     If rResult.Available Then Soc = rResult!type_sc & " - " & rResult!int_sc
     Fmenuf.text = "Société en cours : " & Soc
-    If Settings["/Soc" & Start.Societe & "/Infob"] Then Application.ShowTooltips = False
-    If Settings["/Soc" & Start.Societe & "/Cnomade"] Then
+
+    'lit les préférences locales puis surcharge par les globales si elles existent
+    Pr = New Prefs(Start.LocalSettings)
+    Start.GlobalSettings = Pr.ReadGlobal()
+    Pr.ApplyGlobal(Start.GlobalSettings)
+
+    If Start.LocalSettings["/Soc" & Start.Societe & "/Infob"] Then Application.ShowTooltips = False
+    If Start.LocalSettings["/Soc" & Start.Societe & "/Cnomade"] Then
       Menu241.Visible = True
     Else
       Menu241.Visible = False
     Endif
-    If Not IsNull(Settings["/Soc" & Start.Societe & "/Fecran"]) Then
-      If Exist(chemin & Settings["/Soc" & Start.Societe & "/Fecran"]) Then
-        PictureBox1.Picture = picture[Chemin & Settings["/Soc" & Start.Societe & "/Fecran"]]
+    If Not IsNull(Start.LocalSettings["/Soc" & Start.Societe & "/Fecran"]) Then
+      If Exist(chemin & Start.LocalSettings["/Soc" & Start.Societe & "/Fecran"]) Then
+        PictureBox1.Picture = picture[Chemin & Start.LocalSettings["/Soc" & Start.Societe & "/Fecran"]]
       Endif
     Endif
-    If Settings["/Soc" & Start.Societe & "/Slide"] Then
-      Select Case Settings["/Soc" & Start.Societe & "/Fecran"]
+    If Start.LocalSettings["/Soc" & Start.Societe & "/Slide"] Then
+      Select Case Start.LocalSettings["/Soc" & Start.Societe & "/Fecran"]
         Case "Laurux1.jpg"
-          Settings["/Soc" & Start.Societe & "/Fecran"] = "Laurux2.jpg"
+          Start.LocalSettings["/Soc" & Start.Societe & "/Fecran"] = "Laurux2.jpg"
         Case "Laurux2.jpg"
-          Settings["/Soc" & Start.Societe & "/Fecran"] = "Laurux3.jpg"
+          Start.LocalSettings["/Soc" & Start.Societe & "/Fecran"] = "Laurux3.jpg"
         Case "Laurux3.jpg"
-          Settings["/Soc" & Start.Societe & "/Fecran"] = "Laurux4.jpg"
+          Start.LocalSettings["/Soc" & Start.Societe & "/Fecran"] = "Laurux4.jpg"
         Case "Laurux4.jpg"
-          Settings["/Soc" & Start.Societe & "/Fecran"] = "Laurux5.jpg"
+          Start.LocalSettings["/Soc" & Start.Societe & "/Fecran"] = "Laurux5.jpg"
         Case "Laurux5.jpg"
-          Settings["/Soc" & Start.Societe & "/Fecran"] = ""
+          Start.LocalSettings["/Soc" & Start.Societe & "/Fecran"] = ""
         Case Null
-          Settings["/Soc" & Start.Societe & "/Fecran"] = "Laurux1.jpg"
+          Start.LocalSettings["/Soc" & Start.Societe & "/Fecran"] = "Laurux1.jpg"
         Case Else
-          Settings["/Soc" & Start.Societe & "/Fecran"] = ""
+          Start.LocalSettings["/Soc" & Start.Societe & "/Fecran"] = ""
       End Select
     Endif
     If Exist("/usr/bin/laurux") Then
@@ -172,7 +179,7 @@ Public Sub Form_Open()
         Message.Info("Rappel: La promotion " & Cpromo & " " & Lpromo & " se termine aujourd'hui !\nPensez aux impressions d'étiquettes de fin de promotion.")
       Endif
       promo = False
-      If Settings["/Soc" & Start.Societe & "/Faca"] Then Abonnement()
+      If Start.LocalSettings["/Soc" & Start.Societe & "/Faca"] Then Abonnement()
       If son Then
         Music.Load("son/menu.ogg")
         Music.Play
@@ -182,7 +189,7 @@ Public Sub Form_Open()
     Message.Warning("Le tunnel SSH n'a pu être établi, la connexion SQL est impossible")
     Config()
   Endif
-  If Settings["/Soc" & Start.Societe & "/Taches"] Then
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Taches"] Then
     Label3.Text = "Bonjour " & User.name & " nous sommes le " & Format(Now, "dd.mm.yyyy")
     ColTaches.Columns.count = 5
     ColTaches.Columns[0].Width = 0
@@ -195,13 +202,13 @@ Public Sub Form_Open()
     ColTaches.Columns[4].Text = "Libellé de la tâche"
     RecupTaches()
   Endif
-  If Settings["/Soc" & Start.Societe & "/AffFacture"] Then
+  If Start.LocalSettings["/Soc" & Start.Societe & "/AffFacture"] Then
     Menu42_Click()
     Me.Close
   Endif
 Catch
   If Error.text = "Connection is not opened" Then
-    Message.Warning("Attention, la base Laurux " & Settings["/Soc"] & " n 'existe pas !\n Veuillez remplir le fichier de configuration SVP !")
+    Message.Warning("Attention, la base Laurux " & Start.LocalSettings["/Soc"] & " n 'existe pas !\n Veuillez remplir le fichier de configuration SVP !")
   Else
     If Left$(error.Text, 19) = "Driver name missing" Then
       Message.Warning("Attention, le fichier de configuration n'existe pas ! \n Veuillez completer les zones nécéssaires à sa création SVP !")
@@ -213,7 +220,7 @@ Catch
           Message.Warning("Attention, l' utilisateur ou le mot de passe est erroné ! \n Veuillez controler votre saisie SVP !")
         Else
           If Left$(error.Text, 38) = "Cannot open database: Unknown database" Then
-            Message.Warning("Attention, la base Laurux " & Settings["/Soc"] & " n 'existe pas !\n Veuillez remplir le fichier de configuration SVP !")
+            Message.Warning("Attention, la base Laurux " & Start.LocalSettings["/Soc"] & " n 'existe pas !\n Veuillez remplir le fichier de configuration SVP !")
           Else
             message.Error(Error.Text & " " & Error.Where)
           Endif
@@ -353,47 +360,47 @@ End
 
 Public Sub preferences()
 
-  Settings["/son"] = 0
-  Settings["/Tips"] = 1
-  Settings["/Soc" & Soc & "/Entete"] = 1
-  Settings["/Soc" & Soc & "/Conditions"] = 1
-  Settings["/Soc" & Soc & "/Tva550"] = 0
-  Settings["/Soc" & Soc & "/Codetva"] = " "
-  Settings["/Soc" & Soc & "/Compta"] = 0
-  Settings["/Soc" & Soc & "/Gestion"] = 0
-  Settings["/Soc" & Soc & "/CptFac"] = 1
-  Settings["/Soc" & Soc & "/Qt1"] = 0
-  Settings["/Soc" & Soc & "/Coul_fen"] = 0
-  Settings["/Soc" & Soc & "/Qt1"] = 0
-  Settings["/Soc" & Soc & "/Ctrlstk"] = 0
-  Settings["/Soc" & Soc & "/AutoEnt"] = 0
-  Settings["/Coul" & "/Fnets"] = "Background: &HDDDDDD&; "
-  Settings["/Coul" & "/Btns"] = "Background: &HBDBDBD&; "
-  Settings["/Coul" & "/Znss"] = "Background: &HFAFAFA&; "
-  Settings["/Coul" & "/Znaff"] = "Background: &HEEEEEE&; "
-  Settings["/Coul" & "/Focus"] = "Background: &HF9FFC7&; "
-  Settings["/Coul" & "/Coulfonds"] = "Background: &FFEE81&; "
-  Settings["/Coul" & "/Others"] = "Background: &FFE0B8&; "
-  Settings["/Coul" & "/Fcs"] = "Background: &HF9FFC7&"
-  Settings["/Coul" & "/Stk"] = "Background: &HCFF58E&; Font: serif,9; "
-  Settings["/Coul" & "/Coulfonds"] = "255,252,216,"
-  Settings["/Coul" & "/Others"] = "255,232,199,"
-  Settings["/Coul" & "/Facts"] = "Background: &HFFFFFF&; Font: Serif,9; "
-  Settings["/Coul" & "/Avs"] = "Background: &HFFFFFF&; Font: Serif,9; "
-  Settings["/Coul" & "/Bl"] = "Background: &HFFFFFF&; Font: Serif,9; "
-  Settings["/Coul" & "/Devis"] = "Background: &HFFFFFF&; Font: Serif,9; "
-  Settings["/Coul" & "/Cmde"] = "Background: &HFFFFFF&; Font: Serif,9; "
-  Settings["/Coul" & "/Prf"] = "Background: &HFFFFFF&; Font: Serif,9; "
-  Settings["/Coul" & "/Nstk"] = "Background: &HFFFFFF&; Font: Serif,9; "
-  Settings["/Coul" & "/Eps"] = "Background: &HFFFFFF&; Font: Serif,9; "
-  Settings["/Coul" & "/Spd"] = "Background: &HFFFFFF&; Font: Serif,9; "
-  Settings["/Soc" & Soc & "/Font"] = "Serif,+1"
-  Settings["/Soc" & Soc & "/Copie"] = 0
-  Settings["/Soc" & Soc & "/Siret"] = "Siret"
-  Settings["/Soc" & Soc & "/Prxdec"] = 0
-  Settings["/Soc" & Soc & "/Taxe"] = "TVA"
-  Settings["/Soc" & Start.Societe & "/Vendeurs"] = "0"
-  Settings["/Soc" & Start.Societe & "/Slide"] = 1
+  Start.LocalSettings["/son"] = 0
+  Start.LocalSettings["/Tips"] = 1
+  Start.LocalSettings["/Soc" & Soc & "/Entete"] = 1
+  Start.LocalSettings["/Soc" & Soc & "/Conditions"] = 1
+  Start.LocalSettings["/Soc" & Soc & "/Tva550"] = 0
+  Start.LocalSettings["/Soc" & Soc & "/Codetva"] = " "
+  Start.LocalSettings["/Soc" & Soc & "/Compta"] = 0
+  Start.LocalSettings["/Soc" & Soc & "/Gestion"] = 0
+  Start.LocalSettings["/Soc" & Soc & "/CptFac"] = 1
+  Start.LocalSettings["/Soc" & Soc & "/Qt1"] = 0
+  Start.LocalSettings["/Soc" & Soc & "/Coul_fen"] = 0
+  Start.LocalSettings["/Soc" & Soc & "/Qt1"] = 0
+  Start.LocalSettings["/Soc" & Soc & "/Ctrlstk"] = 0
+  Start.LocalSettings["/Soc" & Soc & "/AutoEnt"] = 0
+  Start.LocalSettings["/Coul" & "/Fnets"] = "Background: &HDDDDDD&; "
+  Start.LocalSettings["/Coul" & "/Btns"] = "Background: &HBDBDBD&; "
+  Start.LocalSettings["/Coul" & "/Znss"] = "Background: &HFAFAFA&; "
+  Start.LocalSettings["/Coul" & "/Znaff"] = "Background: &HEEEEEE&; "
+  Start.LocalSettings["/Coul" & "/Focus"] = "Background: &HF9FFC7&; "
+  Start.LocalSettings["/Coul" & "/Coulfonds"] = "Background: &FFEE81&; "
+  Start.LocalSettings["/Coul" & "/Others"] = "Background: &FFE0B8&; "
+  Start.LocalSettings["/Coul" & "/Fcs"] = "Background: &HF9FFC7&"
+  Start.LocalSettings["/Coul" & "/Stk"] = "Background: &HCFF58E&; Font: serif,9; "
+  Start.LocalSettings["/Coul" & "/Coulfonds"] = "255,252,216,"
+  Start.LocalSettings["/Coul" & "/Others"] = "255,232,199,"
+  Start.LocalSettings["/Coul" & "/Facts"] = "Background: &HFFFFFF&; Font: Serif,9; "
+  Start.LocalSettings["/Coul" & "/Avs"] = "Background: &HFFFFFF&; Font: Serif,9; "
+  Start.LocalSettings["/Coul" & "/Bl"] = "Background: &HFFFFFF&; Font: Serif,9; "
+  Start.LocalSettings["/Coul" & "/Devis"] = "Background: &HFFFFFF&; Font: Serif,9; "
+  Start.LocalSettings["/Coul" & "/Cmde"] = "Background: &HFFFFFF&; Font: Serif,9; "
+  Start.LocalSettings["/Coul" & "/Prf"] = "Background: &HFFFFFF&; Font: Serif,9; "
+  Start.LocalSettings["/Coul" & "/Nstk"] = "Background: &HFFFFFF&; Font: Serif,9; "
+  Start.LocalSettings["/Coul" & "/Eps"] = "Background: &HFFFFFF&; Font: Serif,9; "
+  Start.LocalSettings["/Coul" & "/Spd"] = "Background: &HFFFFFF&; Font: Serif,9; "
+  Start.LocalSettings["/Soc" & Soc & "/Font"] = "Serif,+1"
+  Start.LocalSettings["/Soc" & Soc & "/Copie"] = 0
+  Start.LocalSettings["/Soc" & Soc & "/Siret"] = "Siret"
+  Start.LocalSettings["/Soc" & Soc & "/Prxdec"] = 0
+  Start.LocalSettings["/Soc" & Soc & "/Taxe"] = "TVA"
+  Start.LocalSettings["/Soc" & Start.Societe & "/Vendeurs"] = "0"
+  Start.LocalSettings["/Soc" & Start.Societe & "/Slide"] = 1
   Settings.Save
   Settings.Reload
 
@@ -497,7 +504,7 @@ End
 
 Public Sub Menu26_Click()
 
-  If Settings["/Soc" & Start.Societe & "/Admin"] Then
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Admin"] Then
     MDP.showmodal()
     If Start.Motdepasse = "OK" Then
       Fsoc.Show
@@ -529,7 +536,7 @@ End
 
 Public Sub Menu25_Click()
 
-  If Settings["/Soc" & Start.Societe & "/Admin"] Then
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Admin"] Then
     MDP.showmodal()
     If Start.Motdepasse = "OK" Then
       Parametre.Show
@@ -584,8 +591,8 @@ End
 Public Sub form_close()
 
   Try Kill User.home & "/Laurux.lock"
-  Settings["/Soc" & Start.Societe & "/Ecran"] = Me.Width & ";" & Me.Height
-  If Settings["/Soc" & Start.Societe & "/Sauvauto"] And If Settings["/dbase/Maj"] Then SauvesAuto.Sauvegarde(Me)
+  Start.LocalSettings["/Soc" & Start.Societe & "/Ecran"] = Me.Width & ";" & Me.Height
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Sauvauto"] And If Start.LocalSettings["/dbase/Maj"] Then SauvesAuto.Sauvegarde(Me)
   If son Then
     Music.Load("son/fermeture-menu.ogg")
     Music.Play
@@ -616,7 +623,7 @@ End
 
 Public Sub Menu49_Click()
 
-  If Settings["/Soc" & Start.Societe & "/Admin"] Then
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Admin"] Then
     MDP.showmodal()
     If Start.Motdepasse = "OK" Then
       LauruxConf.ShowModal
@@ -636,7 +643,7 @@ End
 
 Public Sub Menu30_Click()
 
-  If Settings["/dbase/Con-ssh"] And If Settings["/Soc" & Start.Societe & "/Replique"] And If Settings["/Soc" & Start.Societe & "/Breplique"] Then
+  If Start.LocalSettings["/dbase/Con-ssh"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Replique"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Breplique"] Then
     Btunnel = Utils.ControlTunnel()
     If Not Btunnel Then
       Message.Error("Problème de réplication ! Clôture impossible.")
@@ -683,7 +690,7 @@ End
 
 Public Sub Menu65_Click()
 
-  If Settings["/Soc" & Start.Societe & "/Admin"] Then
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Admin"] Then
     MDP.showmodal()
     If Start.Motdepasse = "OK" Then
       FRestore.ShowModal()
@@ -782,7 +789,7 @@ Public Sub Menu42_Click()
   Dim hForm As Facture
   Dim hForm2 As ConVendeurs
 
-  If Settings["/dbase/Con-ssh"] And If Settings["/Soc" & Start.Societe & "/Replique"] And If Settings["/Soc" & Start.Societe & "/Breplique"] Then
+  If Start.LocalSettings["/dbase/Con-ssh"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Replique"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Breplique"] Then
     Btunnel = Utils.ControlTunnel()
     If Not Btunnel Then
       Message.Error("Problème de réplication ! Saisie de document impossible.")
@@ -791,10 +798,10 @@ Public Sub Menu42_Click()
   Endif
 
   hForm = New Facture(False)
-  If Settings["/Soc" & Start.Societe & "/Vendeurs"] <> 0 And Not IsNull(Settings["/Soc" & Start.Societe & "/CodeVendeur"]) Then
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Vendeurs"] <> 0 And Not IsNull(Start.LocalSettings["/Soc" & Start.Societe & "/CodeVendeur"]) Then
     hForm.ShowModal()
   Else
-    If Settings["/Soc" & Start.Societe & "/Vendeurs"] = 0 Or If IsNull(Settings["/Soc" & Start.Societe & "/Vendeurs"]) Then
+    If Start.LocalSettings["/Soc" & Start.Societe & "/Vendeurs"] = 0 Or If IsNull(Start.LocalSettings["/Soc" & Start.Societe & "/Vendeurs"]) Then
       hForm.ShowModal()
     Else
       hForm2 = New ConVendeurs(False)
@@ -849,7 +856,7 @@ End
 
 Public Sub Menu78_Click()
 
-  If Settings["/dbase/Con-ssh"] And If Settings["/Soc" & Start.Societe & "/Replique"] And If Settings["/Soc" & Start.Societe & "/Breplique"] Then
+  If Start.LocalSettings["/dbase/Con-ssh"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Replique"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Breplique"] Then
     Btunnel = Utils.ControlTunnel()
     If Not Btunnel Then
       Message.Error("Problème de réplication ! Saisie de document impossible.")
@@ -868,7 +875,7 @@ End
 
 Public Sub Menu79_Click()
 
-  If Settings["/dbase/Con-ssh"] And If Settings["/Soc" & Start.Societe & "/Replique"] And If Settings["/Soc" & Start.Societe & "/Breplique"] Then
+  If Start.LocalSettings["/dbase/Con-ssh"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Replique"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Breplique"] Then
     Btunnel = Utils.ControlTunnel()
     If Not Btunnel Then
       Message.Error("Problème de réplication ! Saisie de document impossible.")
@@ -887,7 +894,7 @@ End
 
 Public Sub Menu88_Click()
 
-  If Settings["/dbase/Con-ssh"] And If Settings["/Soc" & Start.Societe & "/Replique"] And If Settings["/Soc" & Start.Societe & "/Breplique"] Then
+  If Start.LocalSettings["/dbase/Con-ssh"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Replique"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Breplique"] Then
     Btunnel = Utils.ControlTunnel()
     If Not Btunnel Then
       Message.Error("Problème de réplication ! Saisie de document impossible.")
@@ -907,7 +914,7 @@ End
 
 Public Sub Menu89_Click()
 
-  If Settings["/dbase/Con-ssh"] And If Settings["/Soc" & Start.Societe & "/Replique"] And If Settings["/Soc" & Start.Societe & "/Breplique"] Then
+  If Start.LocalSettings["/dbase/Con-ssh"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Replique"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Breplique"] Then
     Btunnel = Utils.ControlTunnel()
     If Not Btunnel Then
       Message.Error("Problème de réplication ! Saisie de document impossible.")
@@ -1058,17 +1065,45 @@ End
 
 Public Sub Menu108_Click()
 
-  If Settings["/Soc" & Start.Societe & "/Admin"] Then
+  Dim Pr As Prefs
+
+  Pr = New Prefs(Start.LocalSettings)
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Admin"] Then
     MDP.showmodal()
     If Start.Motdepasse = "OK" Then
-      Prefs.Show()
       Start.Motdepasse = ""
+      Pr.ShowModal()
     Endif
   Else
-    Prefs.Show()
+    Pr.ShowModal()
   Endif
 
 End
+
+Public Sub Menu258_Click()
+
+  Dim Pr, Prl As Prefs
+  Dim mp As MDP
+
+  Pr = New Prefs(Start.GlobalSettings, Null, True)
+  Start.GlobalSettings = Pr.ReadSettings()
+  If (Not IsNull(Start.GlobalSettings))
+    If Start.GlobalSettings["/Soc" & Start.Societe & "/AdminG"] Then
+      mp = New MDP(Null, True)
+      mp.showmodal()
+      If Start.Motdepasse = "OK" Then
+        Start.Motdepasse = ""
+        Pr.ShowModal()
+      Endif
+    Else
+      Pr.ShowModal()
+    Endif
+   'rejoue new globals sur local
+    Prl = New Prefs(Start.LocalSettings)
+    Prl.ApplyGlobal(Prl.ReadGlobal())
+  Endif
+End
+
 
 Public Sub Menu109_Click()
 
@@ -1096,7 +1131,7 @@ End
 
 Public Sub Menu119_Click()
 
-  If Settings["/Soc" & Start.Societe & "/Admin"] Then
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Admin"] Then
     MDP.showmodal()
     If Start.Motdepasse = "OK" Then
       Majversion.Verif_Maj()
@@ -1203,7 +1238,7 @@ End
 
 Public Sub Menu5_Click()
 
-  If Settings["/dbase/Con-ssh"] And If Settings["/Soc" & Start.Societe & "/Replique"] And If Settings["/Soc" & Start.Societe & "/Breplique"] Then
+  If Start.LocalSettings["/dbase/Con-ssh"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Replique"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Breplique"] Then
     Btunnel = Utils.ControlTunnel()
     If Not Btunnel Then
       Message.Error("Problème de réplication ! Facturation impossible.")
@@ -1235,7 +1270,7 @@ End
 
 Public Sub Menu31_Click()
 
-  If Settings["/dbase/Con-ssh"] And If Settings["/Soc" & Start.Societe & "/Replique"] And If Settings["/Soc" & Start.Societe & "/Breplique"] Then
+  If Start.LocalSettings["/dbase/Con-ssh"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Replique"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Breplique"] Then
     Btunnel = Utils.ControlTunnel()
     If Not Btunnel Then
       Message.Error("Problème de réplication ! Clôture impossible.")
@@ -1423,7 +1458,7 @@ End
 
 Public Sub Menu66_Click()
 
-  If Settings["/dbase/Con-ssh"] And If Settings["/Soc" & Start.Societe & "/Replique"] And If Settings["/Soc" & Start.Societe & "/Breplique"] Then
+  If Start.LocalSettings["/dbase/Con-ssh"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Replique"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Breplique"] Then
     Btunnel = Utils.ControlTunnel()
     If Not Btunnel Then
       Message.Error("Problème de réplication ! Saisie impossible.")
@@ -1443,7 +1478,7 @@ End
 
 Public Sub Menu116_Click()
 
-  If Settings["/dbase/Con-ssh"] And If Settings["/Soc" & Start.Societe & "/Replique"] And If Settings["/Soc" & Start.Societe & "/Breplique"] Then
+  If Start.LocalSettings["/dbase/Con-ssh"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Replique"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Breplique"] Then
     Btunnel = Utils.ControlTunnel()
     If Not Btunnel Then
       Message.Error("Problème de réplication ! Saisie impossible.")
@@ -1493,7 +1528,7 @@ Public Sub Menu141_Click()
   Dim hForm As Facture
   Dim hForm2 As ConVendeurs
 
-  If Settings["/dbase/Con-ssh"] And If Settings["/Soc" & Start.Societe & "/Replique"] And If Settings["/Soc" & Start.Societe & "/Breplique"] Then
+  If Start.LocalSettings["/dbase/Con-ssh"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Replique"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Breplique"] Then
     Btunnel = Utils.ControlTunnel()
     If Not Btunnel Then
       Message.Error("Problème de réplication ! Saisie de document impossible.")
@@ -1502,10 +1537,10 @@ Public Sub Menu141_Click()
   Endif
 
   hForm = New Facture(True)
-  If Settings["/Soc" & Start.Societe & "/Vendeurs"] <> 0 And Not IsNull(Settings["/Soc" & Start.Societe & "/CodeVendeur"]) Then
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Vendeurs"] <> 0 And Not IsNull(Start.LocalSettings["/Soc" & Start.Societe & "/CodeVendeur"]) Then
     hForm.ShowModal()
   Else
-    If Settings["/Soc" & Start.Societe & "/Vendeurs"] = 0 Or If IsNull(Settings["/Soc" & Start.Societe & "/Vendeurs"]) Then
+    If Start.LocalSettings["/Soc" & Start.Societe & "/Vendeurs"] = 0 Or If IsNull(Start.LocalSettings["/Soc" & Start.Societe & "/Vendeurs"]) Then
       hForm.ShowModal()
     Else
       hForm2 = New ConVendeurs(True)
@@ -1603,7 +1638,7 @@ End
 
 Public Sub Menu162_Click()
 
-  If Settings["/dbase/Con-ssh"] And If Settings["/Soc" & Start.Societe & "/Replique"] And If Settings["/Soc" & Start.Societe & "/Breplique"] Then
+  If Start.LocalSettings["/dbase/Con-ssh"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Replique"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Breplique"] Then
     Btunnel = Utils.ControlTunnel()
     If Not Btunnel Then
       Message.Error("Problème de réplication ! Saisie impossible.")
@@ -1677,7 +1712,7 @@ End
 
 Public Sub Menu180_Click()
 
-  If Settings["/dbase/Con-ssh"] And If Settings["/Soc" & Start.Societe & "/Replique"] And If Settings["/Soc" & Start.Societe & "/Breplique"] Then
+  If Start.LocalSettings["/dbase/Con-ssh"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Replique"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Breplique"] Then
     Btunnel = Utils.ControlTunnel()
     If Not Btunnel Then
       Message.Error("Problème de réplication ! Saisie de document impossible.")
@@ -1945,7 +1980,7 @@ End
 
 Public Sub Menu236_Click()
 
-  If Settings["/dbase/Con-ssh"] And If Settings["/Soc" & Start.Societe & "/Replique"] And If Settings["/Soc" & Start.Societe & "/Breplique"] Then
+  If Start.LocalSettings["/dbase/Con-ssh"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Replique"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Breplique"] Then
     Btunnel = Utils.ControlTunnel()
     If Not Btunnel Then
       Message.Error("Problème de réplication ! Saisie de document impossible.")
@@ -1977,7 +2012,7 @@ End
 
 Public Sub Menu241_Click()
 
-  If Settings["/dbase/Con-ssh"] And If Settings["/Soc" & Start.Societe & "/Replique"] And If Settings["/Soc" & Start.Societe & "/Breplique"] Then
+  If Start.LocalSettings["/dbase/Con-ssh"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Replique"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Breplique"] Then
     Btunnel = Utils.ControlTunnel()
     If Not Btunnel Then
       Message.Error("Problème de réplication ! Facturation impossible.")
@@ -1991,7 +2026,7 @@ End
 
 Public Sub Menu242_Click()
 
-  If Settings["/dbase/Con-ssh"] And If Settings["/Soc" & Start.Societe & "/Replique"] And If Settings["/Soc" & Start.Societe & "/Breplique"] Then
+  If Start.LocalSettings["/dbase/Con-ssh"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Replique"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Breplique"] Then
     Btunnel = Utils.ControlTunnel()
     If Not Btunnel Then
       Message.Error("Problème de réplication ! Saisie de document impossible.")

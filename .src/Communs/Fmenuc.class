@@ -43,8 +43,8 @@ Public Sub _new()
   Dim WidthME As String
   Dim spl As New String[2]
 
-  If Settings["/Soc" & Start.Societe & "/Tme"] Then
-    WidthME = Trim(Settings["/Soc" & Start.Societe & "/Ecran"])
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Tme"] Then
+    WidthME = Trim(Start.LocalSettings["/Soc" & Start.Societe & "/Ecran"])
     spl = Scan(WidthME, "*;*")
     Try Me.Width = Trim(spl[0])
     Try Me.height = Trim(spl[1])
@@ -61,11 +61,12 @@ Public Sub Form_Open()
   Dim rResult As Result
   Dim Tab As String = "Fiches_Societes"
   Dim Chemin As String = "Fonds_Laurux/"
+  Dim Pr As Prefs
 
   titre = fmenuc.text
-  Try Soc = Settings["/Soc"]
-  Try intitule = Settings["/intitule"]
-  Try Exprt = Settings["/Soc" & Start.Societe & "/Exp"]
+  Try Soc = Start.LocalSettings["/Soc"]
+  Try intitule = Start.LocalSettings["/intitule"]
+  Try Exprt = Start.LocalSettings["/Soc" & Start.Societe & "/Exp"]
   If Exprt = True Then
     menu81.Visible = True
     menu82.Visible = False
@@ -74,13 +75,13 @@ Public Sub Form_Open()
     menu82.Visible = True
     menu81.Visible = False
   Endif
-  If Settings["/Soc" & Start.Societe & "/Blocsoc"] = True Then
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Blocsoc"] = True Then
     Menu26.Visible = False
     'Menu65.visible = False
     'Menu89.visible = False
   Endif
-  If Settings["/Soc" & Start.Societe & "/Admin"] = True Then Menu84.Visible = False
-  If Settings["/Soc" & Start.Societe & "/Sms"] = 0 Then
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Admin"] = True Then Menu84.Visible = False
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Sms"] = 0 Then
     Menu124.visible = False
     Menu125.visible = False
   Endif
@@ -95,7 +96,7 @@ Public Sub Form_Open()
 
   '# -- montage éventuel du tunnel ssh
   '* MG - 07 janvier 2010
-  If Settings["/dbase/Con-ssh"] Then
+  If Start.LocalSettings["/dbase/Con-ssh"] Then
     If Not Utils.monteTunnel() Then
       $con_ok = False
     Endif
@@ -104,32 +105,38 @@ Public Sub Form_Open()
   If $con_ok Then
     Utils.db.Open
     Utils.db.exec("SET NAMES 'latin1'")
-    If Not IsNull(Utils.db.Login) Then Shell "mysql -h " & Settings["/dbase/Host"] & " " & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " -e \"use Laurux" & soc & ";" & "SET @@GLOBAL.sql_mode = NO_ENGINE_SUBSTITUTION " Wait
+    If Not IsNull(Utils.db.Login) Then Shell "mysql -h " & Start.LocalSettings["/dbase/Host"] & " " & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " -e \"use Laurux" & soc & ";" & "SET @@GLOBAL.sql_mode = NO_ENGINE_SUBSTITUTION " Wait
     rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where cd_sc = &1", Soc)
     If rResult.Available Then Soc = rResult!type_sc & " - " & rResult!int_sc
     Fmenuc.text = "Société en cours : " & Soc
-    If Settings["/Soc" & Start.Societe & "/Infob"] Then Application.ShowTooltips = False
-    If Not IsNull(Settings["/Soc" & Start.Societe & "/Fecran"]) Then
-      If Exist(chemin & Settings["/Soc" & Start.Societe & "/Fecran"]) Then
-        PictureBox1.Picture = picture[Chemin & Settings["/Soc" & Start.Societe & "/Fecran"]]
+
+    'lit les préférences locales puis surcharge par les globales si elles existent
+    Pr = New Prefs(Start.LocalSettings)
+    Start.GlobalSettings = Pr.ReadGlobal()
+    Pr.ApplyGlobal(Start.GlobalSettings)
+
+    If Start.LocalSettings["/Soc" & Start.Societe & "/Infob"] Then Application.ShowTooltips = False
+    If Not IsNull(Start.LocalSettings["/Soc" & Start.Societe & "/Fecran"]) Then
+      If Exist(chemin & Start.LocalSettings["/Soc" & Start.Societe & "/Fecran"]) Then
+        PictureBox1.Picture = picture[Chemin & Start.LocalSettings["/Soc" & Start.Societe & "/Fecran"]]
       Endif
     Endif
-    If Settings["/Soc" & Start.Societe & "/Slide"] Then
-      Select Case Settings["/Soc" & Start.Societe & "/Fecran"]
+    If Start.LocalSettings["/Soc" & Start.Societe & "/Slide"] Then
+      Select Case Start.LocalSettings["/Soc" & Start.Societe & "/Fecran"]
         Case "Laurux1.jpg"
-          Settings["/Soc" & Start.Societe & "/Fecran"] = "Laurux2.jpg"
+          Start.LocalSettings["/Soc" & Start.Societe & "/Fecran"] = "Laurux2.jpg"
         Case "Laurux2.jpg"
-          Settings["/Soc" & Start.Societe & "/Fecran"] = "Laurux3.jpg"
+          Start.LocalSettings["/Soc" & Start.Societe & "/Fecran"] = "Laurux3.jpg"
         Case "Laurux3.jpg"
-          Settings["/Soc" & Start.Societe & "/Fecran"] = "Laurux4.jpg"
+          Start.LocalSettings["/Soc" & Start.Societe & "/Fecran"] = "Laurux4.jpg"
         Case "Laurux4.jpg"
-          Settings["/Soc" & Start.Societe & "/Fecran"] = "Laurux5.jpg"
+          Start.LocalSettings["/Soc" & Start.Societe & "/Fecran"] = "Laurux5.jpg"
         Case "Laurux5.jpg"
-          Settings["/Soc" & Start.Societe & "/Fecran"] = ""
+          Start.LocalSettings["/Soc" & Start.Societe & "/Fecran"] = ""
         Case Null
-          Settings["/Soc" & Start.Societe & "/Fecran"] = "Laurux1.jpg"
+          Start.LocalSettings["/Soc" & Start.Societe & "/Fecran"] = "Laurux1.jpg"
         Case Else
-          Settings["/Soc" & Start.Societe & "/Fecran"] = ""
+          Start.LocalSettings["/Soc" & Start.Societe & "/Fecran"] = ""
       End Select
     Endif
     If Exist("/usr/bin/laurux") Then
@@ -150,7 +157,7 @@ Public Sub Form_Open()
   Endif
 Catch
   If Error.text = "Connection is not opened" Then
-    Message.Warning("Attention, la base Laurux " & Settings["/Soc"] & " n 'existe pas !\n Veuillez remplir le fichier de configuration SVP !")
+    Message.Warning("Attention, la base Laurux " & Start.LocalSettings["/Soc"] & " n 'existe pas !\n Veuillez remplir le fichier de configuration SVP !")
   Else
     If Left$(error.Text, 19) = "Driver name missing" Then
       Message.Warning("Attention, le fichier de configuration n'existe pas ! \n Veuillez completer les zones nécéssaires à sa création SVP !")
@@ -162,7 +169,7 @@ Catch
           Message.Warning("Attention, l' utilisateur ou le mot de passe est erroné ! \n Veuillez controler votre saisie SVP !")
         Else
           If Left$(error.Text, 38) = "Cannot open database: Unknown database" Then
-            Message.Warning("Attention, la base Laurux " & Settings["/Soc"] & " n 'existe pas !\n Veuillez remplir le fichier de configuration SVP !")
+            Message.Warning("Attention, la base Laurux " & Start.LocalSettings["/Soc"] & " n 'existe pas !\n Veuillez remplir le fichier de configuration SVP !")
           Else
             message.Error(Error.Text & " " & Error.Where)
           Endif
@@ -177,47 +184,47 @@ End
 
 Public Sub preferences()
 
-  Settings["/son"] = 0
-  Settings["/Tips"] = 1
-  Settings["/Soc" & Soc & "/Entete"] = 1
-  Settings["/Soc" & Soc & "/Conditions"] = 1
-  Settings["/Soc" & Soc & "/Tva550"] = 0
-  Settings["/Soc" & Soc & "/Codetva"] = " "
-  Settings["/Soc" & Soc & "/Compta"] = 0
-  Settings["/Soc" & Soc & "/Gestion"] = 0
-  Settings["/Soc" & Soc & "/CptFac"] = 1
-  Settings["/Soc" & Soc & "/Qt1"] = 0
-  Settings["/Soc" & Soc & "/Coul_fen"] = 0
-  Settings["/Soc" & Soc & "/Qt1"] = 0
-  Settings["/Soc" & Soc & "/Ctrlstk"] = 0
-  Settings["/Soc" & Soc & "/AutoEnt"] = 0
-  Settings["/Coul" & "/Fnets"] = "Background: &HDDDDDD&; "
-  Settings["/Coul" & "/Btns"] = "Background: &HBDBDBD&; "
-  Settings["/Coul" & "/Znss"] = "Background: &HFAFAFA&; "
-  Settings["/Coul" & "/Znaff"] = "Background: &HEEEEEE&; "
-  Settings["/Coul" & "/Focus"] = "Background: &HF9FFC7&; "
-  Settings["/Coul" & "/Coulfonds"] = "Background: &FFEE81&; "
-  Settings["/Coul" & "/Others"] = "Background: &FFE0B8&; "
-  Settings["/Coul" & "/Fcs"] = "Background: &HF9FFC7&"
-  Settings["/Coul" & "/Stk"] = "Background: &HCFF58E&; Font: serif,9; "
-  Settings["/Coul" & "/Coulfonds"] = "255,252,216,"
-  Settings["/Coul" & "/Others"] = "255,232,199,"
-  Settings["/Coul" & "/Facts"] = "Background: &HFFFFFF&; Font: Serif,9; "
-  Settings["/Coul" & "/Avs"] = "Background: &HFFFFFF&; Font: Serif,9; "
-  Settings["/Coul" & "/Bl"] = "Background: &HFFFFFF&; Font: Serif,9; "
-  Settings["/Coul" & "/Devis"] = "Background: &HFFFFFF&; Font: Serif,9; "
-  Settings["/Coul" & "/Cmde"] = "Background: &HFFFFFF&; Font: Serif,9; "
-  Settings["/Coul" & "/Prf"] = "Background: &HFFFFFF&; Font: Serif,9; "
-  Settings["/Coul" & "/Nstk"] = "Background: &HFFFFFF&; Font: Serif,9; "
-  Settings["/Coul" & "/Eps"] = "Background: &HFFFFFF&; Font: Serif,9; "
-  Settings["/Coul" & "/Spd"] = "Background: &HFFFFFF&; Font: Serif,9; "
-  Settings["/Soc" & Soc & "/Font"] = "Serif,+1"
-  Settings["/Soc" & Soc & "/Copie"] = 0
-  Settings["/Soc" & Soc & "/Siret"] = "Siret"
-  Settings["/Soc" & Soc & "/Prxdec"] = 0
-  Settings["/Soc" & Soc & "/Taxe"] = "TVA"
-  Settings["/Soc" & Start.Societe & "/Vendeurs"] = "0"
-  Settings["/Soc" & Start.Societe & "/Slide"] = 1
+  Start.LocalSettings["/son"] = 0
+  Start.LocalSettings["/Tips"] = 1
+  Start.LocalSettings["/Soc" & Soc & "/Entete"] = 1
+  Start.LocalSettings["/Soc" & Soc & "/Conditions"] = 1
+  Start.LocalSettings["/Soc" & Soc & "/Tva550"] = 0
+  Start.LocalSettings["/Soc" & Soc & "/Codetva"] = " "
+  Start.LocalSettings["/Soc" & Soc & "/Compta"] = 0
+  Start.LocalSettings["/Soc" & Soc & "/Gestion"] = 0
+  Start.LocalSettings["/Soc" & Soc & "/CptFac"] = 1
+  Start.LocalSettings["/Soc" & Soc & "/Qt1"] = 0
+  Start.LocalSettings["/Soc" & Soc & "/Coul_fen"] = 0
+  Start.LocalSettings["/Soc" & Soc & "/Qt1"] = 0
+  Start.LocalSettings["/Soc" & Soc & "/Ctrlstk"] = 0
+  Start.LocalSettings["/Soc" & Soc & "/AutoEnt"] = 0
+  Start.LocalSettings["/Coul" & "/Fnets"] = "Background: &HDDDDDD&; "
+  Start.LocalSettings["/Coul" & "/Btns"] = "Background: &HBDBDBD&; "
+  Start.LocalSettings["/Coul" & "/Znss"] = "Background: &HFAFAFA&; "
+  Start.LocalSettings["/Coul" & "/Znaff"] = "Background: &HEEEEEE&; "
+  Start.LocalSettings["/Coul" & "/Focus"] = "Background: &HF9FFC7&; "
+  Start.LocalSettings["/Coul" & "/Coulfonds"] = "Background: &FFEE81&; "
+  Start.LocalSettings["/Coul" & "/Others"] = "Background: &FFE0B8&; "
+  Start.LocalSettings["/Coul" & "/Fcs"] = "Background: &HF9FFC7&"
+  Start.LocalSettings["/Coul" & "/Stk"] = "Background: &HCFF58E&; Font: serif,9; "
+  Start.LocalSettings["/Coul" & "/Coulfonds"] = "255,252,216,"
+  Start.LocalSettings["/Coul" & "/Others"] = "255,232,199,"
+  Start.LocalSettings["/Coul" & "/Facts"] = "Background: &HFFFFFF&; Font: Serif,9; "
+  Start.LocalSettings["/Coul" & "/Avs"] = "Background: &HFFFFFF&; Font: Serif,9; "
+  Start.LocalSettings["/Coul" & "/Bl"] = "Background: &HFFFFFF&; Font: Serif,9; "
+  Start.LocalSettings["/Coul" & "/Devis"] = "Background: &HFFFFFF&; Font: Serif,9; "
+  Start.LocalSettings["/Coul" & "/Cmde"] = "Background: &HFFFFFF&; Font: Serif,9; "
+  Start.LocalSettings["/Coul" & "/Prf"] = "Background: &HFFFFFF&; Font: Serif,9; "
+  Start.LocalSettings["/Coul" & "/Nstk"] = "Background: &HFFFFFF&; Font: Serif,9; "
+  Start.LocalSettings["/Coul" & "/Eps"] = "Background: &HFFFFFF&; Font: Serif,9; "
+  Start.LocalSettings["/Coul" & "/Spd"] = "Background: &HFFFFFF&; Font: Serif,9; "
+  Start.LocalSettings["/Soc" & Soc & "/Font"] = "Serif,+1"
+  Start.LocalSettings["/Soc" & Soc & "/Copie"] = 0
+  Start.LocalSettings["/Soc" & Soc & "/Siret"] = "Siret"
+  Start.LocalSettings["/Soc" & Soc & "/Prxdec"] = 0
+  Start.LocalSettings["/Soc" & Soc & "/Taxe"] = "TVA"
+  Start.LocalSettings["/Soc" & Start.Societe & "/Vendeurs"] = "0"
+  Start.LocalSettings["/Soc" & Start.Societe & "/Slide"] = 1
   Settings.Save
   Settings.Reload
 
@@ -329,7 +336,7 @@ End
 
 Public Sub Menu26_Click()
 
-  If Settings["/Soc" & Start.Societe & "/Admin"] Then
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Admin"] Then
     MDP.showmodal()
     If Start.Motdepasse = "OK" Then
       Fsoc.Show
@@ -367,7 +374,7 @@ End
 
 Public Sub Menu25_Click()
 
-  If Settings["/Soc" & Start.Societe & "/Admin"] Then
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Admin"] Then
     MDP.showmodal()
     If Start.Motdepasse = "OK" Then
       Parametre.Show
@@ -443,8 +450,8 @@ End
 Public Sub form_close()
 
   Try Kill User.home & "/Laurux.lock"
-  Settings["/Soc" & Start.Societe & "/Ecran"] = Me.Width & ";" & Me.Height
-  If Settings["/Soc" & Start.Societe & "/Sauvauto"] And If Settings["/dbase/Maj"] Then SauvesAuto.Sauvegarde(Me)
+  Start.LocalSettings["/Soc" & Start.Societe & "/Ecran"] = Me.Width & ";" & Me.Height
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Sauvauto"] And If Start.LocalSettings["/dbase/Maj"] Then SauvesAuto.Sauvegarde(Me)
   If son Then
     Music.Load("son/fermeture-menu.ogg")
     Music.Play
@@ -526,7 +533,7 @@ End
 
 Public Sub Menu65_Click()
 
-  If Settings["/Soc" & Start.Societe & "/Admin"] Then
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Admin"] Then
     MDP.showmodal()
     If Start.Motdepasse = "OK" Then
       FRestore.ShowModal()
@@ -715,7 +722,7 @@ End
 
 Public Sub Menu89_Click()
 
-  If Settings["/Soc" & Start.Societe & "/Admin"] Then
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Admin"] Then
     MDP.showmodal()
     If Start.Motdepasse = "OK" Then
       LauruxConf.ShowModal
@@ -793,7 +800,7 @@ End
 
 Public Sub Menu93_Click()
 
-  If Settings["/Soc" & Start.Societe & "/Admin"] Then
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Admin"] Then
     MDP.showmodal()
     If Start.Motdepasse = "OK" Then
       Majversion.Verif_Maj()
@@ -885,17 +892,45 @@ End
 
 Public Sub Menu108_Click()
 
-  If Settings["/Soc" & Start.Societe & "/Admin"] Then
+  Dim Pr As Prefs
+
+  Pr = New Prefs(Start.LocalSettings)
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Admin"] Then
     MDP.showmodal()
     If Start.Motdepasse = "OK" Then
-      Prefs.Show()
       Start.Motdepasse = ""
+      Pr.ShowModal()
     Endif
   Else
-    Prefs.Show()
+    Pr.ShowModal()
   Endif
 
 End
+
+Public Sub Menu127_Click()
+
+  Dim Pr, Prl As Prefs
+  Dim mp As MDP
+
+  Pr = New Prefs(Start.GlobalSettings, Null, True)
+  Start.GlobalSettings = Pr.ReadSettings()
+  If (Not IsNull(Start.GlobalSettings))
+    If Start.GlobalSettings["/Soc" & Start.Societe & "/AdminG"] Then
+      mp = New MDP(Null, True)
+      mp.showmodal()
+      If Start.Motdepasse = "OK" Then
+        Start.Motdepasse = ""
+        Pr.ShowModal()
+      Endif
+    Else
+      Pr.ShowModal()
+    Endif
+   'rejoue new globals sur local
+    Prl = New Prefs(Start.LocalSettings)
+    Prl.ApplyGlobal(Prl.ReadGlobal())
+  Endif
+End
+
 
 Public Sub Menu109_Click()
 

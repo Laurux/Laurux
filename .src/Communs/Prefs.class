@@ -31,13 +31,149 @@ Private hImage2 As Image
 Private ipos As Integer
 Private $check As New CheckBox[]
 Private $ipr As New Integer[]           'ou sont les points de rupture familles
+Private global As Boolean
+Private cursettings As Settings
+
+
+Public Sub _new(Current_Settings As Settings, Optional IsGlobal As Boolean = False)
+  
+  Dim globalpath As String
+  
+  global = IsGlobal
+  
+  If global = False Then
+    TextLabel1.Text = "Préférences Locales\n" & Current_Settings.Path
+  Else
+    TextLabel1.Text = "Préférences Globales (Database)"
+    TextLabel1.Background = &HFFEFBF
+    If IsNull(Current_Settings) Then
+      If Message.Warning("Attention etes-vous sur de vouloir creer des préférences globales?\n Cette fonction est expérimentale!", "Annuler", "Continuer") = 1 Then Return
+      globalpath = Temp$("global_" & Application.Name & ".conf")
+      Try Kill globalpath
+      'on devrait initialiser les preferences globales si NULL uniquement a partir des paramètres locaux existant en mode global
+      'Copy Start.LocalSettings.Path To globalpath 'copier tout ne marche pas
+      Current_Settings = New Settings(globalpath)
+      Current_Settings.Save()
+      Current_Settings.Reload()
+    Endif
+  Endif
+  
+  cursettings = Current_Settings
+  
+End
+
+Public Sub ReadSettings() As Settings
+  
+  Return cursettings
+  
+End
+
+
+
+Public Sub ReadGlobal() As Settings
+  
+  Dim rResult As Result
+  Dim Global_Settings As Settings
+  Dim globalpath As String
+  
+  globalpath = Temp$("global_" & Application.Name & ".conf")
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabParam"))
+  If rResult.Available And (rResult!conf).Length <> 0 
+    File.Save(globalpath, rResult!conf)
+    Global_Settings = New Settings(globalpath)
+    Return Global_Settings
+  Else
+    Return Null
+  Endif
+  
+End
+
+Public Sub ApplyGlobal(Global_Settings As Settings)
+
+  Dim lsetting As String
+  Dim setting As String
+  Dim setting3 As String
+  
+  If Global_Settings = Null Or cursettings = Null Then Return
+  For Each lsetting In Global_Settings.Keys
+    For Each setting In Global_Settings.Keys[lsetting]
+    If cursettings["/" & lsetting & "/" & setting] = Null Or cursettings["/" & lsetting & "/" & setting] <> Global_Settings["/" & lsetting & "/" & setting] Then
+      Print "/" & lsetting & "/" & setting & " : " & cursettings["/" & lsetting & "/" & setting] & " => " & Global_Settings["/" & lsetting & "/" & setting]
+      cursettings["/" & lsetting & "/" & setting] = Global_Settings["/" & lsetting & "/" & setting]
+    Endif
+    Next
+  Next
+  
+  cursettings.Save()
+
+End
 
 Public Sub Form_Open()
 
   Dim sVer As String
   Dim rResult As Result
-
-  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  
+  If global = False
+    ApplyGlobal(ReadGlobal())
+    Supprime.Visible = False
+  Else
+    'parametres globaux en couleurs
+    Mdp2G.Background = &HFFEFBF
+    AdminG.Background = &HFFEFBF
+    Mdp2.Background = &HFFEFBF
+    Admin.Background = &HFFEFBF
+    Entete.Background = &HFFEFBF
+    Conditions.Background = &HFFEFBF
+    Tva550.Background = &HFFEFBF
+    codetva.Background = &HFFEFBF
+    Taxe.Background = &HFFEFBF
+    Prefixe.Background = &HFFEFBF
+    Lcr.Background = &HFFEFBF
+    Materiel.Background = &HFFEFBF
+    Depots.Background = &HFFEFBF
+    Ged.Background = &HFFEFBF
+    Taches.Background = &HFFEFBF
+    AutoEnt.Background = &HFFEFBF
+    Franchise.Background = &HFFEFBF
+    Pvconseille.Background = &HFFEFBF
+    Analytique.Background = &HFFEFBF
+    Lettrage.Background = &HFFEFBF
+    Carte.Background = &HFFEFBF
+    Cheque.Background = &HFFEFBF
+    Pays.Background = &HFFEFBF
+    Expfact.Background = &HFFEFBF
+    Ech.Background = &HFFEFBF
+    Typec.Background = &HFFEFBF
+    Caisse.Background = &HFFEFBF
+    Tp1.Background = &HFFEFBF
+    Tg1.Background = &HFFEFBF
+    Siret.Background = &HFFEFBF
+    Prxdec.Background = &HFFEFBF
+    Numdossier.Background = &HFFEFBF
+    Nomdossier.Background = &HFFEFBF
+    Cof.Background = &HFFEFBF
+    Tq.Background = &HFFEFBF
+    Recap.Background = &HFFEFBF
+    Impttc.Background = &HFFEFBF
+    FacA.Background = &HFFEFBF
+    PxRecpt.Background = &HFFEFBF
+    Rcptman.Background = &HFFEFBF
+    NumBr.Background = &HFFEFBF
+    Depannage.Background = &HFFEFBF
+    Valdevis.Background = &HFFEFBF
+    Libdevis.Background = &HFFEFBF
+    Valdevis2.Background = &HFFEFBF
+    Valdevis.Background = &HFFEFBF
+    Libdevis.Background = &HFFEFBF
+    Valdevis2.Background = &HFFEFBF
+    Rglt.Background = &HFFEFBF
+    Poids.Background = &HFFEFBF
+    Marge.Background = &HFFEFBF
+    MO.Background = &HFFEFBF
+    Codemo.Background = &HFFEFBF
+  Endif
+  
+  If cursettings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
   Me.center
   NmBr_pays()
   Echeances()
@@ -62,72 +198,90 @@ Public Sub Form_Open()
       Loop Until rResult.MoveNext()
     Endif
   Endif
-  Try son.Value = Settings["/son"]
-  Try son2.Value = Settings["/son2"]
-  Try Tip.Value = Settings["/Tips"]
-  Try Conditions.Value = Settings["/Soc" & Start.Societe & "/Conditions"]
-  Try Tva550.Value = Settings["/Soc" & Start.Societe & "/Tva550"]
+  Try son.Value = cursettings["/son"]
+  Try son2.Value = cursettings["/son2"]
+  Try Tip.Value = cursettings["/Tips"]
+  Try Conditions.Value = cursettings["/Soc" & Start.Societe & "/Conditions"]
+  Try Tva550.Value = cursettings["/Soc" & Start.Societe & "/Tva550"]
   If Tva550.Value Then
     codetva.Visible = True
-    Try codetva.Text = Settings["/Soc" & Start.Societe & "/Codetva"]
+    Try codetva.Text = cursettings["/Soc" & Start.Societe & "/Codetva"]
   Else
     codetva.Visible = False
   Endif
-  Try Slide.value = Settings["/Soc" & Start.Societe & "/Slide"]
-  Try Tme.value = Settings["/Soc" & Start.Societe & "/Tme"]
-  Try Admin.value = Settings["/Soc" & Start.Societe & "/Admin"]
-  Try Taxe.Text = Settings["/Soc" & Start.Societe & "/Taxe"]
+  
+  ' Gestion des mots de passe
+  If global = True Then
+    Try AdminG.value = cursettings["/Soc" & Start.Societe & "/AdminG"]
+      If AdminG.value Then
+      Mdp2G.Text = hexdblKey.crypt("de", cursettings["/Soc" & Start.Societe & "/MdpPrefsG"], "Laurux")
+      Mdp2G.Visible = True
+    Endif
+  Else
+    AdminG.Visible = False
+    Mdp2G.Visible = False
+  Endif
+  
+  Try Admin.value = cursettings["/Soc" & Start.Societe & "/Admin"]
+    If admin.value Then
+    Mdp2.Text = hexdblKey.crypt("de", cursettings["/Soc" & Start.Societe & "/MdpPrefs"], "Laurux")
+    Mdp2.Visible = True
+  Endif
+  
+  Try Slide.value = cursettings["/Soc" & Start.Societe & "/Slide"]
+  Try Tme.value = cursettings["/Soc" & Start.Societe & "/Tme"]
+  Try Taxe.Text = cursettings["/Soc" & Start.Societe & "/Taxe"]
   If IsNull(Taxe.text) Then Taxe.text = "Tva"
-  Try Sauves.Text = Settings["/Rep_Sauv"]
-  Try Entete.Value = Settings["/Soc" & Start.Societe & "/Entete"]
-  Try cpt.Value = Settings["/Soc" & Start.Societe & "/Compta"]
-  Try Fac.Value = Settings["/Soc" & Start.Societe & "/Gestion"]
-  Try CptFac.Value = Settings["/Soc" & Start.Societe & "/CptFac"]
-  Try Prefixe.Value = Settings["/Soc" & Start.Societe & "/Prefixe"]
-  Try Lcr.Value = Settings["/Soc" & Start.Societe & "/Lcr"]
-  Try Valdevis.Text = Settings["/Soc" & Start.Societe & "/Devis"]
-  Try Libdevis.Value = Settings["/Soc" & Start.Societe & "/Libdevis"]
-  Try Valdevis2.Text = Settings["/Soc" & Start.Societe & "/Devis2"]
-  Try Recap.Value = Settings["/Soc" & Start.Societe & "/Recap"]
-  Try Impttc.Value = Settings["/Soc" & Start.Societe & "/Impttc"]
-  Try FacA.Value = Settings["/Soc" & Start.Societe & "/Faca"]
-  Try Exp.Value = Settings["/Soc" & Start.Societe & "/Exp"]
-  Try Expmail.Value = Settings["/Soc" & Start.Societe & "/Expmail"]
-  Try Imp.Value = Settings["/Soc" & Start.Societe & "/Imp"]
-  Try Adrexport.Text = Settings["/Soc" & Start.Societe & "/Adr-export"]
-  Try Chmimp.Text = Settings["/Soc" & Start.Societe & "/Chemin-import"]
-  Try Chmexport.Text = Settings["/Soc" & Start.Societe & "/Chemin-export"]
-  Try Qt1.Value = Settings["/Soc" & Start.Societe & "/Qt1"]
-  Try Cqte.Value = Settings["/Soc" & Start.Societe & "/Cqte"]
-  Try Adrbase.Text = Settings["/Soc" & Start.Societe & "/Adr-base"]
-  Try Cof.value = Settings["/Soc" & Start.Societe & "/Coef"]
-  Try Tq.value = Settings["/Soc" & Start.Societe & "/Tmq"]
-  Try Gcf.value = Settings["/Soc" & Start.Societe & "/Coul_fen"]
-  Try Infob.value = Settings["/Soc" & Start.Societe & "/Infob"]
-  Try Lgo.Value = Settings["/Soc" & Start.Societe & "/glogo"]
-  Try Lgo3.Value = Settings["/Soc" & Start.Societe & "/glogo3"]
-  Try Lgo5.Value = Settings["/Soc" & Start.Societe & "/glogo5"]
-  Try Lgo6.Value = Settings["/Soc" & Start.Societe & "/glogo6"]
+  Try Sauves.Text = cursettings["/Rep_Sauv"]
+  Try Entete.Value = cursettings["/Soc" & Start.Societe & "/Entete"]
+  Try cpt.Value = cursettings["/Soc" & Start.Societe & "/Compta"]
+  Try Fac.Value = cursettings["/Soc" & Start.Societe & "/Gestion"]
+  Try CptFac.Value = cursettings["/Soc" & Start.Societe & "/CptFac"]
+  Try Prefixe.Value = cursettings["/Soc" & Start.Societe & "/Prefixe"]
+  Try Lcr.Value = cursettings["/Soc" & Start.Societe & "/Lcr"]
+  Try Valdevis.Text = cursettings["/Soc" & Start.Societe & "/Devis"]
+  Try Libdevis.Value = cursettings["/Soc" & Start.Societe & "/Libdevis"]
+  Try Valdevis2.Text = cursettings["/Soc" & Start.Societe & "/Devis2"]
+  Try Recap.Value = cursettings["/Soc" & Start.Societe & "/Recap"]
+  Try Impttc.Value = cursettings["/Soc" & Start.Societe & "/Impttc"]
+  Try FacA.Value = cursettings["/Soc" & Start.Societe & "/Faca"]
+  Try Exp.Value = cursettings["/Soc" & Start.Societe & "/Exp"]
+  Try Expmail.Value = cursettings["/Soc" & Start.Societe & "/Expmail"]
+  Try Imp.Value = cursettings["/Soc" & Start.Societe & "/Imp"]
+  Try Adrexport.Text = cursettings["/Soc" & Start.Societe & "/Adr-export"]
+  Try Chmimp.Text = cursettings["/Soc" & Start.Societe & "/Chemin-import"]
+  Try Chmexport.Text = cursettings["/Soc" & Start.Societe & "/Chemin-export"]
+  Try Qt1.Value = cursettings["/Soc" & Start.Societe & "/Qt1"]
+  Try Cqte.Value = cursettings["/Soc" & Start.Societe & "/Cqte"]
+  Try Adrbase.Text = cursettings["/Soc" & Start.Societe & "/Adr-base"]
+  Try Cof.value = cursettings["/Soc" & Start.Societe & "/Coef"]
+  Try Tq.value = cursettings["/Soc" & Start.Societe & "/Tmq"]
+  Try Gcf.value = cursettings["/Soc" & Start.Societe & "/Coul_fen"]
+  Try Infob.value = cursettings["/Soc" & Start.Societe & "/Infob"]
+  Try Lgo.Value = cursettings["/Soc" & Start.Societe & "/glogo"]
+  Try Lgo3.Value = cursettings["/Soc" & Start.Societe & "/glogo3"]
+  Try Lgo5.Value = cursettings["/Soc" & Start.Societe & "/glogo5"]
+  Try Lgo6.Value = cursettings["/Soc" & Start.Societe & "/glogo6"]
   'If Lgo.Value Then Panlogo.Visible = True
   'If Lgo3.Value Then Panlogo2.Visible = True
-  Try Logo.Text = Settings["/Soc" & Start.Societe & "/Logo"]
-  Try Logo2.Text = Settings["/Soc" & Start.Societe & "/Logo2"]
-  Try Rglt.Value = Settings["/Soc" & Start.Societe & "/Rglt"]
-  Try Majver.Value = Settings["/Majver"]
-  Try Kgl.Value = Settings["/Soc" & Start.Societe & "/Kgl"]
-  Try Ctrlstk.Value = Settings["/Soc" & Start.Societe & "/Ctrlstk"]
-  Try Btq.Value = Settings["/Soc" & Start.Societe & "/Btq"]
+  Try Logo.Text = cursettings["/Soc" & Start.Societe & "/Logo"]
+  Try Logo2.Text = cursettings["/Soc" & Start.Societe & "/Logo2"]
+  Try Rglt.Value = cursettings["/Soc" & Start.Societe & "/Rglt"]
+  Try Majver.Value = cursettings["/Majver"]
+  Try Kgl.Value = cursettings["/Soc" & Start.Societe & "/Kgl"]
+  Try Ctrlstk.Value = cursettings["/Soc" & Start.Societe & "/Ctrlstk"]
+  Try Btq.Value = cursettings["/Soc" & Start.Societe & "/Btq"]
   'IF Btq.value = TRUE THEN Btq2.Visible = TRUE
-  'TRY Btq2.Value = Settings["/Soc" & Start.Societe & "/Btq2"]
-  Try Adrbtq.Text = Settings["/Soc" & Start.Societe & "/Adrbtq"]
-  Try Identifiant.Text = Settings["/Soc" & Start.Societe & "/Identifiant"]
-  Try Adradminart.Text = Settings["/Soc" & Start.Societe & "/Adradminart"]
-  Try Adradminphot.Text = Settings["/Soc" & Start.Societe & "/Adradminphot"]
-  Try Mdpadmin.Text = Settings["/Soc" & Start.Societe & "/Mdpadmin"]
-  Try Photart.Text = Settings["/Soc" & Start.Societe & "/Photart"]
-  Try AutoEnt.Value = Settings["/Soc" & Start.Societe & "/AutoEnt"]
-  Try Franchise.Value = Settings["/Soc" & Start.Societe & "/Franchise"]
-  Try Pvconseille.Value = Settings["/Soc" & Start.Societe & "/Pvcons"]
+  'TRY Btq2.Value = cursettings["/Soc" & Start.Societe & "/Btq2"]
+  Try Adrbtq.Text = cursettings["/Soc" & Start.Societe & "/Adrbtq"]
+  Try Identifiant.Text = cursettings["/Soc" & Start.Societe & "/Identifiant"]
+  Try Adradminart.Text = cursettings["/Soc" & Start.Societe & "/Adradminart"]
+  Try Adradminphot.Text = cursettings["/Soc" & Start.Societe & "/Adradminphot"]
+  Try Mdpadmin.Text = cursettings["/Soc" & Start.Societe & "/Mdpadmin"]
+  Try Photart.Text = cursettings["/Soc" & Start.Societe & "/Photart"]
+  Try AutoEnt.Value = cursettings["/Soc" & Start.Societe & "/AutoEnt"]
+  Try Franchise.Value = cursettings["/Soc" & Start.Societe & "/Franchise"]
+  Try Pvconseille.Value = cursettings["/Soc" & Start.Societe & "/Pvcons"]
   If Exp.Value Then
     Panexp.Visible = True
     Panimp.Visible = False
@@ -137,144 +291,141 @@ Public Sub Form_Open()
     Panexp.Visible = False
     Expmail.Visible = False
   Endif
-  Try Smtp.Text = Settings["/Smtp"]
-  Try Adrmail.Text = Settings["/Adrmail"]
-  Try Port.Text = Settings["/Port"]
-  Try Utilisateur.Text = Settings["/Utilisateur"]
-  Try MdpStmp.Text = hexdblKey.crypt("de", Settings["/MdpStmp"], "Laurux")
+  Try Smtp.Text = cursettings["/Smtp"]
+  Try Adrmail.Text = cursettings["/Adrmail"]
+  Try Port.Text = cursettings["/Port"]
+  Try Utilisateur.Text = cursettings["/Utilisateur"]
+  Try MdpStmp.Text = hexdblKey.crypt("de", cursettings["/MdpStmp"], "Laurux")
   If IsNull(Port.Text) Then Port.text = "25"
-  Try Poids.Value = Settings["/Soc" & Start.Societe & "/Poids"]
-  Try Materiel.Value = Settings["/Soc" & Start.Societe & "/Materiel"]
-  Try Depots.value = Settings["/Soc" & Start.Societe & "/Depots"]
-  Try Ged.value = Settings["/Soc" & Start.Societe & "/Ged"]
-  Try Taches.value = Settings["/Soc" & Start.Societe & "/Taches"]
-  Try Ecran.Text = Settings["/Soc" & Start.Societe & "/Fecran"]
+  Try Poids.Value = cursettings["/Soc" & Start.Societe & "/Poids"]
+  Try Materiel.Value = cursettings["/Soc" & Start.Societe & "/Materiel"]
+  Try Depots.value = cursettings["/Soc" & Start.Societe & "/Depots"]
+  Try Ged.value = cursettings["/Soc" & Start.Societe & "/Ged"]
+  Try Taches.value = cursettings["/Soc" & Start.Societe & "/Taches"]
+  Try Ecran.Text = cursettings["/Soc" & Start.Societe & "/Fecran"]
   aff_logo()
   aff_logo2()
-  Try Fontes = Settings["/Soc" & Start.Societe & "/Font"]
+  Try Fontes = cursettings["/Soc" & Start.Societe & "/Font"]
   If IsNull(fontes) Then
     FontChooser1.SelectedFont = "Serif,9"
   Else
     FontChooser1.SelectedFont = Fontes
   Endif
-  Try Coupon.Value = Settings["/Soc" & Start.Societe & "/Coupon"]
-  Try Chemin.Text = Settings["/Soc" & Start.Societe & "/Factchemin"]
-  Try Chemin2.Text = Settings["/Soc" & Start.Societe & "/FactcheminF"]
-  Try Chemin4.Text = Settings["/Soc" & Start.Societe & "/FactcheminP"]
-  Try Chemin3.Text = Settings["/Soc" & Start.Societe & "/FactcheminV"]
-  Try Chemin5.Text = Settings["/Soc" & Start.Societe & "/FactcheminA"]
-  Try Chemin6.Text = Settings["/Soc" & Start.Societe & "/FactcheminC"]
-  Try Chemin7.Text = Settings["/Soc" & Start.Societe & "/Pdfchemin"]
-  Try Pdf.Value = Settings["/Soc" & Start.Societe & "/Pdf"]
-  Try Pdf2.Value = Settings["/Soc" & Start.Societe & "/Pdf2"]
-  Try Pdf3.Value = Settings["/Soc" & Start.Societe & "/Pdf3"]
-  Try Pdf4.Value = Settings["/Soc" & Start.Societe & "/Pdf4"]
-  Try Pdf5.Value = Settings["/Soc" & Start.Societe & "/Pdf5"]
-  Try Pdf6.Value = Settings["/Soc" & Start.Societe & "/Pdf6"]
-  Try Factdef.Value = Settings["/Soc" & Start.Societe & "/Factdef"]
-  Try Bldef.Value = Settings["/Soc" & Start.Societe & "/Bldef"]
-  Try Devisdef.Value = Settings["/Soc" & Start.Societe & "/Devisdef"]
-  Try Prodef.Value = Settings["/Soc" & Start.Societe & "/Prodef"]
-  Try Siret.Text = Settings["/Soc" & Start.Societe & "/Siret"]
+  Try Coupon.Value = cursettings["/Soc" & Start.Societe & "/Coupon"]
+  Try Chemin.Text = cursettings["/Soc" & Start.Societe & "/Factchemin"]
+  Try Chemin2.Text = cursettings["/Soc" & Start.Societe & "/FactcheminF"]
+  Try Chemin4.Text = cursettings["/Soc" & Start.Societe & "/FactcheminP"]
+  Try Chemin3.Text = cursettings["/Soc" & Start.Societe & "/FactcheminV"]
+  Try Chemin5.Text = cursettings["/Soc" & Start.Societe & "/FactcheminA"]
+  Try Chemin6.Text = cursettings["/Soc" & Start.Societe & "/FactcheminC"]
+  Try Chemin7.Text = cursettings["/Soc" & Start.Societe & "/Pdfchemin"]
+  Try Pdf.Value = cursettings["/Soc" & Start.Societe & "/Pdf"]
+  Try Pdf2.Value = cursettings["/Soc" & Start.Societe & "/Pdf2"]
+  Try Pdf3.Value = cursettings["/Soc" & Start.Societe & "/Pdf3"]
+  Try Pdf4.Value = cursettings["/Soc" & Start.Societe & "/Pdf4"]
+  Try Pdf5.Value = cursettings["/Soc" & Start.Societe & "/Pdf5"]
+  Try Pdf6.Value = cursettings["/Soc" & Start.Societe & "/Pdf6"]
+  Try Factdef.Value = cursettings["/Soc" & Start.Societe & "/Factdef"]
+  Try Bldef.Value = cursettings["/Soc" & Start.Societe & "/Bldef"]
+  Try Devisdef.Value = cursettings["/Soc" & Start.Societe & "/Devisdef"]
+  Try Prodef.Value = cursettings["/Soc" & Start.Societe & "/Prodef"]
+  Try Siret.Text = cursettings["/Soc" & Start.Societe & "/Siret"]
   If IsNull(Siret.Text) Then Siret.text = "Siret"
-  Try Prxdec.Value = Settings["/Soc" & Start.Societe & "/Prxdec"]
-  Try Totstring.Value = Settings["/Soc" & Start.Societe & "/Totstring"]
-  Try Pays.text = Settings["/Soc" & Start.Societe & "/Pays"]
-  Try Expfact.text = Settings["/Soc" & Start.Societe & "/Expfact"]
-  Try Ech.text = Settings["/Soc" & Start.Societe & "/Ech"]
-  Try Typec.text = Settings["/Soc" & Start.Societe & "/Typec"]
-  Try Caisse.Value = Settings["/Soc" & Start.Societe & "/Caisse"]
-  Try Tp1.Text = Settings["/Soc" & Start.Societe & "/Tp1"]
-  Try Tg1.Text = Settings["/Soc" & Start.Societe & "/Tg1"]
-  Try Numdossier.Text = Settings["/Soc" & Start.Societe & "/Numdossier"]
-  Try Nomdossier.text = Settings["/Soc" & Start.Societe & "/Nomdossier"]
-  Try sFht.Value = Settings["/Soc" & Start.Societe & "/Fht"]
-  Try TxtF.Value = Settings["/Soc" & Start.Societe & "/TxtF"]
-  Try LTxtF.Text = Settings["/Soc" & Start.Societe & "/LTxtF"]
+  Try Prxdec.Value = cursettings["/Soc" & Start.Societe & "/Prxdec"]
+  Try Totstring.Value = cursettings["/Soc" & Start.Societe & "/Totstring"]
+  Try Pays.text = cursettings["/Soc" & Start.Societe & "/Pays"]
+  Try Expfact.text = cursettings["/Soc" & Start.Societe & "/Expfact"]
+  Try Ech.text = cursettings["/Soc" & Start.Societe & "/Ech"]
+  Try Typec.text = cursettings["/Soc" & Start.Societe & "/Typec"]
+  Try Caisse.Value = cursettings["/Soc" & Start.Societe & "/Caisse"]
+  Try Tp1.Text = cursettings["/Soc" & Start.Societe & "/Tp1"]
+  Try Tg1.Text = cursettings["/Soc" & Start.Societe & "/Tg1"]
+  Try Numdossier.Text = cursettings["/Soc" & Start.Societe & "/Numdossier"]
+  Try Nomdossier.text = cursettings["/Soc" & Start.Societe & "/Nomdossier"]
+  Try sFht.Value = cursettings["/Soc" & Start.Societe & "/Fht"]
+  Try TxtF.Value = cursettings["/Soc" & Start.Societe & "/TxtF"]
+  Try LTxtF.Text = cursettings["/Soc" & Start.Societe & "/LTxtF"]
   If TxtF.Value = True Then LTxtF.Visible = True
-  Try Marge.Value = Settings["/Soc" & Start.Societe & "/Marge"]
-  Try MO.Value = Settings["/Soc" & Start.Societe & "/MO"]
+  Try Marge.Value = cursettings["/Soc" & Start.Societe & "/Marge"]
+  Try MO.Value = cursettings["/Soc" & Start.Societe & "/MO"]
   If MO.Value Then
     codeMO.Visible = True
-    Try codeMO.Text = Settings["/Soc" & Start.Societe & "/CodeMO"]
+    Try codeMO.Text = cursettings["/Soc" & Start.Societe & "/CodeMO"]
   Else
     codeMO.Visible = False
   Endif
-  Try Impbl.Value = Settings["/Soc" & Start.Societe & "/Impbl"]
-  Try Affaire.Value = Settings["/Soc" & Start.Societe & "/Affaire"]
-  Try Art.Value = Settings["/Soc" & Start.Societe & "/Art"]
-  Try MoArt.Value = Settings["/Soc" & Start.Societe & "/MoArt"]
-  Try Com.Value = Settings["/Soc" & Start.Societe & "/ComArt"]
-  Try Tmail.Text = Settings["/Soc" & Start.Societe & "/Tmail"]
-  Try Tmail2.Text = Settings["/Soc" & Start.Societe & "/Tmail2"]
-  Try Vendeurs.Value = Settings["/Soc" & Start.Societe & "/Vendeurs"]
-  Try Casier.Value = Settings["/Soc" & Start.Societe & "/Casier"]
-  Try Analytique.Value = Settings["/Soc" & Start.Societe & "/Analytique"]
-  Try Lettrage.Value = Settings["/Soc" & Start.Societe & "/Lettrage"]
-  Try Carte.Value = Settings["/Soc" & Start.Societe & "/Carte"]
-  Try Cheque.Value = Settings["/Soc" & Start.Societe & "/Cheque"]
-  Try Sage.Value = Settings["/Soc" & Start.Societe & "/Sage"]
-  Try Sauvauto.Value = Settings["/Soc" & Start.Societe & "/Sauvauto"]
-  Try Envoiftp.Value = Settings["/Soc" & Start.Societe & "/Envoiftp"]
-  Try Adrbase2.Text = Settings["/Soc" & Start.Societe & "/Adrbase"]
-  Try IdFTP.Text = Settings["/Soc" & Start.Societe & "/Idftp"]
-  Try PrgMail.Text = Settings["/Soc" & Start.Societe & "/Prgmail"]
-  Try MdpFTP.Text = hexdblKey.crypt("de", Settings["/Soc" & Start.Societe & "/MdpFTP"], "Laurux")
-  Try Adrbase3.Text = Settings["/Soc" & Start.Societe & "/Adrbase3"]
-  Try IdFTP3.Text = Settings["/Soc" & Start.Societe & "/Idftp3"]
-  Try MdpFTP3.Text = hexdblKey.crypt("de", Settings["/Soc" & Start.Societe & "/MdpFTP3"], "Laurux")
-  Try Cnomade.Value = Settings["/Soc" & Start.Societe & "/Cnomade"]
-  Try Chmcsv.Text = Settings["/Soc" & Start.Societe & "/Chmcsv"]
-  Try Depannage.Value = Settings["/Soc" & Start.Societe & "/Depannage"]
-  Try Afour.Value = Settings["/Soc" & Start.Societe & "/Afour"]
-  Try AffArt.Value = Settings["/Soc" & Start.Societe & "/AffArt"]
-  Try MasqueMarge.Value = Settings["/Soc" & Start.Societe & "/AffMarge"]
-  Try AffFacture.Value = Settings["/Soc" & Start.Societe & "/AffFacture"]
-  Try AffClient.Value = Settings["/Soc" & Start.Societe & "/AffClient"]
-  Try PxRecpt.Value = Settings["/Soc" & Start.Societe & "/prixRecpt"]
-  Try Rcptman.Value = Settings["/Soc" & Start.Societe & "/Rcptman"]
-  Try NumBr.Value = Settings["/Soc" & Start.Societe & "/NumBr"]
-  Try Sms.Value = Settings["/Soc" & Start.Societe & "/Sms"]
+  Try Impbl.Value = cursettings["/Soc" & Start.Societe & "/Impbl"]
+  Try Affaire.Value = cursettings["/Soc" & Start.Societe & "/Affaire"]
+  Try Art.Value = cursettings["/Soc" & Start.Societe & "/Art"]
+  Try MoArt.Value = cursettings["/Soc" & Start.Societe & "/MoArt"]
+  Try Com.Value = cursettings["/Soc" & Start.Societe & "/ComArt"]
+  Try Tmail.Text = cursettings["/Soc" & Start.Societe & "/Tmail"]
+  Try Tmail2.Text = cursettings["/Soc" & Start.Societe & "/Tmail2"]
+  Try Vendeurs.Value = cursettings["/Soc" & Start.Societe & "/Vendeurs"]
+  Try Casier.Value = cursettings["/Soc" & Start.Societe & "/Casier"]
+  Try Analytique.Value = cursettings["/Soc" & Start.Societe & "/Analytique"]
+  Try Lettrage.Value = cursettings["/Soc" & Start.Societe & "/Lettrage"]
+  Try Carte.Value = cursettings["/Soc" & Start.Societe & "/Carte"]
+  Try Cheque.Value = cursettings["/Soc" & Start.Societe & "/Cheque"]
+  Try Sage.Value = cursettings["/Soc" & Start.Societe & "/Sage"]
+  Try Sauvauto.Value = cursettings["/Soc" & Start.Societe & "/Sauvauto"]
+  Try Envoiftp.Value = cursettings["/Soc" & Start.Societe & "/Envoiftp"]
+  Try Adrbase2.Text = cursettings["/Soc" & Start.Societe & "/Adrbase"]
+  Try IdFTP.Text = cursettings["/Soc" & Start.Societe & "/Idftp"]
+  Try PrgMail.Text = cursettings["/Soc" & Start.Societe & "/Prgmail"]
+  Try MdpFTP.Text = hexdblKey.crypt("de", cursettings["/Soc" & Start.Societe & "/MdpFTP"], "Laurux")
+  Try Adrbase3.Text = cursettings["/Soc" & Start.Societe & "/Adrbase3"]
+  Try IdFTP3.Text = cursettings["/Soc" & Start.Societe & "/Idftp3"]
+  Try MdpFTP3.Text = hexdblKey.crypt("de", cursettings["/Soc" & Start.Societe & "/MdpFTP3"], "Laurux")
+  Try Cnomade.Value = cursettings["/Soc" & Start.Societe & "/Cnomade"]
+  Try Chmcsv.Text = cursettings["/Soc" & Start.Societe & "/Chmcsv"]
+  Try Depannage.Value = cursettings["/Soc" & Start.Societe & "/Depannage"]
+  Try Afour.Value = cursettings["/Soc" & Start.Societe & "/Afour"]
+  Try AffArt.Value = cursettings["/Soc" & Start.Societe & "/AffArt"]
+  Try MasqueMarge.Value = cursettings["/Soc" & Start.Societe & "/AffMarge"]
+  Try AffFacture.Value = cursettings["/Soc" & Start.Societe & "/AffFacture"]
+  Try AffClient.Value = cursettings["/Soc" & Start.Societe & "/AffClient"]
+  Try PxRecpt.Value = cursettings["/Soc" & Start.Societe & "/prixRecpt"]
+  Try Rcptman.Value = cursettings["/Soc" & Start.Societe & "/Rcptman"]
+  Try NumBr.Value = cursettings["/Soc" & Start.Societe & "/NumBr"]
+  Try Sms.Value = cursettings["/Soc" & Start.Societe & "/Sms"]
   If Sms.value Then
-    Support.Text = Settings["/Soc" & Start.Societe & "/Support"]
-    Api.Text = Settings["/Soc" & Start.Societe & "/Api"]
-    Type.Text = Settings["/Soc" & Start.Societe & "/Type"]
-    Expediteur.Text = Settings["/Soc" & Start.Societe & "/Expediteur"]
-    'Api2.Text = Settings["/Soc" & Start.Societe & "/Hidentifiant"]
-    'Api3.Text = Settings["/Soc" & Start.Societe & "/Hmdp"]
+    Support.Text = cursettings["/Soc" & Start.Societe & "/Support"]
+    Api.Text = cursettings["/Soc" & Start.Societe & "/Api"]
+    Type.Text = cursettings["/Soc" & Start.Societe & "/Type"]
+    Expediteur.Text = cursettings["/Soc" & Start.Societe & "/Expediteur"]
+    'Api2.Text = cursettings["/Soc" & Start.Societe & "/Hidentifiant"]
+    'Api3.Text = cursettings["/Soc" & Start.Societe & "/Hmdp"]
   Endif
-  Try Checkbox2.Value = Settings["/Soc" & Start.Societe & "/Sprix"]
+  Try Checkbox2.Value = cursettings["/Soc" & Start.Societe & "/Sprix"]
   If CheckBox2.value Then Panel4.visible = True
-  Try MajArt.Value = Settings["/Soc" & Start.Societe & "/SMajArt"]
-  Try MajFour.Value = Settings["/Soc" & Start.Societe & "/SMajFour"]
-  Try MajCli.Value = Settings["/Soc" & Start.Societe & "/SMajCli"]
-  Try Import.Value = Settings["/Soc" & Start.Societe & "/Simport"]
-  Try Export.Value = Settings["/Soc" & Start.Societe & "/Sexport"]
-  Try Chmprix.Text = Settings["/Soc" & Start.Societe & "/Schmprix"]
-  Try Replique.Value = Settings["/Soc" & Start.Societe & "/Replique"]
-  Try Breplique.Value = Settings["/Soc" & Start.Societe & "/Breplique"]
-  If admin.value Then
-    Mdp2.Text = hexdblKey.crypt("de", Settings["/Soc" & Start.Societe & "/MdpPrefs"], "Laurux")
-    Mdp2.Visible = True
-  Endif
-  'Try Zebra.Value = Settings["/Soc" & Start.Societe & "/Zebra"]
+  Try MajArt.Value = cursettings["/Soc" & Start.Societe & "/SMajArt"]
+  Try MajFour.Value = cursettings["/Soc" & Start.Societe & "/SMajFour"]
+  Try MajCli.Value = cursettings["/Soc" & Start.Societe & "/SMajCli"]
+  Try Import.Value = cursettings["/Soc" & Start.Societe & "/Simport"]
+  Try Export.Value = cursettings["/Soc" & Start.Societe & "/Sexport"]
+  Try Chmprix.Text = cursettings["/Soc" & Start.Societe & "/Schmprix"]
+  Try Replique.Value = cursettings["/Soc" & Start.Societe & "/Replique"]
+  Try Breplique.Value = cursettings["/Soc" & Start.Societe & "/Breplique"]
+
+  'Try Zebra.Value = cursettings["/Soc" & Start.Societe & "/Zebra"]
   'If Zebra.value Then
   'Label27.Visible = True
   'IpZebra.Visible = True
   'Endif
-  Try Impetiq.text = Settings["/Soc" & Start.Societe & "/Impetiq"]
+  Try Impetiq.text = cursettings["/Soc" & Start.Societe & "/Impetiq"]
   If Impetiq.text = "2- Zebra" Then
     Label27.Visible = True
     IpZebra.Visible = True
-    Try IpZebra.Text = Settings["/Soc" & Start.Societe & "/IpZebra"]
+    Try IpZebra.Text = cursettings["/Soc" & Start.Societe & "/IpZebra"]
   Endif
-  Try Textfam.Text = Settings["/Soc" & Start.Societe & "/nbfam"]
+  Try Textfam.Text = cursettings["/Soc" & Start.Societe & "/nbfam"]
   If Error Or Utils.totobs([Textfam.Text]) = 0 Then Textfam.Text = "5"
-  Try $ipr = Settings["/Soc" & Start.Societe & "/ipr"]
+  Try $ipr = cursettings["/Soc" & Start.Societe & "/ipr"]
   afffam
 
-  Try pp.Value = Settings["/Soc" & Start.Societe & "/pp"]
-  Try bois.Value = Settings["/Soc" & Start.Societe & "/bois"]
+  Try pp.Value = cursettings["/Soc" & Start.Societe & "/pp"]
+  Try bois.Value = cursettings["/Soc" & Start.Societe & "/bois"]
    
 End
 
@@ -292,7 +443,7 @@ Public Sub Mdp_LF()
   Dim admn As Integer
   Dim mdpadm As String
 
-  mdpadm = hexdblKey.crypt("de", Settings["/Soc" & Start.Societe & "/MdpPrefs"], "Laurux")
+  mdpadm = hexdblKey.crypt("de", cursettings["/Soc" & Start.Societe & "/MdpPrefs"], "Laurux")
   If mdpadm = Mdp.Text Then admn = 1
   If admn = 0 Then
     If Start.son Then
@@ -311,6 +462,18 @@ Public Sub Mdp_LF()
 
 End
 
+Public Sub AdminG_Click()
+
+  If AdminG.value Then
+    Mdp2G.visible = True
+    Mdp2G.SetFocus
+    Mdp2G.Select
+  Else
+    Mdp2G.visible = False
+  Endif
+
+End
+
 Public Sub Admin_Click()
 
   If admin.value Then
@@ -325,7 +488,6 @@ End
 
 Public Sub Button2_Click()
 
-  form_close()
   Me.close
 
 End
@@ -337,192 +499,213 @@ Public Sub form_close()
   Dim Cai As String
   Dim $mdp As String
   Dim i As Integer
-
+  Dim conf As String 'use for global conf
+  
+  If IsNull(cursettings) Then Return
+  
+  'Parametre sauvegarde en Global et en Local (cas ou on utilise pas le mode global)
+  'Les paramètres globaux sont prioritaire aucun risque en cas de sauvegarde dans le fichier
+  'Local
+  $mdp = hexdblKey.crypt("en", Mdp2G.text, "Laurux")
+  If global = True Then
+    cursettings["/Soc" & Start.Societe & "/MdpPrefsG"] = $mdp
+    cursettings["/Soc" & Start.Societe & "/AdminG"] = AdminG.value
+  Endif
+  
   $mdp = hexdblKey.crypt("en", Mdp2.text, "Laurux")
-  Settings["/Soc" & Start.Societe & "/Tme"] = Tme.value
-  Settings["/Soc" & Start.Societe & "/Slide"] = Slide.value
-  Settings["/Soc" & Start.Societe & "/MdpPrefs"] = $mdp
-  Settings["/Soc" & Start.Societe & "/Admin"] = Admin.value
-  Settings["/son"] = son.Value
-  Settings["/son2"] = son2.Value
-  Settings["/Tips"] = Tip.Value
-  Settings["/Soc" & Start.Societe & "/Entete"] = Entete.Value
-  Settings["/Soc" & Start.Societe & "/Conditions"] = Conditions.Value
-  Settings["/Soc" & Start.Societe & "/Tva550"] = Tva550.Value
-  Settings["/Soc" & Start.Societe & "/Codetva"] = Left$(codetva.Text, 1)
-  Settings["/Soc" & Start.Societe & "/Taxe"] = Taxe.text
-  Settings["/Rep_Sauv"] = Sauves.text
-  Settings["/Soc" & Start.Societe & "/Compta"] = cpt.Value
-  Settings["/Soc" & Start.Societe & "/Gestion"] = Fac.Value
-  Settings["/Soc" & Start.Societe & "/CptFac"] = CptFac.Value
-  Settings["/Soc" & Start.Societe & "/Prefixe"] = Prefixe.Value
-  Settings["/Soc" & Start.Societe & "/Lcr"] = Lcr.Value
-  Settings["/Soc" & Start.Societe & "/Devis"] = Valdevis.Text
-  Settings["/Soc" & Start.Societe & "/Libdevis"] = Libdevis.Value
-  Settings["/Soc" & Start.Societe & "/Devis2"] = Valdevis2.Text
-  Settings["/Soc" & Start.Societe & "/Recap"] = Recap.Value
-  Settings["/Soc" & Start.Societe & "/Impttc"] = Impttc.Value
-  Settings["/Soc" & Start.Societe & "/Faca"] = FacA.Value
-  Settings["/Soc" & Start.Societe & "/Exp"] = Exp.Value
-  Settings["/Soc" & Start.Societe & "/Expmail"] = Expmail.Value
-  Settings["/Soc" & Start.Societe & "/Imp"] = Imp.Value
-  Settings["/Soc" & Start.Societe & "/Chemin-export"] = Chmexport.Text
-  Settings["/Soc" & Start.Societe & "/Adr-export"] = Adrexport.Text
-  Settings["/Soc" & Start.Societe & "/Chemin-import"] = Chmimp.Text
-  Settings["/Soc" & Start.Societe & "/Qt1"] = Qt1.Value
-  Settings["/Soc" & Start.Societe & "/Cqte"] = Cqte.Value
-  Settings["/Soc" & Start.Societe & "/Coef"] = Cof.Value
-  Settings["/Soc" & Start.Societe & "/Tmq"] = Tq.Value
-  Settings["/Soc" & Start.Societe & "/Coul_fen"] = Gcf.value
-  Settings["/Soc" & Start.Societe & "/Infob"] = Infob.value
-  Settings["/Smtp"] = Smtp.Text
-  Settings["/Port"] = Port.Text
-  Settings["/Adrmail"] = Adrmail.Text
-  Settings["/Utilisateur"] = Utilisateur.Text
-  Settings["/MdpStmp"] = hexdblKey.crypt("en", MdpStmp.Text, "Laurux")
-  Settings["/Soc" & Start.Societe & "/Fecran"] = Ecran.Text
-  Settings["/Soc" & Start.Societe & "/glogo"] = Lgo.Value
-  Settings["/Soc" & Start.Societe & "/glogo3"] = Lgo3.Value
-  Settings["/Soc" & Start.Societe & "/glogo5"] = Lgo5.Value
-  Settings["/Soc" & Start.Societe & "/glogo6"] = Lgo6.Value
-  Settings["/Soc" & Start.Societe & "/Logo"] = Logo.Text
-  Settings["/Soc" & Start.Societe & "/Logo2"] = Logo2.Text
-  Settings["/Soc" & Start.Societe & "/Adr-base"] = Adrbase.Text
-  Settings["/Soc" & Start.Societe & "/Rglt"] = Rglt.Value
-  Settings["/Soc" & Start.Societe & "/Poids"] = Poids.Value
-  Settings["/Majver"] = Majver.Value
-  Settings["/Soc" & Start.Societe & "/Kgl"] = Kgl.Value
-  Settings["/Soc" & Start.Societe & "/Ctrlstk"] = Ctrlstk.Value
-  Settings["/Soc" & Start.Societe & "/Btq"] = Btq.Value
-  'Settings["/Soc" & Start.Societe & "/Btq2"] = Btq2.Value
-  Settings["/Soc" & Start.Societe & "/Adrbtq"] = Adrbtq.Text
-  Settings["/Soc" & Start.Societe & "/Identifiant"] = Identifiant.Text
-  Settings["/Soc" & Start.Societe & "/Adradminart"] = Adradminart.Text
-  Settings["/Soc" & Start.Societe & "/Adradminphot"] = Adradminphot.Text
-  Settings["/Soc" & Start.Societe & "/Mdpadmin"] = Mdpadmin.Text
-  Settings["/Soc" & Start.Societe & "/Photart"] = Photart.Text
-  Settings["/Soc" & Start.Societe & "/Materiel"] = Materiel.Value
-  Settings["/Soc" & Start.Societe & "/Depots"] = Depots.value
-  Settings["/Soc" & Start.Societe & "/Ged"] = Ged.value
-  Settings["/Soc" & Start.Societe & "/Taches"] = Taches.value
-  Settings["/Soc" & Start.Societe & "/AutoEnt"] = AutoEnt.Value
-  Settings["/Soc" & Start.Societe & "/Franchise"] = Franchise.Value
-  Settings["/Soc" & Start.Societe & "/Pvcons"] = Pvconseille.Value
-  Settings["/Soc" & Start.Societe & "/Font"] = FontChooser1.SelectedFont
-  Settings["/Soc" & Start.Societe & "/Coupon"] = Coupon.Value
-  Settings["/Soc" & Start.Societe & "/Factchemin"] = Chemin.Text
-  Settings["/Soc" & Start.Societe & "/FactcheminF"] = Chemin2.Text
-  Settings["/Soc" & Start.Societe & "/FactcheminP"] = Chemin4.Text
-  Settings["/Soc" & Start.Societe & "/FactcheminV"] = Chemin3.Text
-  Settings["/Soc" & Start.Societe & "/FactcheminA"] = Chemin5.Text
-  Settings["/Soc" & Start.Societe & "/FactcheminC"] = Chemin6.Text
-  Settings["/Soc" & Start.Societe & "/Pdfchemin"] = Chemin7.Text
-  Settings["/Soc" & Start.Societe & "/Pdf"] = Pdf.Value
-  Settings["/Soc" & Start.Societe & "/Pdf2"] = Pdf2.Value
-  Settings["/Soc" & Start.Societe & "/Pdf3"] = Pdf3.Value
-  Settings["/Soc" & Start.Societe & "/Pdf4"] = Pdf4.Value
-  Settings["/Soc" & Start.Societe & "/Pdf5"] = Pdf5.Value
-  Settings["/Soc" & Start.Societe & "/Pdf6"] = Pdf6.Value
-  Settings["/Soc" & Start.Societe & "/Factdef"] = Factdef.Value
-  Settings["/Soc" & Start.Societe & "/Bldef"] = Bldef.Value
-  Settings["/Soc" & Start.Societe & "/Devisdef"] = Devisdef.Value
-  Settings["/Soc" & Start.Societe & "/Prodef"] = Prodef.Value
-  Settings["/Soc" & Start.Societe & "/Siret"] = Siret.Text
-  Settings["/Soc" & Start.Societe & "/Prxdec"] = Prxdec.Value
-  Settings["/Soc" & Start.Societe & "/Totstring"] = Totstring.Value
-  Settings["/Soc" & Start.Societe & "/Pays"] = Pays.text
-  Settings["/Soc" & Start.Societe & "/Expfact"] = Expfact.text
-  Settings["/Soc" & Start.Societe & "/Ech"] = Ech.Text
-  Settings["/Soc" & Start.Societe & "/Typec"] = Typec.Text
-  Settings["/Soc" & Start.Societe & "/Caisse"] = Caisse.Value
-  Settings["/Soc" & Start.Societe & "/Tp1"] = Tp1.Text
-  Settings["/Soc" & Start.Societe & "/Tg1"] = Tg1.Text
-  Settings["/Soc" & Start.Societe & "/Numdossier"] = Numdossier.Text
-  Settings["/Soc" & Start.Societe & "/Nomdossier"] = Nomdossier.Text
-  Settings["/Soc" & Start.Societe & "/Fht"] = sFht.Value
-  Settings["/Soc" & Start.Societe & "/TxtF"] = TxtF.Value
-  Settings["/Soc" & Start.Societe & "/LTxtF"] = LTxtF.Text
-  Settings["/Soc" & Start.Societe & "/Marge"] = Marge.Value
-  Settings["/Soc" & Start.Societe & "/MO"] = MO.Value
+  cursettings["/Soc" & Start.Societe & "/MdpPrefs"] = $mdp
+  cursettings["/Soc" & Start.Societe & "/Admin"] = Admin.value
+  
+  cursettings["/Soc" & Start.Societe & "/Entete"] = Entete.Value
+  cursettings["/Soc" & Start.Societe & "/Conditions"] = Conditions.Value
+  cursettings["/Soc" & Start.Societe & "/Tva550"] = Tva550.Value
+  cursettings["/Soc" & Start.Societe & "/Codetva"] = Left$(codetva.Text, 1)
+  cursettings["/Soc" & Start.Societe & "/Taxe"] = Taxe.text
+  cursettings["/Soc" & Start.Societe & "/Prefixe"] = Prefixe.Value
+  cursettings["/Soc" & Start.Societe & "/Lcr"] = Lcr.Value
+  cursettings["/Soc" & Start.Societe & "/Materiel"] = Materiel.Value
+  cursettings["/Soc" & Start.Societe & "/Depots"] = Depots.value
+  cursettings["/Soc" & Start.Societe & "/Ged"] = Ged.value
+  cursettings["/Soc" & Start.Societe & "/Taches"] = Taches.value
+  cursettings["/Soc" & Start.Societe & "/AutoEnt"] = AutoEnt.Value
+  cursettings["/Soc" & Start.Societe & "/Franchise"] = Franchise.Value
+  cursettings["/Soc" & Start.Societe & "/Pvcons"] = Pvconseille.Value
+  cursettings["/Soc" & Start.Societe & "/Analytique"] = Analytique.Value
+  cursettings["/Soc" & Start.Societe & "/Lettrage"] = Lettrage.Value
+  cursettings["/Soc" & Start.Societe & "/Carte"] = Carte.Value
+  cursettings["/Soc" & Start.Societe & "/Cheque"] = Cheque.Value
+  cursettings["/Soc" & Start.Societe & "/Pays"] = Pays.text
+  cursettings["/Soc" & Start.Societe & "/Expfact"] = Expfact.text
+  cursettings["/Soc" & Start.Societe & "/Ech"] = Ech.Text
+  cursettings["/Soc" & Start.Societe & "/Typec"] = Typec.Text
+  cursettings["/Soc" & Start.Societe & "/Caisse"] = Caisse.Value
+  cursettings["/Soc" & Start.Societe & "/Tp1"] = Tp1.Text
+  cursettings["/Soc" & Start.Societe & "/Tg1"] = Tg1.Text
+  cursettings["/Soc" & Start.Societe & "/Siret"] = Siret.Text
+  cursettings["/Soc" & Start.Societe & "/Prxdec"] = Prxdec.Value
+  cursettings["/Soc" & Start.Societe & "/Numdossier"] = Numdossier.Text
+  cursettings["/Soc" & Start.Societe & "/Nomdossier"] = Nomdossier.Text
+  cursettings["/Soc" & Start.Societe & "/Coef"] = Cof.Value
+  cursettings["/Soc" & Start.Societe & "/Tmq"] = Tq.Value
+  cursettings["/Soc" & Start.Societe & "/Recap"] = Recap.Value
+  cursettings["/Soc" & Start.Societe & "/Impttc"] = Impttc.Value
+  cursettings["/Soc" & Start.Societe & "/Faca"] = FacA.Value
+  cursettings["/Soc" & Start.Societe & "/prixRecpt"] = PxRecpt.Value
+  cursettings["/Soc" & Start.Societe & "/Rcptman"] = Rcptman.Value
+  cursettings["/Soc" & Start.Societe & "/NumBr"] = NumBr.Value
+  cursettings["/Soc" & Start.Societe & "/Depannage"] = Depannage.Value
+  cursettings["/Soc" & Start.Societe & "/Devis"] = Valdevis.Text
+  cursettings["/Soc" & Start.Societe & "/Libdevis"] = Libdevis.Value
+  cursettings["/Soc" & Start.Societe & "/Devis2"] = Valdevis2.Text
+  cursettings["/Soc" & Start.Societe & "/Devis"] = Valdevis.Text
+  cursettings["/Soc" & Start.Societe & "/Libdevis"] = Libdevis.Value
+  cursettings["/Soc" & Start.Societe & "/Devis2"] = Valdevis2.Text
+  cursettings["/Soc" & Start.Societe & "/Rglt"] = Rglt.Value
+  cursettings["/Soc" & Start.Societe & "/Poids"] = Poids.Value
+  cursettings["/Soc" & Start.Societe & "/Marge"] = Marge.Value
+  cursettings["/Soc" & Start.Societe & "/MO"] = MO.Value
   ipos = InStr(Codemo.Text, "-")
-  Settings["/Soc" & Start.Societe & "/CodeMO"] = Left$(Codemo.Text, iPos - 1)
-  Settings["/Soc" & Start.Societe & "/Impbl"] = Impbl.value
-  Settings["/Soc" & Start.Societe & "/Affaire"] = Affaire.Value
-  Settings["/Soc" & Start.Societe & "/Art"] = Art.Value
-  Settings["/Soc" & Start.Societe & "/MoArt"] = MoArt.Value
-  Settings["/Soc" & Start.Societe & "/ComArt"] = Com.Value
-  Settings["/Soc" & Start.Societe & "/Tmail"] = Tmail.Text
-  Settings["/Soc" & Start.Societe & "/Tmail2"] = Tmail2.Text
-  Settings["/Soc" & Start.Societe & "/Vendeurs"] = Vendeurs.Value
-  Settings["/Soc" & Start.Societe & "/Casier"] = Casier.Value
-  'Settings["/Soc" & Start.Societe & "/Zebra"] = Zebra.Value
-  Settings["/Soc" & Start.Societe & "/Impetiq"] = Impetiq.text
-  Settings["/Soc" & Start.Societe & "/IpZebra"] = IpZebra.Text
-  Settings["/Soc" & Start.Societe & "/Analytique"] = Analytique.Value
-  Settings["/Soc" & Start.Societe & "/Lettrage"] = Lettrage.Value
-  Settings["/Soc" & Start.Societe & "/Carte"] = Carte.Value
-  Settings["/Soc" & Start.Societe & "/Cheque"] = Cheque.Value
-  Settings["/Soc" & Start.Societe & "/Sage"] = Sage.Value
-  Settings["/Soc" & Start.Societe & "/Sauvauto"] = Sauvauto.Value
-  Settings["/Soc" & Start.Societe & "/Envoiftp"] = Envoiftp.Value
-  Settings["/Soc" & Start.Societe & "/Adrbase"] = Adrbase2.Text
-  Settings["/Soc" & Start.Societe & "/MdpFTP"] = hexdblKey.crypt("en", MdpFTP.Text, "Laurux")
-  Settings["/Soc" & Start.Societe & "/Idftp"] = IdFTP.Text
-  Settings["/Soc" & Start.Societe & "/Adrbase3"] = Adrbase3.Text
-  Settings["/Soc" & Start.Societe & "/MdpFTP3"] = hexdblKey.crypt("en", MdpFTP3.Text, "Laurux")
-  Settings["/Soc" & Start.Societe & "/Idftp3"] = IdFTP3.Text
-  Settings["/Soc" & Start.Societe & "/Prgmail"] = PrgMail.Text
-  Settings["/Soc" & Start.Societe & "/Cnomade"] = Cnomade.Value
-  Settings["/Soc" & Start.Societe & "/Chmcsv"] = Chmcsv.Text
-  Settings["/Soc" & Start.Societe & "/Depannage"] = Depannage.Value
-  Settings["/Soc" & Start.Societe & "/AffArt"] = AffArt.Value
-  Settings["/Soc" & Start.Societe & "/AffMarge"] = MasqueMarge.Value
-  Settings["/Soc" & Start.Societe & "/AffFacture"] = AffFacture.Value
-  Settings["/Soc" & Start.Societe & "/AffClient"] = AffClient.Value
-  Settings["/Soc" & Start.Societe & "/Afour"] = Afour.Value
-  Settings["/Soc" & Start.Societe & "/prixRecpt"] = PxRecpt.Value
-  Settings["/Soc" & Start.Societe & "/Rcptman"] = Rcptman.Value
-  Settings["/Soc" & Start.Societe & "/NumBr"] = NumBr.Value
-  Settings["/Soc" & Start.Societe & "/Sms"] = Sms.Value
-  Settings["/Soc" & Start.Societe & "/Support"] = Support.Text
-  Settings["/Soc" & Start.Societe & "/Api"] = Api.Text
-  Settings["/Soc" & Start.Societe & "/Type"] = Type.Text
-  Settings["/Soc" & Start.Societe & "/Expediteur"] = Expediteur.Text
-  Settings["/Soc" & Start.Societe & "/Sprix"] = Checkbox2.Value
-  Settings["/Soc" & Start.Societe & "/Simport"] = Import.Value
-  Settings["/Soc" & Start.Societe & "/Sexport"] = Export.Value
-  Settings["/Soc" & Start.Societe & "/Schmprix"] = Chmprix.Text
-  Settings["/Soc" & Start.Societe & "/SMajArt"] = MajArt.Value
-  Settings["/Soc" & Start.Societe & "/SMajFour"] = MajFour.Value
-  Settings["/Soc" & Start.Societe & "/SMajCli"] = MajCli.Value
-  Settings["/Soc" & Start.Societe & "/Replique"] = Replique.Value
-  Settings["/Soc" & Start.Societe & "/Breplique"] = Breplique.Value
-  'Settings["/Soc" & Start.Societe & "/Hidentifiant"] = Api2.Text
-  ' Settings["/Soc" & Start.Societe & "/Hmdp"] = Api3.Text
+  cursettings["/Soc" & Start.Societe & "/CodeMO"] = Left$(Codemo.Text, iPos - 1)
 
-  Settings["/Soc" & Start.Societe & "/nbfam"] = Textfam.Text 
+  cursettings["/Soc" & Start.Societe & "/nbfam"] = Textfam.Text 
   $ipr.Clear
   For i = 0 To $check.Max
     If $check[i].Value Then $ipr.Add(i + 1)
   Next
-  Settings["/Soc" & Start.Societe & "/ipr"] = $ipr
-  Settings["/Soc" & Start.Societe & "/pp"] = pp.Value
-  Settings["/Soc" & Start.Societe & "/bois"] = bois.Value  
-If Exp.Value = True Then
+  cursettings["/Soc" & Start.Societe & "/ipr"] = $ipr
+  cursettings["/Soc" & Start.Societe & "/pp"] = pp.Value
+  cursettings["/Soc" & Start.Societe & "/bois"] = bois.Value  
+
+
+  'Les paramètres ci-dessous ne sont que des paramètres locaux
+  If global = False
+  cursettings["/Soc" & Start.Societe & "/Tme"] = Tme.value
+  cursettings["/Soc" & Start.Societe & "/Slide"] = Slide.value
+  cursettings["/son"] = son.Value
+  cursettings["/son2"] = son2.Value
+  cursettings["/Tips"] = Tip.Value
+  cursettings["/Rep_Sauv"] = Sauves.text
+  cursettings["/Soc" & Start.Societe & "/Compta"] = cpt.Value
+  cursettings["/Soc" & Start.Societe & "/Gestion"] = Fac.Value
+  cursettings["/Soc" & Start.Societe & "/CptFac"] = CptFac.Value
+  cursettings["/Soc" & Start.Societe & "/Exp"] = Exp.Value
+  cursettings["/Soc" & Start.Societe & "/Expmail"] = Expmail.Value
+  cursettings["/Soc" & Start.Societe & "/Imp"] = Imp.Value
+  cursettings["/Soc" & Start.Societe & "/Chemin-export"] = Chmexport.Text
+  cursettings["/Soc" & Start.Societe & "/Adr-export"] = Adrexport.Text
+  cursettings["/Soc" & Start.Societe & "/Chemin-import"] = Chmimp.Text
+  cursettings["/Soc" & Start.Societe & "/Qt1"] = Qt1.Value
+  cursettings["/Soc" & Start.Societe & "/Cqte"] = Cqte.Value
+
+  cursettings["/Soc" & Start.Societe & "/Coul_fen"] = Gcf.value
+  cursettings["/Soc" & Start.Societe & "/Infob"] = Infob.value
+  cursettings["/Smtp"] = Smtp.Text
+  cursettings["/Port"] = Port.Text
+  cursettings["/Adrmail"] = Adrmail.Text
+  cursettings["/Utilisateur"] = Utilisateur.Text
+  cursettings["/MdpStmp"] = hexdblKey.crypt("en", MdpStmp.Text, "Laurux")
+  cursettings["/Soc" & Start.Societe & "/Fecran"] = Ecran.Text
+  cursettings["/Soc" & Start.Societe & "/glogo"] = Lgo.Value
+  cursettings["/Soc" & Start.Societe & "/glogo3"] = Lgo3.Value
+  cursettings["/Soc" & Start.Societe & "/glogo5"] = Lgo5.Value
+  cursettings["/Soc" & Start.Societe & "/glogo6"] = Lgo6.Value
+  cursettings["/Soc" & Start.Societe & "/Logo"] = Logo.Text
+  cursettings["/Soc" & Start.Societe & "/Logo2"] = Logo2.Text
+  cursettings["/Soc" & Start.Societe & "/Adr-base"] = Adrbase.Text
+
+  cursettings["/Majver"] = Majver.Value
+
+  cursettings["/Soc" & Start.Societe & "/Btq"] = Btq.Value
+  'cursettings["/Soc" & Start.Societe & "/Btq2"] = Btq2.Value
+  cursettings["/Soc" & Start.Societe & "/Adrbtq"] = Adrbtq.Text
+  cursettings["/Soc" & Start.Societe & "/Identifiant"] = Identifiant.Text
+  cursettings["/Soc" & Start.Societe & "/Adradminart"] = Adradminart.Text
+  cursettings["/Soc" & Start.Societe & "/Adradminphot"] = Adradminphot.Text
+  cursettings["/Soc" & Start.Societe & "/Mdpadmin"] = Mdpadmin.Text
+  cursettings["/Soc" & Start.Societe & "/Photart"] = Photart.Text
+  cursettings["/Soc" & Start.Societe & "/Font"] = FontChooser1.SelectedFont
+  cursettings["/Soc" & Start.Societe & "/Coupon"] = Coupon.Value
+  cursettings["/Soc" & Start.Societe & "/Factchemin"] = Chemin.Text
+  cursettings["/Soc" & Start.Societe & "/FactcheminF"] = Chemin2.Text
+  cursettings["/Soc" & Start.Societe & "/FactcheminP"] = Chemin4.Text
+  cursettings["/Soc" & Start.Societe & "/FactcheminV"] = Chemin3.Text
+  cursettings["/Soc" & Start.Societe & "/FactcheminA"] = Chemin5.Text
+  cursettings["/Soc" & Start.Societe & "/FactcheminC"] = Chemin6.Text
+  cursettings["/Soc" & Start.Societe & "/Pdfchemin"] = Chemin7.Text
+  cursettings["/Soc" & Start.Societe & "/Pdf"] = Pdf.Value
+  cursettings["/Soc" & Start.Societe & "/Pdf2"] = Pdf2.Value
+  cursettings["/Soc" & Start.Societe & "/Pdf3"] = Pdf3.Value
+  cursettings["/Soc" & Start.Societe & "/Pdf4"] = Pdf4.Value
+  cursettings["/Soc" & Start.Societe & "/Pdf5"] = Pdf5.Value
+  cursettings["/Soc" & Start.Societe & "/Pdf6"] = Pdf6.Value
+  cursettings["/Soc" & Start.Societe & "/Factdef"] = Factdef.Value
+  cursettings["/Soc" & Start.Societe & "/Bldef"] = Bldef.Value
+  cursettings["/Soc" & Start.Societe & "/Devisdef"] = Devisdef.Value
+  cursettings["/Soc" & Start.Societe & "/Prodef"] = Prodef.Value
+  cursettings["/Soc" & Start.Societe & "/Totstring"] = Totstring.Value
+  cursettings["/Soc" & Start.Societe & "/Fht"] = sFht.Value
+  cursettings["/Soc" & Start.Societe & "/TxtF"] = TxtF.Value
+  cursettings["/Soc" & Start.Societe & "/LTxtF"] = LTxtF.Text
+  cursettings["/Soc" & Start.Societe & "/Impbl"] = Impbl.value
+  cursettings["/Soc" & Start.Societe & "/Affaire"] = Affaire.Value
+  cursettings["/Soc" & Start.Societe & "/Art"] = Art.Value
+  cursettings["/Soc" & Start.Societe & "/MoArt"] = MoArt.Value
+  cursettings["/Soc" & Start.Societe & "/ComArt"] = Com.Value
+  cursettings["/Soc" & Start.Societe & "/Tmail"] = Tmail.Text
+  cursettings["/Soc" & Start.Societe & "/Tmail2"] = Tmail2.Text
+  cursettings["/Soc" & Start.Societe & "/Vendeurs"] = Vendeurs.Value
+  cursettings["/Soc" & Start.Societe & "/Casier"] = Casier.Value
+  'cursettings["/Soc" & Start.Societe & "/Zebra"] = Zebra.Value
+  cursettings["/Soc" & Start.Societe & "/Impetiq"] = Impetiq.text
+  cursettings["/Soc" & Start.Societe & "/IpZebra"] = IpZebra.Text
+  cursettings["/Soc" & Start.Societe & "/Sage"] = Sage.Value
+  cursettings["/Soc" & Start.Societe & "/Sauvauto"] = Sauvauto.Value
+  cursettings["/Soc" & Start.Societe & "/Envoiftp"] = Envoiftp.Value
+  cursettings["/Soc" & Start.Societe & "/Adrbase"] = Adrbase2.Text
+  cursettings["/Soc" & Start.Societe & "/MdpFTP"] = hexdblKey.crypt("en", MdpFTP.Text, "Laurux")
+  cursettings["/Soc" & Start.Societe & "/Idftp"] = IdFTP.Text
+  cursettings["/Soc" & Start.Societe & "/Adrbase3"] = Adrbase3.Text
+  cursettings["/Soc" & Start.Societe & "/MdpFTP3"] = hexdblKey.crypt("en", MdpFTP3.Text, "Laurux")
+  cursettings["/Soc" & Start.Societe & "/Idftp3"] = IdFTP3.Text
+  cursettings["/Soc" & Start.Societe & "/Prgmail"] = PrgMail.Text
+  cursettings["/Soc" & Start.Societe & "/Cnomade"] = Cnomade.Value
+  cursettings["/Soc" & Start.Societe & "/Chmcsv"] = Chmcsv.Text
+  cursettings["/Soc" & Start.Societe & "/AffArt"] = AffArt.Value
+  cursettings["/Soc" & Start.Societe & "/AffMarge"] = MasqueMarge.Value
+  cursettings["/Soc" & Start.Societe & "/AffFacture"] = AffFacture.Value
+  cursettings["/Soc" & Start.Societe & "/AffClient"] = AffClient.Value
+  cursettings["/Soc" & Start.Societe & "/Afour"] = Afour.Value
+  cursettings["/Soc" & Start.Societe & "/Sms"] = Sms.Value
+  cursettings["/Soc" & Start.Societe & "/Support"] = Support.Text
+  cursettings["/Soc" & Start.Societe & "/Api"] = Api.Text
+  cursettings["/Soc" & Start.Societe & "/Type"] = Type.Text
+  cursettings["/Soc" & Start.Societe & "/Expediteur"] = Expediteur.Text
+  cursettings["/Soc" & Start.Societe & "/Sprix"] = Checkbox2.Value
+  cursettings["/Soc" & Start.Societe & "/Simport"] = Import.Value
+  cursettings["/Soc" & Start.Societe & "/Sexport"] = Export.Value
+  cursettings["/Soc" & Start.Societe & "/Schmprix"] = Chmprix.Text
+  cursettings["/Soc" & Start.Societe & "/SMajArt"] = MajArt.Value
+  cursettings["/Soc" & Start.Societe & "/SMajFour"] = MajFour.Value
+  cursettings["/Soc" & Start.Societe & "/SMajCli"] = MajCli.Value
+  cursettings["/Soc" & Start.Societe & "/Replique"] = Replique.Value
+  cursettings["/Soc" & Start.Societe & "/Breplique"] = Breplique.Value
+  'cursettings["/Soc" & Start.Societe & "/Hidentifiant"] = Api2.Text
+  ' cursettings["/Soc" & Start.Societe & "/Hmdp"] = Api3.Text
+  If Exp.Value = True Then
     Exprt = "1"
   Else
     Exprt = "0"
   Endif
-  If Settings["/Soc" & Start.Societe & "/CptFac"] Then Fmenu.Menushowhide(Exprt)
+  If cursettings["/Soc" & Start.Societe & "/CptFac"] Then Fmenu.Menushowhide(Exprt)
   If Btq.Value = True Then
     Exprt = "1"
   Else
     Exprt = "0"
   Endif
-  If Settings["/Soc" & Start.Societe & "/Gestion"] = True Then
+  If cursettings["/Soc" & Start.Societe & "/Gestion"] = True Then
     Fmenuf.Menu2showhide(Exprt)
   Else
-    If Settings["/Soc" & Start.Societe & "/CptFac"] = True Then
+    If cursettings["/Soc" & Start.Societe & "/CptFac"] = True Then
       Fmenu.Menu2showhide(Exprt)
     Endif
   Endif
@@ -540,8 +723,20 @@ If Exp.Value = True Then
   Endif
   Fmenu.Menu4showhide(Cai)
   Fmenuf.Menu4showhide(Cai)
-  Settings.Save
-  Settings.Reload
+  
+  Endif 'Local Parameters Only
+  
+  If global = True Then
+    'on met a jour les paramètres globaux, les paramètres loxaux sont rechargé par Prl.ApplyGlobal() dans le Menu
+    cursettings.Save()
+    conf = File.Load(cursettings.path)
+    Utils.db.Exec("UPDATE " & Cbase.Table("TabParam") & " set conf = &1", conf)
+  Else
+    ' on reapplique les paramétres globaux puis on sauvegarde et recharge
+    ApplyGlobal(ReadGlobal())
+    cursettings.Save()
+    cursettings.Reload()
+  Endif
 
 End
 
@@ -1202,5 +1397,22 @@ Public Sub Support_Change()
       Api3.visible = False
 
   End Select
+
+End
+
+
+Public Sub Supprime_Click()
+
+  If global = True Then
+    If Message.Warning("Etes-vous sur de vouloir Supprimer vos parametres globaux?\nChaque poste pourrait alors avoir des configurations potentiellement incompatibles", "Annuler", "OK") = 1 Then Return 
+    Utils.db.Exec("UPDATE " & Cbase.Table("TabParam") & " set conf = &1", Null)
+    Kill cursettings.Path
+    cursettings.Clear()
+    cursettings = Null
+    'On ne devrait pas reinitialiser la variable globale ici
+    Start.GlobalSettings = Null
+  Endif
+  
+  Me.Close
 
 End
