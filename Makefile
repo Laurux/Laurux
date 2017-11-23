@@ -20,16 +20,14 @@ endif
 all: $(APP)
 
 $(APP): .project $(shell find .src -type f)
-	$(vvecho) "Setting sha1 to $(GIT_SHA1) for $(GIT_BRANCH)"
-	$(Q) sed -i -e "s/SHA1_REPO_GIT_Laurux/$(GIT_SHA1)/g" .src/Communs/FAbout.class
-	$(Q) sed -i -e "s/BRANCH_REPO_GIT_Laurux/$(GIT_BRANCH)/g" .src/Communs/FAbout.class
+	$(vvecho) "Setting version info sha1 to $(GIT_SHA1) for $(GIT_BRANCH)"
+	$(Q) echo "$(GIT_SHA1)" > sha1.txt
+	$(Q) echo "$(GIT_BRANCH)" > branch.txt
 	$(vecho) "Compiling $(PROJECT) for Version $(VERSION) ($(GIT_SHA1))"
 	$(Q)gbc3 -agt >/dev/null 2>&1
 	$(vecho) "Generation Binary $@"
 	$(Q)gba3 -o $@
 	$(vvecho) "Restoring default sha1 / branch"
-	$(Q) sed -i -e "s/$(GIT_SHA1)/SHA1_REPO_GIT_Laurux/g" .src/Communs/FAbout.class
-	$(Q) sed -i -e "s/$(GIT_BRANCH)/BRANCH_REPO_GIT_Laurux/g" .src/Communs/FAbout.class
 
 clean:
 	$(vecho) "Cleaning $(PROJECT)"	
