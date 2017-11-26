@@ -84,6 +84,10 @@ Public Bsel As Boolean = False
 Public CodeClient As String
 Private Tableau As String[]
 Private $grdv As Gridvi
+Private $ipr As Integer[]
+
+Private $soption As String
+Private $opt As Artopt
 
 Public Sub _New()
 
@@ -170,10 +174,23 @@ Public Sub _New()
   rResult = Utils.db.Exec("SELECT art_code FROM " & Cbase.Table("TabArt") & "")
   NbEnregTot = rResult.Count
   TabStrip1[7].Visible = False
-
+'' gérer les options
+  $soption = utils.Option()
+  If $soption <> "N" Then 
+    TabStrip1.Count += 1
+    $opt = New Artopt(TabStrip1, $soption, Frais, PaUA, Prvt, TxTva, code, TabStrip1) As "$opt"
+  Endif
+  
   $grdv = New Gridvi(TabStrip1, "A")
   $grdv.razcol
-
+  
+  $ipr = Settings["/Soc" & Start.Societe & "/ipr"]
+  Try n = $ipr.Count
+  If Error Or $ipr.Count = 0 Then
+    Message.Error("Veuillez vérifier le paramétrage des familles", "OK")
+    Me.Close
+  Endif
+  
 End
 
 Public Sub Form_Open()
@@ -659,6 +676,8 @@ Public Sub Maj_Zones(Prod As String, Reaf As Integer)
           Repeat
             Cbarre.Add(Rbarre!codeb)
           Until Rbarre.MoveNext()
+        Else
+          Cbarre.Text = Rart!art_cbarre
         Endif
         Rbarre = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabRpl1") & " where codep = &1 order by coderpl1", Prod)
         If Rbarre.Available Then
@@ -847,6 +866,7 @@ Public Sub Maj_Zones(Prod As String, Reaf As Integer)
         $grdv.dec = utils.Find_nbdec(dec.Text)
         $grdv.razcol
         $grdv.bouton_Click()
+        $opt.numart = code.Text
         If Promo Then Apromo = ArtPromo.art_Promo(Code.text, Cpromo)
         If apromo = True Then Balloon.Warning(("Ce produit est présent dans la promotion en cours " & Cpromo), Code)
       Endif
@@ -924,7 +944,7 @@ Public Sub Fam2()
 
   tvavn = "Fiches_Tvaav"
   tvan = "Fiches_Comptes"
-  Rfams = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " WHERE code_fam = &1", Fam.Text)
+  Rfams = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " WHERE code_fam = &1", fam.Text)
   LibelFam.Text = Rfams!libell_fam
   Coef.Text = Format$(Rfams!coef_fam, "0.0000")
   Tva.Text = Rfams!cdtva_fam
@@ -970,7 +990,7 @@ Public Sub CleanChamps()
   Desg2.Clear
   four.Clear
   fournom.Clear
-  Fam.Clear
+  fam.Clear
   LibelFam.Clear
   Cequ.Clear
   Cfour.Clear
@@ -1278,6 +1298,7 @@ Public Sub ToggleButton6_Click()
       Colcom.visible = False
     Else
       Colcom.visible = True
+      Colcom.Raise
       Colcom.Columns.count = 5
       Colcom.Columns[0].Width = 74
       Colcom.Columns[1].Width = 100
@@ -2016,7 +2037,10 @@ Public Sub Cmpt_Change()
     End Select
   Endif
   Chkf = 1
-
+  ' b2 = 0
+  If Last.tag = 10 Then $opt.prixachat = PaUA.Text
+  If Last.tag = 27 Then $opt.prixrev = prvt.Text
+  
 End
 
 Public Sub Cmpt_lostFocus()
@@ -3629,6 +3653,7 @@ Public Sub ToggleButton1_click()
     Four.SetFocus
   Else
     fourlist.visible = True
+    fourlist.Raise
     fourlist.Columns.count = 2
     fourlist.Columns[0].Width = 80
     fourlist.Columns[1].Width = 180
@@ -3805,6 +3830,7 @@ Public Sub ToggleButton3_Click()
     Fam.SetFocus
   Else
     FamList.visible = True
+    FamList.Raise
     FamList.Columns.count = 2
     FamList.Columns[0].Width = 65
     FamList.Columns[1].Width = 180
@@ -3885,6 +3911,7 @@ Public Sub ToggleButton4_Click()
     ColMarque.visible = False
   Else
     ColMarque.visible = True
+    ColMarque.Raise
     ColMarque.Columns.count = 2
     ColMarque.Columns[0].Width = 65
     ColMarque.Columns[1].Width = 180
@@ -4606,6 +4633,7 @@ Public Sub EnrgArt()
                 If Not IsNull(Rpl1.text) And If $rpl1 <> Rpl1.Text Then
                   Maj_Rpl1()
                 Endif
+                If $soption <> "N" Then $opt.enregiste          'enregistre les options article
                 If Not IsNull(Cequ.text) And If Bequ Then MajEqu.Maj(code.Text, Cequ.text)
                 ComboTest = False
                 Cb1.Text = "Equivalent"
@@ -4621,10 +4649,11 @@ Public Sub EnrgArt()
                 Next
               Endif
             Else
-              Utils.db.Exec("Update  " & Cbase.Table("TabArt") & "  SET  art_code = &1 , art_design = &2 , art_fam = &3 , art_four = &4 , art_cequ = &5,art_cbarre = &6, art_cfour = &7, art_pbht = &8 , art_tr = &9 , art_pauaht = &{10} , art_coef = &{11}, art_pvht = &{12}, art_tva = &{13}, art_pvttc = &{14}, art_cdarr = &{15}, art_dec = &{16}, art_stocke = &{17}, art_nbd = &{20}, art_design2 = &{21}, art_ect= &{22}, art_eco = &{23}, art_paht = &{24}, art_txconv = &{25} , art_pmp = &{26}, art_stkmin = &{27}, art_stkmax = &{28}, art_suspendu = &{29}, art_cpp = &{30}, art_copp = &{31}, art_frais = &{32}, art_prvt = &{33}, art_ect2 = &{34}, art_eco2 = &{35}, art_depg = &{36}, art_cnsg = &{37}, art_refliee = &{38} where art_code = &1", code.Text, Desg.Text, Fam.Text, four.Text, Cequ.Text, CBarre.Text, Cfour.Text, Val(pbht.Text), Val(Tr.Text), Val(Paua.Text), Val(utils.cpoint(Coef.Text)), Val(Pvht.Text), Tva.Text, Val(Pvttc.Text), Arr.Text, Dec.Text, .convBool(Stocke.Value), Val(qte.Text), Val(Stkdep.Text), nbd.Text, Desg2.Text, .convBool(Ect.Value), Val(Eco.Text), Val(paht.Text), Val(Txconv.Text), Val(Pmp.Text), Val(Stkmini.Text), Val(Stkmaxi.Text), .convBool(Suspendu.Value), .convBool(Cpp.Value), Val(Copp.Text), Val(Frais.Text), Val(Prvt.Text), .convBool(Ect2.Value), Val(Eco2.Text), .convBool(Depg.Value), .convBool(Cnsg.Value), Artlie.Text)
+              Utils.db.Exec("Update  " & Cbase.Table("TabArt") & "  SET  art_code = &1 , art_design = &2 , art_fam = &3 , art_four = &4 , art_cequ = &5,art_cbarre = &6, art_cfour = &7, art_pbht = &8 , art_tr = &9 , art_pauaht = &{10} , art_coef = &{11}, art_pvht = &{12}, art_tva = &{13}, art_pvttc = &{14}, art_cdarr = &{15}, art_dec = &{16}, art_nbd = &{20}, art_design2 = &{21}, art_ect= &{22}, art_eco = &{23}, art_paht = &{24}, art_txconv = &{25} , art_pmp = &{26}, art_stkmin = &{27}, art_stkmax = &{28}, art_suspendu = &{29}, art_cpp = &{30}, art_copp = &{31}, art_frais = &{32}, art_prvt = &{33}, art_ect2 = &{34}, art_eco2 = &{35}, art_depg = &{36}, art_cnsg = &{37}, art_refliee = &{38} where art_code = &1", code.Text, Desg.Text, fam.Text, four.Text, Cequ.Text, CBarre.Text, Cfour.Text, Val(pbht.Text), Val(Tr.Text), Val(Paua.Text), Val(utils.cpoint(Coef.Text)), Val(Pvht.Text), Tva.Text, Val(Pvttc.Text), Arr.Text, Dec.Text, .convBool(Stocke.Value), Val(qte.Text), Val(Stkdep.Text), nbd.Text, Desg2.Text, .convBool(Ect.Value), Val(Eco.Text), Val(paht.Text), Val(Txconv.Text), Val(Pmp.Text), Val(Stkmini.Text), Val(Stkmaxi.Text), .convBool(Suspendu.Value), .convBool(Cpp.Value), Val(Copp.Text), Val(Frais.Text), Val(Prvt.Text), .convBool(Ect2.Value), Val(Eco2.Text), .convBool(Depg.Value), .convBool(Cnsg.Value), Artlie.Text)
               Try Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET  qte1 = &2, qte2 = &3, rem1 = &4, qte3 = &5, qte4 = &6, rem2 = &7, qte5 = &8, qte6 = &9, rem3 = &{10}, qte7 = &{11}, qte8 = &{12}, rem4 = &{13}, qte9 = &{14}, qte10 = &{15}, rem5 = &{16}, qte11 = &{17}, qte12=  &{18}, rem6 = &{19}, art_etiq = &{20}, art_poids = &{21}, art_vol = &{22}, art_mincom = &{23}, art_poids2 = &{24}, art_mat = &{25}, art_marque = &{26}, art_photo = &{27}, art_crst = &{28}, art_impcar = &{29}, art_casier = &{30}, art_pvcons = &{31}, art_prdcomp = &{32}, art_impdetail = &{33}, art_remcas1 = &{34}, art_remcas2 = &{35}, art_remcas3 = &{36}, art_bonus = &{37}, art_pbfbt = &{38}, art_datefbt = &{39}, art_centrale = &{40}, art_refcentrale = &{41}, art_colvte = &{42}, art_pvht2 = &{43}, art_cn8 = &{44}, art_crpl1 = &{45}, art_ua = &{46}, art_uv = &{47}  WHERE art_code = &1", Code.Text, Val(Tbrem[0, 0].Text), Val(Tbrem[0, 1].Text), Val(Tbrem[0, 2].Text), Val(Tbrem[1, 0].Text), Val(Tbrem[1, 1].Text), Val(Tbrem[1, 2].Text), Val(Tbrem[2, 0].Text), Val(Tbrem[2, 1].Text), Val(Tbrem[2, 2].Text), Val(Tbrem[3, 0].Text), Val(Tbrem[3, 1].Text), Val(Tbrem[3, 2].Text), Val(Tbrem[4, 0].Text), Val(Tbrem[4, 1].Text), Val(Tbrem[4, 2].Text), Val(Tbrem[5, 0].Text), Val(Tbrem[5, 1].Text), Val(Tbrem[5, 2].Text), .convBool(Etiq.Value), Val(Poids.Text), Vol.Text, Mincom.text, Val(.CPoint(Poids2.Text)), .convBool(Mat.Value), Marque.Text, photo.text, Crst.text, .convBool(Impcar.Value), Casier.text, Val(pvcons.Text), .convBool(Prdcomp.Value), .convBool(Impdetail.Value), Val(.cpoint(Rem1.Text)), Val(.cpoint(Rem2.Text)), Val(.cpoint(Rem3.Text)), Val(.CPoint(Bonus.Text)), Val(.cpoint(Pbfbt.Text)), .Cdate_Dbase(Datefbt.Text), Centrale.Text, RefCentrale.Text, Val(ColVte.text), Val(PVHT2.Text), CN8.Text, rpl1.Text, Uembachat.text, Uembvente.text)
               If Variables.Sprix And Variables.Sexport And Variables.SMajArt Then Serveur.Pass("Art", "M", code.Text, "")
               If Chkf = 1 Then Try Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET  art_ddatefbt = &2  WHERE art_code = &1", code.Text, Format$(Now, "yyyymmdd"))
+              If $soption <> "N" Then $opt.enregiste        'enregistre les options
               b = 0
               skey = Code.Text
               If Not Error Then
@@ -4881,6 +4910,7 @@ End
 Public Sub Button1_Click()
 
   CleanChamps()
+  If $soption <> "N" Then $opt.affmab
   Try Code.Text = Val(Dera.Text) + 1
   If Not Error Then
     If Dera.text <> 999 And If Dera.text <> 9999 Then Code.Text = Left$(Dera.Text, Len(Dera.Text) - Len(Code.Text)) & Code.Text
@@ -4907,6 +4937,7 @@ Public Sub ToggleButton5_Click()
       Colcom.visible = False
     Else
       Colcom.visible = True
+      Colcom.Raise
       Colcom.Columns.count = 5
       Colcom.Columns[0].Width = 74
       Colcom.Columns[1].Width = 140
@@ -5435,5 +5466,11 @@ Public Sub Maj_ColType()
       Endif
     Until rType.MoveNext()
   Endif
+
+End
+
+Public Sub $opt_recalculpx()
+
+  PaUALF()
 
 End

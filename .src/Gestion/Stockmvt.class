@@ -1,0 +1,551 @@
+' Gambas class file
+
+Private $familles As Trifam
+Private $rpt As Report
+Private $res As Result
+Private $entre As Float
+Private $sortie As Float
+Private $ca As Float
+Private $marge As Float
+
+Private $soption As String
+
+
+Public Sub _new()
+
+  Dim res As Result
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Music.Load(Start.Musique)
+  Me.Center
+  sortie.Width = 120
+  entre.Width = 120
+  ca.Width = 130
+  marge.Width = 120
+  
+  Textdtsup.Text = Format(Now, "dd.mm.yyyy")
+  Textdtinf.Text = Format(Now, "01.mm.yyyy")
+  
+  $familles = New Trifam("1")
+  TriArticles($familles.enfant)
+
+End
+
+Private Sub TriArticles(fam As Trifam)
+  
+  Dim fm As Trifam
+  Dim cle As String
+  
+  For Each fm In fam
+    If Not IsNull(fm.precedant) Then TriArticles(fm.precedant)
+    If fm.parent = $familles Then
+      TreeView1.Add(fm.cle, fm.Text)
+    Else
+      TreeView1.Add(fm.cle, fm.Text,, fm.parent.cle)
+    Endif
+  Next
+  TreeView1.MoveFirst
+  TreeView1[TreeView1.Item.Key].Selected = True
+End
+'**************************traitement et construction de la requete **************************************************
+Public Sub Buttrait_Click()
+
+  'construction de la requete
+  Dim requbl, champbl, fichierbl, condbl, groupbl As String
+  Dim requfa, champfa, fichierfa, condfa, groupfa As String
+  Dim reqfo, champfo, fichierfo, condfo, groupfo As String
+  Dim reqex, champex, fichierex, condex, groupex As String
+  Dim dtinf, dtsup As Date
+  Dim ord As String = " ORDER BY dte"
+
+  'base commune
+  dtinf = Utils.Cdate_calc(Textdtinf.Text)
+  dtsup = Utils.Cdate_calc(Textdtsup.Text)
+  
+  fichierbl = " FROM Fiches_Bl,Fiches_Ligbl"
+  condbl = Utils.db.Subst(" WHERE num_ligbl=numbl  AND (datebl BETWEEN &1 AND &2)", Format(dtinf, "yyyymmdd"), Format(dtsup, "yyyymmdd"))
+  champbl = "SELECT "
+  
+  champfa = " UNION ALL (SELECT "
+  fichierfa = " FROM Fiches_HistoFac,Fiches_HistoLigfac"
+  condfa = Utils.db.Subst(" WHERE numfac=num_ligfac AND (datefac BETWEEN &1 AND &2)", Format(dtinf, "yyyymmdd"), Format(dtsup, "yyyymmdd"))
+  
+  champfo = " UNION ALL (SELECT "
+  fichierfo = " FROM Fiches_Entrecpt,Fiches_Ligrecpt"
+  condfo = Utils.db.Subst(" WHERE Fiches_Entrecpt.four=Fiches_Ligrecpt.four AND Fiches_Entrecpt.numrecpt=Fiches_Ligrecpt.numrecpt AND (ddate BETWEEN &1 AND &2)", Format(dtinf, "yyyymmdd"), Format(dtsup, "yyyymmdd"))
+  
+  champex = " UNION ALL (SELECT "
+  fichierex = " FROM Fiches_Mvtexp,Fiches_Art"
+  condex = Utils.db.Subst(" WHERE art_code=code AND (daterecpt BETWEEN &1 AND &2)", Format(dtinf, "yyyymmdd"), Format(dtsup, "yyyymmdd"))
+  
+  'gestion marque et central d'achat
+  If Textmarque.Text Or Textcentach.Text Then
+    fichierbl &= ",Fiches_Art"
+    fichierfa &= ",Fiches_Art"
+    fichierfo &= ",Fiches_Art"
+    fichierex &= ",Fiches_Art"
+    condbl &= " AND art_code=code_ligbl" 
+    condfa &= " AND art_code=num_ligfac" 
+    condfo &= " AND art_code=code" 
+    condex &= " AND art_code=code" 
+    If Textmarque.Text Then
+      condbl &= Utils.db.Subst(" AND art_marque = &1", Textmarque.Text)
+      condfa &= Utils.db.Subst(" AND art_marque= &1", Textmarque.Text)
+      condfo &= Utils.db.Subst(" AND art_marque= &1", Textmarque.Text)
+      condex &= Utils.db.Subst(" AND art_marque &1", Textmarque.Text)
+    Endif
+    If Textcentach.Text Then
+      condbl &= Utils.db.Subst(" AND art_centrale= &1", Textcentach.Text)
+      condfa &= Utils.db.Subst(" AND art_centrale=&1", Textcentach.Text)
+      condfo &= Utils.db.Subst(" AND art_centrale= &1", Textcentach.Text)
+      condex &= Utils.db.Subst(" AND art_centrale= &1", Textcentach.Text)
+    Endif
+  Endif
+  'gestion client et fournisseur
+  If Textclient.Text Then
+    condbl &= Utils.db.Subst(" AND cdclibl=&1", Textclient.Text)
+    condfa &= Utils.db.Subst(" AND cdclifac=&1", Textclient.Text) 
+  Endif
+  If Textfour.Text Then
+    condfo &= Utils.db.Subst(" AND Fiches_Entrecpt.four=&1", Textfour.Text) 
+  Endif
+  'recherche par article
+  If Radioart.Value Then
+    If Not Textart.Text Then
+      Balloon.Delay = 3000
+      Balloon.Warning("N° article obligatoire", Textart)
+      Textart.SetFocus
+      Return
+    Endif
+    condbl &= Utils.db.Subst(" AND code_ligbl= &1", textart.Text)
+    condfa &= Utils.db.Subst(" AND code_ligfac= &1", textart.Text)
+    condfo &= Utils.db.Subst(" AND code= &1", textart.Text)
+    condex &= Utils.db.Subst(" AND art_code= &1", textart.Text)
+    champbl &= Utils.db.Subst("code_ligbl as code, CONCAT(libel_ligbl, &1) as libelle, datebl as dte", " Factures en cours")
+    champfa &= Utils.db.Subst("code_ligfac as code, CONCAT(libel_ligfac, &1) as libelle, datefac as dte", " Factures archives")
+    champfo &= Utils.db.Subst("Fiches_Ligrecpt.code as code, CONCAT(design, &1) as libelle, daterecpt as dte", " Entrées fournisseurs")
+    champex &= Utils.db.Subst("Fiches_Mvtexp.code as code, CONCAT(art_design, &1) as libelle, daterecpt as dte", " Mvt exceptionnels")
+  Endif
+  'que les entrées ou que les sorties
+  If Radioentre.Value Then
+    condbl &= " AND qte_ligbl < '0'"
+    condfa &= " AND qte_ligfac < '0'"
+    condfo &= " AND qte > '0'"
+    condex &= " AND qtep > '0'"
+  Endif
+  If Radiosortie.Value Then
+    condbl &= " AND qte_ligbl > '0'"
+    condfa &= " AND qte_ligfac > '0'"
+    condfo &= " AND qte < '0'"
+    condex &= " AND qtem > '0'"
+  Endif
+  If Radiotouta.Value Then
+    condbl &= " AND qte_ligbl <> '0'"
+    condfa &= " AND qte_ligfac <> '0'"
+    condfo &= " AND qte <> '0'"
+    condex &= " AND (qtep <> '0' OR qtem<> '0')"
+  Endif
+  'recherche par famille
+  If Radiofam.Value Then
+    fichierbl &= ",Fiches_Fam"
+    fichierfa &= ",Fiches_Fam"
+    fichierfo &= ",Fiches_Fam"
+    fichierex &= ",Fiches_Fam"
+    If Not Textmarque.Text And Not Textcentach.Text Then
+      fichierfo &= ",Fiches_Art"
+      condfo &= " AND art_code=code" 
+      condex &= " AND art_code=code" 
+    Endif
+    If Checksfam.Value Then
+      condbl &= Utils.db.Subst(" AND fam_ligbl=code_fam AND fam_ligbl LIKE &1", TreeView1.Current.Key & "%")
+      condfa &= Utils.db.Subst(" AND fam_ligfac=code_fam AND fam_ligfac LIKE &1", TreeView1.Current.Key & "%")
+      condfo &= Utils.db.Subst(" AND art_fam=code_fam AND art_fam LIKE &1", TreeView1.Current.Key & "%")
+      condex &= Utils.db.Subst(" AND art_fam=code_fam AND art_fam LIKE &1", TreeView1.Current.Key & "%")
+      
+    Else
+      condbl &= Utils.db.Subst(" AND fam_ligbl=code_fam AND fam_ligbl = &1", TreeView1.Current.Key)
+      condfa &= Utils.db.Subst(" AND fam_ligfac=code_fam AND fam_ligfac = &1", TreeView1.Current.Key)
+      condfo &= Utils.db.Subst(" AND art_fam=code_fam AND art_fam = &1", TreeView1.Current.Key)
+      condex &= Utils.db.Subst(" AND art_fam=code_fam AND art_fam = &1", TreeView1.Current.Key)
+    Endif
+    If Checkart.Value Then
+      champbl &= Utils.db.Subst("code_ligbl as code, CONCAT(libel_ligbl, &1) as libelle, datebl as dte", " Factures en cours")
+      champfa &= Utils.db.Subst("code_ligfac as code, CONCAT(libel_ligfac, &1) as libelle, datefac as dte", " Factures archives")
+      champfo &= Utils.db.Subst("Fiches_Ligrecpt.code as code, CONCAT(design, &1) as libelle, daterecpt as dte", " Entrées fournisseurs")
+      champex &= Utils.db.Subst("Fiches_Mvtexp.code as code, CONCAT(art_design, &1) as libelle, daterecpt as dte", " Mvt exceptionnels")
+    Else
+      champbl &= Utils.db.Subst("code_fam as code, CONCAT(libell_fam, &1) as libelle, datebl as dte", " Factures en cours")
+      champfa &= Utils.db.Subst("code_fam as code, CONCAT(libell_fam,&1) as libelle, datefac as dte", " Factures archives")
+      champfo &= Utils.db.Subst("code_fam as code, CONCAT(libell_fam,&1) as libelle, daterecpt as dte", " Entrées fournisseurs")
+      champex &= Utils.db.Subst("code_fam as code, CONCAT(libell_fam,&1) as libelle, daterecpt as dte", " Mvt exceptionnels")
+    Endif
+    
+  Endif
+  'recherche sans regroupement
+  If Radiodetail.Value Then
+    champbl &= ",(qte_ligbl * -1) as qte, REPLACE(netht_ligbl,',','.') as ca,mrgart_ligbl as mrgart,mrgmo_ligbl as mrgmo"
+    champfa &= ",(REPLACE(qte_ligfac,',','.') * -1) as qte, REPLACE(netht_ligfac,',','.') as ca,mrgart_ligfac as mrgart,mrgmo_ligfac as mrgmo"
+    champfo &= ",REPLACE(qte,',','.') as qte, REPLACE(qte,',','.') * REPLACE(paht,',','.') as ca,'0'as mrgart,'0' as mrgmo"
+    champex &= ",(REPLACE(qtep,',','.') - REPLACE(qtem,',','.')) as qte, '0' as ca,'0'as mrgart,'0' as mrgmo"
+  Else
+    champbl &= ",(SUM(qte_ligbl * -1)) as qte, SUM(REPLACE(netht_ligbl,',','.')) as ca, SUM(mrgart_ligbl) as mrgart, (SUM(mrgmo_ligbl)) as mrgmo"
+    champfa &= ",(SUM(REPLACE(qte_ligfac,',','.') * -1)) as qte, SUM(REPLACE(netht_ligfac,',','.')) as ca,SUM(mrgart_ligfac) as mrgart,SUM(mrgmo_ligfac) as mrgmo"
+    champfo &= ",SUM(REPLACE(qte,',','.')) as qte, SUM(REPLACE(qte,',','.') * REPLACE(paht,',','.')) as ca,'0'as mrgart,'0' as mrgmo"
+    champex &= ",SUM((REPLACE(qtep,',','.')) - REPLACE(qtem,',','.')) as qte, '0' as ca,'0'as mrgart,'0' as mrgmo"
+  Endif
+  'regroupement par jour / moi / année
+  If Radiojour.Value Then
+    groupbl &= "GROUP BY dte"
+    groupfa &= "GROUP BY dte"
+    groupfo &= "GROUP BY dte"
+    groupex &= "GROUP BY dte"
+  Endif
+  If Radiomens.Value Then
+    groupbl &= "GROUP BY CONCAT(MONTH(dte), YEAR(dte))"
+    groupfa &= "GROUP BY CONCAT(MONTH(dte), YEAR(dte))"
+    groupfo &= "GROUP BY CONCAT(MONTH(dte), YEAR(dte))"
+    groupex &= "GROUP BY CONCAT(MONTH(dte), YEAR(dte))"
+  Endif
+  If Radioanuel.Value Then
+    groupbl &= "GROUP BY YEAR(dte)"
+    groupfa &= "GROUP BY YEAR(dte)"
+    groupfo &= "GROUP BY YEAR(dte)"
+    groupex &= "GROUP BY YEAR(dte)"
+  Endif
+  'et la requete ... enfin
+  requbl = champbl & fichierbl & condbl & groupbl
+  requfa = champfa & fichierfa & condfa & groupfa & ")"
+  reqfo = champfo & fichierfo & condfo & groupfo & ")"
+  If Not Checkmvte.Value Or Textfour.Text Or Textclient.Text Then
+    reqex = ""
+  Else
+    reqex = champex & fichierex & condex & groupex & ")"
+  Endif
+  If Textclient.Text And Not Textfour.Text Then reqfo = ""
+  If Textfour.Text And Not Textclient.Text Then 
+    requbl = ""
+    requfa = ""
+    ord = ""
+    reqfo = Right(reqfo, -12)
+    reqfo = Left(reqfo, -1)
+  Endif
+  entre.Visible = False
+  sortie.Visible = False
+  ca.Visible = False
+  marge.Visible = False
+  $res = Utils.db.Exec(requbl & requfa & reqfo & reqex & ord)
+  If $res.Available Then
+    affiche
+  Else
+    GridView1.Rows.Count = 0
+    Butedit.Enabled = False
+    GridView1.Clear
+  Endif
+  
+End
+
+Private Sub affiche()
+
+  GridView1.Clear
+  GridView1.Columns.Count = 3
+  GridView1.Columns[0].Text = "Date"
+  GridView1.Columns[0].Width = 100
+  GridView1.Columns[0].Alignment = Align.Center
+  GridView1.Columns[1].Text = "Code"
+  GridView1.Columns[1].Width = 180
+  GridView1.Columns[1].Alignment = Align.Center
+  GridView1.Columns[2].Text = "Libelle"
+  GridView1.Columns[2].Expand = True
+  GridView1.Columns[2].Alignment = Align.Center
+  If Radiosortie.Value Or Radiotouta.Value Then
+    GridView1.Columns.Count += 1
+    GridView1.Columns[3].Text = "Sortie"
+    GridView1.Columns[3].Width = 120
+    GridView1.Columns[3].Alignment = Align.Center
+    sortie.Visible = True
+  Endif
+  If Radioentre.Value Or Radiotouta.Value Then
+    GridView1.Columns.Count += 1
+    GridView1.Columns[GridView1.Columns.Max].Text = "Entré"
+    GridView1.Columns[GridView1.Columns.Max].Width = 120
+    GridView1.Columns[GridView1.Columns.Max].Alignment = Align.Center
+    entre.Visible = True
+  Endif 
+  If Checkca.Value Then
+    GridView1.Columns.Count += 1
+    GridView1.Columns[GridView1.Columns.Max].Text = "C.A"
+    GridView1.Columns[GridView1.Columns.Max].Width = 130
+    GridView1.Columns[GridView1.Columns.Max].Alignment = Align.Center
+    ca.Visible = True
+  Endif
+  If Checkmarge.Value Then
+   GridView1.Columns.Count += 1
+    GridView1.Columns[GridView1.Columns.Max].Text = "Marge"
+    GridView1.Columns[GridView1.Columns.Max].Width = 120
+    GridView1.Columns[GridView1.Columns.Max].Alignment = Align.Center
+    marge.Visible = True
+  Endif
+  Butedit.Enabled = True
+  $entre = 0
+  $sortie = 0
+  $ca = 0
+  $marge = 0
+  GridView1.Rows.Count = $res.Count
+  
+End
+
+Public Sub GridView1_Data(Row As Integer, Column As Integer)
+
+  Dim i As Byte
+  Dim coul As Integer
+  
+  $res.MoveTo(Row)
+  
+  If Column = 0 Then
+    If Even(row) Then coul = Color.White Else coul = Color.Background
+    If Radiojour.Value Or Radiodetail.Value Then GridView1[Row, 0].Text = Format($res!dte, "dd.mm.yyyy")
+    If Radiomens.Value Then GridView1[Row, 0].Text = Format($res!dte, "mm.yyyy")
+    If Radioanuel.Value Then GridView1[Row, 0].Text = Format($res!dte, "yyyy")
+    GridView1[row, 0].Background = coul
+    GridView1[row, 1].Text = $res!code
+    GridView1[row, 1].Alignment = Align.Left
+    GridView1[row, 1].Background = coul
+    GridView1[row, 2].Text = $res!libelle
+    GridView1[row, 2].Alignment = Align.Left
+    GridView1[row, 2].Background = coul
+    i = 2
+    If Radiosortie.Value Or Radiotouta.Value Then
+      Inc i
+      GridView1[row, i].Alignment = Align.Right
+      GridView1[row, i].Background = coul
+      If Utils.totobs([$res!qte]) < 0 Then
+        GridView1[row, i].Text = Format(Utils.totobs([$res!qte]) * -1, "0.000")
+        $sortie += Utils.totobs([$res!qte]) * -1
+      Else
+        GridView1[row, i].Text = Format(0, "0.000")
+      Endif
+    Endif
+  
+    If Radioentre.Value Or Radiotouta.Value Then
+      Inc i
+      GridView1[row, i].Alignment = Align.Right
+      GridView1[row, i].Background = coul
+      If Utils.totobs([$res!qte]) > 0 Then
+        GridView1[row, i].Text = Format(Utils.totobs([$res!qte]), "0.000")
+        $entre += Utils.totobs([$res!qte])
+      Else
+        GridView1[row, i].Text = Format(0, "0.000")
+      Endif
+    Endif
+    If Checkca.Value Then
+      Inc i
+      GridView1[row, i].Alignment = Align.Right
+      GridView1[row, i].Background = coul
+      GridView1[row, i].Text = Format(Utils.totobs([$res!ca]), "0.00")
+      $ca += Utils.totobs([$res!ca])
+    Endif
+    If Checkmarge.Value Then
+      Inc i
+      GridView1[row, i].Alignment = Align.Right
+      GridView1[row, i].Background = coul
+      GridView1[row, i].Text = Format(Utils.totobs([$res!mrgart, $res!mrgmo]), "0.00")
+      $marge += Utils.totobs([$res!mrgart, $res!mrgmo])
+    Endif
+    
+    entre.Text = Format($entre, "0.000")
+    sortie.Text = Format($sortie, "0.000")
+    ca.Text = Format($ca, "0.00")
+    marge.Text = Format($marge, "0.00")
+  Endif
+End
+'**********************************Edition du gridview***********************************
+Public Sub Butedit_Click()
+
+  Dim hb As ReportHBox
+  Dim hv As ReportHBox
+  Dim lab As ReportLabel
+  Dim coul As Integer
+  Dim i, j As Byte
+  Dim tot As Float[]
+  
+  tot = New Float[GridView1.Columns.Max - 2]
+  coul = Val("&H" & Hex(Start.R) & Hex(Start.G) & Hex(Start.B))
+  $rpt = New Report
+  
+  lab = New ReportLabel($rpt)
+  lab.Height = "4mm"
+  lab.Text = "Mouvements de stock par critères"
+  lab.BackGround = ReportBrush.Color(coul)
+  lab.Alignment = Align.Center
+  lab.Fixed = True
+  'edition de l'entete
+  hb = New ReportHBox($rpt)
+  hb.Height = "4mm"
+  hb.Border = ReportBorder["Top:1pt #000000;Bottom:1pt #000000;Left:1pt #000000;Right:1pt #000000"]
+  hb.Fixed = True
+  
+  For i = 0 To GridView1.Columns.Max
+    lab = New ReportLabel(hb)
+    lab.Height = "3mm"
+    lab.Alignment = Align.Center
+    lab.Text = GridView1.Columns[i].Text
+    lab.Font = font["Serif,-1"]
+    If i = 2 Then
+      lab.Expand = True
+    Else
+      lab.Width = "20mm"
+    Endif
+    lab.Border = ReportBorder["Right:1pt #000000"]
+  Next
+  'edition du corp 
+  For i = 0 To GridView1.Rows.Max
+    hb = New ReportHBox($rpt)
+    If Even(i) Then hb.BackGround = ReportBrush.Color(Color.White) Else hb.BackGround = ReportBrush.Color(Color.Lighter(Color.Gray))
+    For j = 0 To GridView1.Columns.Max
+      lab = New ReportLabel(hb)
+      lab.Height = "3mm"
+      lab.Font = font["Serif,-3"]
+      lab.Border = ReportBorder["Right:1pt #000000"]
+      lab.Text = GridView1[i, j].Text
+      lab.Width = "20mm"
+      Select Case j
+        Case 0, 1
+          lab.Alignment = Align.Center
+        Case 2
+          lab.Alignment = Align.Left
+          lab.Expand = True
+        Case Else
+          lab.Alignment = Align.Right
+          tot[j - 3] += Utils.totobs([GridView1[i, j].Text])
+      End Select
+    Next
+  Next
+  'edition du total
+  hb = New ReportHBox($rpt)
+  hb.Height = "4mm"
+  hb.Border = ReportBorder["Top:1pt #000000;Bottom:1pt #000000;Left:1pt #000000;Right:1pt #000000"]
+  hb.BackGround = ReportBrush.Color(coul)
+  hb.Font = font["Serif,-2"]
+  lab = New ReportLabel(hb)
+  lab.Height = "3mm"
+  lab.Expand = True
+  lab.Border = ReportBorder["Right:1pt #000000"]
+  lab.Text = "TOTAL"
+  
+  For i = 0 To tot.Max
+    lab = New ReportLabel(hb)
+    lab.Height = "3mm"
+    lab.Width = "20mm"
+    lab.Font = font["Serif,-3"]
+    lab.Alignment = Align.Right
+    lab.Border = ReportBorder["Right:1pt #000000"]
+    lab.Text = Format(tot[i], "0.00")
+  Next
+
+  $rpt.Preview
+End
+'********************gestion des boutons et textbox******************
+'marque et centrale
+Public Sub btn_Click()
+
+  Dim res As Result
+  
+  If ColumnView1.Visible Then 
+    ColumnView1.Visible = False
+    ColumnView1.Clear
+    Return
+  Endif
+  ColumnView1.Raise
+  ColumnView1.Visible = True
+  If Last = Butmarque Then
+    ColumnView1.Tag = "marque"
+    res = Utils.db.Exec("SELECT * FROM Fiches_Marques")
+  Endif 
+  If Last = Butcenta Then
+    ColumnView1.Tag = "central"
+    res = Utils.db.Exec("SELECT code,libelle as intitule FROM Fiches_Centrales")
+  Endif
+  If res.Available Then
+    res.MoveFirst
+    Repeat
+      ColumnView1.Add(res!code, res!intitule)
+    Until res.MoveNext()
+  Endif
+  
+End
+
+Public Sub ColumnView1_Activate()
+
+  If ColumnView1.Tag = "marque" Then
+    Textmarque.Text = ColumnView1.Current.Text
+  Endif
+  If ColumnView1.Tag = "central" Then
+    Textcentach.Text = ColumnView1.Current.Text
+  Endif
+  ColumnView1.Visible = False
+  ColumnView1.Clear
+
+End
+
+
+Public Sub Butcli_Click()
+
+  Dim trc As Triclients
+  
+  trc = New Triclients("TarCli")
+  trc.ShowModal
+  If TarCli.Bsel Then
+    Textclient.Text = TarCli.CodeClient
+    TarCli.Bsel = False
+  Endif
+  
+End
+
+Public Sub Butfour_Click()
+
+  Dim trfr As Trifours
+  
+  trfr = New Trifours("fo_code")
+  trfr.ShowModal
+  If Variables.Bsel Then
+    Textfour.Text = Variables.Cfour
+    Variables.Bsel = False
+  Endif
+  
+End
+
+Public Sub dte_DblClick()
+
+  If DateChooser1.visible = False Then
+    DateChooser1.visible = True
+    DateChooser1.Raise
+    DateChooser1.Tag = Last
+  Else
+    DateChooser1.Visible = False
+  Endif
+
+End
+
+Public Sub DateChooser1_Activate()
+
+  DateChooser1.tag.text = Format$(DateChooser1.Value, "dd.mm.yyyy")
+  DateChooser1.Visible = False
+
+End
+
+Public Sub dte_KeyPress()
+
+  If Key.code = Key.Escape Then
+    If DateChooser1.Visible = True Then DateChooser1.Visible = False
+  Endif
+  If Key.code = Key.F2 Then
+    If DateChooser1.Visible = True Then
+      DateChooser1.Visible = False
+    Else
+      DateChooser1.Visible = True
+      DateChooser1.Raise
+      DateChooser1.Tag = Last
+    Endif
+  Endif
+
+End

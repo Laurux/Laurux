@@ -1,0 +1,561 @@
+' Gambas class file
+
+Private bs As Barselection
+Private resregie As Result
+Private $ind As Integer
+
+Public Sub form_Open()
+
+  Dim obs As Observer
+
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  obs = New Observer(Textcode) As "cmpt"
+  obs = New Observer(Textlib) As "cmpt"
+  obs = New Observer(Textcdc) As "cmpt" 
+  obs = New Observer(Textdr) As "cmpt" 
+  obs = New Observer(Textss) As "cmpt" 
+  obs = New Observer(Texttva) As "cmpt" 
+  obs = New Observer(Texttxss) As "cmpt" 
+   
+  bs = New Barselection("111111110", panel3) As "bar1"
+  Combotype.Add("Alcool")
+  Combotype.Add("Biére")
+  Combotype.Add("Vins ")
+  affent(GridView1)
+  affent(GridView2)
+  
+  resregie = utils.db.Exec("SELECT * FROM Fiches_regie ORDER BY code")
+  If resregie.Available Then
+    resregie.MoveFirst
+    $ind = resregie.Index
+    affichedonne
+  Else
+    $ind = 0
+    Combotype.SetFocus
+  Endif
+  
+End
+
+Private Sub affent($grdv As GridView)
+
+  Dim sdte As String[]
+  Dim i, j, k As Integer
+  Dim res As Result
+  
+  res = utils.db.Exec("SELECT * FROM Fiches_Parametres")
+  If Not res.Available Then Return
+  
+  $grdv.Header = GridView.Both
+  $grdv.ScrollBar = Scroll.Both
+  sdte = Split(res!dteclec, "/")
+  sdte[2] = Left(sdte[2], 4)
+  $grdv.Columns.Count = 16
+  $grdv.Rows.Count = 13
+
+  j = sdte[0]
+  For i = 0 To 11
+    j += 1
+    If j = 13 Then j = 1
+    $grdv.Rows[i].Text = utils.mois(j)
+    $grdv.rows[i].Height = 18
+
+  Next
+  $grdv.Rows[12].Text = "TOTAL"
+  $grdv.Rows[12].Height = 22
+
+  k = 0
+  For i = 0 To 3
+    For j = 1 To 4
+      $grdv.Columns[k].Alignment = Align.Center
+      Select j
+        Case 1
+          $grdv.Columns[k].Width = 90
+          If sdte[0] <> "12" Then
+            $grdv.Columns[k].Title = Str(Val(sdte[2]) - i) & "/" & Str(Val(sdte[2]) - (i + 1))
+            $grdv.Columns[k].text &= " S.I"
+          Else
+            $grdv.Columns[k].text = Str(Val(sdte[2]) - i)
+            $grdv.Columns[k].text &= " S.I"
+          Endif
+        Case 2
+          $grdv.Columns[k].text = "Entrées"
+          $grdv.Columns[k].Width = 80
+        Case 3
+          $grdv.Columns[k].text = "Sorties"
+          $grdv.Columns[k].Width = 80 
+        Case 4
+          $grdv.Columns[k].text = "S.F"
+          $grdv.Columns[k].Width = 80
+          
+      End Select
+
+      k += 1
+    Next
+  Next
+
+End
+
+Private Sub affichedonne()
+
+  Dim res As Result
+  Dim i, j As Integer
+  
+  Textcode.Text = resregie!code 
+  Textcdc.Text = resregie!cdcompt
+  Textdr.Text = Replace(resregie!tauxa, ".", ",")
+  Textlib.Text = resregie!nom
+  Textss.Text = resregie!degres
+  Texttva.Text = resregie!ttva
+  Texttxss.Text = Replace(resregie!tauxss, ".", ",")
+  Radioap.Value = resregie!ap
+  Radiovol.Value = Not resregie!ap
+  Radioacquit.Value = Not resregie!suspendu
+  Radiosusp.Value = resregie!suspendu
+  Checkdr.Value = resregie!drfac
+  Select Case resregie!type
+    Case "A"
+      Combotype.Text = "Alcool"
+    Case "V"
+      Combotype.Text = "Vins "
+    Case "B"
+      Combotype.Text = "Biére"
+  End Select
+  'affiche gridv
+End
+
+Private Sub affectdonne()
+  
+  resregie!code = Textcode.Text 
+  resregie!cdcompt = Textcdc.Text 
+  resregie!tauxa = Val(Textdr.Text)
+  resregie!nom = Textlib.Text 
+  resregie!degres = Val(Textss.Text) 
+  resregie!ttva = Texttva.Text 
+  resregie!tauxss = Val(Texttxss.Text)
+  resregie!ap = Radioap.Value 
+  resregie!drfac = Checkdr.Value 
+  resregie!suspendu = Radiosusp.Value
+  resregie!type = Left(Combotype.Current.Text)
+  
+End
+
+Private Sub mablanc()
+  
+  Textcode.Clear
+  Textcdc.Clear
+  Textdr.Clear
+  Textlib.Clear
+  Textss.Clear
+  Texttva.Clear
+  Texttxss.Clear
+  Radioap.Value = False
+  Radiosusp.Value = False
+  Checkdr.Value = False
+  
+End
+
+Private Function verifie() As Boolean
+  
+  Dim res As Result
+  
+  If Not Textcode.Text Then
+    erreurvide(Textcode)
+    Return True
+  Endif
+  If Not Textlib.Text Then
+    erreurvide(textlib)
+    Return True
+  Endif
+  If textdr.Text Then
+    If Not IsNumber(textdr.Text) Then
+      erreurnum(textdr)
+      Return True
+    Endif
+  Endif
+  If textss.Text Then
+    If Not IsNumber(textss.Text) Then
+      erreurnum(textss)
+      Return True
+    Else
+      If Not texttxss.Text Then
+        erreurvide(texttxss)
+        Return True
+      Else
+        If Not IsNumber(texttxss.Text) Then
+          erreurnum(texttxss)
+          Return True
+        Endif
+      Endif
+    Endif
+  Endif
+  res = utils.db.Exec("SELECT * FROM Fiches_Comptes WHERE compte_cc=&1", Textcdc.Text)
+  If Not res.Available Then
+    Balloon.Delay = 5000
+    Try Balloon.Warning("<FONT Color=#212121>" & "Compte inconnu", Textcdc)
+    Textcdc.SetFocus
+    Return True
+  Endif
+  res = utils.db.Exec("SELECT * FROM Fiches_Tvaav WHERE code_tva=&1", Texttva.Text)
+  If Not res.Available Then
+   Balloon.Delay = 5000
+    Try Balloon.Warning("<FONT Color=#212121>" & "Compte TVA inconnu", Texttva)
+    Texttva.SetFocus
+    Return True
+  Endif
+  
+  Return False
+End
+
+Private Sub erreurvide(obj As Object)
+  
+  Balloon.Delay = 5000
+  Try Balloon.Warning("<FONT Color=#212121>" & "Cette zone ne peut pas être vide", obj)
+  obj.SetFocus
+
+End
+
+Private Sub erreurnum(obj As Object)
+  
+    Balloon.Delay = 5000
+    Try Balloon.Warning("<FONT Color=#212121>" & "Cette zone doit être numérique", obj)
+    obj.Clear
+    obj.SetFocus
+  
+End
+
+Public Sub cmpt_gotfocus()
+
+  Try Last.text = Replace(Last.text, ".", ",")
+  Try Utils.ObsGotf(Last)
+
+End
+
+Public Sub cmpt_lostfocus()
+
+  Last.text = Replace(Last.text, ".", ",")
+  Try Utils.ObsLstf(Last)
+
+End
+
+Public Sub Textcode_LostFocus()
+
+  Dim res As Result
+  
+  res = utils.db.Exec("SELECT * FROM Fiches_regie WHERE code=&1", Textcode.Text)
+  If res.Available Then
+    Balloon.Delay = 5000
+    Try Balloon.Warning("<FONT Color=#212121>" & "Code déja créer", Textcode)
+    Textcode.Clear
+    Stop Event 
+    Textcode.SetFocus
+  Endif
+
+End
+
+Public Sub Textlib_LostFocus()
+
+  If Not Textlib.Text Then
+    erreurvide(Textlib)
+  Endif
+
+End
+
+Public Sub textdr_LostFocus()
+
+  If Not Textdr.Text Then
+    erreurvide(textdr)
+  Endif
+
+End
+
+Public Sub textss_LostFocus()
+
+  If Textss.Text Then
+    If Not IsNumber(textss.Text) Then
+      Stop Event
+      Return
+    Else
+      If Val(textss.Text) > 0 Then
+        Texttxss.SetFocus
+      Else
+        textss.Clear
+        Texttxss.Clear
+        Textcdc.SetFocus
+      Endif
+    Endif
+  Else
+    Texttxss.Clear
+    Textcdc.SetFocus
+  Endif
+End
+
+Public Sub Texttxss_LostFocus()
+
+  If textss.Text And Not Texttxss.Text Then
+    erreurvide(texttxss)
+  Endif
+
+End
+
+Public Sub bar1_annule(creer As Boolean, anul As Boolean)
+
+  utils.db.Rollback
+  resregie = utils.db.Exec("SELECT * FROM Fiches_regie ORDER BY code")
+  If resregie.Available Then
+    resregie.MoveTo($ind)
+    affichedonne
+  Endif
+  Textcode.Enabled = False
+End
+
+Public Sub bar1_valide(creer As Boolean, modr As Boolean)
+
+  If verifie() Then
+    Stop Event
+    Return
+  Endif
+  affectdonne
+  resregie.Update
+  utils.db.Commit
+  If modr Then modifart
+  resregie = utils.db.Exec("SELECT * FROM Fiches_regie ORDER BY code")
+  If $ind = -1 Then $ind = 0
+  resregie.MoveTo($ind)
+  affichedonne
+  Textcode.Enabled = False
+  
+End
+
+Public Sub bar1_suprimer()
+
+  Print "action supprimée"
+  
+
+End
+
+Public Sub bar1_creer()
+  
+  $ind = resregie.Index
+  utils.db.Begin
+  resregie = utils.db.Create("Fiches_regie")
+  mablanc
+  Textcode.Enabled = True
+  Textcode.SetFocus
+  
+End
+
+Public Sub bar1_modif()
+
+  Dim cd As String
+  
+  cd = resregie!code
+  utils.db.Begin
+  resregie = utils.db.Edit("Fiches_regie", "code=&1 FOR UPDATE", cd)
+  
+End
+
+Public Sub bar1_precedent()
+
+  If resregie.Available And resregie.Index > 0 Then 
+    resregie.MovePrevious
+    affichedonne
+  Endif
+
+End
+
+Public Sub bar1_suivant()   
+
+  If resregie.Available And resregie.Index < resregie.Max Then 
+    resregie.MoveNext
+    affichedonne
+  Endif
+End
+
+Public Sub bar1_dernier()
+
+  If resregie.Available Then 
+    resregie.MoveLast
+    affichedonne
+  Endif
+
+End
+
+Public Sub bar1_premier()
+
+  If resregie.Available Then 
+    resregie.MoveFirst
+    affichedonne
+  Endif
+
+End
+
+Public Sub bar1_quitter()
+
+  Me.Close
+  
+End
+
+Public Sub form_Close()
+
+  If bs.estcreer Or bs.estmodif Then 
+    If Message.Warning("Voullez-vous enregister vos modifications avant de fermer ?", "Oui", "Non") = 1 Then bar1_valide
+  Endif
+  Me.Close
+
+End
+
+Public Sub Buttccomp_Click()
+
+  Dim MyForm As TriComptes
+
+  MyForm = New TriComptes("cast(compte_cc AS char)", "B", "", "")
+  MyForm.Showmodal()
+  If Comptabilite.Bsel = True Then
+    Textcdc.text = Comptabilite.sCmpt
+  Endif
+
+End
+
+Public Sub Buttva_Click()
+
+  Dim res As Result
+  Dim i As Integer
+  
+  If ListBox1.Visible Then
+    ListBox1.Visible = False
+    ListBox1.Clear
+    Return
+  Endif
+  
+  res = utils.db.Exec("SELECT * FROM Fiches_Tvaav")
+  If res.Available Then
+    res.MoveFirst
+    For i = 0 To res.Max
+      ListBox1.Add(res!code_tva & "  " & Format(res!taux_tva, "0.00"))
+      res.MoveNext
+    Next
+    ListBox1.Visible = True
+  Endif
+End
+
+Public Sub ListBox1_Activate()
+
+  Texttva.Text = Left(ListBox1.Current.Text)
+  ListBox1.Visible = False
+  ListBox1.Clear
+
+End
+'**********************************************************************
+'*  recalcul des prix de revient/vente                                *
+'**********************************************************************
+Private Sub modifart()
+  
+  Dim res, restva As Result
+  Dim i, rep As Integer
+  Dim frais, pxa, pxn, pxv, tva, coef As Float
+  Dim pp As Boolean
+  Dim dr As Calculdroit
+  Dim nbd As String
+  Dim pdf As PdfWriter
+  Dim filename As String
+  Dim posy As Integer
+  
+  pp = Settings["/Soc" & Start.Societe & "/pp"] 
+  rep = Message.Question("Que voulez-vous faire ?", "Modifier le prix de vente", "Modifier le coeff")
+  utils.db.Begin
+  res = utils.db.Edit("Fiches_Art", "art_dra =&1", Textcode.Text)
+  If res.Available Then
+    Filename = User.home & "/tmp/droit.pdf"
+    pdf = New PdfWriter("Portrait", "mm", "A4")
+    pdf.Open()
+    pdf.AliasNbPages()
+    posy = pdfent(pdf)
+ 
+    res.MoveFirst
+    For i = 0 To res.Max
+      posy = pdfaff(pdf, res!art_code, res!art_design, res!art_pbht, res!art_paht, res!art_frais, res!art_montdr, res!art_montss, res!art_prvt, res!art_coef, res!art_pvht, posy)
+      dr = New Calculdroit(Textcode.Text, res!art_volm, res!art_deg, 1)
+      frais = 0
+      pxa = 0
+      pxv = 0
+      restva = utils.db.Exec("SELECT * FROM Fiches_Tvaav WHERE code_tva=&1", res!art_tva)
+      If restva.Available Then
+        tva = 1 + ((Val(Replace(restva!code_tva, ".", ","))) / 100)
+      Else
+        tva = 0
+      Endif
+      If Radiosusp.Value Or Checkdr.Value Then
+       frais = res!art_trsp + res!art_trspr + res!art_trspa + res!art_tsuc - res!art_remv + dr.droit + dr.secu
+       If pp Then frais += res!art_ecof
+       pxa = res!art_pbht 
+      Else
+        frais = res!art_frais
+        pxa = res!art_pbht - (res!art_montdr + res!art_montss) + (dr.droit + dr.secu)
+      Endif
+      res!art_pbht = Round(pxa, - Val(res!art_nbd))
+      pxa = pxa - (pxa * (res!art_tr / 100))
+      res!art_paht = Round(pxa, - Val(res!art_nbd))
+      res!art_prvt = Round(res!art_paht + frais, - Val(res!art_nbd))
+      Select Case rep
+        Case 1
+          pxv = res!art_prvt * res!art_coef
+          coef = res!art_coef
+        Case 2
+          pxv = res!art_pvht
+          coef = Round(pxv / res!art_prvt, -4)
+      End Select
+      res!art_coef = coef
+      res!art_pvht = Round(pxv, - Val(res!art_nbd))
+      res!art_pvttc = Round(res!art_pvht * tva, - Val(res!art_nbd))
+      res!art_montdr = dr.droit
+      res!art_montss = dr.secu
+      posy = pdfaff(pdf, res!art_code, res!art_design, res!art_pbht, res!art_paht, res!art_frais, res!art_montdr, res!art_montss, res!art_prvt, res!art_coef, res!art_pvht, posy)
+      If posy > 280 Then pdfent
+      
+      res.Update
+      res.MoveNext
+    Next
+    utils.db.Commit
+    pdf.Output(Filename, False)
+    Impression.Prog_Editeur(Filename)
+
+  Endif
+End
+
+Private Function pdfent(pdf As PdfWriter) As Integer
+  
+  pdf.AddPage
+  pdf.SetFont("Helvetica", "", 10)
+  pdf.SetXY(7, 10)
+  pdf.Cell(20, 5, "Code article", True, 0, "C")
+  pdf.Cell(35, 5, "Libellé", True, 0, "C")
+  pdf.Cell(20, 5, "Px Brut", True, 0, "C")
+  pdf.Cell(20, 5, "Px Net", True, 0, "C")
+  pdf.Cell(13, 5, "Frais", True, 0, "C")
+  pdf.Cell(13, 5, "Droits", True, 0, "C")
+  pdf.Cell(13, 5, "Secu", True, 0, "C")
+  pdf.Cell(20, 5, "Px Rev", True, 0, "C")
+  pdf.Cell(15, 5, "Coef", True, 0, "C")
+  pdf.Cell(20, 5, "Px HT", True, 0, "C")
+  Return 17
+  
+End
+
+Private Function pdfaff(pdf As PdfWriter, art As String, lib As String, pxb As Float, pxn As Float, frais As Float, dr As Float, ss As Float, pxr As Float, coef As Float, pxht As Float, posy As Integer) As Integer
+  
+  pdf.SetFont("Helvetica", "", 10)
+  pdf.SetXY(7, posy)
+  pdf.Cell(20, 4, art, False, 0, "L")
+  pdf.Cell(35, 4, lib, False, 0, "L")
+  pdf.Cell(20, 4, pxb, False, 0, "R")
+  pdf.Cell(20, 4, pxn, False, 0, "R")
+  pdf.Cell(13, 4, frais, False, 0, "R")
+  pdf.Cell(13, 4, dr, False, 0, "R")
+  pdf.Cell(13, 4, ss, False, 0, "R")
+  pdf.Cell(20, 4, pxr, False, 0, "R")
+  pdf.Cell(15, 4, coef, False, 0, "R")
+  pdf.Cell(20, 4, pxht, False, 0, "R")
+  Return posy + 5
+  
+End
+

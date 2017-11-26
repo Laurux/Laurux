@@ -25,12 +25,17 @@
 '################################################
 
 son As String
+Private $soption As String
 
 Public Sub _New()
 
   If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
   Music.Load(Start.Musique)
   Me.Center
+  $soption = Utils.Option()
+  If $soption = "B" Or $soption = "T" Then
+    Button4.Visible = True
+  Endif
 
 End
 
@@ -51,6 +56,7 @@ Public Sub Button2_click()
   Dim Tpe As String
   Dim chemin As String = "/Sauve"
 
+  
   qtevtes = 0
   qteAch = 0
   Tpe = "A"
@@ -181,7 +187,7 @@ Public Sub Button2_click()
         'On calcul le stock réel
         Cstock.Calc_stock("", "")
         'On vide la table des historiques des inventaires tournants
-        Utils.db.Exec("Truncate table " & "Fiches_HisInvT" & "")
+        Try Utils.db.Exec("Truncate table " & "Fiches_HisInvT" & "")
         'Ouf ! C'est fini
         If son Then
           Music.Play
@@ -198,7 +204,49 @@ Public Sub Button2_click()
     Message.Warning("Attention! Il n'existe aucun inventaire\n Veuillez passer par la procédure d'initialisation d'inventaire SVP")
     Me.Close
   Endif
-
+  
+End
+  '****************génération du stock de départ de la compta matiére
+Public Sub button4_Click()
+    
+  Dim res, respar, resinv, resregie As Result
+  Dim i As Integer
+  Dim dte As Date
+  Dim ccd As Calculdroit
+  Dim vol, volap As Float
+    
+    respar = Utils.db.Exec("SELECT dtepec FROM Fiches_Parametres")
+    dte = Date(Right(respar!dtepec, 4), Val(Left(respar!dtepec, 2)), 1)
+    dte = DateAdd(dte, gb.Month, 1)
+    If Message.Question("La nouvelle date de début sera : " & Format(dte, "dd.mm.yyyy") & " étes vous d'accord ?", "Oui", "Non") = 2 Then Return
+    Utils.db.Begin
+    resregie = Utils.db.Exec("SELECT * FROM Fiches_regie")
+    If resregie.Available Then
+      resregie.MoveFirst
+      Repeat
+        resinv = Utils.db.Exec("SELECT * FROM Fiches_Inv,Fiches_Art WHERE inv_code=art_code and art_dra=&1", resregie!code)
+        If resinv.Available Then
+          resinv.MoveFirst
+          Repeat
+            ccd = New Calculdroit(resinv!art_dra, resinv!art_volm, resinv!art_deg, resinv!inv_qtecomptee)
+            vol += ccd.vol
+            volap += ccd.volap
+          Until resinv.MoveNext()
+          res = Utils.db.Create("Fiches_ligregie")
+          res!dtmouv = dte
+          res!type = "I"
+          res!coderegie = resregie!code
+          res!volume = vol
+          res!volumeap = volap
+          res!cloture = True
+          res.Update
+          vol = 0
+          volap = 0
+        Endif
+      Until resregie.MoveNext()
+      
+    Endif
+    Utils.db.Commit
 End
 
 Public Sub Button3_Click()

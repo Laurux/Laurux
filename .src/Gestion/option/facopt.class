@@ -1,0 +1,1058 @@
+' Gambas class file
+
+'gére les onglets consigne & régie dans la saisie des factures
+'remontes les totaux consigne & droits
+
+
+'dessin des écrans
+Private $pancons As Panel
+Private $panregi As Panel
+Private $gridcons As GridView
+Private $gridsaisie As GridView
+Private $gridregi As GridView
+Private $lab As Label
+Private $fram As Frame
+Private $texttotvol As TextBox
+Private $texttotap As TextBox
+Private $texttotdr As TextBox
+Private $texttotss As TextBox
+Private $textart As TextBox
+Private $textconsp As TextBox
+Private $textnbp As TextBox
+Private $textconsc As TextBox
+Private $textnbc As TextBox
+Private $textconsb As TextBox
+Private $textnbb As TextBox
+Private $texttotcons As TextBox
+Private $texttotdeco As TextBox
+Private $but As Button
+Private $fc As Float
+'variables de saisie nb de coli et bouteille
+Private $inbc As Integer
+Private $inbb As Integer
+Private $ideb As Integer
+Private $ifin As Integer
+Private $bartcons As Boolean 'si l'article est consigné en valeur ?
+Private $bclicons As Boolean  ' si le client est consigné
+Private $ftvadra As Float       'montant de la tva sur les draoit des alcools
+'si la facture a ete imprimée 
+Private $bimp As Boolean
+Private $bcreer As Boolean = True 'si creation
+Private $snumbl As String     'nuemro du bl
+Private $calcool As Collection  'collection pour stocker les infos sur les droits
+'pour savoir si la facture a de la consigne ou de la régie ==> édition portait
+Property Read regie As Boolean
+Property Read consigne As Boolean
+Property imprime As Boolean
+Property numbl As String
+Property artcons As Boolean
+Property clicons As Boolean
+Property Read tvadroit As Float
+Property Read texttotcons As TextBox
+Property Read texttotdeco As TextBox
+Property Read texttotdr As TextBox
+Property Read texttotss As TextBox
+Property Read textmondr As TextBox
+Property Read textmonss As TextBox
+Property Read lignedroit As Collection
+
+Event recalcul()                'recalcul les totaux fin de facture quand la déconsigne change
+
+Public Sub _new(pcons As Panel, pregi As Panel)
+
+  Dim h, y As Float
+  Dim obs As Observer
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  $pancons = pcons
+  $panregi = pregi
+  $fc = $pancons.Width / 880
+  $gridregi = New GridView($panregi) As "gridregi"
+  $gridregi.Font = Font["Serif,-1"]
+  $gridregi.Move(0, 0, $panregi.Width, $panregi.Height - (24 * $fc))
+  $gridregi.Header = GridView.Horizontal
+  $gridregi.Columns.Count = 9
+  $gridregi.Columns[0].Width = 90 * $fc
+  $gridregi.Columns[0].Text = "Num"
+  $gridregi.Columns[1].Width = 180 * $fc
+  $gridregi.Columns[1].Text = "Article"
+  $gridregi.Columns[2].Width = 55 * $fc
+  $gridregi.Columns[2].Text = "Qte"
+  $gridregi.Columns[3].Width = 45 * $fc
+  $gridregi.Columns[3].Text = "Code"
+  $gridregi.Columns[4].Width = 190 * $fc
+  $gridregi.Columns[4].Text = "Libelle"
+  $gridregi.Columns[5].Width = 70 * $fc
+  $gridregi.Columns[5].Text = "Volume"
+  $gridregi.Columns[6].Width = 70 * $fc
+  $gridregi.Columns[6].Text = "A.P"
+  $gridregi.Columns[7].Width = 90 * $fc
+  $gridregi.Columns[7].Text = "Droit"
+  $gridregi.Columns[8].Width = 90 * $fc
+  $gridregi.Columns[8].Text = "S.S"
+  $lab = New Label($panregi)
+  y = $gridregi.Height
+  h = 24 * $fc
+  $lab.Move(0, y, 560 * $fc, h)
+  $lab.Alignment = Align.Center
+  $lab.Text = "TOTAL"
+  $texttotvol = New TextBox($panregi) 
+  $texttotvol.Move($gridregi.Columns[5].x, y, 70 * $fc, h)
+  $texttotvol.Alignment = Align.Right
+  $texttotvol.ReadOnly = True
+  $texttotap = New TextBox($panregi) 
+  $texttotap.Move($gridregi.Columns[6].x, y, 70 * $fc, h)
+  $texttotap.Alignment = Align.Right
+  $texttotap.ReadOnly = True
+  $texttotdr = New TextBox($panregi)
+  $texttotdr.Move($gridregi.Columns[7].x, y, 90 * $fc, h)
+  $texttotdr.Alignment = Align.Right
+  $texttotdr.ReadOnly = True
+  $texttotss = New TextBox($panregi)
+  $texttotss.Move($gridregi.Columns[8].x, y, 90 * $fc, h)
+  $texttotss.Alignment = Align.Right
+  $texttotss.ReadOnly = True
+  
+  
+  $gridcons = New GridView($pancons) As "gridcons"
+  $gridcons.Font = Font["Serif,-1"]
+  $gridcons.Header = GridView.Horizontal
+  $gridcons.Mode = Select.Multiple
+  $gridcons.Columns.Count = 5
+  $gridcons.Columns[0].Width = 50 * $fc
+  $gridcons.Columns[0].Text = "Num"
+  $gridcons.Columns[1].Width = 170 * $fc
+  $gridcons.Columns[1].Text = "Libelle"
+  $gridcons.Columns[2].Width = 50 * $fc
+  $gridcons.Columns[2].Text = "Qte"
+  $gridcons.Columns[3].Width = 80 * $fc
+  $gridcons.Columns[3].Text = "Prix"
+  $gridcons.Columns[4].Width = 87 * $fc
+  $gridcons.Columns[4].Text = "Montant"
+  $gridcons.Move(0, 50 * $fc, 440 * $fc, $pancons.Height - (75 * $fc))
+
+  $fram = New Frame($pancons)
+  $fram.Move(10 * $fc, 0, 860 * $fc, 45 * $fc)
+  $fram.Text = "Saisie des déconsignes"
+  y = 16 * $fc
+  
+  $lab = New Label($fram)
+  $lab.Text = "Num art."
+  $lab.Move(1 * $fc, y, 60 * $fc, 24 * $fc)
+  $textart = New TextBox($fram) As "textart"
+'  obs = New Observer($textart) As "grpcle"
+  $textart.Move(65 * $fc, y, 130 * $fc, 24 * $fc)
+  $textart.MaxLength = 15
+  $but = New Button($fram) As "rechart"
+  $but.Move(195 * $fc, y, 24 * $fc, 26 * $fc)
+  $but.Picture = Picture["Icones/next_frame.png"]
+  
+  $lab = New Label($fram)
+  $lab.text = "Palette"
+  $lab.Move(209 * $fc, 1, 50 * $fc, 16 * $fc)
+  $textconsp = New TextBox($fram) As "textconsp"
+  obs = New Observer($textconsp) As "grpcle"
+  $textconsp.Move(219 * $fc, y, 30 * $fc, 24 * $fc)
+  $textconsp.MaxLength = 2
+  $textconsp.Alignment = Align.Center
+  $but = New Button($fram) As "rechcons"
+  $but.Move(249 * $fc, y, 24 * $fc, 26 * $fc)
+  $but.Picture = Picture["Icones/next_frame.png"]
+  $but.Tag = "P"
+  $lab = New Label($fram)
+  $lab.Border = Border.Plain
+  $lab.Move(273 * $fc, y, 100 * $fc, 24 * $fc)
+  $textconsp.Tag = $lab
+  $lab = New Label($fram)
+  $lab.Text = "Qte"
+  $lab.Move(373 * $fc, 1, 50 * $fc, 16 * $fc)
+  $lab.Alignment = Align.Center
+  $textnbp = New TextBox($fram) As "grpnb"
+  $textnbp.Move(373 * $fc, y, 50 * $fc, 24 * $fc)
+  
+  $lab = New Label($fram)
+  $lab.text = "Coli"
+  $lab.Move(423 * $fc, 1, 50 * $fc, 16 * $fc)
+  $textconsc = New TextBox($fram) As "textconsc"
+  obs = New Observer($textconsc) As "grpcle"
+  $textconsc.Move(423 * $fc, y, 30 * $fc, 24 * $fc)
+  $textconsc.MaxLength = 2
+  $textconsc.Alignment = Align.Center
+  $but = New Button($fram) As "rechcons"
+  $but.Move(453 * $fc, y, 24 * $fc, 26 * $fc)
+  $but.Picture = Picture["Icones/next_frame.png"]
+  $but.Tag = "C"
+  $lab = New Label($fram)
+  $lab.Border = Border.Plain
+  $lab.Move(477 * $fc, y, 100 * $fc, 24 * $fc)
+  $textconsc.Tag = $lab
+  $lab = New Label($fram)
+  $lab.Text = "Qte"
+  $lab.Move(577 * $fc, 1, 50 * $fc, 16 * $fc)
+  $lab.Alignment = Align.Center
+  $textnbc = New TextBox($fram) As "grpnb"
+  $textnbc.Move(577 * $fc, y, 50 * $fc, 24 * $fc)
+  
+  $lab = New Label($fram)
+  $lab.text = "Btes"
+  $lab.Move(627 * $fc, 1, 50 * $fc, 16 * $fc)
+  $textconsb = New TextBox($fram) As "textconsb"
+  obs = New Observer($textconsb) As "grpcle"
+  $textconsb.Move(627 * $fc, y, 30 * $fc, 24 * $fc)
+  $textconsb.MaxLength = 2
+  $textconsb.Alignment = Align.Center
+  $but = New Button($fram) As "rechcons"
+  $but.Move(657 * $fc, y, 24 * $fc, 26 * $fc)
+  $but.Picture = Picture["Icones/next_frame.png"]
+  $but.Tag = "B"
+  $lab = New Label($fram)
+  $lab.Border = Border.Plain
+  $lab.Move(681 * $fc, y, 100 * $fc, 24 * $fc)
+  $textconsb.Tag = $lab
+  $lab = New Label($fram)
+  $lab.Text = "Qte"
+  $lab.Move(781 * $fc, 1, 50 * $fc, 16 * $fc)
+  $lab.Alignment = Align.Center
+  $textnbb = New TextBox($fram) As "grpnb"
+  $textnbb.Move(781 * $fc, y, 50 * $fc, 24 * $fc)
+  
+  $but = New Button($fram) As "butval"
+  $but.Move(831 * $fc, y, 29 * $fc, 26 * $fc)
+  $but.Picture = Picture["Icones/button_ok.png"]
+  
+  $gridsaisie = New GridView($pancons) As "gridsaisie"
+  $gridsaisie.Font = Font["Serif,-1"]
+  $gridsaisie.Move(0, 0, $pancons.Width, $pancons.Height)
+  $gridsaisie.Header = GridView.Horizontal
+  $gridsaisie.Mode = Select.Single
+  $gridsaisie.Columns.Count = 5
+  $gridsaisie.Columns[0].Width = 50 * $fc
+  $gridsaisie.Columns[0].Text = "Num"
+  $gridsaisie.Columns[1].Width = 170 * $fc
+  $gridsaisie.Columns[1].Text = "Libelle"
+  $gridsaisie.Columns[2].Width = 50 * $fc
+  $gridsaisie.Columns[2].Text = "Qte"
+  $gridsaisie.Columns[3].Width = 80 * $fc
+  $gridsaisie.Columns[3].Text = "Prix"
+  $gridsaisie.Columns[4].Width = 87 * $fc
+  $gridsaisie.Columns[4].Text = "Montant"
+  $gridsaisie.Move(440 * $fc, 50 * $fc, 440 * $fc, $pancons.Height - (75 * $fc))
+
+  $lab = New Label($pancons)
+  $lab.text = "TOTAL"
+  $lab.Move(0, $pancons.Height - (24 * $fc), $gridcons.Width - (87 * $fc), 24 * $fc)
+  $lab.Alignment = Align.Center
+  $texttotcons = New TextBox($pancons)
+  $texttotcons.Move($gridcons.Width - (87 * $fc), $pancons.Height - (26 * $fc), 87 * $fc, 24 * $fc)
+  $texttotcons.Alignment = Align.Right
+  $texttotcons.ReadOnly = True
+  $lab = New Label($pancons)
+  $lab.text = "TOTAL"
+  $lab.Move($gridsaisie.x, $pancons.Height - (24 * $fc), $gridsaisie.Width - (87 * $fc), 24 * $fc)
+  $texttotdeco = New TextBox($pancons) As "tdec"
+  $texttotdeco.Move($gridsaisie.Width + $gridcons.Width - (87 * $fc), $pancons.Height - (26 * $fc), 87 * $fc, 24 * $fc)
+  $texttotdeco.Alignment = Align.Right
+  $texttotdeco.ReadOnly = True
+
+End
+
+'*********************************gestion du groupe de saisie du nombre de consigne*****************************
+Public Sub grpnb_GotFocus()
+
+  Try Utils.ObsGotf(Last)
+  
+End
+
+Public Sub grpnb_LostFocus()
+
+  Try Utils.ObsLstf(Last)
+  Last.Unselect
+End
+
+Public Sub grpnb_KeyPress()
+
+If Key.code = Key.Enter Or Key.code = Key.Return Or Key.code = Key.Tab Then
+  Stop Event
+  If verifnb(Last.text) Then
+    If IsNumber(Last.text) Then
+      
+      Select Case Last
+        Case $textnbp
+          If $inbc <> 0 And $textconsc.Text And verifnb($textnbp.Text) Then
+            $textnbc.Text = Format(Val($textnbp.Text) * $inbc, "0")
+            $textnbc.SetFocus
+          Else
+            $textconsc.SetFocus
+          Endif
+          $inbc = 0
+        Case $textnbc
+          If $inbb <> 0 And $textconsb.Text And verifnb($textnbc.Text) Then
+            $textnbb.Text = Format(Val($textnbc.Text) * $inbb, "0")
+            $textnbb.SetFocus
+          Else
+            $textconsb.SetFocus
+          Endif
+          $inbb = 0
+        Case $textnbb
+          valide
+      End Select
+    Else
+      Balloon.Delay = 5000
+      Try Balloon.Warning("<FONT Color=#212121>" & "Zone numérique", Last)
+      Last.Clear
+      Last.SetFocus
+    Endif
+  Else
+    Select Case Last
+      Case $textnbp
+        $textconsc.SetFocus
+      Case $textnbc
+        $textconsb.SetFocus
+      Case $textnbb
+        valide
+    End Select
+  Endif
+Endif
+End
+'*********************************gestion du groupe cle de recherche**********************************************
+Public Sub grpcle_gotfocus()
+
+
+  Try Utils.ObsGotf(Last)
+
+End
+
+Public Sub grpcle_lostfocus()
+
+  Dim res As Result
+  
+  Try Utils.ObsLstf(Last)
+  If Last.text Then verifcons(Last)
+  Last.Unselect
+End
+
+Public Sub grpcle_keypress()
+
+  If Key.Code = Key.Return Or Key.code = Key.Enter Or Key.code = Key.Tab Then
+    If Last <> $textart Then
+      If Last.text Then 
+'        verifcons(Last)
+      Else
+        Select Case Last
+          Case $textconsp
+            $textnbp.text = "0"
+            $textconsc.SetFocus
+          Case $textconsc
+            $textnbc.Text = "0"
+            $textconsb.SetFocus
+          Case $textconsb
+            $textnbb.Text = "0"
+            valide
+        End Select
+        Stop Event
+      Endif
+    Endif
+  Endif
+End
+
+Public Sub rechcons_Click()
+
+  Dim cons As Rechcons
+  
+  cons = New Rechcons(Last.tag) As "rechcons"
+  cons.ShowModal
+
+End
+
+Public Sub rechcons_trouver(value As String)
+
+  Select Case Last.tag
+    Case "P"
+      $textconsp.Text = value
+      $textconsp.SetFocus
+    Case "C"
+      $textconsc.Text = value
+      $textconsc.SetFocus
+    Case "B"
+      $textconsb.Text = value
+      $textconsb.SetFocus
+  End Select
+  
+End
+
+Private Sub verifcons(textb As TextBox)
+
+  Dim res As Result
+  Dim s As String
+  
+  Select Case textb
+    Case $textconsp
+      s = "P"
+      $textnbp.SetFocus
+    Case $textconsc
+      s = "C"
+      $textnbc.SetFocus
+    Case $textconsb
+      s = "B"
+      $textnbb.SetFocus
+  End Select
+  res = Utils.db.Exec("SELECT * FROM Fiches_consigne WHERE code=&1 AND type=&2", textb.Text, s)
+  If res.Available Then
+    textb.Tag.text = res!libelle
+  Else
+    Balloon.Delay = 5000
+    Try Balloon.Warning("<FONT Color=#212121>" & "Consigne inconnue", textb)
+'    textb.Tag.text.Clear
+    textb.Clear
+    textb.SetFocus
+  Endif
+End
+
+Public Sub butval_Click()
+
+  valide
+
+End
+
+'********************gestion du code article et de son boutton recherche*****************************
+Public Sub textart_LostFocus()
+
+  Dim res As Result
+  
+  If $textart.Text Then
+    res = Utils.db.Exec("SELECT * FROM Fiches_Art WHERE art_code=&1", $textart.Text)
+    If Not res.Available Then
+      Balloon.Delay = 5000
+      Try Balloon.Warning("<FONT Color=#212121>" & "Article innexistant", Last)
+      $textart.text = ""
+      $textart.SetFocus
+    Else
+      If Not IsNull(res!art_consp) Or Not IsNull(res!art_consc) Or Not IsNull(res!art_consb) Then
+        Try $textconsb.Text = res!art_consb
+        If $textconsb.Text Then 
+          verifcons($textconsb)
+        Endif
+        Try $textconsc.Text = res!art_consc
+        If $textconsc.Text Then 
+          verifcons($textconsc)
+        Endif
+        Try $textconsp.Text = res!art_consp
+        If $textconsp.Text Then 
+          verifcons($textconsp)
+        Endif
+        Try $inbc = res!art_nbcol
+        Try $inbb = res!art_nbbou
+      Else
+        Balloon.Delay = 5000
+        Try Balloon.Warning("<FONT Color=#212121>" & "Article sans consigne", Last)
+        $textart.Clear
+        $textart.SetFocus
+      Endif
+    Endif
+  Endif
+
+End
+
+Public Sub textart_KeyPress()
+
+  If Key.Code = Key.Enter Or Key.Code = Key.Return Or Key.Code = Key.Tab Then
+    textart_LostFocus
+    Stop Event
+  Endif
+
+End
+
+Public Sub rechart_Click()
+
+  Dim MyForm As Form
+  
+  MyForm = New TriArticles(True, True, "art_code", "Facture", "", "")
+  MyForm.Showmodal()
+  If Variables.Bsel = True Then
+    $textart.text = Variables.$Codearticle
+    textart_LostFocus
+  Endif
+  
+End
+
+Public Sub affdroit(num As String)
+
+  Dim resdr, reslig, res As Result
+  Dim i As Integer
+  Dim drt As Calculdroit
+  Dim tdr, tss, tvolap, tvol As Float
+  
+  $ftvadra = 0
+  $gridregi.Clear
+  $gridregi.Rows.Count = 0
+  
+  reslig = Utils.db.Exec("SELECT numlig,codeart,coderegie,nom,qte,volume,Fiches_ligregie.degres,Fiches_regie.type,volumeap,montdr,montss,txtvadr,txtvass,nom,art_design,art_volm,art_deg,art_fam FROM Fiches_ligregie,Fiches_regie,Fiches_Art,Fiches_Bl WHERE numbl=&1 AND num=numfac AND Fiches_regie.code=coderegie AND art_code=codeart", num)
+  If reslig.Available Then            'affiche si facture déja éditée 
+    reslig.MoveFirst
+    $gridregi.Rows.Count = reslig.Count
+    For i = 0 To reslig.Max 
+      $gridregi[i, 0].text = reslig!codeart
+      $gridregi[i, 1].Text = reslig!art_design
+      $gridregi[i, 2].Text = reslig!qte
+      $gridregi[i, 2].Alignment = Align.Right
+      $gridregi[i, 3].Text = reslig!coderegie
+      $gridregi[i, 4].Text = reslig!nom
+      $gridregi[i, 5].Text = Format(reslig!volume, "0.000")
+      $gridregi[i, 5].Alignment = Align.Right
+      $gridregi[i, 6].Text = Format(reslig!volumeap, "0.000")
+      $gridregi[i, 6].Alignment = Align.Right
+      $gridregi[i, 7].Text = Format(reslig!montdr, "0.00")
+      $gridregi[i, 7].Alignment = Align.Right
+      $gridregi[i, 8].Text = Format(reslig!montss, "0.00")
+      $gridregi[i, 8].Alignment = Align.Right
+      tdr += reslig!montdr
+      tss += reslig!montss
+      tvolap += reslig!volumeap
+      tvol += reslig!volume
+      $ftvadra += (reslig!montdr * Val(reslig!txtvadr)) + (reslig!montss * Val(reslig!txtvass))
+      $ftvadra = Round($ftvadra, -2)
+      reslig.MoveNext
+    Next
+  Else        'si fact non édité
+    reslig = Utils.db.Exec("SELECT numlig_ligbl,code_ligbl,libel_ligbl,qte_ligbl,art_dra,art_volm,art_deg FROM Fiches_Ligbl, Fiches_Art WHERE num_ligbl=&1 AND code_ligbl=art_code AND art_dra IS NOT NULL", num)
+    If reslig.Available Then
+      reslig.MoveFirst
+      $gridregi.Rows.Count = reslig.Count
+      For i = 0 To reslig.Max
+        drt = New Calculdroit(reslig!art_dra, reslig!art_volm, reslig!art_deg, reslig!qte_ligbl)
+        $gridregi[i, 0].text = reslig!code_ligbl
+        $gridregi[i, 1].Text = reslig!libel_ligbl
+        $gridregi[i, 2].Text = reslig!qte_ligbl
+        $gridregi[i, 2].Alignment = Align.Right
+        $gridregi[i, 3].Text = reslig!art_dra
+        $gridregi[i, 4].Text = drt.lib
+        $gridregi[i, 5].Text = Format(drt.vol, "0.000")
+        $gridregi[i, 5].Alignment = Align.Right
+        $gridregi[i, 6].Text = Format(drt.volap, "0.000")
+        $gridregi[i, 6].Alignment = Align.Right
+        $gridregi[i, 7].Text = Format(drt.droit, "0.00")
+        $gridregi[i, 7].Alignment = Align.Right
+        $gridregi[i, 8].Text = Format(drt.secu, "0.00")
+        $gridregi[i, 8].Alignment = Align.Right
+        tdr += drt.droit
+        tss += drt.secu
+        tvolap += drt.volap
+        tvol += drt.vol
+        $ftvadra += drt.tva
+        reslig.MoveNext
+     Next
+    Endif
+  Endif
+  $texttotdr.text = Format(tdr, "0.00")
+  $texttotss.Text = Format(tss, "0.00")
+  $texttotap.Text = Format(tvolap, "0.000")
+  $texttotvol.Text = Format(tvol, "0.000")
+  
+End
+
+Public Sub majdroit(num As String, numlig As String) 'sert a rien
+
+  Dim res, reslig As Result
+  Dim drt As Calculdroit
+
+      Utils.db.Begin
+      If Not $bimp Then
+        res = Utils.db.Create("Fiches_ligregie")
+        res!num = num
+        res!numlig = reslig!numlig_ligbl
+        res!codeart = reslig!code_ligbl
+        res!qte = reslig!qte_ligbl
+        res!volume = drt.vol
+        res!volumeap = drt.volap
+        res!montdr = drt.droit
+        res!montss = drt.secu
+        res.Update
+      Endif
+    Utils.db.Commit
+    
+End
+
+Public Sub affcons(value As String)
+
+  Dim reslig, res As Result
+  Dim i As Integer
+  Dim totcons As Float
+  
+  mabsaisie
+  $gridcons.Clear
+  $gridcons.Rows.Count = 0
+
+  reslig = Utils.db.Exec("SELECT * FROM Fiches_ligcons WHERE num=&1 AND type='B' AND numlig<>'D'", value)
+  If reslig.Available Then
+    $gridcons.Rows.Count = reslig.Count
+    reslig.MoveFirst
+    For i = 0 To reslig.Max
+      totcons += ajoutcons($gridcons, reslig!codecons, reslig!nb, reslig!montant, i)
+      reslig.MoveNext
+    Next
+  Endif
+  $texttotcons.text = Format(totcons, "0.00")
+
+End
+
+Public Sub affdecons()
+
+  Dim res As Result
+  Dim totdecons As Float
+  Dim i As Integer
+  
+  $gridsaisie.Clear
+  $gridsaisie.Rows.Count = 0
+  res = Utils.db.Exec("SELECT * FROM Fiches_ligcons WHERE num=&1 AND numlig='D'", $snumbl)
+  If res.Available Then
+    res.MoveFirst
+    $gridsaisie.Clear
+    $gridsaisie.Rows.Count = res.Count
+    For i = 0 To res.Max
+      totdecons += ajoutcons($gridsaisie, res!codecons, res!nb, res!montant, i)
+      res.MoveNext
+    Next
+  Endif
+  $texttotdeco.Text = Format(totdecons, "0.00")
+
+End
+
+Public Sub tdec_Change()
+
+  Raise recalcul
+
+End
+'********************************gestion des consignes venant des articles saisies en facture********************************************
+'**************Enregistrement d'un article si il a une consigne *****************************
+Public Function majlig(num As String, numlig As String, textpal As String, textcol As String, artqte As String, checkcons As Boolean) As Float
+
+  Dim reslig, resbl, rescons, resart As Result
+  Dim mont As Float
+  
+  If $bimp Then Return 0
+  Utils.db.Begin
+  Utils.db.Delete("Fiches_ligcons", "num=&1 AND numlig=&2", num, num & numlig)
+  
+  resbl = Utils.db.Exec("SELECT * FROM Fiches_Ligbl WHERE num_ligbl=&1 and numlig_ligbl=&2", num, numlig)
+  resart = Utils.db.Exec("SELECT art_consp, art_consc, art_consb FROM Fiches_Art WHERE art_code=&1", resbl!code_ligbl) 
+    If Not IsNull(resart!art_consp) And textpal <> "0" Then           'creation 1 ligne consigne pour 1 palettes
+      rescons = Utils.db.Exec("SELECT * FROM Fiches_consigne WHERE code=&1", resart!art_consp)
+      If rescons.Available Then
+        reslig = Utils.db.Create("Fiches_ligcons")
+        reslig!num = num
+        reslig!numlig = num & numlig
+        reslig!codecons = resart!art_consp
+        reslig!type = "B"
+        reslig!nb = Val(textpal)
+        If checkcons Then reslig!montant = reslig!nb * rescons!prix Else reslig!montant = 0
+        reslig!envaleur = checkcons
+        mont += reslig!montant
+        reslig.Update
+      Endif
+    Endif
+    If Not IsNull(resart!art_consc) And textcol <> "0" Then           'creation 1 ligne consigne pour 1 caisses
+      rescons = Utils.db.Exec("SELECT * FROM Fiches_consigne WHERE code=&1", resart!art_consc)
+      If rescons.Available Then
+        reslig = Utils.db.Create("Fiches_ligcons")
+        reslig!num = num
+        reslig!numlig = num & numlig
+        reslig!codecons = resart!art_consc
+        reslig!type = "B"
+        reslig!nb = Val(textcol)
+        If checkcons Then reslig!montant = reslig!nb * rescons!prix Else reslig!montant = 0
+        reslig!envaleur = checkcons
+        mont += reslig!montant
+        reslig.Update
+      Endif
+    Endif
+    If Not IsNull(resart!art_consb) And artqte <> "0" Then           'creation 1 ligne consigne pour 1 boutelles
+      rescons = Utils.db.Exec("SELECT * FROM Fiches_consigne WHERE code=&1", resart!art_consb)
+      If rescons.Available Then
+        reslig = Utils.db.Create("Fiches_ligcons")
+        reslig!num = num
+        reslig!numlig = num & numlig
+        reslig!codecons = resart!art_consb
+        reslig!type = "B"
+        reslig!nb = Val(artqte)
+        If checkcons Then reslig!montant = reslig!nb * rescons!prix Else reslig!montant = 0
+        reslig!envaleur = checkcons
+        mont += reslig!montant
+        reslig.Update
+      Endif
+    Endif
+    
+    Utils.db.Commit
+    Return mont
+End
+'**************copie des déconsignes pour une facture passée en avoir************************
+Public Sub copdecons(numfac As String, numbl As String)
+
+  Dim resbl, resfac As Result
+  
+  resfac = Utils.db.Exec("SELECT * FROM Fiches_Ligbl WHERE num=&1 AND numlig='D'", numfac)
+  If resfac.Available Then
+    resfac.MoveFirst
+    Utils.db.Begin
+    Repeat
+      resbl = Utils.db.Create("Fiches_ligcons")
+      resbl = resfac
+      resbl!num = numbl
+      resbl!numlig = numbl & Right(resbl!numlig, 4)
+      resbl.Update
+    Until resfac.MoveNext()
+    Utils.db.Commit
+  Endif
+   
+End
+'**************suppression de consigne lié a une ligne article************************
+Public Sub suplig(num As String, numlig As String)
+
+   Utils.db.Delete("Fiches_ligcons", "num=&1 AND numlig=&2", num, num & numlig)
+
+End
+'***************+/- deplacement sur ligne article***********************
+Public Sub deplig(num As String, numlig As String, numlig1 As String)
+
+  Dim res, resp, ress As Result
+  Dim i As Integer
+  'si la ligne suivante ou précedante n'existe pas ==> retour
+  res = Utils.db.Exec("SELECT * FROM Fiches_Ligbl WHERE num_ligbl=&1 AND numlig_ligbl=&2", num, num & numlig)
+  If Not res.Available Then Return
+  res = Utils.db.Exec("SELECT * FROM Fiches_Ligbl WHERE num_ligbl=&1 AND numlig_ligbl=&2", num, num & numlig1)
+  If Not res.Available Then Return
+  'lectue des lignes de consigne pour renum
+  Utils.db.Begin
+  resp = Utils.db.Edit("Fiches_ligcons", "num=&1 AND numlig=&2", num, num & numlig)
+  ress = Utils.db.Edit("Fiches_ligcons", "num=&1 AND numlig=&2", num, num & numlig1)
+  'renum des lignes
+  If resp.Available Then
+    resp.MoveFirst
+    For i = 0 To resp.Max
+      resp!numlig = num & numlig1
+      resp.Update
+      resp.MoveNext
+    Next
+  Endif
+  If ress.Available Then
+    ress.MoveFirst
+    For i = 0 To ress.Max
+      ress!numlig = num & numlig
+      ress.Update
+      ress.MoveNext
+    Next
+  Endif
+  Utils.db.Commit
+
+End
+'*************************copie des lignes sélectionnées de $gridcons dans $gridsaisie *****************************
+Public Sub gridcons_MouseDown()
+
+  If Mouse.Left Then $ideb = $gridcons.Row
+
+End
+
+Public Sub gridcons_MouseUp()
+
+  Dim reslig As Result
+  Dim i As Integer
+  
+  If Mouse.Left Then 
+    $ifin = $gridcons.Row
+    If $ideb > $ifin Then Swap $ideb, $ifin
+    $gridcons.UnSelectAll
+    Utils.db.Begin
+    For i = $ideb To $ifin
+      reslig = Utils.db.Create("Fiches_ligcons")
+      reslig!num = $snumbl
+      reslig!type = "B"
+      reslig!codecons = $gridcons[i, 0].Text
+      reslig!nb = Val($gridcons[i, 2].Text) * -1
+      reslig!montant = Val($gridcons[i, 4].Text) * -1
+      reslig.Update
+    Next
+    Utils.db.Commit
+    affdecons
+  Endif
+
+End
+Private Function ajoutcons(gridcons As GridView, cle As String, nomb As Float, tot As Float, i As Integer) As Float
+
+  Dim res As Result
+  
+  res = Utils.db.Exec("SELECT * FROM Fiches_consigne WHERE code=&1", cle)
+  gridcons[i, 0].Text = cle
+  gridcons[i, 1].Text = res!libelle
+  gridcons[i, 2].Text = Str(nomb)
+  gridcons[i, 3].Text = Format(res!prix, "0.00")
+  gridcons[i, 4].text = Format(tot, "0.00")
+  gridcons[i, 2].Alignment = Align.Right
+  gridcons[i, 3].Alignment = Align.Right
+  gridcons[i, 4].Alignment = Align.Right
+  Return tot
+  
+End
+'************************************gestion des déconsignes*********************************
+'*****************************validation de la ligne saisie***************************
+Private Sub valide()
+
+  Dim i As Integer
+  Dim reslig, rescons As Result
+  Dim mont As Float
+  
+  If $bimp Or Not $snumbl Then Return
+  
+  Utils.db.Begin
+  If $textconsp.Text And verifnb($textnbp.Text) Then
+    reslig = Utils.db.Create("Fiches_ligcons")
+    rescons = Utils.db.Exec("SELECT * FROM Fiches_consigne WHERE code=&1", $textconsp.Text)
+    If rescons.Available Then
+      reslig!num = $snumbl
+      reslig!type = "B"
+      reslig!numlig = "D"
+      reslig!codecons = $textconsp.Text
+      reslig!nb = Val($textnbp.Text) * -1
+      If $bclicons Then reslig!montant = reslig!nb * rescons!prix Else reslig!montant = 0
+      $gridsaisie.Rows.Count += 1
+      ajoutcons($gridsaisie, $textconsp.Text, reslig!nb, reslig!montant, $gridsaisie.Rows.Max)
+      mont += reslig!montant
+      reslig.Update
+    Endif
+  Endif
+  If $textconsc.Text And verifnb($textnbc.Text) Then
+    reslig = Utils.db.Create("Fiches_ligcons")
+    rescons = Utils.db.Exec("SELECT * FROM Fiches_consigne WHERE code=&1", $textconsc.Text)
+    If rescons.Available Then
+      reslig!num = $snumbl
+      reslig!type = "B"
+      reslig!numlig = "D"
+      reslig!codecons = $textconsc.Text
+      reslig!nb = Val($textnbc.Text) * -1
+      If $bclicons Then reslig!montant = reslig!nb * rescons!prix Else reslig!montant = 0
+      $gridsaisie.Rows.Count += 1
+      ajoutcons($gridsaisie, $textconsc.Text, reslig!nb, reslig!montant, $gridsaisie.Rows.Max)
+      mont += reslig!montant
+      reslig.Update
+    Endif
+  Endif
+  If $textnbb.Text And verifnb($textnbb.Text) Then
+    reslig = Utils.db.Create("Fiches_ligcons")
+    rescons = Utils.db.Exec("SELECT * FROM Fiches_consigne WHERE code=&1", $textconsb.Text)
+    If rescons.Available Then
+      reslig!num = $snumbl
+      reslig!type = "B"
+      reslig!numlig = "D"
+      reslig!codecons = $textconsb.Text
+      reslig!nb = Val($textnbb.Text) * -1
+      If $bclicons Then reslig!montant = reslig!nb * rescons!prix Else reslig!montant = 0
+      $gridsaisie.Rows.Count += 1
+      ajoutcons($gridsaisie, $textconsb.Text, reslig!nb, reslig!montant, $gridsaisie.Rows.Max)
+      mont += reslig!montant
+      reslig.Update
+    Endif
+  Endif
+  Utils.db.Commit
+  Try mont += Val(Replace($texttotdeco.Text, ",", "."))
+  $texttotdeco.Text = Format(mont, "0.00")
+  mabsaisie
+
+End
+
+Private Function verifnb(value As String) As Boolean
+  
+  If value Then
+    If IsNumber(value) Then
+      If CInt(Val(value)) = CFloat(Val(value)) Then
+        If Val(value) <> 0 Then
+          Return True
+        Endif
+      Endif
+    Endif
+  Endif
+  Return False
+  
+End
+
+'***************************modification d'une ligne de déconsigne ******************************
+Public Sub gridsaisie_Activate()
+
+  Dim res, reslig As Result
+  Dim i As Integer
+  
+  reslig = Utils.db.Exec("SELECT * FROM Fiches_ligcons WHERE num=&1 AND numlig='D'", $snumbl)
+  If Not reslig.Available Then Return
+  mabsaisie
+  reslig.MoveTo($gridsaisie.Row)
+  res = Utils.db.Exec("SELECT * FROM Fiches_consigne WHERE code=&1", reslig!codecons)
+  If res.Available Then
+    Select Case res!type
+      Case "P"
+        $textconsp.Text = reslig!codecons
+        $textconsp.Tag.text = res!libelle
+        $textnbp.Text = Format(reslig!nb * -1, "0")
+        $textnbp.SetFocus
+      Case "C"
+        $textconsc.Text = reslig!codecons
+        $textconsc.Tag.text = res!libelle
+        $textnbc.Text = Format(reslig!nb * -1, "0")
+        $textnbc.SetFocus
+      Case "B"
+        $textconsb.Text = reslig!codecons
+        $textconsb.Tag.text = res!libelle
+        $textnbb.Text = Format(reslig!nb * -1, "0")
+        $textnbb.SetFocus
+    End Select
+  Endif
+  Utils.db.Delete("Fiches_ligcons", "code=&1", reslig!code)
+  affdecons
+End
+'********************supression d'une ligne et gestion retour chariot**************************
+Public Sub gridsaisie_KeyPress()
+
+  Dim res As Result
+  
+  If Key.Code = Key.Del Then
+    res = Utils.db.Exec("SELECT * FROM Fiches_ligcons WHERE num=&1 AND numlig='D'", $snumbl)
+    If res.Available Then
+      res.MoveTo($gridsaisie.Row)
+      Utils.db.Exec("DELETE FROM Fiches_ligcons WHERE code=&1", res!code)
+      affdecons
+    Endif
+  Endif
+  If Key.Code = Key.enter Or Key.Code = Key.Return Then
+    gridsaisie_Activate
+  Endif
+End
+
+Public Sub mabsaisie()
+
+  $textart.Clear
+  $textconsb.Clear
+  $textconsb.Tag.text = ""
+  $textconsc.Clear
+  $textconsc.Tag.text = ""
+  $textconsp.Clear
+  $textconsp.Tag.text = ""
+  $textnbb.text = "0"
+  $textnbc.Text = "0"
+  $textnbp.Text = "0"
+  
+End
+
+Private Function regie_Read() As Boolean
+
+  If Val($texttotdr.Text) <> 0 Or Val($texttotss.Text) <> 0 Then
+    Return True
+  Else
+    Return False
+  Endif
+
+End
+
+Private Function consigne_Read() As Boolean
+
+  If Val($texttotcons.Text) <> 0 Or Val($texttotdeco.Text) <> 0 Then
+    Return True
+  Else
+    Return False
+  Endif
+  
+End
+
+Private Function imprime_Read() As Boolean
+
+  Return $bimp
+  
+End
+
+Private Sub imprime_write(value As Boolean)
+
+  $bimp = value
+
+End
+
+Private Function numbl_Read() As String
+
+  Return $snumbl
+
+End
+
+Private Sub numbl_Write(Value As String)
+
+  $snumbl = value
+  $bcreer = True
+  affdroit($snumbl)
+  affcons($snumbl)
+  affdecons
+End
+
+Private Function artcons_Read() As Boolean
+
+  Return $bartcons 
+
+End
+
+Private Sub artcons_Write(Value As Boolean)
+
+  $bartcons = value
+
+End
+
+Private Function clicons_Read() As Boolean
+
+  Return $bclicons
+
+End
+
+Private Sub clicons_Write(Value As Boolean)
+
+  $bclicons = value
+
+End
+
+Private Function texttotcons_Read() As TextBox
+
+  Return $texttotcons
+
+End
+
+Private Function texttotdeco_Read() As TextBox
+
+  Return $texttotdeco
+
+End
+
+Private Function texttotdr_Read() As TextBox
+
+  Return $texttotdr
+
+End
+
+Private Function texttotss_Read() As TextBox
+
+  Return $texttotss
+
+End
+
+Private Function tvadroit_Read() As Float
+
+  Return $ftvadra
+
+End
+
+Private Function textmondr_Read() As TextBox
+
+  
+
+End
+
+Private Function textmonss_Read() As TextBox
+
+  
+
+End
+
+Private Function lignedroit_Read() As Collection
+
+  
+
+End

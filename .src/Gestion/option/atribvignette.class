@@ -1,0 +1,130 @@
+' Gambas class file
+
+Private $ancienval As String
+Private $bmod As Boolean
+
+Public Sub _new()
+  utils.glb
+utils.db.Open
+   ColumnView1.Columns[0].Text = "Vignettes non attribuées"
+   ColumnView1.Columns[0].Alignment = Align.Center
+
+  affiche
+  
+End
+
+Private Sub affiche()
+
+  Dim resnum, resbl As Result
+  Dim bl As String
+  Dim vgn As Float
+
+  TreeView1.Clear
+  resnum = Utils.db.Exec("SELECT num FROM Fiches_ligregie WHERE cloture=False GROUP BY num")
+  If resnum.Available Then
+    resnum.MoveFirst
+    Repeat
+      If suspendu(resnum!num) Then
+        TreeView1.Add(resnum!num, "Document N° : " & resnum!num)
+        resbl = utils.db.Exec("SELECT LEFT(numlig,6) as bl, vignette FROM Fiches_ligregie WHERE num=&1 AND type='S' AND cloture=False GROUP BY bl,vignette", resnum!num)
+        If resbl.Available Then
+          resbl.MoveFirst
+          Repeat
+            TreeView1.Add(resnum!num & "/" & resbl!bl & "/" & resbl!vignette, "B.L N° : " & resbl!bl & " Vignette N° : " & resbl!vignette,, resnum!num)
+          Until resbl.MoveNext()
+        Else
+          resbl = utils.db.Exec("SELECT * FROM Fiches_ligregie WHERE num=&1 AND type='E' and cloture=False", resnum!num) 
+          TreeView1.Add(resnum!num & "/" & "" & "/" & resbl!vignette, "Réception B.R Vignette N° : " & resbl!vignette,, resnum!num)
+        Endif
+      Endif
+    Until resnum.MoveNext()
+   
+  Endif
+   
+   ColumnView1.Clear
+   resnum = utils.db.Exec("SELECT vignette FROM Fiches_ligregie WHERE vignette<>'' GROUP BY vignette ORDER BY vignette")
+   If resnum.Available Then
+     resnum.MoveFirst
+     vgn = Val(resnum!vignette) 
+     Repeat
+       If vgn < Val(resnum!vignette) Then
+         For vgn = vgn To Val(resnum!vignette) - 1
+           ColumnView1.Add(Str(vgn), Format(vgn, "0000000000000000000000000"))
+         Next
+       Endif
+       Inc vgn
+     Until resnum.MoveNext()
+   Endif
+
+End
+
+Private Function suspendu(num As String) As Boolean
+  
+  Dim res As Result
+  
+  res = Utils.db.Exec("SELECT suspendu FROM Fiches_regie, Fiches_ligregie WHERE num=&1 AND cloture=False AND coderegie=Fiches_regie.code AND suspendu=True", num)
+  Return res.Available
+  
+End
+
+Public Sub TreeView1_Activate()
+
+  Dim txt As String[]
+  
+  If Left(TreeView1.Current.Text, 8) = "Document" Then Return
+  txt = Split(TreeView1.Current.Key, "/")
+  Textvig.Text = txt[2]
+  $ancienval = Textvig.Text
+  $bmod = True
+  Textvig.SetFocus
+  Textvig.Select
+
+End
+
+Public Sub Textvig_LostFocus()
+
+  Dim txt As String[]
+  Dim res As Result
+  
+  If Not $bmod Then Return
+  If Not IsInteger(Textvig.Text) Then 
+    Stop Event
+    Textvig.Clear
+    $ancienval = ""
+    Return
+  Endif
+  Textvig.text = Format(Val(Textvig.Text), "0000000000000000000000000")
+  If $ancienval <> Textvig.Text Then
+    res = utils.db.Exec("SELECT * FROM Fiches_ligregie WHERE vignette=&1", Textvig.Text)
+    If res.Available Then
+      Balloon.Delay = 2000
+      Balloon.Error("N° vignette existant", Textvig)
+      Textvig.Text = $ancienval
+      Textvig.SetFocus
+      Textvig.Select
+      Return 
+    Endif
+    txt = Split(TreeView1.Current.Key, "/")
+    If Not txt Then Return
+    If txt[1] Then
+      utils.db.Exec("UPDATE Fiches_ligregie SET vignette=&1 WHERE num=&2 AND numlig LIKE &3", Textvig.Text, txt[0], txt[1] & "%")
+    Else
+      utils.db.Exec("UPDATE Fiches_ligregie SET vignette=&1 WHERE num=&2 AND cloture=False", Textvig.Text, txt[0])
+    Endif
+    Textvig.Clear
+    $ancienval = ""
+    $bmod = False
+    affiche
+  Endif
+
+End
+
+Public Sub Textvig_KeyPress()
+  
+  If Key.Code = Key.Esc Then Textvig.Text = $ancienval
+  If Key.Code = Key.Enter Or Key.code = Key.Return Or Key.Code = Key.tab Then
+    Textvig_LostFocus
+    Stop Event
+  Endif
+End
+

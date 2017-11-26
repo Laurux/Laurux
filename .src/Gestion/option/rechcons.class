@@ -1,0 +1,96 @@
+' Gambas class file
+
+Event trouver(value As String)
+
+Private $rescons As Result
+Private $schoix As String
+
+Public Sub _new(choix As String)
+
+  $schoix = choix
+  Me.Tag = choix
+  GridView1.Header = GridView.Horizontal
+  GridView1.Columns.Count = 4
+  GridView1.Columns[0].text = "Code"
+  GridView1.Columns[0].Width = 60
+  GridView1.Columns[1].Text = "Nom"
+  GridView1.Columns[1].Expand = True
+  GridView1.Columns[2].Text = "Contenant"
+  GridView1.Columns[2].Width = 150
+  GridView1.Columns[3].Text = "Prix"
+  GridView1.Columns[3].Width = 100
+  GridView1.Mode = Select.Single
+  If choix = "T" Then
+    $rescons = Utils.db.Exec("SELECT * FROM Fiches_consigne")
+    If $rescons.Available Then
+    Endif
+  Else
+    $rescons = Utils.db.Exec("SELECT * FROM Fiches_consigne WHERE type = &1", choix)
+  Endif
+  GridView1.Rows.Count = $rescons.Count
+End
+
+Public Sub GridView1_Data(Row As Integer, Column As Integer)
+  
+  $rescons.MoveTo(row)
+  Select Case Column
+    Case 0
+      GridView1.Data.Text = $rescons!code
+    Case 1
+      GridView1.Data.Text = $rescons!libelle
+    Case 2
+      Select Case $rescons!type
+        Case "P"
+          GridView1.Data.Text = "Palette"
+        Case "C"
+          GridView1.Data.Text = "Caisse"
+        Case "B"
+          GridView1.Data.Text = "Bouteille"
+      End Select
+    Case 3
+      GridView1.Data.Text = Format($rescons!prix, "0.00")
+      GridView1.Data.Alignment = Align.Right
+  End Select
+  
+End
+
+Public Sub GridView1_Activate()
+
+  Raise trouver(GridView1[GridView1.Row, 0].text)
+  Me.Close
+
+End
+
+Public Sub Textcode_Change()
+
+  If $schoix = "T" Then
+    $rescons = Utils.db.Exec("SELECT * FROM Fiches_consigne WHERE code LIKE &1", "%" & Textcode.Text & "%")
+  Else
+    $rescons = Utils.db.Exec("SELECT * FROM Fiches_consigne WHERE code LIKE &1 AND type=&2", "%" & Textcode.Text & "%", $schoix)
+  Endif
+  GridView1.Rows.Count = $rescons.Count
+
+End
+
+Public Sub Texlib_Change()
+
+  If $schoix = "T" Then
+    $rescons = Utils.db.Exec("SELECT * FROM Fiches_consigne WHERE libelle LIKE &1", "%" & Texlib.Text & "%")
+  Else
+    $rescons = Utils.db.Exec("SELECT * FROM Fiches_consigne WHERE libelle LIKE &1 AND type=&2", "%" & Texlib.Text & "%", $schoix)
+  Endif
+  GridView1.Rows.Count = $rescons.Count
+
+End
+
+Public Sub rechcons_KeyPress()
+
+  Button1_Click()
+
+End
+
+Public Sub Button1_Click()
+
+  Me.Close
+
+End

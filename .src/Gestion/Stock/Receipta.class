@@ -96,6 +96,16 @@ Private $barre As String
 Private bTotal As Boolean = False
 Private bCbarre As Boolean = False
 Private bsaisie As Boolean = False 'flag pour savoir si on réaffiche après la validation
+Private $soption As String
+Private $textpal As TextBox
+Private $textcol As TextBox
+Private $labcons As TextLabel
+Private $labacc As TextLabel
+Private $inbot As Integer
+Private $incol As Integer
+Private $o As Integer
+Private $bcrea As Boolean
+Private $fcd As Fourconsdroi
 
 Public Sub _New()
 
@@ -123,6 +133,8 @@ Public Sub _New()
     Panel3.MoveScaled(1, 36)
     Colrcp.MoveScaled(1, 42, 115, 40)
   Endif
+  $soption = utils.Option()
+  If $soption = "B" Or $soption = "T" Then modifecran
   b = 0
   Nlg = 1
   Dsgn = ""
@@ -262,7 +274,10 @@ Public Sub CleanChamps()
   Pvttc.Clear
   Arr.Text = ""
   Totht.Clear
-
+ If $soption = "B" Or $soption = "T" Then
+    $textcol.Clear
+    $textpal.Clear
+  Endif
 End
 
 '**********************************************************
@@ -281,8 +296,10 @@ Public Sub RazBl()
   Nbligne.Text = ""
   Totalrcpt.Text = ""
   Tfrais.Text = "0,00"
-  Nlgn = "0000"
-  bTotal = False
+  If $soption = "B" Or $soption = "T" Then
+    $labacc.Text = ""
+    $labcons.Text = ""
+  Endif
 
 End
 
@@ -352,6 +369,7 @@ Public Sub Rcpt_KeyPress()
               numcom.SetFocus
             Endif
           Endif
+          bloc
           Stop Event
 
         Case 2
@@ -424,6 +442,7 @@ Public Sub Rcpt_KeyPress()
               Endif
             Endif
           Endif
+          bloc
           Stop Event
 
         Case 4
@@ -436,6 +455,7 @@ Public Sub Rcpt_KeyPress()
             Cart.SetFocus
             Cart.Select
           Endif
+          bloc
           Stop Event
 
         Case 5
@@ -527,6 +547,10 @@ Public Sub Rcpt_KeyPress()
                           Cbarre = Colrcp.Current[10]
                           Frais.Text = Colrcp.Current[11]
                           Prvt.Text = Colrcp.Current[12]
+                          If $soption = "B" Or $soption = "T" Then
+                            $textpal.Text = Colrcp.Current[17]
+                            $textcol.Text = Colrcp.Current[18]
+                          Endif
                           If Colrcp.current[7] = 0 Then
                             Modif = "1"
                             Nl = Colrcp.Current[0]
@@ -727,6 +751,35 @@ Public Sub Rcpt_KeyPress()
         Case 16
           Button9.SetFocus
           Stop Event
+        
+        Case 17
+          If $textpal.Text Then
+            If IsNumber($textpal.Text) Then
+              $textpal.Text = Format(Val($textpal.Text), "0")
+              $textcol.SetFocus
+            Else
+              $textpal.Clear
+              $textpal.SetFocus
+            Endif
+          Else
+            $textcol.SetFocus
+          Endif
+          Stop Event
+          
+        Case 18
+          If $textpal.Text Then
+            If IsNumber($textcol.Text) Then
+              $textcol.Text = Format(Val($textcol.Text), "0")
+              qterecue.SetFocus
+            Else
+              $textcol.Clear
+              $textcol.SetFocus
+            Endif
+          Else
+            qterecue.SetFocus
+          Endif
+          Stop Event
+          
       End Select
     End With
   Endif
@@ -774,6 +827,16 @@ Public Sub Rcpt_KeyPress()
         CreateBR()
         Stop Event
     End Select
+  Endif
+
+End
+Public Sub bloc()
+
+  Dim blc As String
+  
+  If $soption = "B" Or $soption = "T" Then
+    blc = Datej.Text & numbl.Text & Codefour.Text
+    $fcd.bloc = blc
   Endif
 
 End
@@ -970,7 +1033,7 @@ Public Sub Btn_KeyPress()
 End
 
 Public Sub Btn_Click()
-
+  
   Select Case Last.tag
 
     Case 1
@@ -2108,6 +2171,11 @@ Public Sub Maj_colrcp()
     Else
       Colrcp.Item[15] = Totht.Text
     Endif
+    If $soption = "B" Or $soption = "T" Then
+      Colrcp.Item[17] = $textpal.Text
+      Colrcp.Item[18] = $textcol.Text
+      $fcd.addligne(Cart.Text, $textpal.Text, $textcol.Text, qterecue.Text, Colrcp.Item[0])
+    Endif
     Colrcp.MoveFirst
     Totalrcpt.Text = "0,00"
     bas_doc()
@@ -2148,6 +2216,10 @@ Public Sub ControlProd()
       qte = Utils.Cdec(Decm, qte)
       Colrcp.Item[7] = qte
       Colrcp.Item[8] = Format$(Val(paht.text) * Val(Utils.cpoint(Colrcp.Item[7])), nbdec)
+      If $soption = "B" Or $soption = "T" Then
+        Colrcp.item[17] = utils.totobs([Colrcp.item[17], $textpal.Text])
+        Colrcp.Item[18] = utils.totobs([Colrcp.Item[18], $textcol.Text])
+      Endif
       ControlQterc()
     Case 2
       If Len(pbht.text) - InStr(pbht.text, ",") = 2 Then
@@ -2166,6 +2238,10 @@ Public Sub ControlProd()
         Utils.db.Exec("Update Fiches_Art SET art_qte = &2, art_pmp = &3, art_dpa = &4, art_dfour = &5, art_coef = &6 WHERE art_code = &1", Cart.Text, Artstock.Text, Val(Utils.cpoint(Pmp)), Val(Utils.cpoint(paht.Text)), Codefour.Text, Coef.Text)
       Endif
       Colrcp.Item[8] = Format$(Val(paht.text) * Val(Utils.cpoint(Colrcp.Item[7])), nbdec)
+      If $soption = "B" Or $soption = "T" Then
+        Colrcp.item[17] = $textpal.Text
+        Colrcp.Item[18] = $textcol.Text
+      Endif
     Case 3
       Nlgn = Format$(Val(Nlgn) + 1, "000")
       If Error Then Nlgn = Colrcp.count + 1
@@ -2210,9 +2286,14 @@ Public Sub ControlProd()
       Else
         Colrcp.Item[15] = Patot
       Endif
+      If $soption = "B" Or $soption = "T" Then
+        Colrcp.item[17] = $textpal.Text
+        Colrcp.Item[18] = $textcol.Text
+      Endif
   End Select
   Modif = "0"
-
+  If $soption = "B" Or $soption = "T" Then $fcd.addligne(Colrcp.Item[1], Colrcp.Item[17], Colrcp.Item[18], Colrcp.Item[3], Colrcp.Item[0])
+  
 End
 
 '*******************************************
@@ -2230,6 +2311,10 @@ Public Sub bas_doc()
     Tfrais.Text = Format$(Val(Tfrais.Text) + (Val(Colrcp.Item[11]) * Val(Colrcp.Item[7]) * Txconv), "0.00")
     Try Totalttc.Text = Format$(Val(Totalttc.Text) + (Val(Colrcp.Item[15])), "0.00")
   Loop Until Colrcp.MoveNext()
+  If $soption = "B" Or $soption = "T" Then
+    $labcons.Text = $fcd.consigne
+    $labacc.Text = $fcd.accise
+  Endif
   Nbligne.Text = Colrcp.count
   modif = "0"
 
@@ -2268,6 +2353,10 @@ Public Sub Colrcp_Activate()
         If b = 0
           Dart.text = Colrcp.Current[2]
           qtecom.text = Colrcp.Current[3]
+          If $soption = "B" Or $soption = "T" Then
+            $textpal.Text = Colrcp.item[17]
+            $textcol.Text = Colrcp.Item[18]
+          Endif
           Qtecomc = Colrcp.Current[3]
           pbht.text = Colrcp.Current[4]
           Tr.text = Colrcp.Current[5]
@@ -2282,6 +2371,10 @@ Public Sub Colrcp_Activate()
           Frais.Text = Colrcp.Current[11]
           Prvt.Text = Colrcp.Current[12]
           Totht.text = Format(Val(.cpoint(paht.text)) * Val(.cpoint(qterecue.text)), nbdec)
+          If $soption = "B" Or $soption = "T" Then
+            $textpal.Text = Colrcp.Current[17]
+            $textcol.Text = Colrcp.Current[18]
+          Endif
           Tab = "Fiches_Art"
           montantr = Tr.Text
           If Settings["/Soc" & Start.Societe & "/Tmq"] Then
@@ -2336,6 +2429,7 @@ Public Sub Colrcp_Keypress()
       If Message.Question("Etes-vous sur de vouloir supprimer cette ligne ?", "Oui", "Non") = 1 Then
         Utils.db.Exec("delete from Fiches_Ligcom WHERE lind = &1", Colrcp.current[12])
         CleanChamps()
+        If $soption = "B" Or $soption = "T" Then $fcd.supligne(Colrcp.Current[0])
         Colrcp.Current.Delete
         Ren_ligbon()
       Endif
@@ -2395,6 +2489,9 @@ Public Sub Ren_ligbon()
       Nlgn = Format$(Val(Nlgn) + 1, "000")
       Colrcp.current[0] = Format$(Val(Nlgn), "000")
     Until Colrcp.MoveNext()
+    If $soption = "B" Or $soption = "T" Then
+      $fcd.renligne
+    Endif
   Endif
 
 End
@@ -2409,6 +2506,8 @@ Public Sub Enrgcoml()
   Dim Mtl As Integer = 0
   Dim Ncode As String
   Dim CtrlCom As Boolean = True
+  Dim decons As Saisiedecons
+  Dim win As Window
 
   With Utils
     Etiqb = False
@@ -2447,7 +2546,11 @@ Public Sub Enrgcoml()
               rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntrecpt") & " where numrecpt = &1 and four = &2", numbl.Text, codefour.Text)
               If Not rResult.Available Then
                 If Colrcp.Count <> 0 Then
-                  Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabArt") & " WRITE, " & Cbase.Table("TabLigrecpt") & " WRITE, " & Cbase.Table("TabEtiqp") & " WRITE, " & Cbase.Table("TabEtiqg") & " WRITE, " & Cbase.Table("TabEntrecpt") & " WRITE, " & Cbase.Table("TabMat") & " WRITE, " & Tmats & " write")
+                  If $soption = "B" Or $soption = "T" Then
+                    Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabArt") & " WRITE, " & Cbase.Table("TabLigrecpt") & " WRITE, " & Cbase.Table("TabEtiqp") & " WRITE, " & Cbase.Table("TabEtiqg") & " WRITE, " & Cbase.Table("TabEntrecpt") & " WRITE, " & Cbase.Table("TabMat") & " WRITE, " & Tmats & " write, Fiches_ligcons WRITE, Fiches_consigne WRITE")
+                  Else
+                    Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabArt") & " WRITE, " & Cbase.Table("TabLigrecpt") & " WRITE, " & Cbase.Table("TabEtiqp") & " WRITE, " & Cbase.Table("TabEtiqg") & " WRITE, " & Cbase.Table("TabEntrecpt") & " WRITE, " & Cbase.Table("TabMat") & " WRITE, " & Tmats & " write")
+                  Endif
                   Utils.db.Exec("INSERT INTO " & Cbase.Table("TabEntrecpt") & "(four,numrecpt,ddate,montant,validee, mttc, anomalie, commentaire) VALUES (&1, &2, &3, &4, &5, &6, &7, &8)", codefour.text, numbl.text, .Cdate_Dbase(Datej.text), Val(Totalrcpt.text), False, Val(Totalttc.text), An.value, Comments.text)
                   Colrcp.MoveFirst
                   Repeat
@@ -2476,6 +2579,14 @@ Public Sub Enrgcoml()
                       If Materiel And Gmateriel Then Enrgnum()
                     Endif
                   Until Colrcp.Movenext()
+                  If $soption = "B" Or $soption = "T" Then
+                    $fcd.enrligne(numbl.Text)
+                    win = New Window
+                    decons = New Saisiedecons(win, win, Codefour.Text, numbl.Text, Datej.Text)
+                    win.Height = decons.Height
+                    win.Width = decons.Width
+                    win.ShowModal
+                  Endif
                   Utils.db.Exec("UNLOCK TABLES")
                 Endif
                 Maj_Com()
@@ -2836,6 +2947,7 @@ Public Sub ToggleButton4_Click()
       Colcom.visible = False
     Else
       Colcom.visible = True
+      Colcom.Raise
       Colcom.Columns.count = 6
       Colcom.Columns[0].Width = 74
       Colcom.Columns[1].Width = 260
@@ -2863,7 +2975,7 @@ Public Sub ToggleButton4_Click()
           NmF = Utils.db.Exec("SELECT * FROM " & Tab1 & " where fo_code = &1", ComResult!four)
           Colcom.Item[1] = Nmf!fo_nom
           Colcom.Item[2] = ComResult!numcom
-          Colcom.Item[3] = .Cdate_Com(ComResult!ddate)
+          Colcom.Item[3] = Format(ComResult!ddate, "dd.mm.yyyy")
           Datecom = Colcom.Item[3]
           Colcom.Item[4] = Format$(ComResult!montant, "0.00")
           If ComResult!anomalie Then Colcom.Item[5] = "X"
@@ -2906,6 +3018,7 @@ Public Sub AffColcom()
   Tfrais.text = "0,00"
   pttc = "0"
   Nlgn = "0"
+  If $soption = "B" Or $soption = "T" Then $fcd = New Fourconsdroi("A")
   With Utils
     If Colrcp.Count = 0 Then
       rResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE fo_code = &1", $four)
@@ -2973,7 +3086,18 @@ Public Sub AffColcom()
           Else
             Colrcp.Item[9] = ""
           Endif
+          If $soption = "B" Or $soption = "T" Then 
+            $fcd.addligne(LigResult!code, LigResult!palet, LigResult!coli, LigResult!qte, nlgn)
+             Colrcp.item[17] = "0"
+            Colrcp.Item[18] = "0"
+            Try Colrcp.item[17] = Format(LigResult!palet, "0")
+            Try Colrcp.Item[18] = Format(LigResult!coli, "0")
+          Endif
         Loop Until LigResult.MoveNext()
+        If $soption = "B" Or $soption = "T" Then
+          $labcons.Text = Format($fcd.consigne, "0.00")
+          $labacc.Text = Format($fcd.accise, "0.00")
+        Endif
         Nbligne.Text = Colrcp.count
         Nlgn = Format$(Colrcp.count + 1, "000")
         Nl = Nlgn
@@ -3070,6 +3194,7 @@ Public Sub RecupCom()
     Colrcp.Clear
     ComRslt = Utils.db.Exec("SELECT * FROM " & tab3 & " WHERE four = &1", codefour.Text)
     If ComRslt.Available Then
+      $fcd = New Fourconsdroi("A")
       Do
         LigResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE numcom = &1 and four = &2", ComRslt!numcom, codefour.Text)
         If LigResult.Available Then
@@ -3129,6 +3254,11 @@ Public Sub RecupCom()
                 Colrcp.Item[3] = Val(utils.cpoint(Colrcp.current[3])) + Val(utils.cpoint(LigResult!qte))
                 Colrcp.Item[7] = Val(utils.cpoint(Colrcp.current[7])) + Val(utils.cpoint(LigResult!qte))
               Endif
+            Endif
+            If $soption = "B" Or $soption = "T" Then
+              Colrcp.Item[17] = Str(utils.totobs([Colrcp.Item[17], Str(LigResult!palet)]))
+              Colrcp.Item[18] = Str(utils.totobs([Colrcp.Item[18], Str(LigResult!coli)]))
+              $fcd.addligne(Colrcp.Item[1], Colrcp.Item[17], Colrcp.Item[18], Colrcp.Item[7], Colrcp.Item[0])
             Endif
           Loop Until LigResult.MoveNext()
         Endif
@@ -3303,6 +3433,7 @@ Public Sub ToggleButton3_Click()
     Colbl.visible = False
   Else
     Colbl.visible = True
+    Colbl.Raise
     Aff_Data
   Endif
 
@@ -3329,7 +3460,7 @@ Public Sub Aff_Data()
         FoResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " where  fo_code = &1", rResult!four)
         Colbl.Item[0] = FoResult!fo_nom
         Colbl.Item[2] = rResult!numrecpt
-        Colbl.Item[3] = .Cdate_Com(rResult!ddate)
+        Colbl.Item[3] = Format(rResult!ddate, "dd.mm.yyyy")
       Until rResult.MoveNext()
     Endif
     If Colbl.Count Then
@@ -3550,10 +3681,89 @@ Public Sub An_Click()
 
   If an.Value Then
     Comments.visible = True
+    Comments.Raise
   Else
     Comments.visible = False
   Endif
 
+End
+
+Public Sub modifecran()
+
+  Dim co As Float
+  Dim lab As Label
+  
+  co = Panel2.Width / 920
+  If Settings["/Soc" & Start.Societe & "/prixRecpt"] Then
+    Panel2.y = 104 * co
+    Panel2.Height = 256 * co
+    Panel7.y = 152 * co
+    Panel7.Height = 90 * co
+    Button1.y = 216 * co
+    TextLabel19.y = 48 * co
+    TextLabel9.y = 48 * co
+    TextLabel10.y = 48 * co
+    TextLabel11.y = 48 * co
+    TextLabel12.y = 48 * co
+    TextLabel13.y = 48 * co
+    TextLabel16.y = 48 * co
+    pauv.y = 64 * co
+    frais.y = 64 * co
+    prvt.y = 64 * co
+    Coef.y = 64 * co
+    PvHt.y = 64 * co
+    PvTTc.y = 64 * co
+    arr.y = 64 * co
+    TextLabel6.y = 94 * co
+    TextLabel6.x = 624 * co
+    qterecue.y = 124 * co
+    qterecue.x = 624 * co
+    TextLabel7.x = 480 * co
+    TextLabel7.y = 94 * co
+    qtecom.y = 124 * co
+    qtecom.x = 480 * co
+  
+    lab = New Label(panel2)
+    lab.Move(192 * co, 94 * co, 104 * co, 24 * co)
+    lab.Text = "Palette"
+    lab.Alignment = Align.Center
+    lab = New Label(panel2)
+    lab.Move(336 * co, 94 * co, 104 * co, 24 * co)
+    lab.Text = "Coli"
+    lab.Alignment = Align.Center
+    $textpal = New TextBox(panel2) As "Rcpt"
+    $textpal.Move(192 * co, 124 * co, 104 * co, 24 * co)
+    $textpal.Alignment = Align.Right
+    $textpal.Tag = 17
+    $textcol = New TextBox(panel2) As "Rcpt"
+    $textcol.Move(336 * co, 124 * co, 104 * co, 24 * co)
+    $textcol.Alignment = Align.Right
+    $textcol.Tag = 18
+    
+    TextLabel15.x = 8 * co
+    Nbligne.x = 134 * co
+    TextLabel17.x = 202 * co
+    totalrcpt.x = 294 * co
+    TextLabel21.x = 406 * co
+    Tfrais.x = 498 * co 
+    lab = New Label(Me)
+    lab.Move(606 * co, 664 * co, 80 * co, 24 * co)
+    lab.Font = Font["Serif,Bold,-1"]
+    lab.Text = "Consigne"
+    $labcons = New TextLabel(Me)
+    $labcons.Move(666 * co, 664 * co, 88 * co, 24 * co)
+    $labcons.font = Font["Serif,Bold,-1"]
+    $labcons.Alignment = Align.Right
+    lab = New Label(Me)
+    lab.Move(780 * co, 664 * co, 70 * co, 24 * co)
+    lab.Font = Font["Serif,Bold,-1"]
+    lab.Text = "Accise"
+    $labacc = New TextLabel(Me)
+    $labacc.Move(840 * co, 664 * co, 88 * co, 24 * co)
+    $labacc.font = Font["Serif,Bold,-1"]
+    $labacc.Alignment = Align.Right
+    
+  Endif 
 End
 
 Public Sub Comments_DblClick()

@@ -1,0 +1,185 @@
+' Gambas class file
+
+Private $enfant As Trifam
+Private $parent As Trifam
+Private $suivant As Trifam
+Private $precedant As Trifam
+Private $fsoustotpmp As Float
+Private $fsoustotpa As Float
+Private $ipr As New Integer[]           'ou sont les points de rupture 
+Private $resfam As Result
+Private $sfamille As String[]
+Private $stext As String
+Private $scle As String
+
+Property enfant As Trifam
+Property Read parent As Trifam
+Property suivant As Trifam
+Property Read precedant As Trifam
+Property soustotpmp As String
+Property soustotpa As String
+Property Read Text As String
+Property Read cle As String
+
+
+Public Sub _new(choix As String, Optional niveau As Integer, ipr As Integer[], fam As String, prec As Trifam, par As Trifam)
+
+  Dim i, j As Integer
+  Dim qst As String
+  Dim suiv, enf, nouv As Trifam
+  Dim binf, bsup As String
+  
+  '1° appel à la procedure => initialisation et 1 boucle
+  If choix = "1" Then
+    Try $ipr = Settings["/Soc" & Start.Societe & "/ipr"] 
+    Try i = $ipr.Count
+    If i = 0 Or Error Then
+      Message.Error("Erreur de parametrage des familles", "Ok")
+      Quit
+    Endif
+    par = Me
+    suiv = Null
+    prec = Null
+    enf = Null
+    $parent = Null
+    $enfant = Null
+    $suivant = Null
+    $precedant = Null
+    
+    $resfam = Utils.db.Exec("SELECT LEFT(code_fam, " & $ipr[0] & ") AS famille FROM Fiches_Fam GROUP BY famille ORDER BY famille")
+    If $resfam.Available Then
+      $resfam.MoveFirst
+      $scle = $resfam!famille
+'      If $ipr.Max > 0 Then
+        Repeat
+          nouv = New Trifam("+", 1, $ipr, $resfam!famille, prec, Me)
+          If IsNull($enfant) Then $enfant = nouv
+          If Not IsNull(prec) Then prec.suivant = nouv
+          prec = nouv
+        Until $resfam.MoveNext()
+'      Endif
+    Endif 
+  Endif
+  'on rajoute les branches à la famille passée & met a j les variables
+  If choix = "+" Then
+    $precedant = prec
+    $parent = par
+    $parent.enfant = Me
+    $stext = txt(fam)
+    $scle = fam
+    If Not IsNull(prec) Then prec.suivant = Me
+    If niveau <= ipr.Max Then
+      binf = fam
+      bsup = fam
+      For i = ipr[niveau - 1] - 1 To ipr[niveau] - 1
+        binf = binf & Chr(32)
+        bsup = bsup & Chr(122)
+      Next
+      $resfam = Utils.db.Exec("SELECT LEFT(code_fam, " & ipr[niveau] & ") AS famille FROM Fiches_Fam WHERE LEFT(code_fam, " & ipr[niveau] & ")  > &1 AND LEFT(code_fam, " & ipr[niveau] & ")  < &2 GROUP BY famille ORDER by famille", binf, bsup)
+      If $resfam.Available Then
+        $resfam.MoveFirst
+        prec = Null
+        Repeat
+          nouv = New Trifam("+", niveau + 1, ipr, $resfam!famille, prec, Me)
+          If IsNull($enfant) Then $enfant = nouv
+          If Not IsNull(prec) Then prec.suivant = nouv
+          prec = nouv
+        Until $resfam.MoveNext()
+      Endif
+    Endif
+  Endif
+End
+
+Public Sub _next() As Trifam
+
+  If IsNull(Enum.Index) Then Enum.Index = Me Else Enum.Index = Enum.Index.enfant
+  If IsNull(Enum.Index) Then Enum.Stop
+  Return Enum.Index
+
+End
+Private Function txt(fam As String) As String
+  
+  Dim res As Result
+  
+  res = Utils.db.Exec("SELECT * FROM Fiches_Fam WHERE code_fam=&1", fam)
+  If res.Available Then
+    Return res!libell_fam
+  Else
+    Return ""
+  Endif
+  
+End
+
+Private Function enfant_Read() As Trifam
+
+  Return $enfant
+
+End
+
+Private Sub enfant_Write(Value As Trifam)
+  
+  $enfant = value
+  
+End
+
+Private Function parent_Read() As Trifam
+
+  Return $parent
+
+End
+
+Private Function suivant_Read() As Trifam
+
+  Return $suivant
+
+End
+
+Private Sub suivant_Write(Value As Trifam)
+  
+  $suivant = value
+  
+End
+
+Private Function precedant_Read() As Trifam
+
+  Return $precedant
+
+End
+
+Private Function soustotpmp_Read() As String
+
+  Return Format($fsoustotpmp, "0.00")
+
+End
+
+Private Sub soustotpmp_Write(Value As String)
+
+  $fsoustotpmp += Val(value)
+  Try Me.parent.soustotpmp = value
+
+End
+
+Private Function soustotpa_Read() As String
+
+  Return Format($fsoustotpa, "0.00")
+
+End
+
+Private Sub soustotpa_Write(Value As String)
+
+  $fsoustotpa += Val(value)
+  Try Me.parent.soustotpa = value
+
+End
+
+Private Function Text_Read() As String
+
+  Return $stext
+
+End
+
+Private Function cle_Read() As String
+
+  Return $scle
+
+End

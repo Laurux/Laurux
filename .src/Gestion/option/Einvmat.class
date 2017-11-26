@@ -1,0 +1,108 @@
+' Gambas class file
+
+Private $fstot As Float[]
+Private $resinv As Result
+Private $resdra As Result
+
+Public Sub _new()
+
+  Dim ccdstk, ccdsai As Calculdroit
+  Dim i, j As Integer
+  Dim res As Result
+  Dim pnl As ReportPanel
+  Dim lbl As ReportLabel
+  Dim obj As Object
+  
+  utils.glb
+utils.db.Open
+
+  $fstot = New Float[8]
+  res = utils.db.Exec("SELECT * FROM Fiches_Inv LIMIT 1")
+  If res.Available Then Reportdate.text = Format(res!inv_date, "dd.mm.yyyy")
+  $resdra = Utils.db.Exec("SELECT * FROM Fiches_regie")
+  If $resdra.Available Then
+    $resdra.MoveFirst
+    
+    Repeat
+      $resinv = Utils.db.Exec("SELECT * FROM Fiches_Art,Fiches_Inv WHERE inv_code=art_code and art_dra=&1", $resdra!code) 
+      If $resinv.Available Then
+        $resinv.MoveFirst
+        pnl = New ReportPanel(ReportPanel4)
+        pnl.Autoresize = True
+        pnl.Arrangement = Arrange.Horizontal
+        lbl = New ReportLabel(pnl)
+        lbl.Font = font["Serif,+1"]
+        lbl.Text = "Code régie : "
+        lbl = New ReportLabel(pnl)
+        lbl.Text = "    " & $resinv!art_dra
+        lbl = New ReportLabel(pnl)
+        lbl.Text = "    " & $resdra!nom
+        Repeat
+          ccdstk = New Calculdroit($resinv!art_dra, $resinv!art_volm, $resinv!art_deg, $resinv!inv_qtestock)
+          ccdsai = New Calculdroit($resinv!art_dra, $resinv!art_volm, $resinv!art_deg, $resinv!inv_qtecomptee)
+          Reportdetail = New ReportPanel(ReportPanel4)
+          Reportdetail.Arrangement = Arrange.Horizontal
+          Reportdetail.Autoresize = True 
+          nart = atrlab(nart, $resinv!inv_code)
+          libart = atrlab(libart, $resinv!inv_design)
+          regie = atrlab(regie, $resinv!art_dra)
+          libreg = atrlab(libreg, $resdra!nom)
+          qtest = atrlab(qtest, $resinv!inv_qtestock)
+          volst = atrlab(volst, Format(ccdstk.vol, "0.00"))
+          apst = atrlab(apst, Format(ccdstk.volap, "0.00"))
+          qtesa = atrlab(qtesa, $resinv!inv_qtecomptee)
+          volsa = atrlab(volsa, Format(ccdsai.vol, "0.00"))
+          apsa = atrlab(apsa, Format(ccdsai.volap, "0.00"))
+          qteec = atrlab(qteec, Format($resinv!inv_qtecomptee - $resinv!inv_qtestock, "0.00"))
+          volec = atrlab(volec, Format(ccdsai.vol - ccdstk.vol, "0.00"))
+          apec = atrlab(apec, Format(ccdsai.volap - ccdstk.volap, "0.00"))
+  '        Print Me.PageCount
+          obj = Reportdetail.Children
+          For j = 4 To 11
+            $fstot[j - 4] = utils.totobs([Str($fstot[j - 4]), obj[j].text])
+          Next
+
+        Until $resinv.MoveNext()
+        pnl = New ReportPanel(ReportPanel4)
+        pnl.Autoresize = True
+        pnl.Arrangement = Arrange.Horizontal
+        lbl = New ReportLabel(pnl)
+        lbl.Font = font["Serif,+1"]
+        lbl.Text = "Total : "
+        lbl.Width = "115mm"
+        lbl.Alignment = Align.Center
+        For j = 0 To 7
+          lbl = New ReportLabel(pnl)
+          lbl.Width = "20mm"
+          lbl.Height = "6mm"
+          lbl.Font = Font["Serif,-1"]
+          lbl.Border = ReportBorder["Top:0.5mm #000000;Bottom:0.5mm #000000;Left:0.5mm #000000;Right:0.5mm #000000"]
+          lbl.Alignment = Align.Right
+          lbl.Text = Format($fstot[j], "0.00")
+        Next
+        lbl.Expand = True
+      Endif
+    Until $resdra.MoveNext()
+    
+'    Reportfin.Text = Me.DataCount
+  Endif
+  
+End
+
+Public Function atrlab(rplab As ReportLabel, txt As String) As ReportLabel
+
+  Dim nouvrep As ReportLabel
+  
+  nouvrep = New ReportLabel(Reportdetail)
+  nouvrep.Height = rplab.Height
+  nouvrep.Width = rplab.Width
+  nouvrep.Text = txt
+  nouvrep.Alignment = rplab.Alignment
+  nouvrep.Expand = rplab.Expand
+  nouvrep.Font = Font["Serif,-1"]
+  nouvrep.Border = rplab.Border
+  
+  Return nouvrep
+
+End
+

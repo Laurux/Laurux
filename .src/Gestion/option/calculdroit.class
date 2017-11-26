@@ -1,0 +1,228 @@
+' Gambas class file
+
+'remonte toutes les infos nécessaires pour les droits sur les alcools (totaux et compte comptables)
+
+Private $fdroit As Float
+Private $fsecu As Float
+Private $vol As Float
+Private $volap As Float
+Private $ftva As Float
+Private $ftvad As Float
+Private $ftxtvad As Float
+Private $ftvas As Float
+Private $ftxtvas As Float
+Private $slib As String
+Private $stype As String
+Private $scptreg As String
+Private $scodetva As String
+Private $bsuspendu As Boolean
+Private $bdrsurfac As Boolean
+Private $sfam As String
+Private $scodedr As String
+
+Property droit As Float
+Property secu As Float
+Property Read tva As Float
+Property Read tvadroit As Float
+Property Read tvasec As Float
+Property Read lib As String
+Property Read volap As Float
+Property Read vol As Float
+Property Read type As String
+Property Read cptreg As String
+Property Read codetva As String
+Property Read suspendu As Boolean
+Property Read drsurfac As Boolean
+Property Read famille As String
+Property tauxtvadr As String
+Property tauxtvass As String
+Property Read code As String
+
+
+Public Sub _new(dra As String, vol As Float, deg As Float, qte As Float, Optional fam As String)   'passage de l'article avec 1 seul resultat
+
+  Dim resdr, restva, respar As Result
+  
+  If Not dra Then Return
+  $sfam = fam
+  resdr = Utils.db.Exec("SELECT * FROM Fiches_regie WHERE code=&1", dra)
+  If resdr.Available Then
+    restva = Utils.db.Exec("SELECT * FROM Fiches_Tvaav WHERE code_tva=&1", resdr!ttva)
+    If Not restva.Available Then
+      Message.Error("Probleme de TVA sur régie n° " & resdr!code & " " & resdr!nom, "OK")
+      Return
+    Endif
+    $volap = qte * (vol / 100) * (deg / 100)
+    $vol = qte * (vol / 100)
+    If resdr!ap Then
+      If Not IsNull(resdr!tauxa) Then $fdroit = Round($volap * (resdr!tauxa / 100), -3)
+    Else
+      If Not IsNull(resdr!tauxa) Then $fdroit = Round($vol * (resdr!tauxa / 100), -3)
+    Endif
+    $ftxtvad = Val(Replace(restva!taux_tva, ".", ",")) / 100
+    $ftvad = $fdroit * $ftxtvad
+    If Not IsNull(resdr!degres) Then
+      If deg >= resdr!degres Then
+        If resdr!ap Then
+          $fsecu = Round($volap * (resdr!tauxss / 100), -3)
+        Else
+          $fsecu = Round($vol * (resdr!tauxss / 100), -3)
+        Endif
+        respar = Utils.db.Exec("SELECT taux_tva FROM Fiches_Parametres,Fiches_Tvaav WHERE code_tva=tvass")
+        If respar.Available Then
+          $ftxtvas = Val(Replace(respar!taux_tva, ".", ",")) / 100
+          $ftvas = $fsecu * $ftxtvas
+        Else
+          Message.Error("probléme TVA sur sécurité social dans les paramétres", "OK")
+        Endif
+      Endif
+    Endif
+    
+    $ftva = Round($ftvad + $ftvas, -2)
+    $slib = resdr!nom
+    $stype = resdr!type
+    $scptreg = resdr!cdcompt
+    $scodetva = resdr!ttva
+    $bsuspendu = resdr!suspendu
+    $bdrsurfac = resdr!drfac
+    $scodedr = resdr!code
+  Else
+    Message.Error("Probleme sur n° régie " & dra, "OK")
+'    Me.Close
+  Endif
+  
+End
+
+Private Function droit_Read() As Float
+
+  Return $fdroit
+
+End
+
+Private Sub droit_Write(Value As Float)
+  
+  $fdroit = Value
+  $ftvad = $fdroit * $ftxtvad
+  $ftva = $ftvad + $ftvas
+  
+End
+
+Private Function secu_Read() As Float
+
+  Return $fsecu
+
+End
+
+Private Sub secu_Write(Value As Float)
+  
+  $fsecu = Value
+  $ftvas = $fsecu * $ftxtvas
+  $ftva = $ftvad + $ftvas
+  
+End
+
+Private Function tva_Read() As Float
+
+  Return $ftva
+
+End
+
+Private Function lib_Read() As String
+
+  Return $slib
+
+End
+
+Private Function volap_Read() As Float
+
+  Return $volap
+
+End
+
+Private Function vol_Read() As Float
+
+  Return $vol
+
+End
+
+Private Function type_Read() As String
+
+  Return $stype
+
+End
+
+Private Function cptreg_Read() As String
+
+  Return $scptreg
+
+End
+
+Private Function codetva_Read() As String
+
+  Return $scodetva
+
+End
+
+Private Function suspendu_Read() As Boolean
+
+  Return $bsuspendu
+
+End
+
+Private Function drsurfac_Read() As Boolean
+
+  Return $bdrsurfac
+
+End
+
+Private Function famille_Read() As String
+
+  Return $sfam
+
+End
+
+Private Function tvadroit_Read() As Float
+
+  Return $ftvad
+
+End
+
+Private Function tvasec_Read() As Float
+
+  Return $ftvas
+
+End
+
+Private Function tauxtvadr_Read() As String
+
+  Return Format($ftxtvad, "0.00")
+
+End
+
+Private Sub tauxtvadr_Write(Value As String)
+
+  $ftxtvad = Val(Replace(value, ".", ",")) 
+  $ftvad = $fdroit * $ftxtvad
+  $ftva = $ftvad + $ftvas
+
+End
+
+Private Function tauxtvass_Read() As String
+
+  Return Format($ftxtvas, "0.00")
+
+End
+
+Private Sub tauxtvass_Write(Value As String)
+
+  $ftxtvas = Val(Replace(value, ".", ",")) 
+  $ftvas = $fsecu * $ftxtvas
+  $ftva = $ftvad + $ftvas
+
+End
+
+Private Function code_Read() As String
+
+  Return $scodedr
+
+End

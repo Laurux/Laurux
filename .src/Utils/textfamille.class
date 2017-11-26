@@ -1,0 +1,144 @@
+' Gambas class file
+
+Inherits ScrollView
+Export
+
+Private $ipr As Integer[]
+Private $texfam As TextBox[]
+
+Property text As String
+Event LostFocus()
+Event KeyPress()
+
+
+Public Sub _new()
+
+  Dim i, lgr As Byte
+
+  Me.Arrangement = Arrange.Horizontal
+   'creation des textbox pour la saisie du code famille
+  $ipr = Settings["/Soc" & Start.Societe & "/ipr"]
+  Try i = $ipr.Count
+  If Error Or $ipr.Count = 0 Then
+    Message.Error("Veuillez vérifier le paramétrage des familles", "OK")
+    Quit
+  Endif
+  $texfam = New $texfam[$ipr.Count]
+  For i = 0 To $ipr.Max
+    $texfam[i] = New TextBox(Me) As "codefam"
+    $texfam[i].Height = Me.Height
+    If i = 0 Then 
+      lgr = $ipr[i]
+    Else
+      lgr = $ipr[i] - $ipr[i - 1]
+    Endif
+    $texfam[i].Width = (12 * lgr) + 10
+    $texfam[i].MaxLength = lgr
+    $texfam[i].Font = Font["Serif,-1"]
+  Next
+
+End
+
+'*****************gestion des textbox saisie deu code famille*********************
+Public Sub codefam_gotfocus()
+
+  Last.Background = &HFFFFBF
+
+End
+
+Public Sub codefam_lostfocus()
+
+  Last.Background = Color.TextBackground
+  Last.unselect
+  Raise LostFocus()
+
+End
+
+Public Sub codefam_keypress()
+
+  Dim i As Byte
+  Dim rz As Boolean
+
+  If Key.Code = Key.Return Or Key.Code = Key.Enter Or Key.Code = Key.Tab Then
+    If Last = $texfam[$ipr.Max] Then
+      Raise KeyPress()
+      Stop Event
+      Return
+    Endif
+    While Last <> $texfam[i]
+      Inc i
+    Wend
+    rz = Raise KeyPress()
+    If rz Then
+      $texfam[i].SetFocus
+      $texfam[i].Select
+    Else
+      $texfam[i + 1].setfocus
+      $texfam[i + 1].Select
+    Endif
+    Stop Event
+  Endif
+
+End
+
+Public Sub setfocus()
+
+'  Clear
+  $texfam[0].setfocus
+ 
+End
+
+Public Sub Select()
+
+  $texfam[0].Select
+
+End
+
+Public Sub Clear()
+
+  Dim i As Byte
+  
+  For i = 0 To $ipr.Max
+    $texfam[i].Clear
+  Next
+
+End
+
+Private Function text_Read() As String
+
+  Dim i, nb As Byte
+  Dim txt As String
+  
+  For i = 0 To $ipr.Max 
+    If i = 0 Then 
+      nb = $ipr[i]
+    Else
+      nb = $ipr[i] - $ipr[i - 1]
+  Endif
+    
+    If Not $texfam[i].Text Then
+      txt &= Space(nb)
+      Continue
+    Endif
+    
+    txt &= $texfam[i].Text & Space(nb - Len($texfam[i].Text))
+    
+  Next
+
+  Return txt
+End
+
+Private Sub text_Write(Value As String)
+
+  Dim i, nb As Byte
+  
+  For i = 0 To $ipr.Max
+    If i = 0 Then 
+      $texfam[i].Text = Left(Value, $ipr[i])
+    Else
+      nb = $ipr[i] - $ipr[i - 1]
+      $texfam[i].Text = Mid(value, $ipr[i - 1] + 1, nb)
+    Endif
+  Next
+
+End

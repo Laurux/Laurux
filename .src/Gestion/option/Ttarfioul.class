@@ -1,0 +1,325 @@
+' Gambas class file
+
+Private $iCoulFoc As Integer ' Variable pour la couleur du background du focus
+Private $iCoulZns As Integer ' Variable pour la couleur du background du TextBox
+Private $sFrmt As New String[]
+Private $tedition As TextBox
+
+Private $resart As Result
+Private $restva As Result
+Private $ftva As Float
+Private $icoef As Integer
+Private $sdec As String
+
+Public Sub _new(Optional num As String)
+
+  Dim obs As Observer
+
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+'  couleur du background du TextBox
+  $sFrmt = Utils.FColr(Settings["/Coul/Znss"])
+  $iCoulZns = Val($sFrmt[0])
+' couleur du background du focus
+  $sFrmt = Utils.FColr(Settings["/Coul/Focus"])
+  $iCoulFoc = Val($sFrmt[0])
+  
+  obs = New Observer(Textmz) As "cmpt"
+  obs = New Observer(Textrev) As "cmpt"
+  obs = New Observer(Textsup) As "cmpt"
+  
+  tableview1.Header = GridView.Horizontal
+  tableview1.Columns.Count = 4
+  tableview1.Columns[0].Width = 100
+  tableview1.Columns[0].Text = "Borne inf"
+  tableview1.Columns[1].Width = 100
+  tableview1.Columns[1].Text = "Borne sup"
+  tableview1.Columns[2].Width = 100
+  tableview1.Columns[2].Text = "Marge HT"
+  tableview1.Columns[3].Width = 100
+  tableview1.Columns[3].Text = "Marge Ttc"
+  
+  tableview2.Header = GridView.Horizontal
+  TableView2.Columns.Count = 5
+  TableView2.Columns[0].Width = 100
+  TableView2.Columns[1].Width = 70
+  TableView2.Columns[2].Width = 70
+  TableView2.Columns[3].Width = 70
+  TableView2.Columns[4].Width = 70
+  TableView2.Columns[0].text = "Quantités"
+  TableView2.Columns[1].text = "Normal HT"
+  TableView2.Columns[2].text = "Normal TTC"
+  TableView2.Columns[3].text = "Sup HT"
+  TableView2.Columns[4].text = "Sup TTC"
+
+  If num Then
+    Textcode.Text = num
+    Textcode.ReadOnly = True
+    Textcode.Background = &HDFDFDF
+    Button1.Enabled = False
+    tableview1.SetFocus
+    Textcode_LostFocus()
+    affiche
+  Endif
+End
+
+Public Sub cmpt_gotfocus()
+
+  Try Last.text = Replace(Last.text, ".", ",")
+  Try Utils.ObsGotf(Last)
+
+End
+
+Public Sub cmpt_lostfocus()
+
+  Try Last.text = Format(Replace(Last.text, ",", "."), "0.00")
+  If Last.text And Not IsNumber(Last.text) Then
+    Balloon.Delay = 5000
+    Try Balloon.Warning("<FONT Color=#212121>" & "Cette zone doit être numérique", Last)
+    Last.clear
+    Last.SetFocus
+    Return
+  Endif
+  Try Utils.ObsLstf(Last)
+
+End
+
+Public Sub cmpt_keypress()
+
+  If Key.Code = Key.Return Or Key.Code = Key.Enter Then
+    Last.Next.SetFocus
+  Endif
+
+End
+Public Sub Textcode_GotFocus()
+
+  Try Utils.ObsGotf(Last)
+
+End
+
+Public Sub Textcode_LostFocus()
+
+  If Not Textcode.Text Then
+    Return
+  Endif
+  $resart = Utils.db.Exec("SELECT * FROM Fiches_Art WHERE art_code=&1", Textcode.Text)
+  If Not $resart.Available Then
+    Balloon.Delay = 5000
+    Try Balloon.Warning("<FONT Color=#212121>" & "article inconnu", Textcode)
+    Textcode.SetFocus
+    Return
+  Endif
+  Try Utils.ObsLstf(Last)
+  Textlib.Text = $resart!art_design
+  Textrev.Text = Format($resart!art_prvt, "0.000")
+  
+  $restva = Utils.db.Exec("SELECT * FROM Fiches_Tvaav WHERE code_tva=&1", $resart!art_tva)
+  If $restva.Available Then $ftva = Val(Replace($restva!taux_tva, ".", ","))
+  If $resart!art_vol = "M3" Or $resart!art_vol = "Tonne" Then
+    $icoef = 1000
+    $sdec = "0"
+  Else
+    $icoef = 1
+    $sdec = "0"
+  Endif
+  affiche
+
+End
+
+Public Sub tableview1_Click()
+  
+  tableview1.Edit
+  $tedition = New TextBox(TableView1) As "txb"
+  $tedition = tableview1.Editor
+  $tedition.Background = $iCoulFoc
+  $tedition.Alignment = Align.Left
+  $tedition.Select()
+  If tableview1.Row = tableview1.Rows.Max And tableview1.Column = 3 Then
+    tableview1.Rows.Count += 1
+  Endif
+End
+
+Public Sub tableview1_Save(Row As Integer, Column As Integer, Value As String)
+
+  Value = Replace(value, ",", ".")
+  If Not IsNumber(value) Then 
+    tableview1[row, Column].Clear
+    Stop Event
+    Return
+  Else
+    tableview1[row, Column].Text = Format(Value, "0")
+  Endif
+  tableview1[row, Column].Alignment = Align.Right
+  
+  Select Case Column
+    Case 2
+      tableview1[row, Column].Text = Format(Value, "0.00")
+      tableview1[row, 3].Text = Format(Val(tableview1[row, Column].Text) * (1 + ($ftva / 100)), "0.00")
+    Case 3
+      tableview1[row, Column].Text = Format(Value, "0.00")
+      tableview1[row, 2].Text = Format(Val(tableview1[row, Column].Text) / (1 + ($ftva / 100)), "0.00")
+
+  End Select
+End
+
+Public Sub tableview2_Click()
+  
+  If tableview2.Column = 0 Then Return
+  tableview2.Edit
+  $tedition = New TextBox(TableView2) As "txb"
+  $tedition = tableview2.Editor
+  $tedition.Background = $iCoulFoc
+  $tedition.Alignment = Align.Left
+  $tedition.Select()
+End
+
+Public Sub tableview2_Save(Row As Integer, Column As Integer, Value As String)
+
+  tableview2[row, Column].Alignment = Align.Right
+  Value = Replace(value, ",", ".")
+  tableview2[row, Column].Text = Format(Value, "0.00")
+  Select Case Column
+    Case 1, 3
+      tableview2[row, Column + 1].Text = Format(Val(tableview2[row, Column].Text) * (1 + ($ftva / 100)), "0.00")
+    Case 2, 4
+      tableview2[row, Column - 1].Text = Format(Val(tableview2[row, Column].Text) / (1 + ($ftva / 100)), "0.00")
+    
+  End Select
+  
+
+End
+
+Public Sub button1_Click()
+
+  Dim sel As String = ""
+  Dim MyForm As TriArticles
+
+  Variables.Bsel = False
+  MyForm = New TriArticles("", "", "art_code", "Receipt", "", "")
+  MyForm.Showmodal()
+  If Variables.Bsel = True Then
+    Textcode.text = Variables.ArtCode
+    Textcode_LostFocus
+  Endif
+
+End
+
+Private Sub affiche()
+  
+  Dim respp, reslig As Result
+  Dim i, j As Integer
+  
+  respp = Utils.db.Exec("SELECT * FROM Fiches_tarpp WHERE code=&1", Textcode.Text)
+  reslig = Utils.db.Exec("SELECT * FROM Fiches_ligtarpp WHERE code=&1", Textcode.Text)
+  If respp.Available Then
+    Textmz.Text = Format(respp!margez, "0.00")
+    Textsup.Text = Format(respp!supqs, "0.00")
+    If reslig.Available Then
+      tableview1.rows.Count = reslig.Count + 1
+      tableview2.rows.Count = reslig.Count + 1
+      reslig.MoveFirst
+      'on rempli les tableview
+      For i = 0 To reslig.Max
+        tableview1[i, 0].Text = Format(reslig!binf * $icoef, $sdec)
+        tableview1[i, 0].Alignment = Align.Right
+        tableview1[i, 1].Text = Format(reslig!bsup * $icoef, $sdec)
+        tableview1[i, 1].Alignment = Align.Right
+        tableview1[i, 2].Text = Format(reslig!marht, "0.00")
+        tableview1[i, 2].Alignment = Align.Right
+        tableview1[i, 3].Text = Format(reslig!marht * (1 + ($ftva / 100)), "0.00")
+        tableview1[i, 3].Alignment = Align.Right
+        
+        tableview2[i, 0].Text = Str(reslig!binf * $icoef) & "-" & Str(reslig!bsup * $icoef)
+        tableview2[i, 0].Alignment = Align.Right
+        tableview2[i, 1].Text = Format(reslig!normht, "0.00")
+        tableview2[i, 1].Alignment = Align.Right
+        tableview2[i, 2].Text = Format(reslig!normht * (1 + ($ftva / 100)), "0.00")
+        tableview2[i, 2].Alignment = Align.Right
+        tableview2[i, 3].Text = Format(reslig!supht, "0.00")
+        tableview2[i, 3].Alignment = Align.Right
+        tableview2[i, 4].Text = Format(reslig!supht * (1 + ($ftva / 100)), "0.00")
+        tableview2[i, 4].Alignment = Align.Right
+        reslig.MoveNext
+      Next
+    Endif
+  Else
+    tableview1.Clear
+    Textmz.Clear
+    Textsup.Clear
+    tableview1.rows.Count = 1
+    tableview2.rows.Count = 0  
+  Endif 
+End
+
+Public Sub Button2_Click()    'calcul tableview2
+
+  Dim i, j As Integer
+  Dim marz, sup, prv As Float
+  Dim nht, sht As Float
+  
+  tableview2.Clear
+  tableview2.Rows.Count = 0
+  Try marz = Val(Textmz.Text)
+  Try sup = Val(Textsup.Text)
+  Try prv = Val(Textrev.Text)
+  j = 0
+  For i = 0 To tableview1.Rows.Max 
+    If Not IsNull(tableview1[i, 0].Text) Then
+      tableview2.Rows.Count += 1
+      tableview2[j, 0].Text = tableview1[i, 0].Text & "-" & tableview1[i, 1].Text
+      Try nht = Val(tableview1[i, 2].Text) + prv + marz
+      Try sht = nht + sup
+      tableview2[j, 1].Text = Format(nht, "0.00")
+      tableview2[j, 1].Alignment = Align.Right
+      tableview2[j, 3].Text = Format(sht, "0.00")
+      tableview2[j, 3].Alignment = Align.Right
+      tableview2[j, 2].Text = Format(nht * (1 + ($ftva / 100)), "0.00")
+      tableview2[j, 2].Alignment = Align.Right
+      tableview2[j, 4].Text = Format(sht * (1 + ($ftva / 100)), "0.00")
+      tableview2[j, 4].Alignment = Align.Right
+      Inc j
+    Endif
+  Next
+
+End
+
+Public Sub Button3_Click()    'enregistrer
+
+  Dim i, j As Integer
+  Dim res As Result
+  Dim brn As String[]
+  
+  If Not Textcode.Text Then Return
+  
+  Utils.db.Begin
+  Utils.db.Delete("Fiches_tarpp", "code=&1", Textcode.Text)
+  Utils.db.Delete("Fiches_ligtarpp", "code = &1", Textcode.Text)
+  
+  res = Utils.db.Create("Fiches_tarpp")
+  res!code = Textcode.Text
+  If Not Textmz.Text Then Textmz.Text = "0,00"
+  res!margez = Val(Textmz.Text)
+  If Not Textsup.Text Then Textsup.Text = "0,00"
+  res!supqs = Val(Textsup.Text)
+  res.Update
+  
+  i = 0
+  While i < tableview2.Rows.Max
+    res = Utils.db.Create("Fiches_ligtarpp")
+    brn = Split(tableview2[i, 0].Text, "-")
+    res!code = Textcode.Text
+    res!ligne = i
+    res!binf = Val(brn[0]) / $icoef
+    res!bsup = Val(brn[1]) / $icoef
+    res!normht = Val(tableview2[i, 1].Text)
+    res!supht = Val(tableview2[i, 3].Text)
+    j = 0
+    Repeat
+      If brn[0] = tableview1[j, 0].Text And brn[1] = tableview1[j, 1].Text Then res!marht = Val(tableview1[j, 2].Text)
+      Inc j
+    Until (brn[0] = tableview1[j - 1, 0].Text And brn[1] = tableview1[j - 1, 1].Text) Or j = tableview1.Rows.Count
+    Inc i
+    res.Update
+  Wend
+  Utils.db.Commit
+
+End

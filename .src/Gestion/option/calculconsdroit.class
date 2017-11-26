@@ -1,0 +1,474 @@
+' Gambas class file
+
+'pour l'édition des factures boissson gére le detail et les totaux des droits et consignes, fait la mise en format pour l'édition.
+'Gére l'écriture dans le fichier consigne (Fiches_ligcons) et régie (Fiches_ligregie).
+' mouvemente le fichier Totalisation pour génerer l'écriture comptable
+
+Private $cimp As New Collection
+Private $vdecons As New Variant[]
+Private $stotcons As String = "0"
+Private $stotdecons As String = "0"
+Private $stotdr As String = "0"
+Private $stotss As String = "0"
+Private $stotasc As String = "0"
+Private $ftotht As Float
+Private $inb As Integer
+Private $num As String
+Private $ftotv As Float
+Private $ftotap As Float
+Private $cdrt As New Calculdroit[]
+Private $schoix As String
+Private $slstnum As New String[]
+
+Property Read aimprimer As Collection
+Property Read consigne As String
+Property Read deconsigne As String
+Property Read droit As String
+Property Read secu As String
+Property Read ascise As String
+Property Read totht As Float
+Property Read nbdecons As Integer
+Property Read decons As Variant
+Property Read totvolume As String
+Property Read totap As String
+
+
+Public Sub _new(num As String, choix As String)
+
+  Dim rescons, reslig, res As Result
+  Dim drt As Calculdroit
+  Dim i, j As Integer
+  Dim vri As String[]
+  Dim montht, montcons As Float
+  Dim numfac, qst As String
+  
+  $num = num                                              ' si $schoix=B num de bon =F num facture = FM num client
+  $schoix = choix                                       ' "B" ==> saisie factures "F" réedition des factures "FM" factures fin de mois
+  If choix = "FM" Then                                   ' facture fin de mois =>regarde dans tous les bons
+    $schoix = "B"
+    res = Utils.db.Exec("SELECT num FROM Bl WHERE code=&1", $num)
+    res.MoveFirst
+    For i = 0 To res.Max
+      $slstnum.Add(res!num)
+      res.MoveNext
+    Next
+  Else
+    $slstnum.Add($num)
+  Endif
+ For Each numfac In $slstnum
+  vri = ["", "", "", "", "", "", "", ""]
+  'Gestion des consignes
+  rescons = Utils.db.Exec("SELECT numlig FROM Fiches_ligcons WHERE num=&1 AND numlig<>'D' AND type=&2 GROUP BY numlig", numfac, $schoix)
+  If rescons.Available Then
+    rescons.MoveFirst
+    For i = 0 To rescons.Max
+      reslig = Utils.db.Exec("SELECT numlig,nb,montant,Fiches_consigne.type FROM Fiches_ligcons,Fiches_consigne WHERE num=&1 AND Fiches_ligcons.type=&3 AND Fiches_ligcons.codecons=Fiches_consigne.code AND numlig=&2", numfac, rescons!numlig, $schoix)
+      reslig.MoveFirst
+      montcons = 0
+      For j = 0 To reslig.Max
+        Select Case reslig!type
+          Case "P"
+            vri[0] = Str(reslig!nb)
+          Case "C"
+            vri[1] = Str(reslig!nb)
+          Case "B"
+            vri[2] = Str(reslig!nb)
+        End Select
+        $ftotht += reslig!montant
+        $stotcons = Format(Val($stotcons) + reslig!montant, "0.00")
+        montcons += reslig!montant
+       reslig.MoveNext
+      Next
+      vri[3] = Format(montcons, "0.00")
+      $cimp.Add(vri, rescons!numlig)
+      vri = ["", "", "", "", "", "", "", ""]
+      rescons.MoveNext
+    Next
+  Endif
+  'Gestion des droits
+  Select Case $schoix
+    Case "B"
+      reslig = Utils.db.Exec("SELECT numlig,codeart,coderegie,nom,qte,volume,Fiches_ligregie.degres,Fiches_regie.type,volumeap,montdr,montss,txtvadr,txtvass,nom,art_design,art_volm,art_deg,art_fam FROM Fiches_ligregie,Fiches_regie,Fiches_Art,Fiches_Bl WHERE numbl=&1 AND num=numfac AND Fiches_regie.code=coderegie AND art_code=codeart", numfac)
+    Case "F"
+      reslig = Utils.db.Exec("SELECT numlig,codeart,coderegie,nom,qte,volume,Fiches_ligregie.degres,Fiches_regie.type,volumeap,montdr,montss,txtvadr,txtvass,nom,art_design,art_volm,art_deg,art_fam FROM Fiches_ligregie,Fiches_regie,Fiches_Art WHERE num=&1 AND Fiches_regie.code=coderegie AND art_code=codeart", numfac)
+  End Select
+  If reslig.Available Then            'affiche si facture déja éditée 
+    reslig.MoveFirst
+    For i = 0 To reslig.Max 
+      If $cimp.Exist(reslig!numlig) Then
+        vri = $cimp[reslig!numlig]
+      Else
+        vri = ["", "", "", "", "", "", "", ""]
+        $cimp.Add(vri, reslig!numlig)
+      Endif
+      drt = New Calculdroit(reslig!coderegie, reslig!art_volm, reslig!art_deg, reslig!qte, reslig!art_fam)
+      drt.droit = reslig!montdr
+      drt.secu = reslig!montss
+      drt.tauxtvadr = reslig!txtvadr
+      drt.tauxtvass = reslig!txtvass
+      $cdrt.Add(drt)
+      If reslig!art_volm <> 0 Then vri[4] = reslig!art_volm
+      If reslig!art_deg <> 0 Then vri[5] = reslig!art_deg
+      If reslig!volume <> 0 Then vri[6] = reslig!volume
+      If reslig!volumeap <> 0 Then vri[7] = reslig!volumeap
+      $cimp[reslig!numlig] = vri
+      If drt.suspendu Or drt.drsurfac Then            'rajout des droits si magasin suspendu ou droit a part
+        Select Case reslig!type
+          Case "A", "V"
+            $stotdr = Str(Val($stotdr) + reslig!montdr)
+          Case "B"
+            $stotasc = Str(Val($stotasc) + reslig!montdr)
+        End Select
+      Endif
+      $stotss = Str(Val($stotss) + reslig!montss)
+      $ftotht += reslig!montdr + reslig!montss
+      $ftotv += drt.vol
+      $ftotap += drt.volap
+      reslig.MoveNext
+    Next
+  Else
+    reslig = Utils.db.Exec("SELECT num_ligbl,numlig_ligbl,qte_ligbl,art_dra,art_volm,art_deg,art_fam FROM Fiches_Ligbl, Fiches_Art WHERE num_ligbl=&1 AND code_ligbl=art_code AND art_dra IS NOT NULL", numfac)
+    If reslig.Available Then          'affiche si facture non éditée
+      reslig.MoveFirst
+      For i = 0 To reslig.Max
+        vri = ["", "", "", "", "", "", "", ""]
+        If $cimp.Exist(reslig!num_ligbl & reslig!numlig_ligbl) Then
+          vri = $cimp[reslig!num_ligbl & reslig!numlig_ligbl]
+        Else
+          $cimp.Add(vri, reslig!num_ligbl & reslig!numlig_ligbl)
+        Endif
+        drt = New Calculdroit(reslig!art_dra, reslig!art_volm, reslig!art_deg, reslig!qte_ligbl, reslig!art_fam)
+        If reslig!art_volm <> 0 Then vri[4] = reslig!art_volm
+        If reslig!art_deg <> 0 Then vri[5] = reslig!art_deg
+        If drt.vol <> 0 Then vri[6] = drt.vol
+        If drt.volap <> 0 Then vri[7] = drt.volap
+        $cimp[reslig!num_ligbl & reslig!numlig_ligbl] = vri
+        $cdrt.Add(drt)
+        Select Case drt.type
+          Case "A", "V"
+            $stotdr = Str(Val($stotdr) + drt.droit)
+          Case "B"
+            If drt.drsurfac Then
+              $stotasc = Str(Val($stotasc) + drt.droit)
+            Endif
+        End Select
+        $stotss = Str(Val($stotss) + drt.secu)
+        $ftotht += drt.droit + drt.secu
+        $ftotv += drt.vol
+        $ftotap += drt.volap
+        reslig.MoveNext
+      Next
+    Endif
+  Endif
+ Next
+
+  'Gestion des deconsignes
+  qst = "("
+  For i = 0 To $slstnum.Max
+    qst &= Utils.db.Subst(" num=&1", $slstnum[i])
+    If i < $slstnum.Max Then qst &= " OR" Else qst &= ")"
+  Next
+  rescons = Utils.db.Exec("SELECT SUM(nb) AS nb,SUM(montant) AS montant,codecons,Fiches_consigne.type,libelle FROM Fiches_ligcons,Fiches_consigne WHERE" & qst & " AND codecons=Fiches_consigne.code AND numlig='D' AND Fiches_ligcons.type=&1 GROUP BY codecons", $schoix)
+  If rescons.Available Then
+    $vdecons.Resize(rescons.Count)
+    rescons.MoveFirst
+    For i = 0 To rescons.Max
+      vri = ["", "", "", "", "", "", ""]
+      vri[0] = rescons!codecons
+      vri[1] = rescons!libelle
+      Select Case rescons!type
+        Case "P"
+          vri[2] = rescons!nb
+        Case "C"
+          vri[3] = rescons!nb
+        Case "B"
+          vri[4] = rescons!nb
+      End Select
+      vri[5] = Format(rescons!montant, "0.00")
+      $vdecons[i] = vri
+      $ftotht += rescons!montant
+      $stotdecons = Format(Val($stotdecons) + rescons!montant, "0.00")
+      rescons.MoveNext
+    Next
+  Endif
+  $inb = rescons.Count
+
+ $schoix = choix
+End
+'*****maj du fichier totalisation pour les options boissons
+Public Sub Totalisation()
+
+  Dim res, respar As Result
+  Dim i As Integer
+  Dim drt As Calculdroit
+  
+  '*******gestion des consignes
+  respar = Utils.db.Exec("SELECT conscli,intitule_cc FROM Fiches_Parametres,Fiches_Comptes WHERE compte_cc=conscli")
+  If respar.Available And Val($stotcons) + Val($stotdecons) <> 0 Then
+    Utils.db.Begin
+    res = Utils.db.Create("Totalisation")
+    res!compte = respar!conscli
+    res!intitule = respar!intitule_cc
+    res!totalht = Format(Val($stotcons) + Val($stotdecons), "0.00")
+    res!totaltva = "0"
+    res!codetva = "."
+    res.Update
+    Utils.db.Commit
+  Else
+    If Not respar.Available Then Message.Error("Probleme de paramametrage sur les consignes", "OK")
+  Endif
+   '****************gestion des droits avec le tableau de calculdroit créer dans _new
+   Utils.db.Begin
+   For Each drt In $cdrt
+     respar = Utils.db.Exec("SELECT css,tvass,intitule_cc FROM Fiches_Parametres,Fiches_Comptes WHERE compte_cc=css") 'recupération n° compte et code tva pour la sécu 
+     
+     If drt.suspendu Then
+       res = Utils.db.Edit("Totalisation", "compte=&1", drt.cptreg) 'enregistrement des droits
+       If res.Available Then
+         res!totalht = Str(Val(res!totalht) + drt.droit)
+         res!totaltva = Str(Val(res!totaltva) + drt.tvadroit)
+         res.Update
+        Else
+         res = Utils.db.Create("Totalisation")
+         res!compte = drt.cptreg
+         res!intitule = drt.lib
+         res!totalht = Format(drt.droit, "0.00")
+         res!totaltva = Format(drt.tvadroit, "0.00")
+         res!codetva = "0"
+         res.Update
+       Endif
+       enrtva(drt.codetva, drt.tvadroit, drt.droit)
+       If drt.secu <> 0 Then
+        res = Utils.db.Edit("Totalisation", "compte=&1", respar!css) 'enregistrement de la secu
+         If res.Available Then
+           res!totalht = Str(Val(res!totalht) + drt.secu)
+           res!totaltva = Str(Val(res!totaltva) + drt.tvasec)
+           res.Update
+         Else
+           res = Utils.db.Create("Totalisation")
+           res!compte = respar!css
+           res!intitule = respar!intitule_cc
+           res!totalht = Format(drt.secu, "0.00")
+           res!totaltva = Format(drt.tvasec, "0.00")
+           res!codetva = "0" 
+           res.Update
+         Endif
+         enrtva(respar!tvass, drt.tvasec, drt.secu)
+       Endif
+     Else
+       If drt.drsurfac Then 'si magasin acquité et séparation qq même des droits ==> remonté des droits dans le compte vente de la famille article
+         respar = Utils.db.Exec("SELECT compte_cc,intitule_cc FROM Fiches_Comptes,Fiches_Fam WHERE code_fam=&1 and compte_cc=compt_fam", drt.famille)
+         res = Utils.db.Edit("Totalisation", "compte=&1", respar!compte_cc)
+         If res.Available Then
+           If IsNumber(res!totalht) Then res!totalht = Str(Val(res!totalht) + drt.droit) Else res!totalht = Format(drt.droit, "0.00")
+           If IsNumber(res!totaltva) Then res!totaltva = Str(Val(Replace(res!totaltva, ".", ",")) + drt.tvadroit) Else res!totaltva = Format(drt.tvadroit, "0.00")
+         Else
+           res = Utils.db.Create("Totalisation")
+           res!compte = respar!compte_cc
+           res!intitule = respar!intitule_cc
+           res!totalht = Format(drt.droit, "0.00")
+           res!totaltva = Format(drt.tvadroit, "0.00")
+           res!codetva = "0"
+         Endif
+         res.Update
+         enrtva(drt.codetva, drt.tvadroit, drt.droit)
+       Endif
+     Endif
+   Next
+   Utils.db.Commit
+
+End
+'Enregistrement de la tva
+Private Sub enrtva(code As String, monttva As Float, montht As Float)
+  
+  Dim res, respar As Result
+  respar = Utils.db.Exec("SELECT compte_cc,intitule_cc,taux_tva FROM Fiches_Comptes,Fiches_Tvaav WHERE code_tva=&1 AND compte_cc=cc_tva", code)
+  If respar.Available Then
+    Utils.db.Begin
+    res = Utils.db.Edit("Totalisation", "compte=&1 AND codetva=&2", respar!compte_cc, code)
+    If res.Available Then
+      res!totalht = Str(Val(res!totalht) + montht)
+      res!totaltva = Str(Val(res!totaltva) + monttva)
+    Else
+      res = Utils.db.Create("Totalisation")
+      res!compte = respar!compte_cc
+      res!intitule = respar!intitule_cc
+      res!totalht = Format(montht, "0.00")
+      res!totaltva = Format(monttva, "0.00")
+      res!codetva = code
+    Endif
+    res.Update
+  Else
+    Message.Error("Probleme de paramametrage sur la TVA option boisson", "OK")
+  Endif
+End
+
+Public Sub comptmat(Optional numfac As String)    'enregistrement de la compta matiere à l'edition des factures
+
+  Dim res, resvig, reslig, respar As Result
+  Dim drt As Calculdroit
+  Dim i, nvign As Integer
+  Dim num As String
+  
+   Utils.db.Begin
+   'regarde dans le/les bons si un article est en droit suspendu ==> incremente le n° de vignette
+   For Each num In $slstnum
+     resvig = Utils.db.Exec("SELECT suspendu FROM Fiches_Ligbl,Fiches_Art,Fiches_regie WHERE num_ligbl=&1 AND art_code=code_ligbl AND Fiches_regie.code=art_dra AND suspendu='TRUE' LIMIT 1 ", num)
+     If resvig.Available Then
+      respar = Utils.db.Edit("Fiches_Parametres", "WHERE ind=0")
+      nvign = Val(respar!nvign)
+      nvign += 1
+      respar!nvign = Format(nvign, "0000000000000000000000000")
+      respar.Update
+      Break
+    Endif
+  Next
+  
+  'Factures fin de mois
+  If $schoix = "FM" Then
+    For Each num In $slstnum
+      reslig = Utils.db.Exec("SELECT numlig_ligbl,qte_ligbl,art_code,art_dra,art_volm,art_deg,datebl FROM Fiches_Ligbl, Fiches_Bl, Fiches_Art WHERE num_ligbl=&1 AND numbl=&1 AND code_ligbl=art_code AND art_dra IS NOT NULL", num)
+      If reslig.Available Then
+        reslig.MoveFirst
+        For i = 0 To reslig.Max
+          drt = New Calculdroit(reslig!art_dra, reslig!art_volm, reslig!art_deg, reslig!qte_ligbl)
+          res = Utils.db.Create("Fiches_ligregie")
+          res!dtmouv = reslig!datebl
+          res!num = numfac
+          res!numlig = num & reslig!numlig_ligbl
+          res!type = "S"
+          res!codeart = reslig!art_code
+          res!coderegie = reslig!art_dra
+          res!qte = reslig!qte_ligbl
+          res!volume = drt.vol
+          res!degres = reslig!art_deg
+          res!volumeap = drt.volap
+          res!montdr = drt.droit
+          res!txtvadr = drt.tauxtvadr
+          res!montss = drt.secu
+          res!txtvass = drt.tauxtvass
+          res!cloture = False
+          If Val($stotdr) <> 0 Then res!vignette = respar!nvign
+          res.Update
+          reslig.MoveNext
+        Next
+      Endif
+    Next
+    Utils.db.Commit
+    Return
+  Endif
+  
+  'Facture issues de la saisie 
+  reslig = Utils.db.Exec("SELECT numlig_ligbl,qte_ligbl,art_code,art_dra,art_volm,art_deg,datebl,numfac FROM Fiches_Ligbl, Fiches_Bl, Fiches_Art WHERE num_ligbl=&1 AND numbl=&1 AND code_ligbl=art_code AND art_dra IS NOT NULL", $num)
+  
+  If reslig.Available Then
+    reslig.MoveFirst
+    For i = 0 To reslig.Max
+      drt = New Calculdroit(reslig!art_dra, reslig!art_volm, reslig!art_deg, reslig!qte_ligbl)
+      res = Utils.db.Create("Fiches_ligregie")
+      res!dtmouv = reslig!datebl
+      If numfac Then res!num = numfac Else res!num = reslig!numfac
+      res!numlig = $num & reslig!numlig_ligbl
+      res!type = "S"
+      res!codeart = reslig!art_code
+      res!coderegie = reslig!art_dra
+      res!qte = reslig!qte_ligbl
+      res!volume = drt.vol
+      res!degres = reslig!art_deg
+      res!volumeap = drt.volap
+      res!montdr = drt.droit
+      res!txtvadr = drt.tauxtvadr
+      res!montss = drt.secu
+      res!txtvass = drt.tauxtvass
+      res!cloture = False
+      If Val($stotdr) <> 0 Then res!vignette = respar!nvign
+      res.Update
+      reslig.MoveNext
+    Next
+    Utils.db.Commit
+  Endif
+  
+End
+Public Function poid() As String
+
+  Dim res As Result
+  Dim i As Integer
+  
+  If $schoix = "FM" Then Return " "
+  If $schoix = "B" Then
+    res = Utils.db.Exec("SELECT SUM(qte_ligb*art_poids) as poid FROM Fiches_Ligbl,Fiches_Art WHERE num_ligbl=&1 AND art_code=code_ligbl", $num)
+  Else
+    res = Utils.db.Exec("SELECT SUM(REPLACE(qte_ligfac,',','.')*art_poids) as poid FROM Fiches_HistoLigfac,Fiches_Art WHERE num_ligfac=&1 AND art_code=code_ligfac", $num)
+  Endif
+  
+  Return Format(res!poid, "0.00")
+
+End
+
+Private Function aimprimer_Read() As Collection
+
+  Return $cimp
+
+End
+
+Private Function consigne_Read() As String
+
+  Return Format(Replace($stotcons, ",", "."), " 0.00 ")
+
+End
+
+Private Function deconsigne_Read() As String
+
+  Return Format(Replace($stotdecons, ",", "."), "0.00")
+
+End
+
+Private Function droit_Read() As String
+
+  Return Format(Replace($stotdr, ",", "."), "0.00")
+
+End
+
+Private Function secu_Read() As String
+
+  Return Format(Replace($stotss, ",", "."), "0.00")
+
+End
+
+Private Function ascise_Read() As String
+
+  Return Format(Replace($stotasc, ",", "."), "0.00")
+
+End
+
+Private Function totht_Read() As Float
+
+  Return $ftotht
+
+End
+
+Private Function nbdecons_Read() As Integer
+
+  If $inb = -1 Then $inb = 0
+  Return $inb
+
+End
+
+
+Private Function decons_Read() As Variant
+
+  Return $vdecons
+
+End
+
+Private Function totvolume_Read() As String
+
+  Return Format($ftotv, "0.00")
+
+End
+
+Private Function totap_Read() As String
+
+  Return Format($ftotap, "0.00")
+
+End

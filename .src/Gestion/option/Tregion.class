@@ -1,0 +1,232 @@
+' Gambas class file
+
+Private bs As Barselection
+Private $resreg As Result
+Private $ind As Integer
+
+Public Sub form_Open()
+
+  Dim obs As Observer
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  bs = New Barselection("111111110", panel1) As "bar1"
+  obs = New Observer(Textcode) As "cmpt"
+  obs = New Observer(Textlib) As "cmpt"
+  obs = New Observer(Valuetaux) As "cmpt"
+  obs = New Observer(Textart) As "cmpt"
+  
+  $resreg = Utils.db.Exec("SELECT * FROM Fiches_region ORDER BY code")
+  If $resreg.Available Then
+    $resreg.MoveFirst
+    affichedonne
+  Endif
+  $ind = 0
+
+End
+
+Public Sub cmpt_gotfocus()
+
+  Try Utils.ObsGotf(Last)
+
+End
+
+Public Sub cmpt_lostfocus()
+
+  Try Utils.ObsLstf(Last)
+
+End
+
+Public Sub bar1_annule(creer As Boolean, anul As Boolean)
+
+  utils.db.Rollback
+  $resreg = utils.db.Exec("SELECT * FROM Fiches_region ORDER BY code")
+  If $resreg.Available Then
+    $resreg.MoveTo($ind)
+    affichedonne
+  Endif
+  Textcode.Enabled = False
+  Textart.Enabled = False
+   Valuetaux.Enabled = True
+   
+End
+
+Public Sub bar1_creer()
+
+  $ind = $resreg.Index
+  utils.db.Begin
+  $resreg = utils.db.Create("Fiches_region")
+  mablanc
+  Textcode.Enabled = True
+  Textart.Enabled = True
+  Textcode.SetFocus
+
+End
+
+Public Sub bar1_dernier()
+
+  If $resreg.Available Then
+    $resreg.MoveLast
+    affichedonne
+  Endif
+
+End
+
+Public Sub bar1_modif()
+
+  utils.db.Begin
+  $resreg = utils.db.Edit("Fiches_region", "code=&1", Textcode.Text)
+
+End
+
+Public Sub bar1_precedent()
+
+  If $resreg.Available And $resreg.Index > 0 Then
+    $resreg.MovePrevious
+    affichedonne
+  Endif
+
+End
+
+Public Sub bar1_premier()
+
+  If $resreg.Available Then
+    $resreg.MoveFirst
+    affichedonne
+  Endif
+
+End
+
+Public Sub bar1_suivant()
+
+  If $resreg.Index = $resreg.Max Then Return
+  $resreg.MoveNext
+  affichedonne
+
+End
+
+Public Sub bar1_valide(creer As Boolean, modi As Boolean)
+
+  Dim res As Result
+  
+  
+  If creer Then
+    res = utils.db.Exec("SELECT * FROM Fiches_region WHERE code=&1 AND cart=&2", Textcode.Text, Textart.Text)
+    If res.Available Then
+      Balloon.Delay = 5000
+      Balloon.Warning("<FONT Color=#212121>" & "Code région déja créer", Textart)
+      Textart.SetFocus
+      Stop Event
+      Return
+    Endif
+  Endif
+  If modi Then
+    res = utils.db.Exec("SELECT * FROM Fiches_region WHERE code=&1 AND cart=&2", Textcode.Text, Textart.Text)
+    If Not res.Available Then
+      Balloon.Delay = 5000
+      Balloon.Warning("<FONT Color=#212121>" & "Code région inconnu", Textart)
+      Textart.SetFocus
+      Stop Event
+      Return
+    Endif
+
+  Endif
+  affectedonne
+  $resreg.Update
+  utils.db.Commit
+  $resreg = utils.db.Exec("SELECT * FROM Fiches_region ORDER BY code")
+  If $ind = -1 Then $ind = 0
+  $resreg.MoveTo($ind)
+  affichedonne
+  Textcode.Enabled = False
+  Textart.Enabled = False
+   Valuetaux.Enabled = True
+End
+
+Public Sub bar1_suprimer()
+
+  'a completer
+
+End
+
+Public Sub bar1_quitter()
+
+  Me.Close
+
+End
+
+Public Sub form_Close()
+
+  If bs.estcreer Or bs.estmodif Then 
+    If Message.Warning("Voullez-vous enregister vos modifications avant de fermer ?", "Oui", "Non") = 1 Then bar1_valide
+  Endif
+  Me.Close
+
+End
+
+Public Sub Textcode_LostFocus()
+
+  Dim res As Result
+  
+  If Not Textcode.Text Then
+    Balloon.Delay = 5000
+    Balloon.Warning("<FONT Color=#212121>" & "Code région ne peut pas être vide", Textcode)
+    Textcode.SetFocus
+  Endif
+  
+  res = utils.db.Exec("SELECT * FROM Fiches_region WHERE code=&1 AND cart='0'", Textcode.Text)
+  If Not res.Available Then
+    Message.Info("Le premier code région ne doit contenir que l'intilulé", "OK")
+    Textart.Enabled = False
+    Valuetaux.Enabled = False
+    Textart.Text = "0"
+  Endif
+   
+End
+
+Public Sub Textart_LostFocus()
+
+  Dim res As Result
+  
+  res = utils.db.Exec("SELECT * FROM Fiches_Art WHERE art_code=&1", Textart.Text)
+  If res.Available Then
+    Label6.Text = res!art_design
+  Else
+    Balloon.Delay = 5000
+    Balloon.Warning("<FONT Color=#212121>" & "Code article inconnu", Textart)
+    Textart.SetFocus
+  Endif
+
+End
+Private Sub affichedonne()
+  
+  Dim res As Result
+  
+  Textcode.Text = $resreg!code
+  Textlib.Text = $resreg!libelle
+  Valuetaux.Value = $resreg!taux
+  Textart.Text = $resreg!cart
+  res = utils.db.Exec("SELECT * FROM Fiches_Art WHERE art_code=&1", $resreg!cart)
+  If res.Available Then 
+    Label6.text = res!art_design
+  Else
+    Label6.Text = ""
+  Endif
+End
+
+Private Sub affectedonne()
+  
+  $resreg!code = Textcode.Text
+  $resreg!libelle = Textlib.Text
+  $resreg!taux = Valuetaux.Value
+  $resreg!cart = Textart.Text
+  
+End
+
+Private Sub mablanc()
+  
+  Textcode.Clear
+  Textlib.Clear
+  Valuetaux.Value = 0
+  Textart.Clear
+  
+End

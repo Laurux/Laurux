@@ -1,0 +1,215 @@
+' Gambas class file
+
+Private $bs As Barselection
+Private $restour As Result
+Private $ind As Integer
+
+Public Sub form_Open()
+
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  $bs = New Barselection("111111111", panel1) As "bar1"
+  
+  $restour = Utils.db.Exec("SELECT * FROM Fiches_tourne ORDER BY code")
+  If $restour.Available Then
+    $restour.MoveFirst
+    affichedonne
+  Endif
+  $ind = 0
+
+End
+
+Public Sub Textnum_GotFocus()
+
+  Try Utils.ObsGotf(Last)
+
+End
+
+Public Sub Textnum_LostFocus()
+
+  Dim res As Result
+
+  Try Utils.ObsLstf(Last)
+  
+  res = utils.db.Exec("SELECT * FROM Fiches_tourne WHERE code=&1", Textnum.Text)
+  If res.Available Then
+    Balloon.Delay = 5000
+    Balloon.Warning("<FONT Color=#212121>" & "Tournée déja créer", Textnum)
+    Textnum.SetFocus
+    Stop Event
+    Return
+  Endif
+  
+  If Not Textnum.Text Then
+    Balloon.Delay = 5000
+    Balloon.Warning("<FONT Color=#212121>" & "Code ne peut pas être vide", Textnum)
+    Textnum.SetFocus
+  Endif
+
+End
+
+Public Sub Texttour_GotFocus()
+
+  Try Utils.ObsGotf(Last)
+
+End
+
+Public Sub Texttour_LostFocus()
+
+  Try Utils.ObsLstf(Last)
+  
+End
+
+Public Sub bar1_annule(creer As Boolean, anul As Boolean)
+
+  utils.db.Rollback
+  $restour = utils.db.Exec("SELECT * FROM Fiches_tourne ORDER BY code")
+  If $restour.Available Then
+    $restour.MoveTo($ind)
+    affichedonne
+  Endif
+  textnum.Enabled = False
+End
+
+Public Sub bar1_creer()
+
+  $ind = $restour.Index
+  utils.db.Begin
+  $restour = utils.db.Create("Fiches_tourne")
+  mablanc
+  textnum.Enabled = True
+  textnum.SetFocus
+
+End
+
+Public Sub bar1_dernier()
+
+  If $restour.Available Then
+    $restour.MoveLast
+    affichedonne
+  Endif
+
+End
+
+Public Sub bar1_modif()
+
+  utils.db.Begin
+  $restour = utils.db.Edit("Fiches_tourne", "code=&1", textnum.Text)
+
+End
+
+Public Sub bar1_precedent()
+
+  If $restour.Available And $restour.Index > 0 Then
+    $restour.MovePrevious
+    affichedonne
+  Endif
+
+End
+
+Public Sub bar1_premier()
+
+  If $restour.Available Then
+    $restour.MoveFirst
+    affichedonne
+  Endif
+
+End
+
+Public Sub bar1_suivant()
+
+  If $restour.Index = $restour.Max Then Return
+  $restour.MoveNext
+  affichedonne
+
+End
+
+Public Sub bar1_valide(creer As Boolean, anul As Boolean)
+
+  Dim res As Result
+  
+  If $bs.estcreer Then
+    res = utils.db.Exec("SELECT * FROM Fiches_tourne WHERE code=&1", textnum.Text)
+    If res.Available Or Not textnum.Text Then
+      Stop Event
+      Return
+    Endif
+  Endif
+  affectedonne
+  $restour.Update
+  utils.db.Commit
+  $restour = utils.db.Exec("SELECT * FROM Fiches_tourne ORDER BY code")
+  If $ind = -1 Then $ind = 0
+  $restour.MoveTo($ind)
+  affichedonne
+  textnum.Enabled = False
+  
+End
+
+Public Sub bar1_suprimer()
+
+  ''a completer
+
+End
+
+Public Sub bar1_quitter()
+
+  Me.Close
+
+End
+
+Public Sub bar1_recherche()
+
+  Dim i As Integer
+  
+  If ListView1.Visible Then
+    ListView1.Visible = False
+    Return
+  Endif
+ ' If Not $restour.Available Then Return
+  ListView1.Clear
+  ListView1.Visible = True
+  $restour.MoveFirst
+  For i = 0 To $restour.Max
+    ListView1.Add(Str($restour.Index), $restour!code & " " & $restour!tourne)
+    $restour.MoveNext
+  Next
+
+End
+
+Public Sub ListView1_Activate()
+
+  ListView1.Visible = False
+  $restour.MoveTo(Val(ListView1.Current.Key))
+  affichedonne
+
+End
+
+Public Sub form_Close()
+
+  If $bs.estcreer Or $bs.estmodif Then 
+    If Message.Warning("Voullez-vous enregister vos modifications avant de fermer ?", "Oui", "Non") = 1 Then bar1_valide
+  Endif
+  Me.Close
+
+End
+
+Private Sub affichedonne()
+  
+  textnum.Text = $restour!code
+  Texttour.Text = $restour!tourne
+  
+End
+
+Private Sub mablanc()
+  
+  Textnum.Clear
+  Texttour.Clear
+  
+End
+
+Private Sub affectedonne()
+  
+  $restour!code = Textnum.Text
+  $restour!tourne = Texttour.Text
+  
+End

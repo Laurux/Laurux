@@ -1,0 +1,218 @@
+' Gambas class file
+
+Private bs As Barselection
+Private rescons As Result
+Private $ind As Integer
+
+Public Sub form_Open()
+
+  Dim obs As Observer
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  bs = New Barselection("111111111", panel2) As "bar1"
+  obs = New Observer(Textcode) As "cmpt"
+  obs = New Observer(Textlib) As "cmpt"
+  obs = New Observer(Valueprix) As "cmpt"
+  
+  rescons = Utils.db.Exec("SELECT * FROM Fiches_consigne ORDER BY code")
+  If rescons.Available Then
+    rescons.MoveFirst
+    affichedonne
+  Endif
+  $ind = 0
+End
+
+Public Sub cmpt_gotfocus()
+
+  Try Utils.ObsGotf(Last)
+
+End
+
+Public Sub cmpt_lostfocus()
+
+  Try Utils.ObsLstf(Last)
+
+End
+
+Public Sub bar1_annule(creer As Boolean, anul As Boolean)
+
+  utils.db.Rollback
+  rescons = utils.db.Exec("SELECT * FROM Fiches_consigne ORDER BY code")
+  If rescons.Available Then
+    rescons.MoveTo($ind)
+    affichedonne
+  Endif
+  Textcode.Enabled = False
+End
+
+Public Sub bar1_creer()
+
+  $ind = rescons.Index
+  utils.db.Begin
+  rescons = utils.db.Create("Fiches_consigne")
+  mablanc
+  Textcode.Enabled = True
+  Textcode.SetFocus
+
+End
+
+Public Sub bar1_dernier()
+
+  If rescons.Available Then
+    rescons.MoveLast
+    affichedonne
+  Endif
+
+End
+
+Public Sub bar1_modif()
+
+  utils.db.Begin
+  rescons = utils.db.Edit("Fiches_consigne", "code=&1", Textcode.Text)
+
+End
+
+Public Sub bar1_precedent()
+
+  If rescons.Available And rescons.Index > 0 Then
+    rescons.MovePrevious
+    affichedonne
+  Endif
+
+End
+
+Public Sub bar1_premier()
+
+  If rescons.Available Then
+    rescons.MoveFirst
+    affichedonne
+  Endif
+
+End
+
+Public Sub bar1_suivant()
+
+  If rescons.Index = rescons.Max Then Return
+  rescons.MoveNext
+  affichedonne
+
+End
+
+Public Sub bar1_valide(creer As Boolean, anul As Boolean)
+
+  Dim res As Result
+  
+  If bs.estcreer Then
+    res = utils.db.Exec("SELECT * FROM Fiches_consigne WHERE code=&1", Textcode.Text)
+    If res.Available Or Not Textcode.Text Then
+      Stop Event
+      Return
+    Endif
+  Endif
+  affectedonne
+  rescons.Update
+  utils.db.Commit
+  rescons = utils.db.Exec("SELECT * FROM Fiches_consigne ORDER BY code")
+  If $ind = -1 Then $ind = 0
+  rescons.MoveTo($ind)
+  affichedonne
+  Textcode.Enabled = False
+  
+End
+
+Public Sub bar1_suprimer()
+
+  ''a completer
+
+End
+
+Public Sub bar1_quitter()
+
+  Me.Close
+
+End
+
+Public Sub bar1_recherche()
+
+  Dim rech As Rechcons
+  
+  rech = New Rechcons("T") As "rech"
+  rech.ShowModal
+
+End
+
+Public Sub rech_trouver(value As String)
+
+  rescons.MoveFirst
+  While rescons!code <> value
+    rescons.MoveNext
+  Wend
+  affichedonne
+  
+End
+
+Public Sub form_Close()
+
+  If bs.estcreer Or bs.estmodif Then 
+    If Message.Warning("Voullez-vous enregister vos modifications avant de fermer ?", "Oui", "Non") = 1 Then bar1_valide
+  Endif
+  Me.Close
+
+End
+
+Public Sub Textcode_LostFocus()
+
+  Dim res As Result
+  
+  res = utils.db.Exec("SELECT * FROM Fiches_consigne WHERE code=&1", Textcode.Text)
+  If res.Available Then
+    Balloon.Delay = 5000
+    Balloon.Warning("<FONT Color=#212121>" & "Code déja créer", Textcode)
+    Textcode.SetFocus
+    Stop Event
+    Return
+  Endif
+  
+  If Not Textcode.Text Then
+    Balloon.Delay = 5000
+    Balloon.Warning("<FONT Color=#212121>" & "Code ne peut pas être vide", Textcode)
+    Textcode.SetFocus
+  Endif
+
+End
+
+Private Sub affichedonne()
+  
+  Textcode.Text = rescons!code
+  Textlib.Text = rescons!libelle
+  Valueprix.Value = rescons!prix
+  Select Case rescons!type
+    Case "P"
+      Radiopal.Value = True
+    Case "C"
+      Radiocais.Value = True
+    Case "B"
+      Radiobout.Value = True
+  End Select
+  
+End
+
+Private Sub affectedonne()
+  
+  rescons!code = Textcode.Text
+  rescons!libelle = Textlib.Text
+  rescons!prix = Valueprix.Value
+  If Radiopal.Value Then rescons!type = "P"
+  If Radiocais.Value Then rescons!type = "C"
+  If Radiobout.Value Then rescons!type = "B"
+  
+End
+
+Private Sub mablanc()
+  
+  Textcode.Clear
+  Textlib.Clear
+  Valueprix.Value = 0
+  Radiobout.Value = True
+  
+End

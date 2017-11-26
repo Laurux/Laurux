@@ -1,0 +1,78 @@
+' Gambas class file
+
+Private $schoix As String
+Private $res As Result
+
+Event trouve(cle As String)
+
+Public Sub _new(choix As String)
+  
+  $schoix = choix
+  
+  GridView1.Header = GridView.Horizontal
+  If $schoix = "T" Then
+    GridView1.Columns.Count = 4
+    GridView1.Columns[0].Width = 50
+    GridView1.Columns[1].Width = 200
+    GridView1.Columns[2].Width = 50
+    GridView1.Columns[3].Width = 200
+    GridView1.Columns[2].Text = "N° Art."
+    GridView1.Columns[3].Text = "Article"
+  Else
+    GridView1.Columns.Count = 2
+    GridView1.Columns[0].Width = 150
+    GridView1.Columns[1].Width = 280
+  Endif
+  GridView1.Columns[0].Text = "N° Reg."
+  GridView1.Columns[1].Text = "Région"
+  
+  GridView1.Mode = Select.Single
+  If $schoix = "T" Then
+    $res = Utils.db.Exec("SELECT * FROM Fiches_region WHERE cart<>'0'")
+  Else
+    $res = Utils.db.Exec("SELECT * FROM Fiches_region WHERE cart='0'")
+  Endif
+  If $res.Available Then
+    GridView1.Rows.Count = $res.Count
+  Endif
+End
+
+Public Sub GridView1_Data(Row As Integer, Column As Integer)
+
+  Dim res As Result
+  
+  $res.MoveTo(row)
+  Select Case Column
+    Case 0
+      GridView1[row, Column].Text = $res!code
+    Case 1
+      GridView1[row, Column].Text = $res!libelle
+    Case 2
+      GridView1[row, Column].Text = $res!cart
+    Case 3
+      res = Utils.db.Exec("SELECT * FROM Fiches_Art WHERE art_code=&1", GridView1[row, 2].Text)
+      GridView1[row, Column].Text = res!art_design
+  End Select
+  
+End
+
+Public Sub GridView1_KeyPress()
+
+  If Key.Code = Key.Esc Then
+     Button1_Click()
+  Endif
+
+End
+
+Public Sub GridView1_Activate()
+
+  Raise trouve(GridView1[GridView1.Row, 0].Text)
+  Me.Close
+
+End
+
+Public Sub Button1_Click()
+
+  Me.Close
+
+End

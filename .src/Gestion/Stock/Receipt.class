@@ -77,6 +77,17 @@ ref_centrale As String
 Private casier As String
 Private $Barre As String
 Private exo As Boolean
+Private $soption As String
+Private $textpal As TextBox
+Private $textcol As TextBox
+Private $checcons As CheckBox
+Private $labcons As TextLabel
+Private $labacc As TextLabel
+Private $inbot As Integer
+Private $incol As Integer
+Private $o As Integer
+Private $bcrea As Boolean
+Private $fcd As Fourconsdroi
 
 Public Sub _New()
 
@@ -91,6 +102,17 @@ Public Sub _New()
     Music.Load(Start.Musique)
   Endif
   Me.center
+    $o = 0
+  $soption = utils.Option()
+  If $soption = "B" Or $soption = "T" Then 
+    modifecran
+    $o = 2
+    $bcrea = True
+  Endif
+  If $soption = "P" Or $soption = "T" Then
+    qterecue.MaxLength = 9
+    pbht.MaxLength = 12
+  Endif
   Try Gmateriel = Settings["/Soc" & Start.Societe & "/Materiel"]
   If Error Then Gmateriel = False
   If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
@@ -156,10 +178,16 @@ Public Sub _New()
   Colrcp.Columns[4].Alignment = 2
   Colrcp.Columns[5].Text = "PA ht"
   Colrcp.Columns[5].Alignment = 2
-  Colrcp.Columns[6].Text = "Qté"
-  Colrcp.Columns[6].Alignment = 2
-  Colrcp.Columns[7].Text = "Prix total"
-  Colrcp.Columns[7].Alignment = 2
+    If $soption = "B" Or $soption = "T" Then
+    Colrcp.Columns[6].Text = "Pal."
+    Colrcp.Columns[6].Alignment = 2
+    Colrcp.Columns[7].Text = "Colis"
+    Colrcp.Columns[7].Alignment = 2
+  Endif
+  Colrcp.Columns[6 + $o].Text = "Qté"
+  Colrcp.Columns[6 + $o].Alignment = 2
+  Colrcp.Columns[7 + $o].Text = "Prix total"
+  Colrcp.Columns[7 + $o].Alignment = 2
   Nlgn = "000"
   If Settings["/Soc" & Start.Societe & "/Coef"] Then
     Coef.Visible = True
@@ -240,7 +268,11 @@ Public Sub CleanChamps()
   Arr.Text = ""
   Pvttc.Clear
   Pauv.Clear
-
+  If $soption = "B" Or $soption = "T" Then
+    $textcol.Clear
+    $textpal.Clear
+  Endif
+  
 End
 
 '**********************************************************
@@ -258,6 +290,10 @@ Public Sub RazBl()
   Totalrcpt.Text = "0,00"
   Tfrais.Text = "0,00"
   Pauv.Text = ""
+  If $soption = "B" Or $soption = "T" Then
+    $labacc.Text = ""
+    $labcons.Text = ""
+  Endif
 
 End
 
@@ -317,6 +353,11 @@ Public Sub Rcpt_KeyPress()
           b = 0
           Datej.Text = Format$(Now, "dd.mm.yyyy")
           If Not Settings["/Soc" & Start.Societe & "/NumBr"] Then CreateBR()
+          If ($soption = "B" Or $soption = "T") And $bcrea Then
+            $fcd = New Fourconsdroi("B")
+            $bcrea = False
+          Endif
+          If $soption = "B" Or $soption = "T" Then $fcd.bloc = datej.Text & nbl.Text & four.Text
           Cart.SetFocus
         Endif
         Stop Event
@@ -345,6 +386,11 @@ Public Sub Rcpt_KeyPress()
               Nbl.SetFocus
             Else
               datej.Text = Format$(Now, "dd.mm.yyyy")
+              If $bcrea Then
+                $fcd = New Fourconsdroi("B")
+                $bcrea = False
+              Endif
+              If $soption = "B" Or $soption = "T" Then $fcd.bloc = datej.Text & nbl.Text & four.Text
               datej.SetFocus
               datej.Select
             Endif
@@ -359,6 +405,11 @@ Public Sub Rcpt_KeyPress()
           datej.SetFocus
           datej.Select
         Else
+          If $bcrea Then
+            $fcd = New Fourconsdroi("B")
+            $bcrea = False
+          Endif
+          If $soption = "B" Or $soption = "T" Then $fcd.bloc = datej.Text & nbl.Text & four.Text
           Cart.SetFocus
           Cart.Select
         Endif
@@ -420,8 +471,23 @@ Public Sub Rcpt_KeyPress()
           Endif
         Endif
         If b = 0 Then
-          Qterecue.SetFocus
-          Qterecue.Select
+          If $soption = "B" Or $soption = "T" Then
+            If $inbot = 0 And $incol = 0 Then
+              qterecue.SetFocus
+              qterecue.Select
+            Endif
+            If $inbot <> 0 Then
+              $textcol.SetFocus
+              $textcol.Select
+            Endif
+            If $incol <> 0 Then
+              $textpal.SetFocus
+              $textpal.Select
+            Endif
+          Else
+            qtecom.SetFocus
+            qtecom.Select
+          Endif
         Else
           If b = 1 Then
             Cart.SetFocus
@@ -451,8 +517,13 @@ Public Sub Rcpt_KeyPress()
               B = 0
             Endif
           Else
-            Panel6.visible = False
-            Button1.SetFocus
+            If $soption = "P" Or $soption = "T" Then
+              pbht.SetFocus
+              pbht.Select
+            Else
+              Panel6.visible = False
+              Button1.SetFocus
+            Endif
           Endif
         Else
           Button1.SetFocus
@@ -589,6 +660,32 @@ Public Sub Rcpt_KeyPress()
         Button9.SetFocus
         Stop Event
 
+      Case 17
+        If $incol <> 0 Then
+          If IsNumber($textpal.Text) Then
+            $textcol.Text = Format(Val($textpal.Text) * $incol, "0")
+            $incol = 0
+          Else
+            $textpal.Clear
+          Endif
+        Endif
+        $textcol.SetFocus
+        $textcol.Select
+        Stop Event
+        
+      Case 18
+        If $inbot <> 0 Then
+          If IsNumber($textcol.Text) Then
+            Qterecue.Text = Format(Val($textcol.Text) * $inbot, "0")
+            $inbot = 0
+          Else
+            $textcol.Clear
+          Endif
+        Endif
+        Qterecue.SetFocus
+        Qterecue.Select
+        Stop Event
+
     End Select
   Endif
 
@@ -678,6 +775,17 @@ Public Sub Rcpt_GotFocus()
       Stop Event
   End Select
 
+End
+
+Public Sub Rcpt_lostfocus()
+
+  If Last.tag = 1 Or Last.tag = 2 Or Last.tag = 3 Then
+    If $bcrea Then
+      $fcd = New Fourconsdroi("B")
+      $bcrea = False
+    Endif
+  Endif
+  If $soption = "B" Or $soption = "T" Then $fcd.bloc = datej.Text & nbl.Text & four.Text
 End
 
 '*****************************************************
@@ -1040,6 +1148,11 @@ Public Sub art_man()
             Dart.text = rarts!art_casier & "- " & rarts!art_design
             casier = rarts!art_casier & "- "
           Endif
+          If $soption = "B" Or $soption = "T" Then
+            $incol = Rarts!art_nbcol
+            $inbot = Rarts!art_nbbou
+'            If Not IsNull(Rarts!art_consb) Or Not IsNull(Rarts!art_consc) Or Not IsNull(Rarts!art_consp) Then $checcons.Value = True Else $checcons.Value = False
+          Endif
           Desg2 = rarts!art_design2
           Refourn.Text = rarts!art_cfour
           If bCentrale = True Then Refourn.Text = rarts!art_refcentrale
@@ -1117,6 +1230,16 @@ Public Sub art_man()
           qterecue.Text = "1"
           qterecue.SetFocus
           qterecue.Select
+          If $soption = "B" Or $soption = "T" Then
+            If $inbot <> 0 Then
+              $textcol.SetFocus
+              $textcol.Select
+            Endif
+            If $incol <> 0 Then
+              $textpal.SetFocus
+              $textpal.Select
+            Endif
+          Endif
         Else
           Message.Warning(" Saisie impossible ! Cet article est suspendu. ")
           b = 1
@@ -1179,7 +1302,7 @@ Public Sub qterecue_LF()
         message.Warning("Veuillez verifier votre saisie des quantités SVP !")
         b = 1
       Else
-        qterecue.Text = .Cdec(Decm, qterecue.Text)
+        If $soption <> "P" And $soption <> "T" Then qterecue.Text = .Cdec(Decm, qterecue.Text)
         b = 0
         If prvt.Text Then Totht.Text = Format$(Val(.cpoint(qterecue.Text)) * Val(Paht.Text), nbdec)
       Endif
@@ -1198,9 +1321,9 @@ Public Sub Maj_Qta()
   Arts = "0"
   If Not pmp Then pmp = "0"
   With Utils
-    Try Arts = Val(.cpoint(Aqte)) + (Val(.cpoint(Colrcp.Item[6])) * Txconv)
-    If Error Then Arts = Val(.cpoint(Aqte)) + (Val(Colrcp.Item[6]) * Txconv)
-    Pmp = (Val(Colrcp.Item[6]) / Txconv * Val(.cpoint(Dpa)) * Txconv) + (Val(.cpoint(Aqte)) * Val(.cpoint(Pmp)))
+    Try Arts = Val(.cpoint(Aqte)) + (Val(.cpoint(Colrcp.Item[6 + $o])) * Txconv)
+    If Error Then Arts = Val(.cpoint(Aqte)) + (Val(Colrcp.Item[6] + $o) * Txconv)
+    Pmp = (Val(Colrcp.Item[6 + $o]) / Txconv * Val(.cpoint(Dpa)) * Txconv) + (Val(.cpoint(Aqte)) * Val(.cpoint(Pmp)))
     If Arts = "0" Then
       Try pmp = Val(.cpoint(pmp)) / 1
     Else
@@ -1291,7 +1414,7 @@ Public Sub pbhtLF()
     End If
     If b = 0 Then
       TrC()
-      Pauv.Text = Format$(Val(paht.Text) / Txconv, nbdec)
+      If Txconv <> 0 Then Pauv.Text = Format$(Val(paht.Text) / Txconv, nbdec) Else pauv.Text = paht.Text
       pahtGF()
       pahtLF()
     Endif
@@ -1352,7 +1475,7 @@ Public Sub pahtLF()
       b = 1
     Else
       paht.Text = Format$(Val(.cpoint(paht.Text)), nbdec)
-      Pauv.Text = Format$(Val(paht.Text) / Txconv, nbdec)
+      If Txconv <> 0 Then Pauv.Text = Format$(Val(paht.Text) / Txconv, nbdec) 
       FraisLF()
       If Val(.cpoint(paht.Text)) <> "0" Then
         If montante <> paht.Text Then
@@ -1572,7 +1695,11 @@ Public Sub Tvaac_Calcul()
 
   With Utils
     If Paht.Text <> "" Or Paht.Text <> "" Then
-      Pattc = Format$(Val(Paht.Text) + (Val(Paht.Text) * Val(.cpoint(Txtva)) / 100), nbdec)
+      If $soption = "N" Then
+        Pattc = Format(Val(Paht.Text) + (Val(Paht.Text) * Val(.cpoint(Txtva)) / 100), "0.00")
+      Else
+        Pattc = Left(Str(Val(Paht.Text) + (Val(Paht.Text) * Val(.cpoint(Txtva)) / 100)), 12)
+      Endif
     End If
   End With
 Catch
@@ -1715,17 +1842,22 @@ Public Sub Maj_colrcp()
       If Len(prvt.Text) - InStr(prvt.Text, ",") = 2 Then prvt.Text = prvt.Text & " "
       Colrcp.Item[5] = Paht.text
       If Len(Colrcp.Item[5]) - InStr(Colrcp.Item[5], ",") = 2 Then Colrcp.Item[5] &= " "
-      Colrcp.Item[6] = qterecue.text
+      Colrcp.Item[6 + $o] = qterecue.text
+      If $soption = "B" Or $soption = "T" Then
+        Colrcp.Item[6] = $textpal.Text
+        Colrcp.Item[7] = $textcol.Text
+        $fcd.addligne(Cart.Text, $textpal.Text, $textcol.Text, qterecue.Text, Colrcp.Item[0])
+      Endif
       Patot = Format$(Val(Paht.text) * Val(qterecue.text), nbdec)
       If Len(Patot) - InStr(Patot, ",") = 2 Then Patot &= "  "
-      Colrcp.Item[7] = Patot
-      Colrcp.Item[8] = Cbarre
-      Colrcp.Item[9] = Prvt.text
-      Colrcp.Item[10] = Frais.text
+      Colrcp.Item[7 + $o] = Patot
+      Colrcp.Item[8 + $o] = Cbarre
+      Colrcp.Item[9 + $o] = Prvt.text
+      Colrcp.Item[10 + $o] = Frais.text
       If exo = False Then
-        Colrcp.Item[11] = Pattc
+        Colrcp.Item[11 + $o] = Pattc
       Else
-        Colrcp.Item[11] = Patot
+        Colrcp.Item[11 + $o] = Patot
       Endif
       Nbligne.Text = Colrcp.count
       Colrcp.MoveFirst
@@ -1758,12 +1890,22 @@ Public Sub Maj_colrcp()
           Case 1
             qte = Format$(Val(Colrcp.Item[6]) + Val(qterecue.text), "0.000")
             qte = .Cdec(Decm, qte)
-            Colrcp.Item[6] = qte
-            Colrcp.Item[7] = Format$(Val(Paht.text) * Val(.cpoint(Colrcp.Item[6])), nbdec)
+            Colrcp.Item[6 + $o] = qte
+            Colrcp.Item[7 + $o] = Format$(Val(Paht.text) * Val(.cpoint(Colrcp.Item[6 + $o])), nbdec)
+            If $soption = "B" Or $soption = "T" Then
+              Colrcp.Item[6] = Str(utils.totobs([Colrcp.Item[6], $textpal.Text]))
+              Colrcp.Item[7] = Str(utils.totobs([Colrcp.Item[7], $textcol.Text]))
+              $fcd.addligne(Colrcp.item[1], Colrcp.item[6], Colrcp.item[7], Colrcp.item[8], Colrcp.item[0])
+            Endif
             Break
           Case 2
-            Artstock.text = Val(.cpoint(Artstock.text)) - Val(.cpoint(Colrcp.Item[6]))
-            Colrcp.Item[6] = qterecue.text
+            Artstock.text = Val(.cpoint(Artstock.text)) - Val(.cpoint(Colrcp.Item[6 + $o]))
+            Colrcp.Item[6 + $o] = qterecue.text
+            If $soption = "B" Or $soption = "T" Then
+              Colrcp.Item[6] = $textpal.Text
+              Colrcp.Item[7] = $textcol.Text
+              $fcd.addligne(Colrcp.item[1], Colrcp.item[6], Colrcp.item[7], Colrcp.item[8], Colrcp.item[0])
+            Endif
             Break
           Case 3
             Colrcp.Add(Nlgn, Nlgn & "-")
@@ -1785,17 +1927,22 @@ Public Sub Maj_colrcp()
             If Len(prvt.Text) - InStr(prvt.Text, ",") = 2 Then prvt.Text = prvt.Text & " "
             Colrcp.Item[5] = Paht.text
             If Len(Colrcp.Item[5]) - InStr(Colrcp.Item[5], ",") = 2 Then Colrcp.Item[5] &= " "
-            Colrcp.Item[6] = qterecue.text
+            Colrcp.Item[6 + $o] = qterecue.text
             Patot = Format$(Val(Paht.text) * Val(qterecue.text), nbdec)
             If Len(Patot) - InStr(Patot, ",") = 2 Then Patot &= "  "
-            Colrcp.Item[7] = Patot
-            Colrcp.Item[8] = Cbarre
-            Colrcp.Item[9] = Prvt.text
-            Colrcp.Item[10] = Frais.text
+            Colrcp.Item[7 + $o] = Patot
+            Colrcp.Item[8 + $o] = Cbarre
+            Colrcp.Item[9 + $o] = Prvt.text
+            Colrcp.Item[10 + $o] = Frais.text
+            If $soption = "B" Or $soption = "T" Then
+              Colrcp.Item[6] = $textpal.Text
+              Colrcp.Item[7] = $textcol.Text
+              $fcd.addligne(Colrcp.item[1], Colrcp.item[6], Colrcp.item[7], Colrcp.item[8], Colrcp.item[0])
+            Endif
             If exo = False Then
-              Colrcp.Item[11] = Pattc
+              Colrcp.Item[11 + $o] = Pattc
             Else
-              Colrcp.Item[11] = Patot
+              Colrcp.Item[11 + $o] = Patot
             Endif
             Break
         End Select
@@ -1818,11 +1965,17 @@ Public Sub bas_doc()
   Colrcp.MoveFirst
   Do
     Colrcp.Item.Selected = True
-    Totalrcpt.Text = Format$(Val(Totalrcpt.Text) + (Val(Colrcp.Item[6]) * Val(Colrcp.Item[5])), "0.00")
-    Tfrais.Text = Format$(Val(Tfrais.Text) + (Val(Colrcp.Item[10]) * Val(Colrcp.Item[6]) * Txconv), "0.00")
-    Totalttc.Text = Format$(Val(Totalttc.Text) + (Val(Colrcp.Item[11]) * Val(Colrcp.Item[6])), "0.00")
+    Totalrcpt.Text = Format$(Val(Totalrcpt.Text) + Val(Colrcp.Item[6 + $o]) * Val(Colrcp.Item[5]), "0.00")
+    Tfrais.Text = Format$(Val(Tfrais.Text) + (Val(Colrcp.Item[10 + $o]) * Val(Colrcp.Item[6 + $o]) * Txconv), "0.00")
+    Totalttc.Text = Format$(Val(Totalttc.Text) + (Val(Colrcp.Item[11 + $o]) * Val(Colrcp.Item[6 + $o])), "0.00")
   Loop Until Colrcp.MoveNext()
   Nbligne.Text = Colrcp.count
+  If $soption = "B" Or $soption = "T" Then
+    $labcons.Text = $fcd.consigne
+    $labacc.Text = $fcd.accise
+    totalrcpt.Text = Format(utils.totobs([totalrcpt.Text, $labcons.Text, $labacc.Text]), "0.00")
+    totalttc.Text = Format(utils.totobs([totalttc.Text, $labcons.Text, $labacc.Text, Str($fcd.tva)]), "0.00")
+  Endif
   modif = "0"
 
 End
@@ -1838,7 +1991,7 @@ Public Sub Colrcp_Activate()
       If Colrcp.count > 0 Then
         'Else
         Nl = Colrcp.Current[0]
-        Nlg = 0
+        Nlg = 0 
         NlgModif = Colrcp.Current[0]
         Cart.text = Colrcp.Current[1]
         art_man()
@@ -1855,10 +2008,14 @@ Public Sub Colrcp_Activate()
             Pbht.text = Colrcp.Current[3]
             Tr.text = Colrcp.Current[4]
             Paht.text = Colrcp.Current[5]
-            Qterecue.text = Colrcp.Current[6]
-            Totht.text = Colrcp.Current[7]
-            prvt.text = Colrcp.Current[9]
-            Frais.text = Colrcp.Current[10]
+            Qterecue.text = Colrcp.Current[6 + $o]
+            Totht.text = Colrcp.Current[7 + $o]
+            prvt.text = Colrcp.Current[9 + $o]
+            Frais.text = Colrcp.Current[10 + $o]
+            If $soption = "B" Or $soption = "T" Then
+              $textpal.Text = Colrcp.Current[6]
+              $textcol.Text = Colrcp.Current[7]
+            Endif
             montantr = Tr.Text
             If Settings["/Soc" & Start.Societe & "/Tmq"] Then
               Calc_Percent()
@@ -1911,6 +2068,7 @@ Public Sub Colrcp_Keypress()
         Endif
         Tab = "Fiches_Ligrecpt"
         Utils.db.Exec("delete from " & Tab & " WHERE code = &1 and numrecpt = &2 and four = &3 and daterecpt = &4", Colrcp.current[1], Nbl.Text, four.Text, .Cdate_Dbase(datej.Text))
+        
         CleanChamps()
         Colrcp.Current.Delete
       Endif
@@ -1918,15 +2076,25 @@ Public Sub Colrcp_Keypress()
     If Colrcp.count Then
       Colrcp.MoveFirst
       Totalrcpt.Text = "0,00"
+      Totalttc.Text = "0,00"
       Tfrais.Text = "0,00"
       Nlgn = "000"
       Do
         Colrcp.Item.Selected = True
+        If $soption = "B" Or $soption = "T" Then $fcd.supligne(Colrcp.Item[0])
         Nlgn = Format$(Val(Nlgn) + 1, "000")
         Colrcp.Item[0] = Nlgn
-        Totalrcpt.Text = Format$(Val(Totalrcpt.Text) + (Val(Colrcp.Item[5]) * Val(Colrcp.Item[6])), "0.00")
-        Tfrais.Text = Format$(Val(Tfrais.Text) + (Val(Colrcp.Item[10]) * Val(Colrcp.Item[6])), "0.00")
+        If $soption = "B" Or $soption = "T" Then $fcd.addligne(Colrcp.Item[1], Colrcp.Item[6], Colrcp.Item[7], Colrcp.Item[8], Colrcp.Item[0])
+        Totalrcpt.Text = Format$(Val(Totalrcpt.Text) + (Val(Colrcp.Item[5]) * Val(Colrcp.Item[6 + $o])), "0.00")
+        Tfrais.Text = Format$(Val(Tfrais.Text) + (Val(Colrcp.Item[10 + $o]) * Val(Colrcp.Item[6 + $o])), "0.00")
+        Totalttc.Text = Format$(Val(Totalttc.Text) + (Val(Colrcp.Item[11 + $o]) * Val(Colrcp.Item[6 + $o])), "0.00")
       Loop Until Colrcp.MoveNext()
+      If $soption = "B" Or $soption = "T" Then
+        $labcons.Text = $fcd.consigne
+        $labacc.Text = $fcd.accise
+        totalrcpt.Text = Format(utils.totobs([totalrcpt.Text, $labcons.Text, $labacc.Text]), "0.00")
+        totalttc.Text = Format(utils.totobs([totalttc.Text, $labcons.Text, $labacc.Text, Str($fcd.tva)]), "0.00")
+    Endif
     Else
       Totalrcpt.Text = "0,00"
       Tfrais.Text = "0,00"
@@ -1954,6 +2122,8 @@ Public Sub Enrgbl()
 
   Dim rResult As Result
   Dim ArtResult As Result
+  Dim deccons As Saisiedecons
+  Dim win As Window
 
   With Utils
     If datej.Text <> "" Or Left$(datej.Text, 2) = "00" Then
@@ -1985,10 +2155,19 @@ Public Sub Enrgbl()
                   Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET art_dpa = &2, art_dfour = &3, art_ddate = &4 WHERE art_code = &1", ArtResult!art_code, Val(.cpoint(Colrcp.Item[5])), four.text, datej.text)
                 Endif
               Endif
-              Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigrecpt") & "(code,design,numrecpt,four,paht,frais,prvt,qte,pbht,rm, daterecpt, nligne, pattc) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11} , &{12} , &{13})", Colrcp.Item[1], Left$(Colrcp.Item[2], 30), Nbl.Text, four.Text, Colrcp.Item[5], Colrcp.Item[10], Colrcp.Item[9], Colrcp.Item[6], Colrcp.Item[3], Colrcp.Item[4], .Cdate_Dbase(datej.Text), Colrcp.Item[0], Colrcp.Item[11])
+              Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigrecpt") & "(code,design,numrecpt,four,paht,frais,prvt,qte,pbht,rm, daterecpt, nligne, pattc) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11} , &{12} , &{13})", Colrcp.Item[1], Left$(Colrcp.Item[2], 30), Nbl.Text, four.Text, Colrcp.Item[5], Colrcp.Item[10 + $o], Colrcp.Item[9 + $o], Colrcp.Item[6 + $o], Colrcp.Item[3], Colrcp.Item[4], .Cdate_Dbase(datej.Text), Colrcp.Item[0], Colrcp.Item[11 + $o])
               If Materiel And Gmateriel Then Enrgnum()
             Until Colrcp.Movenext()
             Utils.db.Exec("UNLOCK TABLES")
+          Endif
+          If $soption = "B" Or $soption = "T" Then
+            $fcd.enrligne(nbl.Text)
+            $bcrea = True
+            win = New Window
+            deccons = New Saisiedecons(win, win, four.Text, nbl.Text, datej.Text)
+            win.Height = deccons.Height
+            win.Width = deccons.Width
+            win.ShowModal
           Endif
           RazBl()
           If Etiqb = True Then
@@ -2145,10 +2324,10 @@ Public Sub Maj_Etiqp()
   Tabp = "Fiches_EtiProd"
   Etiqp = Utils.db.Exec("SELECT * FROM " & Tabp & " where code = &1", Colrcp.Item[1])
   If Etiqp.Available Then
-    Qteetiq = Etiqp!nombre + Val(Colrcp.Item[6])
+    Qteetiq = Etiqp!nombre + Val(Colrcp.Item[6 + $o])
     Utils.db.Exec("UPdate  " & tabp & "  SET code = &1, nombre = &2 WHERE code = &1", Colrcp.Item[1], Qteetiq)
   Else
-    Qteetiq = Val(Colrcp.Item[6])
+    Qteetiq = Val(Colrcp.Item[6 + $o])
     Utils.db.Exec("INSERT INTO " & Tabp & "(code,nombre) VALUES (&1, &2)", Colrcp.Item[1], Qteetiq)
   Endif
   Etiqb = True
@@ -2362,6 +2541,84 @@ Public Sub SelectionArt()
     Art_Man()
   Endif
 
+End
+
+Public Sub modifecran()
+
+  Dim co As Float
+  Dim lab As Label
+  
+  co = Panel2.Width / 920
+  If Settings["/Soc" & Start.Societe & "/prixRecpt"] Then
+    Panel2.y = 104 * co
+    Panel2.Height = 256 * co
+    Panel7.y = 152 * co
+    Panel7.Height = 90 * co
+    Button1.y = 216 * co
+    TextLabel19.y = 48 * co
+'    TextLabel9.y = 48 * co
+    TextLabel10.y = 48 * co
+    TextLabel11.y = 48 * co
+'    TextLabel12.y = 48 * co
+    TextLabel13.y = 48 * co
+    TextLabel16.y = 48 * co
+    pauv.y = 64 * co
+    frais.y = 64 * co
+    prvt.y = 64 * co
+    Coef.y = 64 * co
+    PvHt.y = 64 * co
+    PvTTc.y = 64 * co
+    arr.y = 64 * co
+    TextLabel6.y = 94 * co
+    TextLabel6.x = 624 * co
+    qterecue.y = 124 * co
+    qterecue.x = 624 * co
+    TextLabel18.x = 480 * co
+    TextLabel18.y = 94 * co
+    qtecom.y = 124 * co
+    qtecom.x = 480 * co
+  
+    lab = New Label(panel2)
+    lab.Move(192 * co, 94 * co, 104 * co, 24 * co)
+    lab.Text = "Palette"
+    lab.Alignment = Align.Center
+    lab = New Label(panel2)
+    lab.Move(336 * co, 94 * co, 104 * co, 24 * co)
+    lab.Text = "Coli"
+    lab.Alignment = Align.Center
+    $textpal = New TextBox(panel2) As "Rcpt"
+    $textpal.Move(192 * co, 124 * co, 104 * co, 24 * co)
+    $textpal.Alignment = Align.Right
+    $textpal.Tag = 17
+    $textcol = New TextBox(panel2) As "Rcpt"
+    $textcol.Move(336 * co, 124 * co, 104 * co, 24 * co)
+    $textcol.Alignment = Align.Right
+    $textcol.Tag = 18
+    
+    TextLabel15.x = 8 * co
+    Nbligne.x = 134 * co
+    TextLabel17.x = 202 * co
+    totalrcpt.x = 294 * co
+    TextLabel9.x = 406 * co
+    Tfrais.x = 498 * co 
+    lab = New Label(Me)
+    lab.Move(606 * co, 656 * co, 80 * co, 24 * co)
+    lab.Font = Font["Serif,Bold,-1"]
+    lab.Text = "Consigne"
+    $labcons = New TextLabel(Me)
+    $labcons.Move(666 * co, 656 * co, 88 * co, 24 * co)
+    $labcons.font = Font["Serif,Bold,-1"]
+    $labcons.Alignment = Align.Right
+    lab = New Label(Me)
+    lab.Move(780 * co, 656 * co, 70 * co, 24 * co)
+    lab.Font = Font["Serif,Bold,-1"]
+    lab.Text = "Accise"
+    $labacc = New TextLabel(Me)
+    $labacc.Move(840 * co, 656 * co, 88 * co, 24 * co)
+    $labacc.font = Font["Serif,Bold,-1"]
+    $labacc.Alignment = Align.Right
+    
+  Endif 
 End
 
 '********************

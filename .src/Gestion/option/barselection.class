@@ -1,0 +1,222 @@
+' Gambas class file
+
+Export
+
+Private $bcreer As Boolean = False
+Private $bmodif As Boolean = False
+Private $schoix As String
+Private $oobj As Object
+
+Property Read estcreer As Boolean
+Property Read estmodif As Boolean
+
+Event precedent()
+Event suivant()
+Event premier()
+Event dernier()
+Event creer()
+Event suprimer()
+Event modif()
+Event recherche()
+Event quitter()
+Event valide(creer As Boolean, annul As Boolean)
+Event annule(creer As Boolean, annul As Boolean)
+
+Public Sub _new(choix As String, obj As Object)
+
+  $oobj = obj
+  $schoix = choix
+  
+  affichechoix($schoix, $oobj)
+  
+End
+
+Private Sub affichechoix(choix As String, obj As Object)
+
+  Dim but As Button
+  
+ 
+  If visible(Mid(choix, 1, 1)) Then
+    but = New Button(obj) As "bout"
+    but.Picture = Picture["icon:/medium/first"]
+    butpref(but, 1, "Premier enregistrement")
+  Endif
+
+ If visible(Mid(choix, 2, 1)) Then
+    but = New Button(obj) As "bout"
+    but.Picture = Picture["icon:/medium/left"]
+    butpref(but, 2, "Enregistrement précédent")
+  Endif
+
+ If visible(Mid(choix, 3, 1)) Then
+    but = New Button(obj) As "bout"
+    but.Picture = Picture["icon:/medium/add"]
+    butpref(but, 3, "Création")
+  Endif
+
+ If visible(Mid(choix, 4, 1)) Then
+    but = New Button(obj) As "bout"
+    but.Picture = Picture["icon:/medium/edit"]
+    butpref(but, 4, "Modification")
+  Endif
+
+ If visible(Mid(choix, 5, 1)) Then
+    but = New Button(obj) As "bout"
+    but.Picture = Picture["icon:/medium/delete"]
+    butpref(but, 5, "Suppression")
+  Endif
+
+ If visible(Mid(choix, 6, 1)) Then
+    but = New Button(obj) As "bout"
+    but.Picture = Picture["icon:/medium/right"]
+    butpref(but, 6, "Enregistrement suivant")
+  Endif
+
+ If visible(Mid(choix, 7, 1)) Then
+    but = New Button(obj) As "bout"
+    but.Picture = Picture["icon:/medium/last"]
+    butpref(but, 7, "Dernier enregistrement")
+  Endif
+
+ If visible(Mid(choix, 8, 1)) Then
+    but = New Button(obj) As "bout"
+    but.Picture = Picture["icon:/medium/quit"]
+    butpref(but, 8, "Sortie")
+  Endif
+
+ If visible(Mid(choix, 9, 1)) Then
+    but = New Button(obj) As "bout"
+    but.Picture = Picture["Icones/next_frame.png"]
+    butpref(but, 9, "Recherche")
+  Endif
+
+End
+
+Private Function visible(c As String) As Boolean
+  
+  If c = "0" Then 
+    Return False
+  Else
+    Return True
+  Endif
+ 
+End
+
+Private Sub butpref(bt As Button, i As Integer, s As String)
+  
+  bt.AutoResize = True
+  bt.Expand = True
+  bt.Tag = i
+  bt.Tooltip = s
+End
+
+Private Sub afficheval()
+  
+  Dim lab As Label
+  Dim but As Button
+  Dim i As Integer
+  
+ 
+  i = Last.Tag
+  efface
+  lab = New Label($oobj)
+  lab.AutoResize = True
+  lab.Expand = True
+  Select Case i
+    Case 3
+      lab.Text = "Création          "
+    Case 4
+      lab.Text = "Modification  "
+    Case 5
+      lab.Text = "Suppression ?     "
+  End Select
+  but = New Button($oobj) As "butval"
+  but.Tag = 1
+  but.AutoResize = True
+  but.Picture = Picture["icon:/medium/cancel"]
+  but.Width = 70
+  but.Cancel = True
+  but = New Button($oobj) As "butval"
+  but.Tag = 2
+  but.AutoResize = True
+  but.Picture = Picture["icon:/medium/apply"]
+  but.Width = 70
+  but.Default = True
+  
+End
+
+Private Sub efface()
+  
+  Dim var As Variant
+  Dim i As Integer
+  
+  var = $oobj.children
+  While var.count > 0
+    var[var.count - 1].delete
+  Wend
+  
+End
+
+Public Sub bout_click()
+
+  Select Case Last.Tag
+    Case 1
+      Raise premier()
+    Case 2
+      Raise precedent()
+    Case 3
+      $bcreer = True
+      afficheval
+      Raise creer()
+    Case 4
+      $bmodif = True
+      afficheval
+      Raise modif()
+      Case 5
+        afficheval
+        Raise suprimer()
+      Case 6
+        Raise suivant()
+     Case 7
+       Raise dernier()
+      Case 8
+        Raise quitter()
+      Case 9
+        Raise recherche()
+        
+  End Select
+
+End
+
+Public Sub butval_Click()
+
+  Dim i As Integer
+  Dim abandon As Boolean
+  
+  i = Last.Tag
+  Select Case i
+    Case 1
+     abandon = Raise annule($bcreer, $bmodif)
+     If abandon Then Return
+    Case 2
+      abandon = Raise valide($bcreer, $bmodif)
+      If abandon Then Return
+  End Select
+  efface
+  affichechoix($schoix, $oobj)
+  $bcreer = False
+  $bmodif = False
+
+End
+
+Private Function estcreer_Read() As Boolean
+
+  Return $bcreer
+
+End
+
+Private Function estmodif_Read() As Boolean
+
+  Return $bmodif
+
+End

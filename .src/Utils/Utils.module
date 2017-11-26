@@ -319,6 +319,7 @@ End
 
 Public Function Cdate_Com(dte As String) As String
 
+  dte = Left(dte, 10)
   Return (Right$(dte, 4) & "." & Left$(dte, 2) & "." & Mid$(dte, 4, 2))
 
 End
@@ -974,6 +975,128 @@ Public Function lastday(dte As Date) As Integer
   Until Not Error
   Return d
 
+End
+
+Public Function Option() As String
+
+  Dim opt As String
+  
+  opt = "N"
+  If Settings["/Soc" & Start.Societe & "/bois"] Then opt = "B"
+  If Settings["/Soc" & Start.Societe & "/pp"] Then opt = "P"
+  If Settings["/Soc" & Start.Societe & "/bois"] And Settings["/Soc" & Start.Societe & "/pp"] Then opt = "T"
+  Return opt
+
+End
+
+'**************Regarde dans les fichiers regie/consigne si c'est une facture boisson 
+Public Function orientation(numrec As String, choix As String) As Boolean
+
+  Dim rescons, resregie, res As Result
+  Dim opt As String
+  Dim numlst As New String[]
+  Dim num As String
+  Dim i As Integer
+  
+  opt = Option()
+  If opt = "N" Or opt = "P" Then Return False
+  
+  If choix = "FM" Then          'facture fin de mois => regarde dans tous les bons
+    choix = "B"
+    res = Utils.db.Exec("SELECT num FROM Bl WHERE code=&1", numrec)
+    res.MoveFirst
+    For i = 0 To res.Max
+      numlst.Add(res!num)
+      res.MoveNext
+    Next
+  Else
+    numlst.Add(numrec)
+  Endif
+  For Each num In numlst
+    'si consigne
+    rescons = Utils.db.Exec("SELECT * FROM Fiches_ligcons WHERE num=&1 AND type=&2 LIMIT 1", num, choix)
+    If rescons.Available Then Return True      'consigne trouvée
+    'si regie sur facture déja éditée
+    Select Case choix
+      Case "F"
+        resregie = Utils.db.Exec("SELECT * FROM Fiches_ligregie WHERE num=&1 LIMIT 1", num)
+      Case "B"
+        resregie = Utils.db.Exec("SELECT * FROM Fiches_ligregie,Fiches_Bl WHERE numbl=&1 AND numfac=num LIMIT 1", num) 
+    End Select
+    If Not resregie.Available Then
+      'si régie sur facture non éditée
+      resregie = Utils.db.Exec("SELECT * FROM Fiches_Ligbl, Fiches_Art WHERE num_ligbl=&1 AND code_ligbl=art_code AND art_dra IS NOT NULL LIMIT 1", num)
+    Endif
+    If resregie.Available Then Return True      'regie trouvée
+  Next
+  Return False        'rien de trouvé fac normale
+End
+
+Public Sub fraisgestion(montant As Float)       'enregistrement des frais de gestion
+
+  Dim res, respar As Result
+  
+  If montant > 0 Then        
+    utils.db.Begin
+    respar = utils.db.Exec("SELECT cptfrais,tvafrais,taux_tva,cc_tva,intitule_cc FROM Fiches_Parametres,Fiches_Tvaav,Fiches_Comptes WHERE tvafrais=code_tva AND cptfrais=compte_cc")
+    If respar.Available Then
+      res = utils.db.Edit("Totalisation", "compte=&1", respar!cptfrais)
+      If res.Available Then
+        res!totalht = Format(Val(Replace(res!totalht, ".", ",")) + montant, "0.00")
+        res!totaltva = Str(Val(Replace(res!totaltva, ".", ",")) + (montant * Val(Replace(respar!taux_tva, ".", ",")) / 100))
+        res.Update
+      Else
+        res = utils.db.Create("Totalisation")
+        res!compte = respar!cptfrais
+        res!intitule = respar!intitule_cc
+        res!totalht = Format(montant, "0.00")
+        res!totaltva = Str(montant * Val(Replace(respar!taux_tva, ".", ",")) / 100)
+        res!codetva = "0"
+        res.Update
+      Endif
+    Else
+      Message.Error("Il y a un probléme de paramétrage sur les frais", "OK")
+      Return
+    Endif
+    respar = utils.db.Exec("SELECT cptfrais,tvafrais,taux_tva,cc_tva,intitule_cc FROM Fiches_Parametres,Fiches_Tvaav,Fiches_Comptes WHERE tvafrais=code_tva AND cc_tva=compte_cc") 
+    If respar.Available Then
+      res = utils.db.Edit("Totalisation", "compte=&1 AND codetva=&2", respar!cc_tva, respar!tvafrais)
+      If res.Available Then
+        res!totalht = Format(Val(Replace(res!totalht, ".", ",")) + montant, "0.00")
+        res!totaltva = Str(Val(Replace(res!totaltva, ".", ",")) + (montant * Val(Replace(respar!taux_tva, ".", ",")) / 100))
+        res.Update
+      Else
+        res = utils.db.Create("Totalisation")
+        res!compte = respar!cc_tva
+        res!intitule = respar!intitule_cc
+        res!totalht = Format(montant, "0.00")
+        res!totaltva = Str(montant * Val(Replace(respar!taux_tva, ".", ",")) / 100)
+        res!codetva = respar!tvafrais
+        res.Update
+      Endif
+    Else
+      Message.Error("Il y a un probléme de paramétrage sur les frais", "OK")
+      Return
+    Endif
+      utils.db.Commit
+  Endif
+End
+
+Public Function totobs(tot As String[]) As Float
+
+  Dim txt As String
+  Dim somme As Float
+  
+  For Each txt In tot
+    If Not IsNull(txt) Then
+      txt = Replace(txt, ".", ",")
+      If IsNumber(txt) Then
+        somme += Val(txt)
+      Endif
+    Endif
+  Next
+  Return somme
+  
 End
 
 Public Function PageFormatSupported() As String[]

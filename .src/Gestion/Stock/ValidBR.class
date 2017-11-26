@@ -78,6 +78,8 @@ Private bchktva As Boolean = False
 Private Famachat As String
 Private NmFic As String
 Private skey As String
+Private $soption As String
+Private $bvign As Boolean
 
 '**********************************************************
 '*initialisation écrans et gestion onglet client          *
@@ -94,7 +96,8 @@ Public Sub _New()
   Endif
   Coulfond = Utils.Coulfd()
   If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
-
+  $soption = utils.Option()
+  
   Music.Load(Start.Musique)
   Me.Center
   Balloon.Delay = 1500
@@ -567,6 +570,7 @@ Public Sub Gen_ecr(View As Boolean)
   Dim NumeroBl As String
   Dim hFormc As GedC
   Dim numrecpts As String = ""
+  Dim ccd As Calculdroit
 
   P = 31
   Pge = 1
@@ -606,7 +610,11 @@ Public Sub Gen_ecr(View As Boolean)
     Print #Hnew, " "
   Endif
   Raz_Ventilation()
-  Utils.db.Exec("LOCK TABLES " & Tab & " WRITE, " & Tab0 & " WRITE, " & Tab1 & " WRITE, " & Tab2 & " WRITE, " & Tab4 & " WRITE, " & Tab5 & " WRITE, " & Tab6 & " WRITE, " & Tab7 & " WRITE, " & Tab10 & " WRITE, " & Tab11 & " WRITE," & Cbase.Table("TabTleg") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, " & Cbase.Table("TabHisFac") & " WRITE, " & "Fiches_Tvaac" & " Write, " & Cbase.Table("TabCPTdocs") & " write, " & Cbase.Table("TabFdocs") & " write ")
+  If $soption = "B" Or $soption = "T" Then
+    Utils.db.Exec("LOCK TABLES " & Tab & " WRITE, " & Tab0 & " WRITE, " & Tab1 & " WRITE, " & Tab2 & " WRITE, " & Tab4 & " WRITE, " & Tab5 & " WRITE, " & Tab6 & " WRITE, " & Tab7 & " WRITE, " & Tab10 & " WRITE, " & Tab11 & " WRITE," & Cbase.Table("TabTleg") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, " & Cbase.Table("TabHisFac") & " WRITE, " & "Fiches_Tvaac" & " Write, " & Cbase.Table("TabCPTdocs") & " write, " & Cbase.Table("TabFdocs") & " write, Fiches_ligcons WRITE, Fiches_ligregie WRITE, Fiches_regie WRITE ")
+  Else
+    Utils.db.Exec("LOCK TABLES " & Tab & " WRITE, " & Tab0 & " WRITE, " & Tab1 & " WRITE, " & Tab2 & " WRITE, " & Tab4 & " WRITE, " & Tab5 & " WRITE, " & Tab6 & " WRITE, " & Tab7 & " WRITE, " & Tab10 & " WRITE, " & Tab11 & " WRITE," & Cbase.Table("TabTleg") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, " & Cbase.Table("TabHisFac") & " WRITE, " & "Fiches_Tvaac" & " Write, " & Cbase.Table("TabCPTdocs") & " write, " & Cbase.Table("TabFdocs") & " write ")
+  Endif
   Parametres()
   With Utils
     If Jnl Then
@@ -647,8 +655,17 @@ Public Sub Gen_ecr(View As Boolean)
             Repeat
               Txtva = Ligbl!art_tva
               Txconv = Ligbl!art_txconv
-              Brutht = Ligbl!prvt
+              If $soption = "N" Then Brutht = Ligbl!prvt Else Brutht = Ligbl!paht
               totalht = Val(Brutht) * Val(Ligbl!qte)
+              If $soption = "B" Or $soption = "T" Then    'rajout au montant ht des droits d'accise si besoin & maj du fichier régie
+                If Ligbl!art_dra Then
+                  ccd = New Calculdroit(Ligbl!art_dra, Ligbl!art_volm, Ligbl!art_deg, Ligbl!qte)
+                  If ccd.drsurfac Then
+                    totalht = Format(utils.totobs([totalht, Str(ccd.droit)]), "0.00")
+                  Endif
+                  creadra(ccd, Ligbl!art_code, Ligbl!qte, Ligbl!daterecpt, Ligbl!numrecpt, Ligbl!nligne, Ligbl!art_deg)
+                Endif
+              Endif
               Fam = Ligbl!art_fam
               If Totttc = "" Then Totttc = "0"
               If totalht = "" Then totalht = "0"
@@ -665,6 +682,10 @@ Public Sub Gen_ecr(View As Boolean)
           numrecpts = numrecpts & "\n" & numbl!numrecpt
           'Edbr.Ed(numbl!numrecpt, Colbl.Item[0], datej.Text, coulfond, "ValidBR")
 
+        Endif
+        If $soption = "B" Or $soption = "T" Then
+          Ligbl.MoveFirst
+          totalconsigne(Ligbl!daterecpt, Ligbl!numrecpt, Ligbl!four)
         Endif
       Until Coldetail.MoveNext()
       Edbr.Ed(numrecpts, Colbl.Item[0], datej.Text, coulfond, "ValidBR")
@@ -1247,6 +1268,60 @@ Public Sub DateChooser1_Activate()
   Datej.text = Format$(DateChooser1.Value, "dd.mm.yyyy")
   DateChooser1.Visible = False
 
+End
+'*******************************traitement sur les options****************************************
+Private Sub creadra(ccd As Calculdroit, nart As String, qte As String, dte As Date, nbl As String, nlig As String, degre As Float)
+  
+  Dim res As Result
+  
+  utils.db.Begin
+  res = utils.db.Create("Fiches_ligregie")
+  res!dtmouv = dte
+  res!num = nbl
+  res!numlig = nlig
+  res!type = "E"
+  res!codeart = nart
+  res!coderegie = ccd.code
+  res!qte = qte
+  res!volume = ccd.vol
+  res!degres = degre
+  res!volumeap = ccd.volap
+  res!cloture = False
+  res.Update
+  utils.db.Commit
+  If ccd.suspendu Then $bvign = True
+
+End
+
+Private Sub totalconsigne(dte As Date, numbl As String, numfr As String)
+  
+  Dim res, respar, rescons As Result
+  Dim bloc As String
+  Dim tot As Float
+  
+  bloc = Format(dte, "dd.mm.yyyy") & numbl & numfr
+  respar = utils.db.Exec("SELECT * FROM Fiches_Parametres")
+  res = utils.db.Exec("SELECT SUM(montant) AS montant FROM Fiches_ligcons WHERE bloc=&1 AND numlig<>'D'", bloc)
+  If res.Available Then tot = res!montant
+  res = utils.db.Exec("SELECT SUM(montant) AS montant FROM Fiches_ligcons WHERE bloc=&1 AND numlig='D'", bloc)
+  If res.Available Then
+    tot = tot + res!montant
+    rescons = utils.db.Exec("SELECT intitule_cc FROM Fiches_Comptes WHERE compte_cc = &1", respar!consfou)
+    utils.db.Begin
+    res = utils.db.Edit("Totalisation", "compte=&1", respar!consfou)
+    If Not res.Available Then
+      res = utils.db.Create("Totalisation")
+      res!compte = respar!consfou
+      res!intitule = rescons!intitule_cc
+      res!totalht = "0"
+    Endif
+    res!totalht = utils.totobs([res!totalht, Str(tot)])
+    res!totaltva = "0"
+    res!codetva = "."
+    res.Update
+    utils.db.Commit
+    Totalttc = utils.totobs([Totalttc, Str(tot)])
+  Endif
 End
 
 '**********************************************

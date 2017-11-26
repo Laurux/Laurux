@@ -1,0 +1,218 @@
+' Gambas module file
+
+'modifie les fichiers pour les options
+' 1 tronc commun qui sera à rajouter à une version.
+
+Private $win As Window
+
+Public Sub fichierboisson()
+
+commun
+'fichier regie ==>definie le mode de calcul
+    Try Utils.db.EXEC("CREATE TABLE Fiches_regie " &
+    "(code char(2) ," &
+    "nom varchar(30) ," &
+    "tauxa decimal(9,4) ," &
+    "degres integer , " &
+    "tauxss decimal(9,4) , " &
+    "type char(1)," &
+    "suspendu boolean, " &
+    "ap boolean, " &
+    "drfac boolean, " &
+    "cdcompt integer, " &
+    "ttva char(2), " &
+    "PRIMARY KEY (code))")
+'fichier des consignes   
+   Try Utils.db.EXEC("CREATE TABLE Fiches_consigne " &
+    "(code char(2) ," &
+    "libelle varchar(30) ," &
+    "prix decimal(6,2) ," 
+    "type char(1)," &
+    "PRIMARY KEY (code))")
+'fichier ligne de consigne associé aux bl/factures
+  Try Utils.db.Exec("CREATE TABLE Fiches_ligcons " &
+  "(code int NOT NULL AUTO_INCREMENT, " &
+  "num char(15) ," &
+  "numlig char(12) ," &
+  "type char(1) ," &
+  "codecons char(2) ," &
+  "nb int ," &
+  "montant decimal(8,2), " &
+  "envaleur boolean, " &
+  "bloc varchar(33), " &
+  "PRIMARY KEY (code))")
+'fichier ligne de regie associé aux bl/factures
+  Try Utils.db.Exec("CREATE TABLE Fiches_ligregie " &
+  "(code int NOT NULL AUTO_INCREMENT, " &
+  "dtmouv date, " &
+  "num char(15) ," &
+  "numlig char(12) ," &
+  "type char(1) ," & 
+  "codeart char(15) ," &
+  "coderegie char(2) ," &
+  "qte decimal(8,3), " &
+  "volume decimal(7,2), " &
+  "degres decimal(5,2), " &
+  "volumeap decimal(6,2), " &
+  "montdr decimal(8,2), " &
+  "txtvadr char(5), " &
+  "montss decimal(7,2), " &
+  "txtvass char(5), " &
+  "vignette char(25), " &
+  "cloture boolean, " &
+  "PRIMARY KEY (code))")
+'ajout au fichier articles
+  Try Utils.db.Exec("ALTER TABLE Fiches_Art ADD art_trspa decimal(7,3) DEFAULT 0.000")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Art ADD art_trspr decimal(7,3) DEFAULT 0.000")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Art ADD art_tsuc decimal(7,3) DEFAULT 0.000")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Art ADD art_remv decimal(7,3) DEFAULT 0.000")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Art ADD (art_dra char(2))")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Art ADD art_volm decimal(7,2) DEFAULT 0.00")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Art ADD art_deg decimal(5,2) DEFAULT 0.00")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Art ADD art_montdr decimal(6, 3) DEFAULT 0.000")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Art ADD art_montss decimal(6,3) DEFAULT 0.000")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Art ADD (art_consp char(2))")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Art ADD (art_nbcol integer)")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Art ADD (art_consc char(2))")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Art ADD (art_nbbou integer)")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Art ADD (art_consb char(2))")
+  'ajout fichier client
+  Try Utils.db.Exec("ALTER TABLE Fiches_Cli ADD cli_cons boolean DEFAULT TRUE")
+  'ajout fichier parametre
+  Try Utils.db.Exec("ALTER TABLE Fiches_Parametres ADD conscli char(8)")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Parametres ADD consfou char(8)")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Parametres ADD nvign char(25)")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Parametres ADD css char(8)")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Parametres ADD tvass char(2)")
+  'ajout fichier ligcom
+  Try Utils.db.Exec("ALTER TABLE Fiches_Ligcom ADD palet integer DEFAULT 0")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Ligcom ADD coli integer DEFAULT 0")
+  
+End
+
+Public Sub fichiercarbu()
+
+commun
+'Fichier des régions pour le calcul de la tipp régionale
+   Try Utils.db.EXEC("CREATE TABLE Fiches_region " &
+    "(code char(2) ," &
+    "cart char(15) ," &
+    "libelle varchar(30) ," &
+    "taux decimal(6,2) ," &
+    "PRIMARY KEY (code,cart))") 
+ 'fichiers des tarifs de vente aux particuliers du fioul/gnr 
+  Try Utils.db.Exec("CREATE TABLE Fiches_tarpp " &
+    "(code char(15) ," &
+    "margez decimal(7,2) ," &
+    "supqs decimal(6,2) ," &
+    "PRIMARY KEY (code))")
+    
+  Try Utils.db.Exec("CREATE TABLE Fiches_ligtarpp " &
+    "(code char(15) ," &
+    "ligne integer ," &
+    "binf decimal(6,3) ," &
+    "bsup decimal(6,3) ," &
+    "marht decimal(7,2) ," &
+    "normht decimal(7,2) ," &
+    "supht decimal(7,2) ," &
+    "PRIMARY KEY (code,ligne))")
+  'fichier des tournées
+  Try Utils.db.Exec("CREATE TABLE Fiches_tourne " &
+    "(code char(15) ," &
+    "tourne char(50) ," &
+    "PRIMARY KEY (code))")
+  'ajout Fichier article
+  Try Utils.db.Exec("ALTER TABLE Fiches_Art ADD art_ecof decimal(7,3) DEFAULT 0.000")
+  'ajout fichier client
+  Try Utils.db.Exec("ALTER TABLE Fiches_Cli ADD (cli_tipp char(2))")
+  'ajout fichier adresse de livraison
+  Try Utils.db.Exec("ALTER TABLE Fiches_AdrlivC ADD (tipp char(2))")
+  'ajout fichier ligne bl
+  Try Utils.db.Exec("ALTER TABLE Fiches_Ligbl MODIFY qte_ligbl decimal(8,3)")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Ligbl ADD tipp_ligbl char(2)")
+  'ajout fichier facture
+  Try Utils.db.Exec("ALTER TABLE Fiches_HistoLigfac ADD tipp_ligfac char(2)")
+  Try Utils.db.Exec("ALTER TABLE Fiches_HistoLigfac MODIFY qte_ligfac char(10)")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Ligrecpt MODIFY qte char(9)")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Ligcom MODIFY qte char(9)")
+  Print Error.Text
+End
+
+Private Sub commun()
+
+  Dim lab As TextLabel
+  
+  $win = New Window
+  lab = New TextLabel($win)
+  
+  lab.Text = "Traitement en cours \n Veuillez patienter"
+  $win.Height = 130
+  $win.Width = 400
+  lab.Height = 130
+  lab.Width = 400
+  lab.x = 0
+  lab.y = 0
+  lab.Alignment = Align.Center
+  $win.Border = False
+  lab.font = font["Serif,+5"]
+  $win.Mouse = Mouse.Wait
+  $win.Show
+  
+  Try Utils.db.Exec("ALTER TABLE Fiches_Art ADD art_trsp decimal(7,3) DEFAULT 0.000")
+  If Not Error Then modiffrais
+  
+  '' a rajouter à laurux dans une maj
+  'ajout fiche client
+  Try Utils.db.Exec("ALTER TABLE Fiches_Cli ADD (cli_tour char(15))")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Cli ADD cli_gestion decimal(5,2) DEFAULT 0.00")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Cli ADD cli_regr char(1) DEFAULT 'S'")
+  
+  'ajout fiche adresse de livraison
+  Try Utils.db.Exec("ALTER TABLE Fiches_AdrlivC ADD (tourne char(15))")
+  'fichier des bl
+  Try Utils.db.Exec("ALTER TABLE Fiches_Ligbl ADD tour_ligbl char(15)")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Bl ADD gestbl decimal(5,2) DEFAULT 0.00")
+  'ficher des factures
+  Try Utils.db.Exec("ALTER TABLE Fiches_HistoLigfac ADD tour_ligfac char(15)")
+  Try Utils.db.Exec("ALTER TABLE Fiches_HistoFac ADD gestfac decimal(5,2) DEFAULT 0.00") 
+    'ajout fichier parametre
+  Try Utils.db.Exec("ALTER TABLE Fiches_Parametres ADD frais decimal(6,2)")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Parametres ADD cptfrais char(8)")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Parametres ADD tvafrais char(2)")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Fam MODIFY code_fam char(20)")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Art MODIFY art_fam char(20)")
+  Try Utils.db.Exec("ALTER TABLE Fiches_RemTypec MODIFY codef char(20)")
+  Try Utils.db.Exec("ALTER TABLE Fiches_RemCliFam MODIFY codef char(20)")
+  Try Utils.db.Exec("ALTER TABLE Fiches_CoeffTypec MODIFY codef char(20)")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Ligbl MODIFY fam_ligbl char(20)")
+  Try Utils.db.Exec("ALTER TABLE Fiches_HistoLigfac MODIFY fam_ligfac char(20)")
+  Try Utils.db.Exec("ALTER TABLE Fiches_FamDep MODIFY fam char(20)")
+End
+
+Private Sub modiffrais()
+  
+  Dim res As Result
+  Dim i As Integer
+  
+  If Message.Question("ATTENTION : Vous risquez de remettre le champ FRAIS à zéro lors de modication article." & Chr(10) & "Pour éviter cela il est possisble de recopier les frais dans le champ Transport" & Chr(10) & "Etes-vous d'accord ?", "OUI", "NON") = 2 Then
+    Return
+  Endif
+  Utils.db.Begin
+  res = Utils.db.Edit("Fiches_Art", "art_frais <> &1 ", 0)
+  If res.Available Then
+    res.MoveFirst
+    For i = 0 To res.Max
+      res!art_trspr = res!art_frais
+      res.Update
+      res.MoveNext
+    Next
+    Utils.db.Commit
+  Endif
+  
+End
+
+Public Sub supf()
+
+  $win.Close
+
+End

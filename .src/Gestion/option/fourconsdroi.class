@@ -1,0 +1,255 @@
+' Gambas class file
+
+' gére les consignes et droits accises sur les achats
+
+Private $schois As String
+Private $cons As Float
+Private $decosn As Float
+Private $accise As Float
+Private $tva As Float
+Private $sbloc As String
+
+Public Struct consigne
+  code As String
+  nb As Integer
+  montant As Float
+  
+End Struct
+
+Public Struct ligne
+  art As String
+  conspal As Consigne
+  conscoli As Consigne
+  consbte As Consigne
+  drtacc As Float
+  tva As Float
+  
+End Struct
+Private $lg As Collection
+
+Property Read consigne As Float
+Property Read deconsigne As Float
+Property Read accise As Float
+Property Read tva As Float
+Property bloc As String
+
+
+
+Public Sub _new(choix As String, Optional block As String)
+
+  Dim rescons, res As Result
+  Dim nbpal, nbcol, qte, nlge As String
+  Dim cons As Consigne
+  Dim lg1 As Ligne
+  
+  $schois = choix
+  $lg = New Collection
+  $sbloc = ""
+  If $schois = "M" Then     'lit et récupere les consiges dans $lg les calculs se feront lors de l'affichage des lignes articles - M= modif des réceptions
+    $sbloc = block
+    rescons = Utils.db.Exec("SELECT * FROM Fiches_ligcons WHERE bloc=&1 AND numlig<>'D' ORDER BY numlig", $sbloc)
+    If rescons.Available Then
+      rescons.MoveFirst
+      nlge = rescons!numlig
+      lg1 = New Ligne
+      Repeat
+        If nlge <> rescons!numlig Then
+          $lg.Add(lg1, nlge)
+          nlge = rescons!numlig
+          lg1 = New Ligne
+        Endif
+        res = Utils.db.Exec("SELECT type FROM Fiches_consigne WHERE code=&1", rescons!codecons)
+        Select Case res!type
+          Case "P"
+            lg1.conspal = calcons(rescons!nb, rescons!codecons)
+          Case "C"
+            lg1.conscoli = calcons(rescons!nb, rescons!codecons)
+          Case "B"
+            lg1.consbte = calcons(rescons!nb, rescons!codecons)
+        End Select
+      Until rescons.MoveNext()
+      $lg.Add(lg1, nlge)
+    Endif
+  Endif
+
+End
+
+Public Sub addligne(art As String, nbpal As String, nbcol As String, qte As String, nlge As String)
+
+  Dim resart, rescons As Result
+  Dim tot As Float
+  Dim lg1 As New Ligne
+  Dim cdt As Calculdroit
+  
+  If $lg.Exist(nlge) Then supligne(nlge)
+  resart = Utils.db.Exec("SELECT art_code,art_dra,art_deg,art_volm,art_consp,art_consc,art_consb FROM Fiches_Art WHERE art_code=&1 OR art_cfour=&1 OR art_refcentrale=&1", art)
+  If resart.Available Then
+    lg1.art = resart!art_code
+    nbpal = Utils.totobs([nbpal])
+    If Val(nbpal) <> 0 Then
+      lg1.conspal = calcons(nbpal, resart!art_consp)
+      $cons += lg1.conspal.montant
+    Endif
+    nbcol = Utils.totobs([nbcol])
+    If Val(nbcol) <> 0 Then
+      lg1.conscoli = calcons(nbcol, resart!art_consc)
+      $cons += lg1.conscoli.montant
+    Endif
+    qte = Utils.totobs([qte])
+    If Val(qte) <> 0 Then
+      lg1.consbte = calcons(qte, resart!art_consb)
+      $cons += lg1.consbte.montant
+    Endif
+  Endif
+
+  cdt = New Calculdroit(resart!art_dra, resart!art_volm, resart!art_deg, Val(qte))
+  If Not cdt.suspendu And cdt.drsurfac Then
+    $accise += cdt.droit
+    $tva += cdt.tvadroit
+    lg1.drtacc = cdt.droit
+    lg1.tva = cdt.tvadroit
+  Endif
+  $lg.Add(lg1, nlge)
+End
+
+Private Function calcons(nb As String, code As String) As Consigne
+  
+  Dim rescons As Result
+  Dim cons As New Consigne
+  
+  rescons = Utils.db.Exec("SELECT * FROM Fiches_consigne WHERE code=&1", code)
+  If rescons.Available Then
+    cons.code = code
+    cons.nb = Val(nb)
+    cons.montant = Val(nb) * rescons!prix
+  Endif
+  Return cons
+  
+End
+
+Public Sub supligne(nlge As String)
+
+  If Not IsNull($lg[nlge].conspal) Then $cons -= $lg[nlge].conspal.montant
+  If Not IsNull($lg[nlge].conscoli) Then $cons -= $lg[nlge].conscoli.montant
+  If Not IsNull($lg[nlge].consbte) Then $cons -= $lg[nlge].consbte.montant
+  $accise -= $lg[nlge].drtacc
+  $tva -= $lg[nlge].tva
+  $lg.Remove(nlge)
+
+End
+
+Public Sub enrligne(nbr As String)        'enregistre dans le fichier consigne
+
+  Dim lg1 As Ligne
+  
+  Utils.db.Delete("Fiches_ligcons", "bloc=&1 AND numlig<>'D'", $sbloc)      'supprime les consignes pour cette livraison
+  Utils.db.Begin
+  For Each lg1 In $lg
+    If Not IsNull(lg1.conspal) Then enregistre(lg1.conspal, nbr, $lg.Key)
+    If Not IsNull(lg1.conscoli) Then enregistre(lg1.conscoli, nbr, $lg.Key)
+    If Not IsNull(lg1.consbte) Then enregistre(lg1.consbte, nbr, $lg.Key)
+  Next
+  Utils.db.Commit
+
+End
+
+Public Sub renligne()
+
+  Dim i As Integer
+  Dim tb1 As New Collection
+  Dim lg1 As Ligne
+  
+  For Each lg1 In $lg
+    Inc i
+    tb1.Add(lg1, Format(i, "000"))
+  Next
+  $lg = tb1.copy
+  
+End
+
+Public Function recuppalette(nlge As String) As String
+
+  Dim lg1 As New Ligne
+  Dim res As Result
+  
+  If $lg.Exist(nlge) Then
+    lg1 = $lg[nlge]
+    If Not IsNull(lg1.conspal) Then Return Format(lg1.conspal.nb, "0")
+  Else
+    res = Utils.db.Exec("SELECT * FROM Fiches_ligcons,Fiches_consigne WHERE Fiches_consigne.code=codecons AND Fiches_consigne.type='P' AND bloc=&1 AND numlig=&2", $sbloc, nlge)
+    If res.Available Then Return Format(res!nb, "0")
+  Endif
+  Return "0"
+  
+End
+
+Public Function recupcoli(nlge As String) As String
+
+  Dim lg1 As New Ligne
+  Dim res As Result
+  
+  If $lg.Exist(nlge) Then
+    lg1 = $lg[nlge]
+    If Not IsNull(lg1.conscoli) Then Return Format(lg1.conscoli.nb, "0")
+  Else
+    res = Utils.db.Exec("SELECT * FROM Fiches_ligcons,Fiches_consigne WHERE Fiches_consigne.code=codecons AND Fiches_consigne.type='C' AND bloc=&1 AND numlig=&2", $sbloc, nlge)
+    If res.Available Then Return Format(res!nb, "0")
+  Endif
+  Return "0"
+
+End
+
+Private Sub enregistre(cons As Consigne, nbr As String, nlig As String)
+  
+  Dim rescons As Result
+  
+  If Not cons.code Then Return
+  rescons = Utils.db.Edit("Fiches_ligcons", "bloc=&1 AND numlig=&2 AND codecons=&3", $sbloc, nlig, cons.code)
+  If Not rescons.Available Then rescons = Utils.db.Create("Fiches_ligcons")
+  rescons!num = nbr
+  rescons!numlig = nlig
+  rescons!type = "E"        'E pour entrée
+  rescons!codecons = cons.code
+  rescons!nb = cons.nb
+  rescons!montant = cons.montant
+  rescons!envaleur = True
+  rescons!bloc = $sbloc
+  rescons.Update
+  
+End
+
+Private Function consigne_Read() As Float
+
+  Return $cons
+
+End
+
+Private Function accise_Read() As Float
+
+  Return $accise
+
+End
+
+Private Function deconsigne_Read() As Float
+
+  Return $decosn
+
+End
+
+Private Function bloc_Read() As String
+
+  Return $sbloc
+
+End
+
+Private Sub bloc_Write(Value As String)     'le bloc comprend la date + n° fournisseur + n° bon
+
+  $sbloc = Value
+
+End
+
+Private Function tva_Read() As Float
+
+  Return $tva
+
+End

@@ -84,13 +84,17 @@ Private ImpAuto As Boolean = False
 Private Franchise As Boolean = False
 Private Prenom As String
 Private sel2 As String
-Private pdf As Cdocuments
+Private pdf As Object
 Private Pays As String
 Private lg As Integer
 Private Dep As String
 Private ComboCom As Boolean = False
 Private Ty As String
 Private chkfocus As Boolean = True
+Private $soption As String
+Private $sfrais As String = "0"
+Private $borientation As Boolean
+Private $snum As String       'recupére le n° de bl
 
 '*********************************
 '*initialisation écrans          *
@@ -205,7 +209,8 @@ Public Sub _New()
   Coldetail.Columns[8].Text = " TL "
   rResult = Utils.db.Exec("SELECT numfac FROM " & Cbase.Table("TabHisFac") & "")
   NbEnregTot = rResult.Count
-
+  $soption = utils.Option()
+  
 End
 
 Public Sub Form_Open()
@@ -1214,6 +1219,7 @@ Public Sub Colbl_click()
         Cp = Rhisto!cpfac
         Burd = Rhisto!villefac
         Dep = Rhisto!cdep
+        $sfrais = Format(Rhisto!gestfac, "0.00")
         If Not IsNull(Dep) Then LibDepot.text = "Dépôt " & Dep
         Try Txmo = Format$(Val(Rhisto!rmofac), "00.00")
         If Error Then Txmo = "0,00"
@@ -1256,9 +1262,11 @@ End
 
 Public Sub Recup_ligbl(Typef As String)
 
-  Dim Tablib As Result
+  Dim Tablib, res As Result
   Dim sline As String
   Dim lg2 As Integer = 1
+  Dim nlig As String = "0001"
+  
   'Lg = 1
   Totalmo = "0,00"
   Totalart = "0,00"
@@ -1273,6 +1281,19 @@ Public Sub Recup_ligbl(Typef As String)
   Tottc.Text = "0,00"
   Tottva.Text = "0,00"
   Variables.bRemise = False
+  'recuperation du n° de bl si 1 seul bl pour edition consigne/droit
+  $snum = ""
+  If $soption = "B" Or $soption = "T" Then
+    res = utils.db.Exec("SELECT numlig FROM Fiches_ligcons WHERE num=&1 and numlig <> 'D' LIMIT 1", num.Text)
+    If res.Available Then
+      $snum = Left(res!numlig, 6)
+    Else
+      res = utils.db.Exec("SELECT numlig FROM Fiches_ligregie WHERE num=&1 LIMIT 1", num.Text)
+      If res.Available Then
+        $snum = Left(res!numlig, 6)
+      Endif
+    Endif
+  Endif
   With utils
     Tablib = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisEntm") & " where numfac = &1", Num.Text)
     If Tablib.Available Then
@@ -1290,9 +1311,14 @@ Public Sub Recup_ligbl(Typef As String)
     If Rhistolig.Available Then
       Do
         If Rhistolig!typel_ligfac = "C" Or If Rhistolig!typel_ligfac = "R" Then
+          If $soption <> "N" Then                 'Renumérotaion des lignes pour les faires concorder avec les consignes/régie en cas de factures regroupées
+            If Left(Rhistolig!com_ligfac, 3) = "Bon" Then
+              nlig = "0000"
+            Endif
+          Endif
           For Each sline In Split(Rhistolig!com_ligfac, "\n")
             Coldetail.Add(Rhistolig!numlig_ligfac & Lg2, Rhistolig!numlig_ligfac & Lg2)
-            Coldetail.Item[0] = Rhistolig!numlig_ligfac
+            Coldetail.Item[0] = nlig
             Coldetail.Item[1] = Rhistolig!code_ligfac
             Coldetail.Item[2] = sline
             Coldetail.Item[8] = Rhistolig!typel_ligfac
@@ -1301,14 +1327,14 @@ Public Sub Recup_ligbl(Typef As String)
         Else
           If Rhistolig!typel_ligfac = "O" Then
             Coldetail.Add(Rhistolig!numlig_ligfac, Rhistolig!numlig_ligfac)
-            Coldetail.Item[0] = Rhistolig!numlig_ligfac
+            Coldetail.Item[0] = nlig
             Coldetail.Item[1] = Rhistolig!code_ligfac
             Coldetail.Item[2] = Rhistolig!libel_ligfac
             Coldetail.Item[4] = Rhistolig!qte_ligfac
             Coldetail.Item[8] = Rhistolig!typel_ligfac
           Else
             Coldetail.Add(Rhistolig!numlig_ligfac, Rhistolig!numlig_ligfac)
-            Coldetail.Item[0] = Rhistolig!numlig_ligfac
+            Coldetail.Item[0] = nlig
             Coldetail.Item[1] = Rhistolig!code_ligfac
             Coldetail.Item[2] = Rhistolig!libel_ligfac
             If Prxdec Then
@@ -1343,12 +1369,21 @@ Public Sub Recup_ligbl(Typef As String)
             Endif
           Endif
         Endif
+        nlig = Format(Val(nlig) + 1, "0000")
       Loop Until Rhistolig.MoveNext()
       Totmo.Text = Totalmo
       Totart.Text = Totalart
       Totrem.Text = Totalrem
       Totht.Text = totalht
       Tottc.Text = Totalttc
+      If $soption = "B" Or $soption = "T" Then
+        $borientation = utils.orientation(num.Text, "F")
+        If $borientation Then
+ '        $ccd = New Calculconsdroit(num.Text, "F")
+          Totht.Text = colbl[colbl.Row, 5].Text
+          Tottc.Text = colbl[colbl.Row, 6].Text
+        Endif
+      Endif
       Tottva.Text = Format$(Val(.cpoint(Tottc.Text)) - Val(.cpoint(Totht.Text)), "0.00")
       If Prxdec Then
         Totmo.Text = Round(Val(Totmo.Text))
@@ -1530,6 +1565,9 @@ Public Sub Impression(Org As String)
   Dim Logo As Image
   Dim sline As String
   Dim nbline As Integer = 0
+  Dim ccd As Calculconsdroit
+  Dim ftotht As Float
+  Dim i As Integer
 
   Prxdec = Settings["/Soc" & Start.Societe & "/Prxdec"]
   If Settings["/Soc" & Start.Societe & "/AutoEnt"] <> 0 Then
@@ -1552,9 +1590,17 @@ Public Sub Impression(Org As String)
   If Settings["/Soc" & Start.Societe & "/glogo"] Then Try Logo = Settings["/Soc" & Start.Societe & "/Logo"]
   Shell "cd " & User.Home & ""
   Filename = User.Home & "/tmp/Duplicata.pdf"
-  pdf = New Cdocuments("Portrait", "mm", "A4")
+  If $borientation Then
+    pdf = New Cdocuments31("landscape", "mm", "A4")
+    p = 16
+    ccd = New Calculconsdroit(num.Text, "F")
+    If ccd.nbdecons > 0 Then cptlig = ccd.nbdecons + 1
+  Else
+    pdf = New Cdocuments("Portrait", "mm", "A4")
+  Endif
   pdf.Open()
   pdf.AliasNbPages()
+  If $borientation Then pdf.SetMargins(10, 2)
   Tmo = "0"
   Tart = "0"
   Trem = "0"
@@ -1592,20 +1638,13 @@ Public Sub Impression(Org As String)
         Inc Cptlig
       Endif
     Until Coldetail.MoveNext()
-    Npage = Cptlig / p
-    If Npage = 0 Then Npage = 1
-    If Cptlig < p Then Npage = 1
-    If Cptlig > p Then
-      Npage = Cptlig / 31
-      Npage = Val(Format$(Npage, "##.##"))
-      If Val(Right$(Str(Npage), 2)) > 0 Then Npage = Round(Npage) + 1
-    Endif
-    If Cptlig > p And Cptlig <= 56 Then Npage = 2
-    Npage = Round(Npage)
+    Npage = Round(Cptlig / p)
+    If Cptlig Mod p < 5 And Cptlig Mod p > 0 Then Npage += 1
     Page = "Page " & Pge
     rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLibelFac") & "")
     If rResult.Available Then Txtbf = rResult!txtfac
     Ventilation()
+    utils.fraisgestion(Val($sfrais))
     Edit.Visible = True
     Rsoc = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabSoc") & " where cd_sc = &1", Start.Societe)
     Rs = Rsoc!type_sc & " " & Rsoc!int_sc
@@ -1709,12 +1748,14 @@ Public Sub Impression(Org As String)
             Endif
             ttht = Format$(Val(ttht) + Val(totttc), "0.00")
             pdf.Level3F(coda, intitule, Puttc, qte, Bruttc, Rem, Totttc, Ctva, PosY)
+            If $borientation Then pdf.Level3Fbois(ccd.aimprimer, $snum & Coldetail.Item[0], PosY)
             PosY = PosY + 4
           Else
             If TypeL = "A" Then Tart = Format$(Val(Tart) + Val(Totalht), "0.00")
             If TypeL = "M" Then Tmo = Format$(Val(Tmo) + Val(Totalht), "0.00")
             ttht = Format$(Val(ttht) + Val(totalht), "0.00")
             pdf.Level3F(coda, intitule, Pu, qte, Brutht, Rem, Totalht, Ctva, PosY)
+            If $borientation Then pdf.Level3Fbois(ccd.aimprimer, $snum & Coldetail.Item[0], PosY)
             PosY = PosY + 4
           Endif
           Maj_Totalisation()
@@ -1729,23 +1770,30 @@ Public Sub Impression(Org As String)
         Endif
         If typeL = "C" Or If typeL = "R" Then
           If Left$(Intitule, 5) = "Bon n" Then
-            PosY = PosY + 4
+            $snum = Mid(intitule, 9, 6)
+            If Not $borientation Then 
+              If coln.Value Then pdf.Colonnes(PosY)
+              PosY = PosY + 4
+              If coln.Value Then pdf.Colonnes(PosY)
+            Else
+              If coln.Value Then pdf.Colonnes(PosY - 6)
+            Endif
             pdf.Level4bF(intitule, PosY)
             PosY = PosY + 4
-            Nbl = Nbl + 1
+            If $borientation Then nbl += 1 Else Nbl = Nbl + 2
           Else
             For Each sline In Split(Intitule, "\n")
               pdf.Level4aF(sline, PosY)
               Nbl = Nbl + 1
               PosY = PosY + 4
-              p = 31
-              If Rcp.Value = False And Pied.Value = False Then p = 34
+'              p = 31
+'              If Rcp.Value = False And Pied.Value = False Then p = 34
               If Nbl > P Then
                 Inc Pge
                 Page = "Page " & Pge
                 pdf.Level12F(Ttht, PosY, Devises)
                 If Entete.Value Then
-                  pdf.Entete(rs, adr11, adr22, ville, cap, rcs, siret, ape, Tvaintra, Tel, portable, fax, cmail, site, Visudoc, Pays, Iban, False, Libre)
+                  pdf.Entete(rs, adr11, adr22, ville, cap, rcs, siret, ape, Tvaintra, Tel, portable, fax, cmail, site, Visudoc, Pays, Iban, coln.Value, Libre)
                   pdf.Entete2(rs2, adr211, adr222, ville2, Pays, "", False)
                 Else
                   pdf.Entete2(rs2, adr211, adr222, ville2, Pays, "", True)
@@ -1819,7 +1867,7 @@ Public Sub Impression(Org As String)
         Endif
         Nbl = Nbl + 1
         If Npage > 1 Then
-          If PosY >= 270 Then
+          If PosY >= 270 Or ($borientation And nbl > p) Then
             Inc Pge
             Page = "Page " & Pge
             pdf.Level12F(Ttht, PosY, Devises)
@@ -1853,6 +1901,42 @@ Public Sub Impression(Org As String)
           Endif
         Endif
       Until Coldetail.MoveNext()
+      If $borientation Then
+        If ccd.nbdecons > 0 Then
+          pdf.Level4F("Déconsigne", posy)
+          posy += 4
+          Inc nbl
+          For i = 0 To ccd.nbdecons - 1
+            pdf.Level3Fcons(ccd.decons[i], posy)
+            posy += 4
+            Inc nbl
+            If Npage > 1 Then
+                If Nbl > P Then
+                  Inc Pge
+                  Page = "Page " & Pge
+                  pdf.Level12F(Totht, PosY, Devises)
+                  If Entete.Value Then
+                    pdf.Entete(rs, adr11, adr22, ville, cap, rcs, siret, ape, Tvaintra, Tel, portable, fax, mail, site, Visudoc, Pays, Iban, False, Libre)
+                    pdf.Entete2(rs2, adr211, adr222, ville2, Pays, "", False)
+                  Else
+                    pdf.Entete2(rs2, adr211, adr222, ville2, Pays, "", True)
+                  Endif
+                pdf.Level1F(Jour, Cde, Page, TvaCli)
+                PosY = 104
+                pdf.Level2F(Coulfond, "", PosY)
+                Nbl = 0
+                PosY = 110
+              Endif
+            Endif
+          Next
+        Endif
+        pdf.Level1F(Jour, Cde, Page, TvaCli)
+        If $borientation Then PosY = 104 Else PosY = 108
+        pdf.Level2F(Coulfond, "", PosY)
+        Nbl = 0
+        PosY = 114
+      Endif
+              
       If Nbl > P Then
         Inc Pge
         Page = "Page " & Pge
@@ -1890,6 +1974,7 @@ Public Sub Impression(Org As String)
       Else
         posy = 238
       Endif
+      If $borientation Then PosY = 155
       If Teco <> 0 Or Teco2 <> 0 Then
         posy = 238
         Toteco = Format$(Teco, "0.00")
@@ -1949,20 +2034,21 @@ Public Sub Impression(Org As String)
         Endif
       Endif
       PosY = 238
+      If $borientation Then PosY = 155
       If Pied.Value And Rcp.Value Then
-        pdf.Level6F(Tmo, Tart, Trem, Txtbf, PosY)
+        pdf.Level6F(Tmo, Tart, Trem, Txtbf, $sfrais, PosY)
         PosY = PosY + 4
       Else
         If Rcp.Value And Not Pied.Value Then
           Txtbf = ""
-          pdf.Level6F(Tmo, Tart, Trem, Txtbf, PosY)
+          pdf.Level6F(Tmo, Tart, Trem, Txtbf, $sfrais, PosY)
           PosY = PosY + 4
         Else
           If Not Rcp.Value And Pied.Value Then
             Tmo = ""
             Tart = ""
             Trem = ""
-            pdf.Level6F(Tmo, Tart, Trem, Txtbf, PosY)
+            pdf.Level6F(Tmo, Tart, Trem, Txtbf, $sfrais, PosY)
             PosY = PosY + 4
           Else
             PosY = PosY + 4
@@ -1970,6 +2056,12 @@ Public Sub Impression(Org As String)
         Endif
       Endif
       PosY = 252
+      If $borientation Then
+        ftotht = Val(totht.Text) - Val($sfrais) - ccd.totht
+        pdf.Level17F(Format(ftotht, "0.00"), Tottva.Text, $sfrais, ccd.ascise, ccd.droit, ccd.secu, ccd.poid(), ccd.totvolume, ccd.totap, ccd.consigne, ccd.deconsigne, rs, tel, PosY)
+        posy = 171
+        ccd.Totalisation
+      Endif
       pdf.Level7F(Coulfond, PosY, ImpAuto, Franchise, "")
       PosY = PosY + 5
       Calc_tva()
@@ -2187,6 +2279,7 @@ Public Sub Calc_tva()
     Else
       Toteuros = Tottc.Text & " " & devises
     Endif
+    If $borientation Then PosY = 190
     pdf.Level10F(Totht.Text, Tottva.Text, Toteuros, Txtleg, PosY - 6, ImpAuto, "", Franchise)
     PosY = PosY + 8
     pdf.Level11F(Txtleg2, PosY)

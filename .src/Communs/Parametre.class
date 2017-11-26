@@ -27,12 +27,16 @@
 Private Tab As String
 Private B As Integer ' Flag gestion erreur
 Private son As String
+Private $soption As String
 
 Public Sub _New()
 
   If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
   Me.Center
-
+  $soption = utils.Option()
+  If $soption = "B" Or $soption = "T" Then
+    Frame1.Visible = True
+  Endif
 End
 
 Public Sub Form_Open()
@@ -82,6 +86,16 @@ Public Sub Form_Open()
     Try Virema.Text = rResult!virema
     Try NfacM.value = rResult!nfac
     Try Version.Text = rResult!version
+    Try Frais.Text = Format(rResult!frais, "0.00")
+    Try cptfrais.Text = rResult!cptfrais
+    Try tvafrais.Text = rResult!tvafrais
+    If $soption = "B" Or $soption = "T" Then
+      Try conscli.Text = rResult!conscli
+      Try consfou.Text = rResult!consfou
+      Try css.Text = rResult!css
+      Try nvign.Text = rResult!nvign
+      Try tvass.Text = rResult!tvass
+    Endif
   End With
   datec.SetFocus
   datec.Select
@@ -105,6 +119,9 @@ End
 
 Public Sub Par_KeyPress()
 
+  Dim i, j As Integer
+  Dim chaine As String
+  
   Select Case Last.tag
 
     Case 1
@@ -316,6 +333,59 @@ Public Sub Par_KeyPress()
         Stop Event
       Endif
 
+    Case 28
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        Frais.SetFocus
+        Frais.Select
+      Endif
+      Stop Event
+      
+    Case 31
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        If IsNull(Frais.Text) Then Frais.Text = "0,00"
+        Frais.Text = Replace(Frais.Text, ".", ",")
+        If Not IsNumber(Frais.Text) Then Frais.Text = "0,00"
+        cptfrais.SetFocus
+        cptfrais.Select
+        Stop Event
+      Endif
+      
+    Case 32
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        If Not Verif_Compte(cptfrais.Text) Then
+            If Message.question("ATTENTION ! Ce compte n'existe pas.\nVoulez-vous le créer ?", "Oui", "Non") = 1 Then
+              Fcomptes.Show()
+              cptfrais.SetFocus
+              cptfrais.Select
+            Else
+              cptfrais.SetFocus
+              cptfrais.Select
+            Endif
+          Else
+            tvafrais.SetFocus
+            tvafrais.Select
+          Endif
+          Stop Event
+        Endif
+      
+    Case 33
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        If Not Veriftva(tvafrais.Text) Then
+            If Message.question("ATTENTION ! Ce compte de TVA n'existe pas.\nVoulez-vous le créer ?", "Oui", "Non") = 1 Then
+              FTvav.Show
+              tvafrais.SetFocus
+              tvafrais.Select
+            Else
+              tvafrais.SetFocus
+              tvafrais.Select
+            Endif
+          Else
+            dnclient.SetFocus
+            dnclient.Select
+          Endif
+          Stop Event
+        Endif
+
     Case 15
       ' Control + M pour modidier le code client
       If Key.Control Then
@@ -467,7 +537,7 @@ Public Sub Par_KeyPress()
     Case 25
       If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
         jrnal3_LostFocus()
-        If b = 1
+        If b = 1 Then
           Jrnal3.SetFocus
           Jrnal3.Select
           b = 0
@@ -536,11 +606,111 @@ Public Sub Par_KeyPress()
           Jrnal5.Select
           b = 0
         Else
-          datec.SetFocus
-          datec.Select
+          If $soption = "B" Or $soption = "T" Then
+            conscli.SetFocus
+            conscli.Select
+          Else
+            datec.SetFocus
+            datec.Select
+          Endif
         Endif
         Stop Event
       Endif
+      
+      Case 34
+        If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+          If Not Verif_Compte(conscli.Text) Then
+            If Message.question("ATTENTION ! Ce compte n'existe pas.\nVoulez-vous le créer ?", "Oui", "Non") = 1 Then
+              Fcomptes.Show()
+              conscli.SetFocus
+              conscli.Select
+            Else
+              conscli.SetFocus
+              conscli.Select
+            Endif
+          Else
+            consfou.SetFocus
+            consfou.Select
+          Endif
+          Stop Event
+        Endif
+        
+      Case 35
+        If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+          If Not Verif_Compte(consfou.Text) Then
+            If Message.question("ATTENTION ! Ce compte n'existe pas.\nVoulez-vous le créer ?", "Oui", "Non") = 1 Then
+              Fcomptes.Show()
+              consfou.SetFocus
+              consfou.Select
+            Else
+              consfou.SetFocus
+              consfou.Select
+            Endif
+          Else
+            nvign.SetFocus
+            nvign.Select
+          Endif
+          Stop Event
+        Endif
+        
+      Case 36
+        If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+          If Not IsInteger(nvign.Text) Then
+            nvign.Clear
+            nvign.SetFocus
+            nvign.Selectendif
+            Stop Event
+            Return
+          Endif
+          chaine = "0000000000000000000000000"
+          j = 25
+          For i = Len(nvign.Text) To 1 Step -1
+            If InStr("0123456789", Mid(nvign.Text, i, 1)) <> 0 Then
+              Mid(chaine, j, 1) = Mid(nvign.Text, i, 1)
+              j -= 1
+            Endif
+          Next
+          nvign.Text = chaine
+          css.SetFocus
+          css.Select
+          Stop Event
+        Endif
+        
+      Case 37
+        If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+          If Not Verif_Compte(css.Text) Then
+            If Message.question("ATTENTION ! Ce compte n'existe pas.\nVoulez-vous le créer ?", "Oui", "Non") = 1 Then
+              Fcomptes.Show()
+              css.SetFocus
+              css.Select
+            Else
+              css.SetFocus
+              css.Select
+            Endif
+          Else
+            tvass.SetFocus
+            tvass.Select
+          Endif
+          Stop Event
+        Endif
+        
+      Case 38
+        If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+          If Not Veriftva(tvass.Text) Then
+            If Message.question("ATTENTION ! Ce compte de TVA n'existe pas.\nVoulez-vous le créer ?", "Oui", "Non") = 1 Then
+              FTvav.Show
+              tvass.SetFocus
+              tvass.Select
+            Else
+              tvass.SetFocus
+              tvass.Select
+            Endif
+          Else
+            datec.SetFocus
+            datec.Select
+          Endif
+          Stop Event
+        Endif
 
   End Select
 
@@ -1177,6 +1347,8 @@ Public Sub Button2_Click()
   If b = 0 Then jrnal4_LostFocus()
   If b = 0 Then Resultmoins_LostFocus()
   If b = 0 Then Resultplus_LostFocus()
+  If Not Verif_Compte(cptfrais.Text) And b = 0 Then meserrc(cptfrais)
+  If Not Veriftva(tvafrais.Text) And b = 0 Then meserrt(tvafrais)
   If b = 0 Then jrnal_LostFocus()
   If b = 0 Then jrnal2_LostFocus()
   If b = 0 Then jrnal3_LostFocus()
@@ -1194,15 +1366,43 @@ Public Sub Button2_Click()
     If b = 0 Then jrnal4_LostFocus()
   Endif
   If b = 0 Then jrnal5_LostFocus()
+  If $soption = "B" Or $soption = "T" Then
+    If Not Verif_Compte(conscli.Text) And b = 0 Then meserrc(conscli)
+    If Not Verif_Compte(consfou.Text) And b = 0 Then meserrc(consfou)
+    If Not Verif_Compte(css.Text) And b = 0 Then meserrc(css)
+    If Not Veriftva(tvass.Text) And b = 0 Then meserrt(tvass)
+  Endif
   With utils
     If b <> 1 Then
       Utils.db.Exec("UPdate  " & Tab & "  SET  dteclec = &1, dteclec1 = &2, dteclec2 =&3,  dteclec3 =&4, dteclec4 =&5, dteclec5 =&6,  dtepc =&7, dtetdec =&8, dtefedec =&9, cptrplus =&{10}, cptrmoins =&{11}, jdr =&{12}, cptrsplus =&{13}, cptrsmoins =&{14},dnc = &{15}, dnf = &{16}, dnbon = &{17}, dnfac = &{18}, coretro = &{19}, jrnal = &{20}, jrnal2 = &{21}, jrnal3 = &{22}, devise = &{23}, dtepp = &{24}, dtepec = &{25}, viremc = &{26}, viremchq = &{27}, virema = &{28}, jrnal4 = &{29}, jrnal5 = &{30}, nfac = &{31}, version = &{32}", Utils.Cdate_Dbase(datec.Text), .Cdate_Dbase(date1.Text), .Cdate_Dbase(date2.Text), .Cdate_Dbase(date3.Text), .Cdate_Dbase(date4.Text), .Cdate_Dbase(date5.Text), .Cdate_Dbase(datepc.Text), .Cdate_Dbase(datetdec.Text), .Cdate_Dbase(datefedec.Text), regulplus.Text, regulmoins.Text, Jreport.Text, Resultplus.Text, Resultmoins.Text, dnclient.Text, dnfournisseur.Text, dnbon.Text, dnfac.Text, coretro.Text, jrnal.Text, jrnal2.Text, jrnal3.Text, devise.text, mc.Text, mc2.Text, Viremc.Text, Viremchq.Text, Virema.Text, jrnal4.Text, jrnal5.Text, NfacM.value, version.text)
+      Utils.db.Exec("UPdate  " & Tab & "  SET  frais = &1, cptfrais = &2, tvafrais =&3", frais.Text, cptfrais.Text, tvafrais.Text)
+      If $soption = "B" Or $soption = "T" Then
+         Utils.db.Exec("UPdate  " & Tab & "  SET conscli = &1, consfou = &2, nvign = &3, css = &4, tvass = &5", conscli.Text, consfou.Text, nvign.Text, css.Text, tvass.Text) 
+      Endif
       datec.SetFocus
       datec.Select
     Else
       Message.Error("Veuillez complèter correctement l'ensemble des zones SVP !")
     Endif
   End With
+
+End
+
+Public Sub meserrc(txtbox As TextBox)
+
+  b = 1
+  If Message.question("ATTENTION ! Ce compte n'existe pas.\nVoulez-vous le créer ?", "Oui", "Non") = 1 Then Fcomptes.Show()
+  txtbox.SetFocus
+  txtbox.Select
+
+End
+
+Public Sub meserrt(txtbox As TextBox)
+
+  b = 1
+  If Message.question("ATTENTION ! Ce compte de TVA n'existe pas.\nVoulez-vous le créer ?", "Oui", "Non") = 1 Then FTvav.Show
+  txtbox.SetFocus
+  txtbox.Select
 
 End
 
@@ -1217,6 +1417,15 @@ Public Sub Verif_Compte(Compte As String) As Boolean
     Return True
   Endif
 
+End
+
+Private Function Veriftva(tva As String) As Boolean
+  
+  Dim res As Result
+  
+  res = utils.db.Exec("SELECT * FROM Fiches_Tvaav WHERE code_tva=&1", tva) 
+  Return res.Available
+  
 End
 
 Public Sub Button3_Click()

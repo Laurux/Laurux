@@ -1,0 +1,622 @@
+' Gambas class file
+
+Private $rescons As Result
+Private $sbloc As String
+Private $inbc As Integer
+Private $inbb As Integer
+Private $bcrea As Boolean = True
+Private $smodif As String
+Private $irow As Integer
+Private $fen As Window
+
+Private $win As Window
+Private $grdv As GridView
+
+Public Sub _new(Optional f As Window, nfour As String, nbl As String, dte As String)
+
+  Dim obs As Observer
+
+  $fen = f
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  GridView1.Header = GridView.Horizontal
+  GridView1.Mode = Select.Single
+  GridView1.Columns.Count = 5
+  GridView1.Columns[0].Width = 90 
+  GridView1.Columns[0].Text = "Code"
+  GridView1.Columns[1].Width = 210 
+  GridView1.Columns[1].Text = "Libelle"
+  GridView1.Columns[2].Width = 100 
+  GridView1.Columns[2].Text = "Quantité"
+  GridView1.Columns[2].Alignment = Align.Center 
+  GridView1.Columns[3].Width = 100 
+  GridView1.Columns[3].Text = "P.U"
+  GridView1.Columns[3].Alignment = Align.Center
+  GridView1.Columns[4].Width = 100 
+  GridView1.Columns[4].Text = "Montant"
+  GridView1.Columns[4].Alignment = Align.Center
+  'stockage des positions suivantes/précedantes dans le tag
+  Textfour.tag = [Textqtebout, textbl]
+  Textbl.Tag = [Textfour, Textart] 
+  Textart.Tag = [textbl, Textpal]
+  Textpal.Tag = [Textart, Textqtepal]
+  Textqtepal.tag = [Textpal, Textcol]
+  Textcol.tag = [Textqtepal, Textqtecol]
+  Textqtecol.Tag = [Textcol, Textbout]
+  Textbout.tag = [Textqtecol, Textqtebout]
+  Textqtebout.Tag = [Textbout, Butval]
+  ' definition d'un observer pour les modifs de groupe
+  obs = New Observer(Textfour) As "saisie"
+  obs = New Observer(textbl) As "saisie"
+  obs = New Observer(Textart) As "saisie"
+  obs = New Observer(Textpal) As "saisie"
+  obs = New Observer(Textqtepal) As "saisie"
+  obs = New Observer(Textcol) As "saisie"
+  obs = New Observer(Textqtecol) As "saisie"
+  obs = New Observer(Textbout) As "saisie"
+  obs = New Observer(Textqtebout) As "saisie"
+  'boutons recherche consigne
+  obs = New Observer(Butpal) As "consigne"
+  obs = New Observer(Butbout) As "consigne"
+  obs = New Observer(Butcol) As "consigne"
+  'lecture du fichier 
+  If nfour Then
+    Textfour.text = nfour
+    textbl.Text = nbl
+    Textdate.text = dte
+    Butenr.tag = 1
+    selectionbr
+  Endif
+End
+
+Public Sub form_MouseDown()
+
+  Try $win.Close
+
+End
+Public Sub GridView1_MouseDown()
+
+  Try $win.Close
+
+End
+Public Sub Panel1_MouseDown()
+
+  Try $win.Close
+
+End
+Public Sub Panel2_MouseDown()
+
+  Try $win.Close
+
+End
+Public Sub Frame1_MouseDown()
+
+  Try $win.Close
+
+End
+
+Public Sub saisie_gotfocus()
+
+  Try Utils.ObsGotf(Last)
+  Try $win.Close
+  
+End
+
+Public Sub saisie_lostfocus()
+
+  Try Utils.ObsLstf(Last)
+  If Last = Textpal Or Last = Textcol Or Last = Textbout Then selectioncons(Last.text)
+
+End
+
+Public Sub saisie_keypress()
+
+  Dim res As Result
+  Dim hForm As Form
+  
+  If Key.code = Key.Up Then 
+    Last.tag[0].Setfocus
+    Last.tag[0].Select
+    Stop Event
+  Endif
+  If Key.code = Key.Return Or Key.Code = Key.Enter Or Key.Code = Key.Tab Or Key.code = Key.Down Then
+    Last.tag[1].Setfocus
+    Try Last.tag[1].Select
+    Stop Event
+  Endif
+  
+  If Key.code = Key.F5 Then
+    hForm = New FCalc
+    hForm.Showmodal()
+    If Not IsNull(FCalc.Resultat) Then Last.Text = Format$(Val(FCalc.Resultat), "0")
+  Endif
+  
+End
+'***********gestion focus des fournisseurs/br pour selection*******************
+Public Sub Textfour_LostFocus()
+
+  Dim res As Result
+  
+  If Textfour.Text Then
+    If Not lirefour() Then
+      Textfour.Clear
+    Endif
+  Endif
+
+End
+
+Public Sub textbl_LostFocus()
+
+  Dim res As Result
+  
+  If textbl.Text Then
+    If Textfour.Text Then
+      res = utils.db.Exec("SELECT * FROM Fiches_Entrecpt WHERE four=&1 AND numrecpt=&2", Textfour.Text, textbl.Text)
+      If res.Available Then
+        Textdate.Text = Format(res!ddate, "dd.mm.yyyy")
+        selectionbr
+      Endif
+    Endif
+  Endif
+
+End
+'******************gestion du boton recherche des fournisseurs
+Public Sub Butfour_Click()
+
+   Dim MyForm As Trifours
+   Dim res As Result
+
+  Variables.bsel = False
+  MyForm = New Trifours("ValidBR")
+  MyForm.Showmodal()
+  If Variables.Bsel = True Then
+    Textfour.Text = Variables.Cfour
+    lirefour
+    textbl.SetFocus
+    textbl.Select
+  Else
+    Textfour.SetFocus
+  Endif
+
+End
+'******************************Gestion du bouton recherche des br**************************
+Public Sub Butbl_Click()
+
+  Dim coef As Float = 824 / Panel1.Width
+  Dim res As Result
+  Dim i As Integer
+  
+  Try $win.Close
+  $win = New Window(Me)
+  $grdv = New GridView($win) As "rechbl"
+  
+  $win.Width = 600 * coef
+  $win.Height = 300 * coef
+  $win.x = butfour.X
+  $win.y = label3.y + label3.Height
+  $grdv.Width = $win.Width
+  $grdv.Height = $win.Height
+  $grdv.x = 0
+  $grdv.y = 0
+  $grdv.Mode = Select.Single
+  $grdv.Header = GridView.Horizontal
+  $grdv.Columns.Count = 5
+  $grdv.Columns[0].Width = 90
+  $grdv.Columns[0].Text = "Code"
+  $grdv.Columns[1].Width = 200
+  $grdv.Columns[1].Text = "Fournisseur"
+  $grdv.Columns[2].Width = 80
+  $grdv.Columns[2].Text = "N° BR"
+  $grdv.Columns[3].Width = 120
+  $grdv.Columns[3].Text = "Montant"
+  $grdv.Columns[3].Alignment = Align.Center
+  $grdv.Columns[4].Width = 100
+  $grdv.Columns[4].Text = "Date"
+  $grdv.Columns[4].Alignment = Align.Center
+  'Affiche les resultats du gridview
+  If Textfour.Text Then
+    res = utils.db.Exec("SELECT four,numrecpt,ddate,montant,fo_nom FROM Fiches_Entrecpt,Fiches_Four WHERE four=fo_code AND four=&1 AND NOT validee", Textfour.Text)
+  Else
+    res = utils.db.Exec("SELECT four,numrecpt,ddate,montant,fo_nom FROM Fiches_Entrecpt,Fiches_Four WHERE four=fo_code AND NOT validee")
+  Endif
+  If res.Available Then
+    $grdv.Rows.Count = res.Count
+    res.MoveFirst
+    For i = 0 To res.Max
+      $grdv[i, 0].Text = res!four
+      $grdv[i, 1].Text = res!fo_nom
+      $grdv[i, 2].Text = res!numrecpt
+      $grdv[i, 3].Text = res!montant
+      $grdv[i, 3].Alignment = Align.Right
+      $grdv[i, 4].Text = Format(res!ddate, "dd.mm.yyyy")
+      res.MoveNext
+    Next
+  Endif
+  
+  $win.ShowModal
+End
+
+Public Sub rechbl_keypress()
+
+  If Key.Code = Key.Enter Or Key.code = Key.Return Then
+    rechbl_click()
+    Stop Event
+  Endif
+  If Key.code = Key.Esc Then 
+    Try $win.Close
+  Endif
+
+End
+
+Public Sub rechbl_click()
+
+  Textfour.Text = $grdv[$grdv.Row, 0].Text
+  textbl.Text = $grdv[$grdv.Row, 2].Text
+  Textdate.Text = $grdv[$grdv.Row, 4].Text
+  $win.Close
+  selectionbr()
+End
+
+Private Sub selectionbr()
+  
+  Dim res As Result
+  Dim dte As Date
+  Dim ccd As Calculdroit
+  
+  $sbloc = Textdate.Text & textbl.Text & Textfour.Text
+  dte = Date(Right(Textdate.Text, 4), Val(Mid(Textdate.Text, 4, 2)), Val(Left(Textdate.Text, 2)))
+  res = utils.db.Exec("SELECT montant,mttc FROM Fiches_Entrecpt WHERE four=&1 AND numrecpt=&2 and ddate=&3 AND NOT validee", Textfour.Text, textbl.Text, dte)
+  If res.Available Then
+    Labelht.Text = Format(res!montant, "0.00")
+    Labelttc.Text = Format(res!mttc, "0.00")
+  Endif
+  res = utils.db.Exec("SELECT SUM(montant) AS montant FROM Fiches_ligcons WHERE bloc=&1 AND numlig<>'D'", $sbloc)
+  Try Labelcons.Text = Format(res!montant, "0.00")
+  res = utils.db.Exec("SELECT SUM(montant) AS montant FROM Fiches_ligcons WHERE bloc=&1 AND numlig='D'", $sbloc)
+  Try Labeldec.Text = Format(res!montant, "0.00")
+  res = utils.db.Exec("SELECT art_dra,art_volm,art_deg,code,qte FROM Fiches_Ligrecpt,Fiches_Art WHERE code=art_code AND numrecpt=&1 AND daterecpt=&2 AND four=&3 AND art_dra<>''", textbl.Text, dte, Textfour.Text)
+  If res.Available Then
+    res.MoveFirst
+    Repeat
+      ccd = New Calculdroit(res!art_dra, res!art_volm, res!art_deg, res!qte)
+      If ccd.drsurfac Then Labelacc.Text = utils.totobs([Labelacc.Text, Str(ccd.droit)])
+    Until res.MoveNext()
+  Endif
+  lirefour
+  $rescons = utils.db.Exec("SELECT * FROM Fiches_ligcons,Fiches_consigne WHERE codecons=Fiches_consigne.code AND bloc=&1 and numlig='D'", $sbloc)
+  If $rescons.Available Then GridView1.Rows.Count = $rescons.Count
+  Textart.SetFocus
+  Textart.Select
+  Panel1.Enabled = False
+  Butenr.Visible = True
+End
+
+Public Sub GridView1_Data(Row As Integer, Column As Integer)
+
+  Dim prx As Float
+  
+  $rescons.MoveTo(Row)
+  prx = $rescons!montant / $rescons!nb
+  GridView1[row, 0].Text = $rescons!codecons 
+  GridView1[row, 1].Text = $rescons!libelle
+  GridView1[row, 2].Text = $rescons!nb
+  GridView1[row, 3].Text = Format(prx, "0.00")
+  GridView1[row, 4].Text = $rescons!montant
+
+End
+
+Public Sub GridView1_Activate()
+
+  Dim res As Result
+  
+  res = utils.db.Exec("SELECT * FROM Fiches_consigne WHERE code=&1", GridView1[GridView1.Row, 0].Text)
+  mab
+  $bcrea = False
+  Labelcm.Text = "Modification"
+  $irow = GridView1.Row
+  $smodif = GridView1[GridView1.Row, 4].Text
+  Select Case res!type
+    Case "P"
+      Textpal.Text = res!code
+      Textqtepal.Text = Format(Val(GridView1[GridView1.Row, 2].Text) * -1, "0")
+      Labelpal.Text = res!libelle
+    Case "C"
+      Textcol.Text = res!code
+      Textqtecol.Text = Format(Val(GridView1[GridView1.Row, 2].Text) * -1, "0")
+      Labelcol.Text = res!libelle
+    Case "B"
+      Textbout.Text = res!code
+      Textqtebout.Text = Format(Val(GridView1[GridView1.Row, 2].Text) * -1, "0")
+      Labelbout.Text = res!libelle
+  End Select
+End
+
+Public Sub GridView1_KeyPress()
+
+  If Key.Code = Key.Del Then
+    Try $rescons.MoveTo(GridView1.Row)
+    If Not Error Then
+      Labeldec.text = Format(Val(Labeldec.text) - $rescons!montant, "0.00")
+      utils.db.Delete("Fiches_ligcons", "code=&1", $rescons!code)
+      $rescons = utils.db.Exec("SELECT * FROM Fiches_ligcons,Fiches_consigne WHERE codecons=Fiches_consigne.code AND bloc=&1 and numlig='D'", $sbloc)
+      GridView1.Clear
+      If $rescons.Available Then GridView1.Rows.Count = $rescons.Count
+    Endif
+  Endif
+
+End
+
+Private Function lirefour() As Boolean
+  
+  Dim res As Result
+  
+  res = utils.db.Exec("SELECT fo_nom FROM Fiches_Four WHERE fo_code=&1", Val(Textfour.Text))
+  If res.Available Then Labelfour.Text = res!fo_nom Else Labelfour.Text = ""
+  
+  Return res.Available
+End
+
+
+Public Sub Butart_Click()
+
+  Dim res As Result
+  Dim MyForm As TriArticles
+  
+  Try $win.Close
+  MyForm = New TriArticles("", "", "art_code", "", "", "")
+  MyForm.Showmodal()
+  If Variables.Bsel = True Then
+    Textart.text = Variables.ArtCode
+    Textpal.Select
+    Textpal.SetFocus
+    selectionart
+  Else
+    Textart.Select
+    Textart.SetFocus
+  Endif
+
+End
+
+Public Sub Textart_LostFocus()
+
+  selectionart
+
+End
+
+
+Private Sub selectionart()
+  
+  Dim res As Result
+  
+  res = utils.db.Exec("SELECT *FROM Fiches_Art WHERE art_code=&1", Textart.Text)
+  If res.Available Then
+    Labelart.Text = res!art_design
+    $inbc = res!art_nbcol
+    $inbb = res!art_nbbou
+    Textpal.Text = res!art_consp 
+    Textcol.Text = res!art_consc
+    Textbout.Text = res!art_consb
+    If Not Textpal.Text And Textcol.Text Then 
+      Textcol.SetFocus
+      Textcol.Select
+    Endif
+    If Not Textpal.Text And Not Textcol.Text And textbl.Text Then 
+      Textbout.SetFocus
+      Textbout.Select
+    Endif
+    Else
+      Textart.Clear
+  Endif
+   
+End
+'********************Fenetre recherche des consignes et gestion des consignes*************************
+Public Sub consigne_click()
+
+  Dim coef As Float = 824 / Panel1.Width
+  Dim res As Result
+  Dim i As Integer
+  
+  Try $win.Close
+  $win = New Window(Me)
+  $grdv = New GridView($win) As "rechcons"
+  
+  $win.Width = 250 * coef
+  $win.Height = 200 * coef
+  $win.x = 410 * coef
+  $win.y = 146 * coef
+  $grdv.Width = $win.Width
+  $grdv.Height = $win.Height
+  $grdv.x = 0
+  $grdv.y = 0
+  $grdv.Mode = Select.Single
+  $grdv.Header = GridView.Horizontal
+  $grdv.Columns.Count = 2
+  $grdv.Columns[0].Width = 50
+  $grdv.Columns[0].Text = "Code"
+  $grdv.Columns[1].Text = "Libelle"
+  $grdv.Columns[1].Width = 150
+  
+  res = utils.db.Exec("SELECT * FROM Fiches_consigne WHERE type=&1", Last.tag)
+  If res.Available Then
+    $grdv.Rows.Count = res.Count
+    res.MoveFirst
+    For i = 0 To res.Max
+      $grdv[i, 0].Text = res!code
+      $grdv[i, 1].Text = res!libelle
+      res.MoveNext
+    Next
+  Endif
+End
+
+Public Sub rechcons_click()
+  
+   selectioncons($grdv[$grdv.row, 0].Text)
+   $win.Close
+   
+End
+
+Public Sub Textqtecol_LostFocus()
+
+  If Textqtecol.Text Then
+    If IsInteger(Textqtecol.Text) Then
+      If $inbb <> 0 Then
+        Textqtebout.text = Format(Val(Textqtecol.Text) * $inbb, "0")
+        $inbb = 0
+      Endif
+    Else
+      Textqtecol.Clear
+    Endif
+  Endif
+
+End
+
+Public Sub Textqtepal_LostFocus()
+
+  If Textqtepal.Text Then
+    If IsInteger(Textqtepal.Text) Then
+      If $inbc <> 0 Then
+        Textqtecol.text = Format(Val(Textqtepal.Text) * $inbc, "0")
+        $inbc = 0
+      Endif
+    Else
+      Textqtepal.Clear
+    Endif
+  Endif
+
+End
+
+
+Private Sub selectioncons(code As String)
+
+  Dim res As Result
+  
+  res = utils.db.Exec("SELECT * FROM Fiches_consigne WHERE code=&1", code)
+  If res.Available Then
+    Select Case res!type
+      Case "P"
+        Textpal.Text = code
+        Labelpal.Text = res!libelle
+      Case "C"
+        Textcol.Text = code
+        Labelcol.Text = res!libelle
+      Case "B"
+        Textbout.Text = code
+        Labelbout.Text = res!libelle
+    End Select
+  Endif
+ 
+End
+'*******************validation de la ligne saisie***********************
+Public Sub Butval_Click()
+
+  Dim res As Result
+  
+  If Textdate.Text = "Date" Then Return
+  If Labelcm.Text = "Modification" Then
+    $smodif = Str(utils.totobs([$smodif]) * -1)
+    calculbasdoc($smodif)
+    $smodif = ""
+  Endif
+  utils.db.Begin
+  If Textpal.Text Then
+    If utils.totobs([Textqtepal.Text]) <> 0 Then
+      majcons(Textpal.Text, Textqtepal.Text)
+    Endif
+  Endif
+  If Textcol.Text Then
+    If utils.totobs([Textqtecol.Text]) <> 0 Then
+      majcons(Textcol.Text, Textqtecol.Text)
+    Endif
+  Endif
+  If Textbout.Text Then
+    If utils.totobs([Textqtebout.Text]) <> 0 Then
+      majcons(Textbout.Text, Textqtebout.Text)
+    Endif
+  Endif
+  $rescons = utils.db.Exec("SELECT * FROM Fiches_ligcons,Fiches_consigne WHERE codecons=Fiches_consigne.code AND bloc=&1 and numlig='D'", $sbloc)
+  GridView1.Clear
+  GridView1.Rows.Count = $rescons.Count
+  res = utils.db.Edit("Fiches_Entrecpt", "four=&1 AND numrecpt=&2", Textfour.Text, textbl.Text)
+  res!montant = utils.totobs([Labelht.Text])
+  res!mttc = utils.totobs([Labelttc.Text])
+  res.Update
+  utils.db.Commit
+  mab
+  labelcm.Text = "Création"
+  
+End
+
+Public Sub Butval_KeyPress()
+
+  If Key.Code = Key.Enter Or Key.Code = Key.Return Or Key.Code = Key.Tab Then Butval_Click()
+
+End
+
+Private Sub majcons(code As String, nb As String)
+
+  Dim res, resc As Result
+  
+  If $bcrea Then
+    res = utils.db.Create("Fiches_ligcons")
+  Else
+    $rescons.MoveTo($irow)
+    res = utils.db.Edit("Fiches_ligcons", "code=&1", $rescons!code)
+  Endif
+  resc = utils.db.Exec("SELECT * FROM Fiches_consigne WHERE code=&1", code)
+  res!num = textbl.Text
+  res!numlig = "D"
+  res!type = "E"
+  res!codecons = code
+  res!nb = Val(nb) * -1
+  res!montant = (Val(nb) * resc!prix) * -1
+  res!envaleur = True
+  res!bloc = $sbloc
+  calculbasdoc(Str(res!montant))
+  res.Update
+  $bcrea = True
+
+End
+
+Private Sub calculbasdoc(montant As String)
+  
+  Labeldec.Text = Format(utils.totobs([Labeldec.Text, montant]), "0.00")
+  Labelht.Text = Format(utils.totobs([Labelht.Text, montant]), "0.00")
+  Labelttc.Text = Format(utils.totobs([Labelttc.Text, montant]), "0.00")
+  
+End
+
+Private Sub mab()
+  
+  Textart.Clear
+  Textpal.Clear
+  Textcol.Clear
+  Textbout.Clear
+  Textqtebout.Clear
+  Textqtecol.Clear
+  Textqtepal.Clear
+  Labelart.Text = ""
+  Labelpal.Text = ""
+  Labelcol.Text = ""
+  Labelbout.Text = ""
+  
+End
+
+
+Public Sub Butenr_Click()
+
+  If Butenr.Tag = 1 Then $fen.Close
+  Textfour.Clear
+  Labelfour.text = ""
+  textbl.Clear
+  Textdate.Text = "Date"
+  Labelht.text = ""
+  Labelttc.Text = ""
+  Labelcons.Text = ""
+  Labeldec.Text = ""
+  Labelacc.Text = ""
+  GridView1.Clear
+  GridView1.Rows.Count = 0
+  Panel1.Enabled = True
+  mab
+  Butenr.Visible = False
+
+End

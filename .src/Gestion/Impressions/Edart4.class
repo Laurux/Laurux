@@ -1,0 +1,454 @@
+' Gambas class file
+
+son As Integer = Start.Son
+Private $width As String = "20mm"
+Private $coul As Integer
+Private $familles As Trifam
+Private $rpt As Report
+Private $rescli As Result
+Private $soption As String
+
+Public Codearticle As String
+Public Bsel As Boolean = False
+
+Public Sub _new()
+
+  Dim obs As Observer
+  
+  If Settings["/Soc" & Start.Societe & "/Coul_fen"] Then Utils.Observers(Me)
+  Music.Load(Start.Musique)
+  Me.Center
+  $coul = Val("&H" & Hex(Start.R) & Hex(Start.G) & Hex(Start.B))
+  'gestion du focus
+  obs = New Observer(Textyp) As "saisie"
+  obs = New Observer(four) As "saisie"
+  obs = New Observer(four2) As "saisie"
+  obs = New Observer(art) As "saisie"
+  obs = New Observer(art2) As "saisie"
+  Textyp.Tag = [four2, art]
+  four.Tag = [art2, four2]
+  four2.Tag = [four, Textyp]
+  art.Tag = [Textyp, art2]
+  art2.Tag = [art, four]
+  'initialisation du choix
+  $familles = New Trifam("1")
+  TriArticles($familles.enfant)
+  four.Text = "40100001"
+  four2.Text = "40199999"
+  Art.Text = "00000"
+  Art2.Text = "ZZZZZ"
+  
+End
+
+Private Sub TriArticles(fam As Trifam)
+  
+  Dim fm As Trifam
+  Dim cle As String
+  
+  For Each fm In fam
+    If Not IsNull(fm.precedant) Then TriArticles(fm.precedant)
+    If fm.parent = $familles Then
+      TreeView1.Add(fm.cle, fm.Text)
+    Else
+      TreeView1.Add(fm.cle, fm.Text,, fm.parent.cle)
+    Endif
+  Next
+  
+End
+
+Public Sub ToggleButton5_Click()
+
+  Dim trfr As Trifours
+  
+  trfr = New Trifours("fo_code")
+  trfr.ShowModal
+  If Variables.Bsel Then
+    Four.Text = Variables.Cfour
+    Variables.Bsel = False
+  Endif
+  
+End
+
+Public Sub ToggleButton6_Click()
+
+    Dim trfr As Trifours
+  
+  trfr = New Trifours("fo_code")
+  trfr.ShowModal
+  If Variables.Bsel Then
+    Four2.Text = Variables.Cfour
+    Variables.Bsel = False
+  Endif
+  
+End
+
+Public Sub Butclig_Click()
+
+  Dim trc As Triclients
+  
+  trc = New Triclients("TarCli")
+  trc.ShowModal
+  If TarCli.Bsel Then
+    Textcli.Text = TarCli.CodeClient
+    $rescli = Utils.db.Exec("SELECT * FROM Fiches_Cli WHERE cli_code=&1", Textcli.Text)
+    TextArea1.Text = $rescli!cli_rs_soc & " " & $rescli!cli_nom & " " & $rescli!cli_pnm & "\n" & $rescli!cli_adr1 & "\n" & $rescli!cli_adr2 & "\n" & $rescli!cli_cd_ptl & " " & $rescli!cli_ville
+    Textyp.Text = $rescli!cli_typec
+    Textyp.Enabled = False
+    
+  Endif
+  
+End
+
+'**********************************Impression du tarif*****************************
+'*************************Trie et calcul************************
+Public Sub Butimp_Click()
+
+  Dim resart, res As Result
+  Dim img, cle As String
+  Dim prixht, tva, ttc, dr, ss As Float
+  Dim nego As Boolean = False
+  Dim sdp As Boolean
+  
+  If TreeView1.MoveFirst() Then Return
+  entete
+  tetedecolone
+ 
+  Repeat
+    If TreeView1.Item.Selected Then
+      If IsNull(TreeView1.Item.ParentKey) Then 
+        If sdp Then sautdepage
+        entetefamille
+        sdp = True 
+      Endif
+      resart = Utils.db.Exec("SELECT art_code,art_design,art_prvt,art_pvht,taux_tva,art_fam,art_photo FROM Fiches_Art,Fiches_Tvaav WHERE code_tva=art_tva AND art_fam=&1 AND art_suspendu=&2 AND art_four BETWEEN &3 AND &4 AND art_code BETWEEN &5 AND &6", TreeView1.Item.Key, False, four.Text, four2.Text, Art.Text, Art2.Text)
+      If resart.Available Then
+        resart.MoveFirst
+        ligne("Sous Famille", TreeView1.Item.Text, " ", " ", " ", "", $coul, "5mm")
+        Repeat
+          tva = 0
+          ttc = 0
+          nego = False
+          prixht = resart!art_pvht
+          res = Utils.db.Exec("SELECT * FROM Fiches_RemTypec WHERE coder=&1 and codef=&2", resart!art_fam, Textyp.Text)
+          If res.Available Then
+            prixht = resart!art_pvht - (resart!art_pvht * res!remise)
+            nego = True
+          Endif
+          res = Utils.db.Exec("SELECT * FROM Fiches_RemCliFam WHERE codec=&1 AND codef=&2", Textcli.Text, resart!art_fam)
+          If res.Available Then
+            prixht = resart!art_pvht - (resart!art_pvht * res!remise)
+            nego = True
+          Endif
+          res = Utils.db.Exec("SELECT * FROM Fiches_CoeffTypec WHERE coder=&1 and codef=&2", resart!art_fam, Textyp.Text)
+          If res.Available Then 
+            prixht = resart!art_prvt * res!coeff
+            nego = True
+          Endif
+          res = Utils.db.Exec("SELECT * FROM Fiches_TarTypcli WHERE type=&1 AND cart=&2", Textyp.Text, resart!art_code)
+          If res.Available Then
+            prixht = resart!art_prvt * res!coef
+            nego = True
+          Endif
+          res = Utils.db.Exec("SELECT * FROM Fiches_Tarcli WHERE ccli=&1 AND cart=&1", Textcli.Text, resart!art_fam)
+          If res.Available Then
+            prixht = resart!art_prvt * res!coef
+            nego = True
+          Endif
+          If (Checkneg.Value And nego) Or Not Checkneg.Value Then
+            If Phot.Value Then img = resart!art_photo Else img = ""
+            tva = prixht * (Utils.totobs([resart!taux_tva]) / 100)
+            ttc = prixht + tva
+            ligne(resart!art_code, resart!art_design, Format(prixht, "0.000"), Format(tva, "0.00"), Format(ttc, "0.00"), img, Color.White, "4mm")
+          Endif
+        Until resart.MoveNext()
+      Endif
+    Endif
+  Until TreeView1.MoveBelow()
+  $rpt.Preview
+End
+
+
+Private Sub tetedecolone()
+
+  Dim hb As ReportHBox
+  Dim Lab As ReportLabel
+  
+  hb = New ReportHBox($rpt)
+  hb.Height = "4mm"
+  hb.Border = ReportBorder["Top:1pt #000000;Bottom:1pt #000000;Left:1pt #000000;Right:1pt #000000"]
+  hb.Fixed = True
+  
+  lab = New ReportLabel(hb)
+  lab.Text = "Code"
+  lab.Alignment = Align.Center
+  lab.Border = ReportBorder["Right:1pt #000000"]
+  lab.Font = font["Serif,-3"]
+  lab.Width = $width
+  
+  lab = New ReportLabel(hb)
+  lab.Text = "Libelle"
+  lab.Alignment = Align.Center
+  lab.Border = ReportBorder["Right:1pt #000000"]
+  lab.Font = font["Serif,-3"]
+  lab.Expand = True
+  
+  lab = New ReportLabel(hb)
+  lab.Text = "H.T"
+  lab.Alignment = Align.Center
+  lab.Border = ReportBorder["Right:1pt #000000"]
+  lab.Font = font["Serif,-3"]
+  lab.Width = $width
+  
+  lab = New ReportLabel(hb)
+  lab.Text = "TVA"
+  lab.Alignment = Align.Center
+  lab.Border = ReportBorder["Right:1pt #000000"]
+  lab.Font = font["Serif,-3"]
+  lab.Width = $width
+  
+  lab = New ReportLabel(hb)
+  lab.Text = "TTC"
+  lab.Alignment = Align.Center
+  lab.Font = font["Serif,-3"]
+  lab.Width = $width
+  
+  If Phot.Value Then
+    lab.Border = ReportBorder["Right:1pt #000000"]
+    lab = New ReportLabel(hb)
+    lab.Text = "Photo"
+    lab.Alignment = Align.Center
+    lab.Font = font["Serif,-3"]
+    lab.Width = "30mm"
+  Endif
+
+End
+
+Private Sub ligne(code As String, lib As String, ht As String, tva As String, ttc As String, Imag As String, coul As Integer, h As String)
+  
+  Dim hb As ReportHBox
+  Dim Lab As ReportLabel
+  Dim ph As ReportImage
+  
+  hb = New ReportHBox($rpt)
+  hb.Height = h
+  hb.Border = ReportBorder["Left:1pt #000000;Right:1pt #000000"]
+  hb.BackGround = ReportBrush.Color(coul)
+  
+  lab = New ReportLabel(hb)
+  lab.Text = code
+  lab.Alignment = Align.Left
+  lab.Border = ReportBorder["Right:1pt #000000"]
+  lab.Font = font["Serif,-3"]
+  lab.Width = $width
+  
+  lab = New ReportLabel(hb)
+  lab.Text = lib
+  lab.Alignment = Align.Left
+  lab.Border = ReportBorder["Right:1pt #000000"]
+  lab.Font = font["Serif,-3"]
+  lab.Expand = True
+  
+  lab = New ReportLabel(hb)
+  lab.Text = ht
+  lab.Alignment = Align.Right
+  lab.Border = ReportBorder["Right:1pt #000000"]
+  lab.Font = font["Serif,-3"]
+  lab.Width = $width
+  
+  lab = New ReportLabel(hb)
+  lab.Text = tva
+  lab.Alignment = Align.Right
+  lab.Border = ReportBorder["Right:1pt #000000"]
+  lab.Font = font["Serif,-3"]
+  lab.Width = $width
+  
+  lab = New ReportLabel(hb)
+  lab.Text = ttc
+  lab.Alignment = Align.Right
+  lab.Font = font["Serif,-3"]
+  lab.Width = $width
+  
+  If Phot.Value Then
+    If Imag Then
+      ph = New ReportImage(hb)
+      ph.Image = Image.Load(imag)
+      ph.Stretch = Report.Fill
+      ph.Width = "30mm"
+      ph.Height = "30mm"
+      hb.Height = "30mm"
+    Else
+      lab.Border = ReportBorder["Right:1pt #000000"]
+      lab = New ReportLabel(hb)
+      lab.Width = "30mm"
+      lab.Text = " "
+    Endif
+  Endif
+End
+
+Private Sub entetefamille()
+  
+  Dim Lab As ReportLabel
+  
+  lab = New ReportLabel($rpt)
+  lab.Height = "6mm"
+  lab.Border = ReportBorder["Top:1pt #000000;Bottom:1pt #000000;Left:1pt #000000;Right:1pt #000000"]
+  lab.BackGround = ReportBrush.Color($coul)
+  lab.Text = "Famille :  " & TreeView1.Item.Key & "  " & TreeView1.Item.Text
+End
+
+Private Sub sautdepage()
+  
+  Dim sdp As ReportPageBreak
+  
+  If Checksdp.Value Then
+    sdp = New ReportPageBreak($rpt)
+    sdp.ForceNewPage = True
+  Endif
+  
+End
+
+Private Sub entete()
+  
+  Dim ressoc As Result
+  Dim vb, vb1 As ReportVBox
+  Dim hb As ReportHBox
+  Dim lab As ReportLabel
+  
+  $rpt = New Report
+  vb = New ReportVBox($rpt)
+  vb.Fixed = True
+  vb.Autoresize = True
+'  vb.Border = ReportBorder(
+  lab = New ReportLabel(vb)
+  lab.Height = "7mm"
+  lab.Text = "Impression du tarif client au " & Format$(Now, "dd.mm.yyyy")
+  lab.Alignment = Align.Center
+  lab.BackGround = ReportBrush.Color($coul)
+  lab.Font = Font["Serif,Bold,Italic,+2"]
+  hb = New ReportHBox(vb)
+  hb.Expand = True
+  hb.Autoresize = True
+
+  ressoc = Utils.db.Exec("SELECT * FROM Fiches_Societes")
+  If ressoc.Available Then
+    vb1 = New ReportVBox(hb)
+    vb1.Expand = True
+    lab = New ReportLabel(vb1)
+    lab.Text = ressoc!type_sc & " " & ressoc!int_sc
+    lab.Font = font["Serif,Bold,+1"]
+    lab = New ReportLabel(vb1)
+    lab.Text = ressoc!adr1_sc
+    lab.Font = font["Serif,-1"]
+    lab = New ReportLabel(vb1)
+    lab.Text = ressoc!adr2_sc
+    lab.Font = font["Serif,-1"]
+    lab = New ReportLabel(vb1)
+    lab.Text = ressoc!cp_sc & " " & ressoc!burdis_sc
+    lab.Font = font["Serif,-1"]
+    lab = New ReportLabel(vb1)
+    lab.Text = ressoc!tel_sc
+    lab.Font = font["Serif,-1"]
+    lab = New ReportLabel(vb1)
+    lab.Text = ressoc!email_sc
+    lab.Font = font["Serif,-1"]
+    lab = New ReportLabel(vb1)
+    lab.Text = ressoc!site
+    lab.Font = font["Serif,-1"]
+  Endif
+  vb1 = New ReportVBox(hb)
+  lab = New ReportLabel(vb1)
+  lab.Text = TextArea1.Text
+  lab.Font = font["Serif"]
+
+End
+
+Public Sub Buttypc_Click()
+
+  Dim res As Result
+  
+  ColumnView1.Raise
+  If ColumnView1.Visible Then
+    ColumnView1.Visible = False
+    Return
+  Endif
+  
+  ColumnView1.Visible = True
+  ColumnView1.Clear
+  
+  res = Utils.db.Exec("SELECT * FROM Fiches_Typec")
+  If res.Available Then
+    res.MoveFirst
+    Repeat
+      ColumnView1.Add(res!code, res!code & " " & res!libelle)
+    Until res.MoveNext()
+  Endif
+
+End
+
+Public Sub ColumnView1_Click()
+
+  Textyp.Text = ColumnView1.Current.Key
+  ColumnView1.Visible = False
+
+End
+
+Public Sub ColumnView1_KeyPress()
+
+  If Key.Code = Key.Esc Then 
+    ColumnView1.Visible = False
+  Endif
+
+End
+Public Sub Butfin_Click()
+
+  Me.Close
+
+End
+
+Public Sub ToggleButton1_Click()
+
+  Dim MyForm As TriArticles
+
+  MyForm = New TriArticles(True, "", "art_code", "Edart4", "", "")
+  MyForm.Showmodal()
+  If Bsel = True Then
+    Art.text = Codearticle  
+  Endif
+End
+
+Public Sub ToggleButton2_Click()
+
+   Dim MyForm As TriArticles
+
+  MyForm = New TriArticles(True, "", "art_code", "Edart4", "", "")
+  MyForm.Showmodal()
+  If Bsel = True Then
+    Art2.text = Codearticle  
+  Endif
+
+End
+
+Public Sub saisie_gotfocus()
+
+  Try Utils.ObsGotf(Last)
+
+End
+
+Public Sub saisie_lostfocus()
+
+  Try Utils.ObsLstf(Last)
+
+End
+
+Public Sub saisie_keypress()
+
+  If Key.Code = Key.Enter Or Key.Code = Key.Return Or Key.Code = Key.Tab Then
+    Last.Tag[1].Selectall
+    Last.Tag[1].setfocus
+  Endif
+  If Key.code = Key.Up Then
+    Last.Tag[0].Selectall
+    Last.tag[0].setfocus
+  Endif
+  Stop Event
+End
