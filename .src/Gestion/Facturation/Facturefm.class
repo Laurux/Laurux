@@ -108,6 +108,7 @@ Private adr2 As String
 Private cpcli As String
 Private villecli As String
 Private bnumfac As Boolean = False
+Private Liste As Boolean = False
 Private $soption As String
 Private $sreq As String
 Private $obs As Observer
@@ -740,38 +741,62 @@ End
 
 Public Sub Button14_Click()
 
-  If visudoc = False Then Button14.Enabled = False
-  Visudoc = False
-  If Val(Colbl.item[5]) <> 0 Then
-    If Rgmt.Value = True And IsNull(Rglt2.Text) And Not IsNull(Regmt.text) Then
-      If IsNull(rglt.text) Then rglt.text = "0,00"
-      If Val(Rglt.text) < Val(Colbl.item[5]) Then
-        Panel10.Visible = True
-        Rglt2.Text = Format$(Val(Colbl.item[5]) - Val(Rglt.text), "0.00")
-        b = 0
-      Else
-        If Val(Rglt.text) = Val(Colbl.item[5]) Then Impression()
-      Endif
-    Else
-      If Rgmt.Value = True And IsNull(regmt.Text) Then
-        If start.son Then
-          Music.Play
+  If ExpMail Then controleMail()
+  If Not liste Then
+    If visudoc = False Then Button14.Enabled = False
+    Visudoc = False
+    If Val(Colbl.item[5]) <> 0 Then
+      If Rgmt.Value = True And IsNull(Rglt2.Text) And Not IsNull(Regmt.text) Then
+        If IsNull(rglt.text) Then rglt.text = "0,00"
+        If Val(Rglt.text) < Val(Colbl.item[5]) Then
+          Panel10.Visible = True
+          Rglt2.Text = Format$(Val(Colbl.item[5]) - Val(Rglt.text), "0.00")
+          b = 0
+        Else
+          If Val(Rglt.text) = Val(Colbl.item[5]) Then Impression()
         Endif
-        Try Message.Warning("Vous n'avez pas saisi le mode de règlement!")
-        If visudoc = False Then Button14.Enabled = True
-        Regmt.SetFocus
       Else
-        If b = 0 Then
-          Impression()
+        If Rgmt.Value = True And IsNull(regmt.Text) Then
+          If start.son Then
+            Music.Play
+          Endif
+          Try Message.Warning("Vous n'avez pas saisi le mode de règlement!")
+          If visudoc = False Then Button14.Enabled = True
+          Regmt.SetFocus
+        Else
+          If b = 0 Then
+            Impression()
+          Endif
+          b = 0
         Endif
-        b = 0
       Endif
     Endif
+  Else
+    Colbl.Clear
+    Edit.Visible = False
   Endif
 
 End
 
 '*********************************** On gère l'envoi du document par mail *******************************************
+
+Public Sub controleMail()
+
+  Dim CliMail As String = "Traitement impossible ! Les clients suivants n'ont pas d'adresse courriel"
+
+  Liste = False
+
+  Colbl.MoveFirst()
+  Repeat
+    rResult = Utils.db.Exec("SELECT * FROM  Fiches_Cli where cli_code = &1", Colbl.Item[0])
+    If IsNull(rResult!cli_email) Then
+      Climail &= "\n" & rResult!cli_code & " " & rResult!cli_nom
+      Liste = True
+    Endif
+  Until Colbl.MoveNext()
+  Message.Info(Climail)
+
+End
 
 Public Sub Env_Mail()
 
