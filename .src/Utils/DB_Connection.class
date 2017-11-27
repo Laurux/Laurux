@@ -1,0 +1,250 @@
+' Gambas class file
+
+Inherits Connection
+
+Private log As ComplexLogger
+Private logh As Collection
+Private hFile As File
+Private hFilePath As String
+
+Private user_name As String = Left$(User.name, 50)
+Private process_id As Integer = Application.Id
+Private machine_id As String
+Private host_id As String
+Private AllFilters As String
+Private Exec_Filter As String
+Private Exec_Filtering As Boolean
+Private Exec_Filter_Match As RegExp
+Private Filter_Error As String
+
+
+Public Sub _new()
+  
+  Dim host_name As String
+  
+  Shell "cat /etc/machine-id" To machine_id
+  Shell "hostname" To host_name
+  Shell "hostid" To host_id
+  machine_id = Left$(Trim$(machine_id), 50)
+  host_id = Left$(Trim$(host_name) & "(" & Trim$(host_id) & ")", 50)
+  
+  'On ne loggue pas par default pas besoin de clearer
+  Start(False, False)
+  
+End
+
+
+Public Sub Start(Optional Enabling As Boolean = False, Optional Clear As Boolean = False)
+  
+  Dim handler, handler_r As LogHandler
+  Dim remote_host As String
+  Dim remote_port As Integer
+  
+  Filter_Error = ""
+  Get_Filter()
+  Refresh_Filter()
+  hFilePath = Temp$(Application.Name & "_log")
+  If Clear = True Then
+    Try Kill hFilePath
+  Endif
+  logh = New Collection
+  handler = New FileHandler(hFilePath, Logger.Info)
+  logh.Add(handler, "local")
+  log = New ComplexLogger("$(now);$(levelname);$(message)", logh["local"])
+  remote_host = Start.LocalSettings["/Soc" & Start.Societe & "/ServerLogIP"]
+  If (Start.LocalSettings["/Soc" & Start.Societe & "/ServerLogPort"] >= 1024) And (Start.LocalSettings["/Soc" & Start.Societe & "/ServerLogPort"] < 65536) Then
+    remote_port = Start.LocalSettings["/Soc" & Start.Societe & "/ServerLogPort"]
+  Else
+    remote_port = 0
+  Endif
+  If (remote_host <> Null) Or (remote_port <> 0) Then
+    handler_r = New NetHandler(remote_host, remote_port, Logger.Info)
+    logh.Add(handler_r, "remote")
+    log.addHandler(logh["remote"])
+  Endif
+  log.Begin()
+  log.Enabled = Enabling
+  
+End
+
+
+Public Sub Clear()
+
+  Dim state As Boolean
+  
+  If log <> Null Then
+    state = log.Enabled
+    log.Close()
+    Start(state, True)
+  Endif
+  
+End
+
+
+Public Sub Refresh()
+
+  Dim state As Boolean
+  
+  If log <> Null Then
+    state = log.Enabled
+    log.Close()
+    Start(state, False)
+  Endif
+  
+End
+
+Public Sub Set_Log(boo As Boolean)
+  
+  log.Enabled = boo
+  
+End
+
+Public Sub Enable_Log()
+  
+  Set_Log(True)
+  
+End
+
+Public Sub Disable_Log()
+  
+  Set_Log(False)
+  
+End
+
+Public Sub Get_Log() As Boolean
+  
+  Return log.Enabled
+  
+End
+
+Public Sub Get_Filter() As String
+  
+  Dim filterlist As String
+  
+  hFilePath = Temp$(Application.Name & "_filter")
+  Try AllFilters = File.Load(hFilePath)
+  If Error Then AllFilters = ""
+  Return AllFilters
+  
+End
+
+
+Public Sub Set_Filter(filterlist As String)
+  
+  hFilePath = Temp$(Application.Name & "_filter")
+  File.Save(hFilePath, filterlist)
+  AllFilters = filterlist
+  Refresh()
+  
+End
+
+Public Sub Refresh_Filter()
+
+  Dim filter As String
+  Dim i As Integer = 0
+  Dim temp_regex As RegExp
+
+  Exec_Filtering = False
+
+  For Each filter In Split(AllFilters, "\n")
+    If filter Match "Exec_SQL:" Then
+      If Exec_Filtering = True Then
+        Filter_Error &= "\n=> " & Now & "Skip: une seule expression par filtre supporté"
+        Continue
+      Endif
+      Exec_Filter = Replace$(filter, "Exec_SQL:", "")
+      temp_regex = New RegExp
+      Try temp_regex.Compile(Exec_Filter) 'on fait le try sur une regex temporaire sinon l'Eval en dessous fail !!! Bug ???
+      If Error Then
+        Filter_Error &= "\n=> " & Now & "Echec: Impossible de compiler le Filtre \"Exec_SQL\" " & Error.Text
+      Else
+        Exec_Filtering = True
+        i = i + 1
+        Filter_Error &= "\n=> " & Now & "Succes: Filtre \"Exec_SQL\" configuré avec le motif:" & temp_regex.Pattern
+        Exec_Filter_Match = New RegExp
+        Exec_Filter_Match.Compile(Exec_Filter)
+      Endif
+    Endif
+  Next
+  
+  Filter_Error &= "\n=> " & Now & "Nombre de Filtres Analysé :" & i
+
+End
+
+
+Public Sub Get_Filter_Error() As String
+  
+  Return Filter_Error
+  
+End
+
+
+Public Sub Get_Localfile_Path() As String
+  
+  Return logh["local"].GetOutput()
+  
+End
+
+
+Public Sub Get_Remotefile_Path() As String
+
+  Dim out As String
+  If logh["remote"] = Null
+    Return "Remote logger pas configuré (voir prefs)"
+  Endif
+  
+  out = logh["remote"].GetOutput()
+  If Left(out, 4) = "Fail" Then
+    Return out & "\n  Sur le serveur executez la commande: nc -l -k -p [port_nb] > laurux_log.csv"
+  Else
+    Return out
+  Endif
+  
+End
+
+
+Public Sub Exec(Request As String, ...) As Result 
+  
+  Dim rResult As Result
+  Dim aArg As Variant[]
+  Dim oneArg As Variant
+  Dim Backtrace As String[]
+  Dim iInd As Integer
+
+  'This should work but it doen't because Param is a class... not a Argument Array.
+  'rResult = Super.Exec(Request, Param)
+  'Workaround below
+
+  If Param.Count Then
+    aArg = New Variant[Param.Count + 1]
+    aArg[0] = Request
+    iInd = 1
+    For Each oneArg In Param
+      aArg[iInd] = oneArg
+      iInd += 1
+    Next
+    'Seul moyen trouvé pour executer une fonction a arg variable depuis une fonction a arg variable
+    Request = Object.Call(Me, "Subst", aArg)
+  Endif
+ 
+  If log.Enabled = True Then
+    If Exec_Filtering = True Then
+      Try Exec_Filter_Match.Exec(Request)
+      If Error Then Filter_Error &= "\n=> " & Now & "Echec a l'execution du Filtre \"Exec_SQL:\"" & Error.Text & " " & Error.Where
+      If Exec_Filter_Match.Count < 0 Then
+          'Filter does not apply so early Exit Do Not log it 
+          rResult = Super.Exec(Request)
+          Return rResult
+      Endif
+    Endif
+    Backtrace = System.Backtrace
+    Backtrace.Extract(Backtrace.Length - 1, -1)
+    Backtrace.Extract(0, 1)
+    log.Log(user_name & ";" & host_id & ";" & machine_id & ";" & process_id & ";" & Backtrace.Join(",") & ";Exec_SQL:" & Request)
+  Endif
+
+  'Une fois logger si besoin on execute la requete
+  rResult = Super.Exec(Request)
+  Return rResult
+
+End

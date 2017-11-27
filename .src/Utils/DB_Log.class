@@ -1,0 +1,226 @@
+' Gambas class file
+
+Private DB_Con As DB_Connection
+Private Data As String[][]
+
+
+Public Sub _new(dbconnection As DB_Connection)
+  
+  DB_Con = dbconnection
+
+  GridView1.Header = GridView.Both
+  GridView1.ScrollBar = Scroll.Both
+  GridView1.Columns.Count = 8
+  GridView1.Columns[0].Text = "Date"
+  GridView1.Columns[0].Width = 220
+  GridView1.Columns[1].Text = "Level"
+  GridView1.Columns[1].Width = 80
+  GridView1.Columns[2].Text = "User"
+  GridView1.Columns[2].Width = 120
+  GridView1.Columns[3].Text = "Host"
+  GridView1.Columns[3].Width = 200
+  GridView1.Columns[4].Text = "Machine"
+  GridView1.Columns[4].Width = 400
+  GridView1.Columns[5].Text = "Process"
+  GridView1.Columns[5].Width = 80
+  GridView1.Columns[6].Text = "Trace"
+  GridView1.Columns[6].Width = 800
+  GridView1.Columns[7].Text = "Message"
+  GridView1.Columns[7].Width = 2000
+  
+  SaveName.Text = User.Home & "/" & Application.Name & "_log.csv"
+  DirChooser1.Root = User.Home
+  DirChooser1.Visible = False
+  Enregistrer.Visible = False
+
+  Refresh()
+  
+End
+
+Public Sub Refresh()
+
+  Dim curline As String[]
+  Dim sline As String
+  Dim hFilePath As String
+  Dim hFile As File
+  Dim i As Integer = 0
+  
+  
+  DB_Con.Refresh()
+  
+  Filename.Text = DB_Con.Get_Localfile_Path()
+  Remote.Text = DB_Con.Get_Remotefile_Path()
+  FiltresEval.Text = DB_Con.Get_Filter()
+  FiltresStatus.Text = DB_Con.Get_Filter_Error()
+  hFilePath = Temp$("Laurux_log_copy")
+  Try Kill hFilePath
+  Copy DB_Con.Get_Localfile_Path() To hFilePath
+  hFile = Open hFilePath For Input
+  
+  Data = New String[][]
+  
+  While Not Eof(hFile)
+    Line Input #hFile, sLine
+    curline = Split(sLine, ";")
+    Data.Add(curline)
+    i = i + 1
+    'Print sLine
+  Wend
+  
+  If i <> 0 Then
+    GridView1.rows.count = i
+    GridView1.SetFocus 
+    GridView1.MoveTo(i - 1, 0)
+    GridView1.Refresh
+  Else
+    GridView1.MoveTo(0, 0)
+    GridView1.rows.count = 0
+    GridView1.Refresh
+  Endif
+
+End
+
+Public Sub Form_Open()
+
+  Filename.Text = DB_Con.Get_Localfile_Path()
+  Remote.Text = DB_Con.Get_Remotefile_Path()
+  Enable.Value = DB_Con.Get_Log()
+  FiltresEval.Text = DB_Con.Get_Filter()
+  FiltresStatus.Text = DB_Con.Get_Filter_Error()
+  
+  'Dim clac As Integer = Classes.Count
+  'Dim compc As Integer = Components.Count
+  'Dim comp As Variant
+  'Dim cla As Variant
+
+  'For Each cla In Classes
+  '  If cla.Component = Null Then
+  '    ListView1.Add(cla.Name, cla.Name)
+  '  Endif
+  'Next
+  
+End
+
+Public Sub GridView1_Data(Row As Integer, Column As Integer)
+
+  GridView1.data.Text = Data[Row][Column]
+  
+End
+
+
+Public Sub Enable_Click()
+
+  Dim boo As Boolean
+  
+  boo = DB_Con.Get_Log() 
+  
+  If boo <> Enable.Value Then
+    DB_Con.Set_Log(Enable.Value)
+  Endif
+
+End
+
+Public Sub Quitter_Click()
+
+  If DirChooser1.Visible Then
+    GridView1.Visible = True
+    MAJ.Visible = True
+    Sauvegarder.Visible = True
+    Vider.Visible = True
+    DirChooser1.Visible = False
+    Enregistrer.Visible = False
+    Filtres.Visible = True
+    Refresh()
+  Else
+    Me.Close
+  Endif
+
+End
+
+Public Sub MAJ_Click()
+
+  Refresh()
+
+End
+
+Public Sub Vider_Click()
+
+  DB_Con.Clear()
+  Refresh()
+
+End
+
+Public Sub Sauvegarder_Click()
+
+  Dim Dir As String
+  
+  If GridView1.Visible = True Then
+    GridView1.Visible = False
+    MAJ.Visible = False
+    Sauvegarder.Visible = False
+    Vider.Visible = False
+    DirChooser1.Visible = True
+    Enregistrer.Visible = True
+    Filtres.Visible = False
+  Endif
+
+End
+
+
+
+Public Sub DirChooser1_Change()
+
+  If DirChooser1.Visible Then
+    SaveName.Text = DirChooser1.Root & "/" & Application.Name & "_log.csv"
+  Endif
+
+End
+
+Public Sub Enregistrer_Click()
+
+  If DirChooser1.Visible Then
+    GridView1.Visible = True
+    MAJ.Visible = True
+    Sauvegarder.Visible = True
+    Vider.Visible = True
+    DirChooser1.Visible = False
+    Enregistrer.Visible = False
+    Filtres.Visible = True
+    Try Copy DB_Con.Get_Localfile_Path() To SaveName.Text
+    Refresh()
+  Else If FiltresEval.Visible
+    DB_Con.Set_Filter(FiltresEval.Text)
+    FiltresStatus.Text = DB_Con.Get_Filter_Error()
+  Endif
+
+End
+
+Public Sub Filtres_Click()
+
+  If GridView1.Visible = True Then
+    GridView1.Visible = False
+    MAJ.Visible = False
+    Sauvegarder.Visible = False
+    Vider.Visible = False
+    Enregistrer.Visible = True
+    FiltresEval.Visible = True
+    FiltresStatus.Visible = True
+    FiltreInfos.Visible = True
+    FiltresEval.Text = DB_Con.Get_Filter()
+    FiltresStatus.Text = DB_Con.Get_Filter_Error()
+    FiltresEval.Raise()
+    FiltresStatus.Raise()
+    FiltreInfos.Raise()
+  Else
+    GridView1.Visible = True
+    MAJ.Visible = True
+    Sauvegarder.Visible = True
+    Vider.Visible = True
+    Enregistrer.Visible = False
+    FiltresEval.Visible = False
+    FiltresStatus.Visible = False
+    FiltreInfos.Visible = False
+  Endif
+
+End
+

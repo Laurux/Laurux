@@ -1,0 +1,76 @@
+' Gambas class file
+
+Export
+Inherits LogHandler
+
+'' Holds the socket for the log_handler
+Private $sock As Socket
+Private $host As String
+Private $port As Integer
+
+'' Holds a stram to the log file
+Private $sLogStream As Stream
+
+
+Public Sub _new(Host As String, Port As Integer, Optional iMinLevel As Integer = LogLevel.Info)
+
+  $sock = New Socket
+  $host = Host
+  $port = Port
+
+  Me.Level = iMinLevel
+
+End
+
+Public Sub Open()
+
+  If Me.Step > 0 Then Error.Raise("Handler already initialized!")
+  
+  '$sock.Blocking = True
+  $sock.Connect($host, $port)
+
+  Do While ($sock.Status <> Net.Connected) And ($sock.Status > 0)
+    Wait 0.1
+  Loop
+  
+  If $sock.Status <> Net.Connected Then
+    Return
+  Endif
+  
+  $sLogStream = $sock
+
+  Me.Step = 1
+
+End
+
+Public Sub Write(sMessage As String, Optional iLevel As Integer)
+
+  If Me.Step <> 1 Then Return
+
+  If Not Me.isEnabledFor(iLevel) Then Return
+
+  Write #$sock, sMessage & "\n", Len(sMessage) + 1
+
+End
+
+Public Sub Close()
+
+  If Me.Step <> 1 Then Return
+
+  Inc Me.Step
+  
+  Try Close #$sock
+
+End
+
+Public Function GetOutput() As String
+
+  If Me.Step = 0 Then 
+    Return "Fail to Connect with log server on " & $host & ":" & $port
+  Else If Me.Step = 1 And $sock.Status = Net.Connected
+    Return "Successfully connected to " & $host & ":" & $port 
+  Else
+    Return "Connection closed with " & $host & ":" & $port
+  Endif
+
+End
