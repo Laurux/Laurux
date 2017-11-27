@@ -1258,11 +1258,14 @@ Public Sub Ent_Bl(sclient As String, nbon As String, Fus_art As Boolean, Optiona
     If Bonl.Available Then
       efac = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " where cli_code = &1", sclient)
       Utils.db.Exec("INSERT INTO " & Entbon & "(numbl,datebl,cdclibl,cvclibl, nmclibl, rmobl, rartbl, pnmclibl, adr1bl, adr2bl, cpbl, villebl, Exobl, remmobl, remartbl, htbl, reg, ech, numfac, acpt, mreg, marge_art, marge_mo, totalttc, type, imp) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13},&{14},&{15},&{16},&{17},&{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24}, &{25}, &{26})", nbon, .Cdate_Dbase(Date_Bl), sclient, efac!cli_rs_soc, efac!cli_nom, 0, 0, efac!cli_pnm, efac!cli_adr1, efac!cli_adr2, efac!cli_cd_ptl, efac!cli_ville, efac!cli_exo, .cpoint(Remmo), .cpoint(Remart), Val(Totht), "", .Cdate_Dbase(dateech), "", 0, "", mgart, mgmo, Val(Mttc), "B", 0)
+      DocActif.Get_Lock("Facturation", nbon)
       If ntk <> Null Then
         Nlgn = Format$(Val(Nlgn) + 1, "0000")
         Utils.db.Exec("INSERT INTO " & Ligbon & "(num_ligbl, numlig_ligbl, typel_ligbl, com_ligbl, block_ligbl) VALUES (&1,&2,&3,&4,&5)", Nbon, Nlgn, "C", "Règlement en Caisse par le Ticket n° " & ntk, Nlgn)
       Endif
       Repeat
+        'prise du lock
+        If (DocActif.Get_Lock("Facturation", Bonl!numbl) = False) Then Continue
         Entbonl = Utils.db.Exec("SELECT * FROM " & Entbon & " where numbl = &1", Bonl!numbl)
         Ligbonl = Utils.db.Exec("SELECT * FROM " & Ligbon & " where num_ligbl = &1 and (typel_ligbl = &2 or typel_ligbl = &3)", Bonl!numbl, "A", "C")
         Nlgn = Format$(Val(Nlgn) + 1, "0000")
@@ -1295,8 +1298,10 @@ Public Sub Ent_Bl(sclient As String, nbon As String, Fus_art As Boolean, Optiona
         Endif
         Utils.db.Exec("DELETE FROM " & Ligbon & " where num_ligbl = &1", Bonl!numbl)
         Utils.db.Exec("DELETE FROM " & Entbon & " where numbl = &1", Bonl!numbl)
+        DocActif.Free_Lock("Facturation", Bonl!numbl)
       Until Bonl.MoveNext()
       Utils.db.Exec("UPdate " & Entbon & " SET totalht = &1, totalttc = &2 where numbl = &3", tht, ttc, nbon)
+      DocActif.Free_Lock("Facturation", nbon)
     Endif
   End With
 
