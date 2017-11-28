@@ -14213,6 +14213,41 @@ Public Sub Colbl_libel()
 
 End
 
+Public Sub Colbl_refl()
+
+  Dim rLib As Result
+  Dim rLib2 As Result
+  Dim BlTab As String = "Blcom"
+
+  Me.mouse = mouse.Wait
+  Utils.db.Exec("CREATE TEMPORARY TABLE " & BlTab &
+    "(numbl Char(6) NOT NULL," &
+    "type Char(1) ," &
+    "cdclibl Char(8) ," &
+    "nmclibl CHAR(50) ," &
+    "pnmclibl CHAR(35) ," &
+    "datebl date ," &
+    "imp Integer(1), " &
+    "numfac Char(10), " &
+    "PRIMARY KEY (numbl))" & "ENGINE = MYISAM")
+  rLib = Utils.db.Exec("select distinct num_ligbl, refl_ligbl from " & Cbase.Table("TabLigbl") & " where refl_ligbl like \"%" & sel & "%\" and typel_ligbl = &1 order by num_ligbl", "A")
+  If rLib.Available Then
+    Repeat
+      rLib2 = Utils.db.Exec("select imp, type, numbl, datebl, cdclibl, nmclibl, pnmclibl, numfac  from " & Cbase.Table("TabBl") & "  where numbl = &1", rLib!num_ligbl)
+      If rLib2.Available Then
+        Repeat
+          Try Utils.db.Exec("insert into " & BlTab & " (imp, numbl, type, datebl, cdclibl, pnmclibl, numfac  ) values (&1,&2,&3,&4,&5, &6,&7)", rLib2!imp, rLib2!numbl, rLib2!type, rLib2!datebl, rLib2!cdclibl, rLib2!nmclibl, rLib2!numfac)
+        Until rLib2.MoveNext()
+      Endif
+    Until rLib.MoveNext()
+  Endif
+  Utils.Base3(Colbl, "select * from " & BlTab & " order by numbl")
+  Colbl.Refresh
+  Utils.db.Exec("drop TABLE " & BlTab & "")
+  Me.mouse = mouse.Default
+
+End
+
 Public Sub ChkInput2()
 
   If Key.code = Key.Return Or Key.code = Key.Enter Then
@@ -14224,6 +14259,9 @@ Public Sub ChkInput2()
     Endif
     If Tribl = "libel_ligbl" Then
       If Not IsNull(sel) Then Colbl_libel()
+    Endif
+    If Tribl = "refl_ligbl" Then
+      If Not IsNull(sel) Then Colbl_refl()
     Endif
   Else
     If IsNull(sel) Then sel2 = ""
@@ -14244,7 +14282,7 @@ Public Sub ChkInput2()
               sel2 = Right$(sel, 2) & "-" & Mid$(sel, 3, 2) & "-" & Left$(sel, 2)
               Deb1()
             Else
-              If TriBl <> "datebl" And If Tribl <> "com_ligbl" And Tribl <> "code_ligbl" And Tribl <> "libel_ligbl" Then Deb1
+              If TriBl <> "datebl" And If Tribl <> "com_ligbl" And Tribl <> "code_ligbl" And Tribl <> "libel_ligbl" And Tribl <> "refl_ligbl" Then Deb1
             Endif
           Endif
         Endif
@@ -14482,6 +14520,12 @@ Public Sub NOB_Click()
   If NOB.Text = "Libellé produit" Then
     TriBl = "libel_ligbl"
     tribl2 = "libel_ligbl, numbl"
+    Combocom = False
+    If Not IsNull(sel) Then Colbl_com()
+  Endif
+  If NOB.Text = "Référence longue" Then
+    TriBl = "refl_ligbl"
+    tribl2 = "refl_ligbl, numbl"
     Combocom = False
     If Not IsNull(sel) Then Colbl_com()
   Endif
