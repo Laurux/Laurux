@@ -8621,8 +8621,16 @@ Public Sub Dupli3()
           Inc Nblignes
           If Bcomde.value Then Utils.db.Exec("INSERT INTO " & Tab & "(num_ligbl, numlig_ligbl, code_ligbl, com_ligbl, typel_ligbl, block_ligbl)VALUES (&1, &2, &3, &4, &5, &6)", num.Text, Format$(Nblignes, "0000"), "", Coldetail.current[21] & " * " & Intit, "C", Format$(Nblignes, "0000"))
           Utils.db.Exec("INSERT INTO " & Tab & "(num_ligbl, numlig_ligbl, code_ligbl,  libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl, mrgart_ligbl, mrgmo_ligbl, pdstotal_ligbl, tm_ligbl, four_ligbl, refl_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21})", numbon, Format$(Nligne, "0000"), Coldetail.current[1], Coldetail.current[2], Coldetail.current[13 + i], Coldetail.current[3], Coldetail.current[4 + i], Coldetail.current[5 + i], Coldetail.current[6 + i], Coldetail.current[7 + i], Coldetail.current[12 + i], Coldetail.current[8 + i], Coldetail.current[9 + i], Coldetail.current[14 + i], Format$(Nligne, "0000"), Coldetail.current[18 + i], Coldetail.current[19 + i], Coldetail.current[17 + i], lt, Coldetail.current[20 + i], Coldetail.current[21 + i])
+          'ATTENTION
+          'PB de merge entre v3.68 boisson PatrickMag et modif Jacky => BUG PROBABLE (utilisation de coldetail.Item and coldetail.current
+          'ATTENTION
           If $soption = "B" Or $soption = "T" Then
             $opt.majlig(numbon, Format$(Nligne, "0000"), Coldetail.Item[4], Coldetail.Item[5], Coldetail.Item[4 + i], Coldetail.item[22 + i])
+          Endif
+          If Coldetail.current[9] = "A" Then
+            If Bbon.value Or If BFac.Value Then
+              Maj_QuantiteD(Colitem1, Coldetail.current[4])
+            Endif
           Endif
         Else
           If Coldetail.current[9 + i] = "C" Then intit = ""
@@ -8667,6 +8675,9 @@ Public Sub Dupli3()
       Maj_Base()
       Recup_Mail()
     Endif
+    ' If Bbon.Value Or If Bfac.value Then
+    ' Maj_Quantite()
+    '  Endif
     Button15_Click()
     $desc = False
     deb1()
@@ -8678,9 +8689,6 @@ Public Sub Dupli3()
     Colbl.MoveTo(0, 0)
     ColblSelection(False)
     button4_click()
-    If Bbon.Value Or If Bfac.value Then
-      Maj_Quantite()
-    Endif
     'On se repositionne sur le document d'origine.
     Repeat
       Colbl.MoveTo(iskey, 0)
@@ -9108,6 +9116,41 @@ Public Sub Maj_Quantite()
           Endif
         Endif
       Until Coldetail.Movenext()
+    Endif
+    Qline = 0
+    Qstock = 0
+  End With
+  Utils.db.Exec("UNLOCK TABLES")
+
+End
+
+'**************************************************************************
+'* Maj de la quantite en stock en moins lors de la duplication par CTRL+D *
+'**************************************************************************
+Public Sub Maj_QuantiteD(RefD As String, qted As String)
+
+  Dim Qstock As Float
+  Dim Qline As Float
+
+  Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabArt") & " WRITE, " & Cbase.Table("TabArtPromo") & " WRITE, " & Cbase.Table("TabLigbl") & " WRITE ")
+  With utils
+    If Not IsNull(refd) Then
+      rResult = Utils.db.Exec("select * from " & Cbase.Table("TabArt") & " where art_code = &1", refd)
+      If rResult.Available Then
+        Stk = rResult!art_stocke
+        If Stk Then
+          Qline = Val(.cpoint(qted))
+          Try Qstock = rResult!art_qte
+          If Error Then Qstock = 0
+          Try Colvente = rResult!art_colvte
+          If Error Then Colvente = 0
+          If Colvente > 0 Then Qline = colvente * Qline
+          Qstock = Qstock - Qline
+          Utils.db.Exec("UPDATE  " & Cbase.Table("TabArt") & "  SET art_qte = &2 WHERE art_code = &1", Coldetail.current[1], Qstock)
+          If Promo Then Apromo = ArtPromo.art_Promo(refd, Cpromo)
+          If Apromo = True Then ArtPromo.Maj_qteplus(refd, Cpromo, Qline)
+        Endif
+      Endif
     Endif
     Qline = 0
     Qstock = 0
