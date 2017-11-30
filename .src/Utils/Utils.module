@@ -22,6 +22,8 @@ Public SshUser As String
 Public RemotePort As String
 Public TunnelPid As String ' pid du tunnel ssh conservé afin de l'arrêter en quittant le programme
 
+Public ROArray As ReplayObserver[] = New ReplayObserver[]
+
 Public Sub Base(tbv As Gridview, qry As String)
 
   rs1 = db.exec(qry)
@@ -735,6 +737,109 @@ Catch
 
 End
 
+Public Sub REPLAY_Button_Click()
+  
+  Print Me.Object
+  
+End
+
+
+
+Public Sub Recursive_Observers(hCont As Variant, Source As Variant[])
+
+  Dim hCtrl As Object
+  Dim RO As ReplayObserver
+  Dim NSource As Variant[]
+  
+  'Try Print hCont.Name & " " & hCont.Text
+  'If Error Then Print hCont.Name & " " & hCont.Id
+  
+  NSource = New Variant[]
+  NSource = Source.Copy(0, Source.Length)
+  
+  NSource.Add(hCont)
+  
+  'Need to reduce code once all usefull control identified
+  If hCont Is Menu Then
+    RO = New ReplayObserver(hCont, NSource)
+    ROArray.Add(RO)
+    'Return 'do not Return we must go deeper in Menu
+  Endif
+  If hCont Is Button Then
+    RO = New ReplayObserver(hCont, NSource)
+    ROArray.Add(RO)
+    Return
+  Endif
+  If hCont Is ToggleButton Then
+    RO = New ReplayObserver(hCont, NSource)
+    ROArray.Add(RO)
+    Return
+  Endif
+  If hCont Is RadioButton Then
+    RO = New ReplayObserver(hCont, NSource)
+    ROArray.Add(RO)
+    Return
+  Endif
+  If hCont Is ToolButton Then
+    RO = New ReplayObserver(hCont, NSource)
+    ROArray.Add(RO)
+    Return
+  Endif
+  If hCont Is CheckBox Then
+    RO = New ReplayObserver(hCont, NSource)
+    ROArray.Add(RO)
+    Return
+  Endif
+  If hCont Is GridView Then
+    RO = New ReplayObserver(hCont, NSource)
+    ROArray.Add(RO)
+    Return
+  Endif
+  If hCont Is TextBox Then
+    RO = New ReplayObserver(hCont, NSource)
+    ROArray.Add(RO)
+    Return
+  Endif
+  If hCont Is TextArea Then
+    RO = New ReplayObserver(hCont, NSource)
+    ROArray.Add(RO)
+    Return
+  Endif
+  If hCont Is ComboBox Then
+    RO = New ReplayObserver(hCont, NSource)
+    ROArray.Add(RO)
+    Return
+  Endif
+
+  If hCont Is Fmenu Then
+    For Each hCtrl In hCont.Menus
+      If hCtrl Is Menu Then Me.Recursive_Observers(hCtrl, NSource)
+    Next
+  Endif
+  
+  For Each hCtrl In hCont.Children
+    'Need to reduce code once all usefull control identified
+    If hCtrl Is Button Then Me.Recursive_Observers(hCtrl, NSource)
+    If hCtrl Is ToggleButton Then Me.Recursive_Observers(hCtrl, NSource)
+    If hCtrl Is Panel Then Me.Recursive_Observers(hCtrl, NSource)
+    If hCtrl Is HBox Then Me.Recursive_Observers(hCtrl, NSource)
+    If hCtrl Is TabStrip Then Me.Recursive_Observers(hCtrl, NSource) 
+    If hCtrl Is Frame Then Me.Recursive_Observers(hCtrl, NSource)
+    If hCtrl Is Menu Then Me.Recursive_Observers(hCtrl, NSource)
+    'If hCtrl Is Label Then Me.Recursive_Observers(hCtrl, NSource)
+    'If hCtrl Is TextLabel Then Me.Recursive_Observers(hCtrl, NSource)
+    If hCtrl Is ColumnView Then Me.Recursive_Observers(hCtrl, NSource)
+    If hCtrl Is TableView Then Me.Recursive_Observers(hCtrl, NSource)
+    If hCtrl Is GridView Then Me.Recursive_Observers(hCtrl, NSource)
+    If hCtrl Is Combobox Then Me.Recursive_Observers(hCtrl, NSource)
+    If hCtrl Is Textedit Then Me.Recursive_Observers(hCtrl, NSource)
+    If hCtrl Is CheckBox Then Me.Recursive_Observers(hCtrl, NSource)
+    If hCtrl Is TextBox Or If hCtrl Is TextArea Then Me.Recursive_Observers(hCtrl, NSource)
+  Next
+
+End
+
+
 Public Sub Observers(hCont As Form)
 
   Dim CoulFn As Integer ' Variable pour la couleur du background des fenetres
@@ -743,6 +848,10 @@ Public Sub Observers(hCont As Form)
   Dim CoulZnaf As Integer ' Variable pour la couleur du background des columnviews
   Dim hCtrl As Object
   Dim Frmt As New String[]
+  Dim Source As Variant[]
+  
+  Source = New Variant[]
+  Recursive_Observers(hCont, Source)
 
   If Start.LocalSettings["/Soc" & Start.Societe & "/Coul_fen"] Then
     Frmt = Utils.FColr(Start.LocalSettings["/Coul/Fnets"])
@@ -1144,3 +1253,4 @@ Public Function PageFormatGetY(Page As String) As Integer
   Return Y
 
 End
+

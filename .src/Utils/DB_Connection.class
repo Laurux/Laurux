@@ -12,10 +12,10 @@ Private process_id As Integer = Application.Id
 Private machine_id As String
 Private host_id As String
 Private AllFilters As String
-Private Exec_Filter As String
-Private Exec_Filtering As Boolean
-Private Exec_Filter_Match As RegExp
+Private Filtering As Boolean
 Private Filter_Error As String
+
+Private Filters As Collection
 
 
 Public Sub _new()
@@ -28,7 +28,10 @@ Public Sub _new()
   machine_id = Left$(Trim$(machine_id), 50)
   host_id = Left$(Trim$(host_name) & "(" & Trim$(host_id) & ")", 50)
   
-  'On ne loggue pas par default pas besoin de clearer
+  Filters = New Collection
+  'On ne loggue pas par default, pas besoin de clearer
+  'On devrait activer le log automatique soit depuis les prefs
+  'soit depuis les arguments de la ligne de commande
   Start(False, False)
   
 End
@@ -52,8 +55,12 @@ Public Sub Start(Optional Enabling As Boolean = False, Optional Clear As Boolean
   logh.Add(handler, "local")
   log = New ComplexLogger("$(now);$(levelname);$(message)", logh["local"])
   remote_host = Start.LocalSettings["/Soc" & Start.Societe & "/ServerLogIP"]
-  If (Start.LocalSettings["/Soc" & Start.Societe & "/ServerLogPort"] >= 1024) And (Start.LocalSettings["/Soc" & Start.Societe & "/ServerLogPort"] < 65536) Then
-    remote_port = Start.LocalSettings["/Soc" & Start.Societe & "/ServerLogPort"]
+  If Not IsNull(Start.LocalSettings["/Soc" & Start.Societe & "/ServerLogPort"]) Then
+    If (Start.LocalSettings["/Soc" & Start.Societe & "/ServerLogPort"] >= 1024) And (Start.LocalSettings["/Soc" & Start.Societe & "/ServerLogPort"] < 65536) Then
+      remote_port = Start.LocalSettings["/Soc" & Start.Societe & "/ServerLogPort"]
+    Else
+      remote_port = 0
+    Endif
   Else
     remote_port = 0
   Endif
@@ -64,7 +71,7 @@ Public Sub Start(Optional Enabling As Boolean = False, Optional Clear As Boolean
   Endif
   log.Begin()
   log.Enabled = Enabling
-  
+
 End
 
 
@@ -143,26 +150,32 @@ Public Sub Refresh_Filter()
   Dim filter As String
   Dim i As Integer = 0
   Dim temp_regex As RegExp
+  Dim Key, Rx As String
+  Dim Aregex As RegExp[]
+  Dim pos As Integer
 
-  Exec_Filtering = False
+  Filtering = False
+  Filters.Clear()
 
   For Each filter In Split(AllFilters, "\n")
-    If filter Match "Exec_SQL:" Then
-      If Exec_Filtering = True Then
-        Filter_Error &= "\n=> " & Now & "Skip: une seule expression par filtre supporté"
-        Continue
-      Endif
-      Exec_Filter = Replace$(filter, "Exec_SQL:", "")
-      temp_regex = New RegExp
-      Try temp_regex.Compile(Exec_Filter) 'on fait le try sur une regex temporaire sinon l'Eval en dessous fail !!! Bug ???
-      If Error Then
-        Filter_Error &= "\n=> " & Now & "Echec: Impossible de compiler le Filtre \"Exec_SQL\" " & Error.Text
+    pos = InStr(filter, ":")
+    If pos = 0 Then
+      Filter_Error &= "\n=> " & Now & "Echec: le Filtre " & filter & " ne respecte pas le format!"
+    Endif
+    Key = Left$(filter, pos - 1)
+    Rx = Right$(filter, Len(filter) - pos)
+    temp_regex = New RegExp
+    Try temp_regex.Compile(Rx) 'on fait le try sur une regex temporaire sinon l'Eval en dessous fail !!! Bug ???
+    If Error Then
+      Filter_Error &= "\n=> " & Now & "Echec: Impossible de compiler le Filtre " & key & " : " & Error.Text
+    Else
+      Filtering = True
+      If Filters[Key] = Null Then
+        Aregex = New RegExp[]
+        Aregex.Add(temp_regex)
+        Filters.Add(Aregex, Key)
       Else
-        Exec_Filtering = True
-        i = i + 1
-        Filter_Error &= "\n=> " & Now & "Succes: Filtre \"Exec_SQL\" configuré avec le motif:" & temp_regex.Pattern
-        Exec_Filter_Match = New RegExp
-        Exec_Filter_Match.Compile(Exec_Filter)
+        Filters[Key].Add(temp_regex)
       Endif
     Endif
   Next
@@ -203,6 +216,31 @@ Public Sub Get_Remotefile_Path() As String
 End
 
 
+Public Sub Is_Filtered(FilterName As String, Request As String) As Boolean
+  
+  Dim Found As Boolean = False
+  Dim Aregex As RegExp[]
+  Dim regex As RegExp
+  
+  If log.Enabled = False Then Return False
+  If Filtering = False Then Return True 'If no Filter exist just accept all
+  
+  If Filters[FilterName] <> Null Then
+    For Each regex In Filters[FilterName]
+      Try regex.Exec(Request)
+      If Error Then Filter_Error &= "\n=> " & Now & "Echec a l'execution du Filtre " & FilterName & " : " & Error.Text
+      If regex.Count >= 0 Then
+        Found = True
+      Endif
+    Next
+  Endif
+  
+  Return Found
+  
+End
+
+
+
 Public Sub Exec(Request As String, ...) As Result 
   
   Dim rResult As Result
@@ -227,24 +265,42 @@ Public Sub Exec(Request As String, ...) As Result
     Request = Object.Call(Me, "Subst", aArg)
   Endif
  
-  If log.Enabled = True Then
-    If Exec_Filtering = True Then
-      Try Exec_Filter_Match.Exec(Request)
-      If Error Then Filter_Error &= "\n=> " & Now & "Echec a l'execution du Filtre \"Exec_SQL:\"" & Error.Text & " " & Error.Where
-      If Exec_Filter_Match.Count < 0 Then
-          'Filter does not apply so early Exit Do Not log it 
-          rResult = Super.Exec(Request)
-          Return rResult
-      Endif
-    Endif
+  If Is_Filtered("Exec_SQL", Request) = True Then
     Backtrace = System.Backtrace
     Backtrace.Extract(Backtrace.Length - 1, -1)
     Backtrace.Extract(0, 1)
-    log.Log(user_name & ";" & host_id & ";" & machine_id & ";" & process_id & ";" & Backtrace.Join(",") & ";Exec_SQL:" & Request)
+    log.Log("Exec_SQL;" & user_name & ";" & host_id & ";" & machine_id & ";" & process_id & ";" & Backtrace.Join(",") & ";" & Request)
   Endif
 
-  'Une fois logger si besoin on execute la requete
+  'Une fois logger on execute la requete
   rResult = Super.Exec(Request)
   Return rResult
 
+End
+
+
+Public Sub GUI_Event(hCont As Variant, Source As Variant[], Act As String, Value As Variant) 
+  
+  Dim Backtrace As String[]
+  Dim Request As String = Act & "=" & CStr(Value) & "@" & hCont.Name & "#"
+  Dim Ctrl As Variant
+  
+  For Each Ctrl In Source
+    Request &= Ctrl.Name & "#"
+  Next
+
+  If Is_Filtered("GUI", Request) = True Then
+    Backtrace = System.Backtrace
+    'Backtrace.Extract(Backtrace.Length - 1, -1)
+    Backtrace.Extract(0, 2)
+    log.Log("GUI;" & user_name & ";" & host_id & ";" & machine_id & ";" & process_id & ";" & Backtrace.Join(",") & ";" & Request)
+  Endif
+
+End
+
+Public Sub Close()
+  
+  Super.Close()
+  log.Close()
+  
 End
