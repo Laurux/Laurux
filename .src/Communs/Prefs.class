@@ -1,5 +1,6 @@
 ' Gambas class file
 
+
 '----------------------------------------------------------------------------
 '
 
@@ -42,10 +43,10 @@ Public Sub _new(Current_Settings As Settings, Optional IsGlobal As Boolean = Fal
   global = IsGlobal
   
   If global = False Then
-    TextLabel1.Text = "Préférences Locales\n" & Current_Settings.Path
+    TextLabel2.Text = "Préférences Locales : \n" & Current_Settings.Path
   Else
-    TextLabel1.Text = "Préférences Globales (Database)"
-    TextLabel1.Background = &HFFEFBF
+    TextLabel2.Text = "Préférences Globales (Database)"
+    TextLabel2.Background = &HFFEFBF
     If IsNull(Current_Settings) Then
       If Message.Warning("Attention etes-vous sur de vouloir creer des préférences globales?\n Cette fonction est expérimentale!", "Annuler", "Continuer") = 1 Then Return
       globalpath = Temp$("global_" & Application.Name & ".conf")
@@ -78,7 +79,7 @@ Public Sub ReadGlobal() As Settings
   
   globalpath = Temp$("global_" & Application.Name & ".conf")
   rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabParam"))
-  If rResult.Available And (rResult!conf).Length <> 0 
+  If rResult.Available And (rResult!conf).Length <> 0
     File.Save(globalpath, rResult!conf)
     Global_Settings = New Settings(globalpath)
     Return Global_Settings
@@ -98,7 +99,7 @@ Public Sub ApplyGlobal(Global_Settings As Settings)
   For Each lsetting In Global_Settings.Keys
     For Each setting In Global_Settings.Keys[lsetting]
     If cursettings["/" & lsetting & "/" & setting] = Null Or cursettings["/" & lsetting & "/" & setting] <> Global_Settings["/" & lsetting & "/" & setting] Then
-      Print "/" & lsetting & "/" & setting & " : " & cursettings["/" & lsetting & "/" & setting] & " => " & Global_Settings["/" & lsetting & "/" & setting]
+      'Try Print "/" & lsetting & "/" & setting & " : " & cursettings["/" & lsetting & "/" & setting] & " => " & Global_Settings["/" & lsetting & "/" & setting]
       cursettings["/" & lsetting & "/" & setting] = Global_Settings["/" & lsetting & "/" & setting]
     Endif
     Next
@@ -574,14 +575,14 @@ Public Sub form_close()
   cursettings["/Soc" & Start.Societe & "/ServerLogIP"] = ServerLogIP.Value
   cursettings["/Soc" & Start.Societe & "/ServerLogPort"] = ServerLogPort.Value
 
-  cursettings["/Soc" & Start.Societe & "/nbfam"] = Textfam.Text 
+  cursettings["/Soc" & Start.Societe & "/nbfam"] = Textfam.Text
   $ipr.Clear
   For i = 0 To $check.Max
     If $check[i].Value Then $ipr.Add(i + 1)
   Next
   cursettings["/Soc" & Start.Societe & "/ipr"] = $ipr
   cursettings["/Soc" & Start.Societe & "/pp"] = pp.Value
-  cursettings["/Soc" & Start.Societe & "/bois"] = bois.Value  
+  cursettings["/Soc" & Start.Societe & "/bois"] = bois.Value
 
 
   'Les paramètres ci-dessous ne sont que des paramètres locaux
@@ -1368,7 +1369,7 @@ Public Sub afffam()
   Try i = $ipr.Count
   If Error Then
     $ipr = New Integer[]
-    $ipr.Add(1)
+    $ipr.Add(5)
   Endif
   sup = $ipr.Max
   If $ipr.Max > $check.Max Then sup = $check.Max
@@ -1411,7 +1412,7 @@ End
 Public Sub Supprime_Click()
 
   If global = True Then
-    If Message.Warning("Etes-vous sur de vouloir Supprimer vos parametres globaux?\nChaque poste pourrait alors avoir des configurations potentiellement incompatibles", "Annuler", "OK") = 1 Then Return 
+    If Message.Warning("Etes-vous sur de vouloir Supprimer vos parametres globaux?\nChaque poste pourrait alors avoir des configurations potentiellement incompatibles", "Annuler", "OK") = 1 Then Return
     Utils.db.Exec("UPDATE " & Cbase.Table("TabParam") & " set conf = &1", Null)
     Kill cursettings.Path
     cursettings.Clear()
