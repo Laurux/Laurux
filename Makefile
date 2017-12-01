@@ -34,7 +34,7 @@ clean:
 	$(Q)rm -f $(APP)
 	$(Q)rm -rf .gambas
 
-$(O)/$(VERSION)/$(PROJECT).tar.gz: $(APP) $(shell find *.md -type f) Bcrcpt.txt Bcr.txt Cpostaux.csv Icones son tips
+$(O)/$(VERSION)/$(PROJECT).tar.gz: $(APP) Icones/Larus.png
 	$(vecho) "Packaging $(PROJECT) v$(VERSION) ($(GIT_SHA1)) in path $(O)/$(VERSION)"
 	$(Q) mkdir -p $(O)/$(VERSION)
 	$(Q) tar --transform 's,^,$(PROJECT)/,' -zcf $@ $^
