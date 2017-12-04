@@ -173,7 +173,7 @@ Public Sub Button1_Click()
   Soc = Start.LocalSettings["/Soc"]
   If IsNull(Soc) Then Soc = "01"
   intitule = "  "
-  Start.LocalSettings["/Societes/Soc" & Soc] = Variables.version
+  Start.LocalSettings["/Societes/Soc" & Soc] = Majversion.Version
   '# -- Partie commune aux connexions avec ou sans tunnel
   Start.LocalSettings["/dbase/type"] = "mysql"
   Start.LocalSettings["/dbase/Prefixe"] = Prefixe.Text
@@ -195,8 +195,8 @@ Public Sub Button1_Click()
     Start.LocalSettings["/dbase/ssh/Passphrase"] = Passphrase.Text
     Start.LocalSettings["/dbase/ssh/Passp"] = Passp.value
   Endif
-  Settings.Save
-  Settings.reload
+  Start.LocalSettings.Save
+  Start.LocalSettings.Reload
   '# -- valeurs de connexion communes avec ou sans tunnel
   ' Le type reste bien entendu mysql
   Utils.db.type = Start.LocalSettings["/dbase/type"]
@@ -257,8 +257,8 @@ Public Sub Button1_Click()
       rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabSoc") & " where cd_sc = &1", Right$(Nbase.text, 2))
       Message.Info("Le fichier de configuration a été crée ou modifié !\nLa société " & Right$(Nbase.Text, 2) & " " & rResult!type_sc & " - " & rResult!int_sc & " est la société de travail en cours.")
       Start.LocalSettings["/Soc"] = Right$(Nbase.text, 2)
-      Settings.Save
-      Settings.Reload
+      Start.LocalSettings.Save
+      Start.LocalSettings.Reload
       Start.societe = Right$(Nbase.text, 2)
       Fmenu.text = "Société en cours : " & rResult!type_sc & " - " & rResult!int_sc
       Fmenuc.text = "Société en cours : " & rResult!type_sc & " - " & rResult!int_sc
@@ -292,6 +292,7 @@ Public Sub createbase()
 
   Dim hcon As New Connection
   Dim sTemp As String
+  Dim $ipr As New Integer[]
 
   If son Then
     Music.Play
@@ -357,7 +358,12 @@ Public Sub createbase()
     Start.LocalSettings["/Soc" & Start.Societe & "/Exp"] = 1
     Start.LocalSettings["/Soc" & Start.Societe & "/Lettrage"] = 1
     Start.LocalSettings["/Soc" & Start.Societe & "/Impbl"] = 0
-    Settings.Save
+    Start.LocalSettings["/Soc" & Soc & "/nbfam"] = "5"
+    $ipr.Add(5)
+    Start.LocalSettings["/Soc" & Soc & "/ipr"] = $ipr
+    Start.LocalSettings["/Soc" & Soc & "/pp"] = False
+    Start.LocalSettings["/Soc" & Soc & "/bois"] = False
+    Start.LocalSettings.Save
     If nouveau = True Then
       sTemp = Temp$("Lauruxdb")
       Try Mkdir sTemp
@@ -370,8 +376,8 @@ Public Sub createbase()
         Shell "mysql -h " & Start.LocalSettings["/dbase/Host"] & " -u " & Utils.db.login & " -p" & Utils.db.Password & " " & "Laurux01  < " & sTemp Wait
       Endif
     Endif
-    Start.LocalSettings["/Societes/Soc" & Soc] = Variables.version
-    Settings.Reload
+    Start.LocalSettings["/Societes/Soc" & Soc] = Majversion.Version
+    Start.LocalSettings.Reload
     Start.societe = soc
     Me.mouse = Mouse.Default
     If nouveau = True Then
