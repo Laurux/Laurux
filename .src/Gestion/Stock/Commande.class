@@ -163,6 +163,8 @@ Public Sub form_close()
       four.Select
       Stop Event
     Endif
+  Else
+    If Ncom.Text <> Null Then DocActif.Free_Lock("CommandeF", ncom.Text)
   Endif
 
 End
@@ -976,6 +978,7 @@ Public Sub Button8_Click()
     ncom.text = ""
   Else
     Utils.db.Exec("UPDATE  " & Tab & "  SET  dncom = &1", ncom.Text)
+    DocActif.Get_Lock("CommandeF", ncom.Text)
     If IsNull(Four.text) Then
       Four.SetFocus
       Four.Select
@@ -3125,6 +3128,7 @@ Public Sub Enrgcom()
         Until Colrcp.Movenext()
       Endif
       'Maj_Quantite2()
+      DocActif.Free_Lock("CommandeF", ncom.Text)
       RazBl()
       four.Clear
       fournom.Clear
@@ -3237,6 +3241,7 @@ Public Sub Colcom_Click()
     Pcom.text = "0,000"
     four.text = Colcom.Current[0]
     Ncom.Text = Colcom.Current[2]
+    DocActif.Get_Lock("CommandeF", ncom.Text)
     datej.Text = Left$(Colcom.Current[3], 2) & "." & Mid$(Colcom.Current[3], 4, 2) & "." & Right$(Colcom.Current[3], 4)
     fourResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE fo_code = &1", four.Text)
     Try fournom.Text = fourResult!fo_nom
@@ -3369,6 +3374,8 @@ End
 '**************************************
 Public Sub Delcom()
 
+  Dim dcom As String = ncom.Text
+
   With Utils
     If Colrcp.Count <> 0 Then
       If Start.son Then
@@ -3384,6 +3391,9 @@ Public Sub Delcom()
       Colrcp.Clear
     Endif
   End With
+  
+  If dcom <> Null Then DocActif.Free_Lock("CommandeF", dcom)
+  Ncom.Text = ""
 
 End
 
@@ -3631,6 +3641,7 @@ Public Sub ListFour()
       Endif
     Loop Until Rarts.MoveNext()
     Lstfour.visible = True
+    Lstfour.Raise
     Me.Mouse = Mouse.Default
   Else
     Me.Mouse = Mouse.Default

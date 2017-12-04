@@ -1190,8 +1190,8 @@ Public Sub form_close()
     Endif
   Endif
   Start.LocalSettings["/Soc" & Start.Societe & "/Col/LcolRA"] = "col0:" & Colrcp.Columns[0].Width & ";" & "col1:" & Colrcp.Columns[1].Width & ";" & "col2:" & Colrcp.Columns[2].Width & ";" & "col3:" & Colrcp.Columns[3].Width & ";" & "col4:" & Colrcp.Columns[4].Width & ";" & "col5:" & Colrcp.Columns[5].Width & ";" & "col6:" & Colrcp.Columns[6].Width & ";" & "col7:" & Colrcp.Columns[7].Width & ";" & "col8:" & Colrcp.Columns[8].Width
-  DocActif.Free_Lock("Reception", numbl.Text)
   Start.LocalSettings.Save
+  If numbl.Text <> Null Then DocActif.Free_Lock("Reception", numbl.Text)
 
 End
 
@@ -2912,6 +2912,7 @@ Public Sub Enrgcom()
           Else
             Utils.db.Exec("INSERT INTO " & Tab & "(code,design,numcom,four,pbht,rm,paht,qte,frais,prvt, datecom, nligne) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12})", Colrcp.Item[1], Colrcp.Item[2], Numcom2, Codefour.Text, Colrcp.Item[4], Colrcp.Item[5], Colrcp.Item[6], Colrcp.Item[7], Colrcp.Item[11], Colrcp.Item[12], .Cdate_Dbase(Datej.Text), Colrcp.Item[0])
           Endif
+          'DocActif.Free_Lock("CommandeF", numcom2)
         Until Colrcp.Movenext()
       Endif
       RazBl()
@@ -3000,6 +3001,7 @@ Public Sub Colcom_Click()
 
   $four = Colcom.Item[0]
   $num = Colcom.Item[2]
+  'If DocActif.Get_Lock("CommandeF", $num) = False Then Return
   AffColcom()
 
 End
@@ -3200,6 +3202,7 @@ Public Sub RecupCom()
     If ComRslt.Available Then
       $fcd = New Fourconsdroi("A")
       Do
+        'If DocActif.Get_Lock("CommandeF", ComRslt!numcom) = False Then Continue
         LigResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE numcom = &1 and four = &2", ComRslt!numcom, codefour.Text)
         If LigResult.Available Then
           Do
