@@ -41,6 +41,8 @@ Public Sub _New()
   Music.Load(Start.Musique)
   Me.Center
   Utils.Observers(Me)
+  Listbart.visible = False
+  Button9.visible = False
 
 End
 
@@ -103,6 +105,16 @@ Public Sub Cmpt_KeyPress()
 
     End Select
   Endif
+
+End
+
+Public Sub cmpt_lostfocus()
+
+  Select Case Last.tag
+    Case 1
+      art_Man
+      
+  End Select
 
 End
 
@@ -235,6 +247,7 @@ Public Sub SelectionFam(sOrg As String)
     FamList.visible = False
   Else
     FamList.visible = True
+    Famlist.Raise
     FamList.Columns.count = 2
     FamList.Columns[0].Width = 65
     FamList.Columns[1].Width = 260
@@ -391,68 +404,24 @@ End
 '******************************************************************************************
 Public Sub Change($hOrg As String)
 
-  Dim Tab1 As String
-  Dim Tab2 As String
-  Dim Tab3 As String
-  Dim r2Result As Result
-
-  Tab = "Fiches_Fam"
-  Tab1 = "Fiches_Art"
-  Tab2 = "Fiches_HistoLigfac"
-  Tab3 = "Fiches_Ligbl"
-  If code.Text Then
-    If Nfam.Text Then
-      r2Result = Utils.db.Exec("SELECT * from  " & Tab1 & " where art_code = &1 ", Code.Text)
-      If r2Result.Available Then
-        Repeat
-          Utils.db.Exec("UPdate  " & Tab1 & "  SET  art_fam = &2 where art_code = &1", Code.Text, Nfam.Text)
-        Until r2Result.MoveNext()
-      Endif
-      r2Result = Utils.db.Exec("SELECT * from  " & Tab2 & " where code_ligfac = &1 ", Code.Text)
-      If r2Result.Available Then
-        Repeat
-          Utils.db.Exec("UPdate  " & Tab2 & "  SET  fam_ligfac = &2 where code_ligfac = &1", Code.Text, Nfam.text)
-        Until r2Result.MoveNext()
-      Endif
-      r2Result = Utils.db.Exec("SELECT * from  " & Tab3 & " where code_ligbl = &1 ", Code.Text)
-      If r2Result.Available Then
-        Repeat
-          Utils.db.Exec("UPdate  " & Tab3 & "  SET  fam_ligbl = &2 where code_ligbl = &1", Code.Text, Nfam.text)
-        Until r2Result.MoveNext()
-      Endif
-      If $hOrg = "Btn" Then
-        If Start.son Then
-          Music.Play
-        Endif
-        Message.Warning("Traitement terminé !", "OK")
-        code.SetFocus
-        code.Select
-      Endif
-    Else
-      If $hOrg = "Btn" Then
-        If Start.son Then
-          Music.Play
-        Endif
-        Message.Warning("Veuillez saisir la nouvelle famille SVP !", "OK")
-        Nfam.SetFocus
-        Nfam.Select
-      Endif
-    Endif
-  Else
-    If $hOrg = "Btn" Then
-      If Start.son Then
-        Music.Play
-      Endif
-      Message.Warning("Veuillez saisir un code article SVP !", "OK")
-      code.SetFocus
-      code.Select
-    Endif
+  If Not verifart() Then Return
+  If Not verifam(Nfam) Then Return
+  verrou
+  Me.Mouse = Mouse.Wait
+  Modifart(code.Text, nfam.text)
+  Utils.db.Exec("UNLOCK TABLES")
+  Me.Mouse = Mouse.Default
+  If Start.son Then
+    Music.Play
   Endif
+  Message.Warning("Traitement terminé !", "OK")
+  code.SetFocus
+  code.Select
 
 End
 
 '********************************************************************
-'*            On lance les modifications  pour un article           *
+'*            On lance les modifications  pour une famille          *
 '********************************************************************
 Public Sub Change2()
 
@@ -465,38 +434,25 @@ Public Sub Change2()
   Tab1 = "Fiches_Art"
   Tab2 = "Fiches_HistoLigfac"
   Tab3 = "Fiches_Ligbl"
-  If Afam2.Text Then
-    If Nfam2.Text Then
-      Me.Mouse = Mouse.Wait
-      r2Result = Utils.db.Exec("SELECT * from  " & Tab1 & " where art_fam = &1 ", Afam2.Text)
-      If r2Result.Available Then Utils.db.Exec("UPdate  " & Tab1 & "  SET  art_fam = &2 where art_fam = &1", Afam2.Text, Nfam2.Text)
-      r2Result = Utils.db.Exec("SELECT * from  " & Tab2 & " where fam_ligfac = &1 ", Afam2.text)
-      If r2Result.Available Then Utils.db.Exec("UPdate  " & Tab2 & "  SET  fam_ligfac = &2 where fam_ligfac = &1", Afam2.text, Nfam2.text)
-      r2Result = Utils.db.Exec("SELECT * from  " & Tab3 & " where fam_ligbl = &1 ", Afam2.text)
-      If r2Result.Available Then Utils.db.Exec("UPdate  " & Tab3 & "  SET  fam_ligbl = &2 where fam_ligbl = &1", Afam2.text, Nfam2.text)
-      Me.Mouse = Mouse.Default
-      If Start.son Then
-        Music.Play
-      Endif
-      Message.Warning("Traitement terminé !", "OK")
-      code.SetFocus
-      code.Select
-    Else
-      If Start.son Then
-        Music.Play
-      Endif
-      Message.Warning("Veuillez saisir l'ancienne famille SVP !", "OK")
-      Nfam.SetFocus
-      Nfam.Select
-    Endif
-  Else
-    If Start.son Then
-      Music.Play
-    Endif
-    Message.Warning("Veuillez saisir la nouvelle famille SVP !", "OK")
-    code.SetFocus
-    code.Select
+
+  If Not verifam(Nfam2) Then Return
+  If Not verifam(Afam2) Then Return
+  verrou
+  Me.Mouse = Mouse.Wait
+  
+  Utils.db.Exec("UPdate  " & Tab1 & "  SET  art_fam = &2 where art_fam = &1", Afam2.Text, Nfam2.Text)
+  Utils.db.Exec("UPdate  " & Tab2 & "  SET  fam_ligfac = &2 where fam_ligfac = &1", Afam2.text, Nfam2.text)
+  Utils.db.Exec("UPdate  " & Tab3 & "  SET  fam_ligbl = &2 where fam_ligbl = &1", Afam2.text, Nfam2.text)
+  Utils.db.Exec("UPdate  Fiches_HistoLigfacM  SET  fam_ligfac = &2 where fam_ligfac = &1", Afam2.text, Nfam2.text)
+  Utils.db.Exec("UPdate  Fiches_LigblM  SET  fam_ligbl = &2 where fam_ligbl = &1", Afam2.text, Nfam2.text)
+  Me.Mouse = Mouse.Default
+  Utils.db.Exec("UNLOCK TABLES")
+  If Start.son Then
+    Music.Play
   Endif
+  Message.Warning("Traitement terminé !", "OK")
+  code.SetFocus
+  code.Select
 
 End
 
@@ -505,26 +461,19 @@ End
 '********************************************************************
 Public Sub Change3()
 
-  Dim Tab1 As String
-  Dim Tab2 As String
-  Dim Tab3 As String
-  Dim rfam, r2Result As Result
+  Dim rfam As Result
 
   Tab = "CFamille"
-  Tab1 = "Fiches_Art"
-  Tab2 = "Fiches_HistoLigfac"
-  Tab3 = "Fiches_Ligbl"
   If listBart.Text Then
     Me.Mouse = Mouse.Wait
     rfam = Utils.db.Exec("SELECT * from  " & Tab & "")
     If rfam.Available Then
+      verrou
+      rfam.MoveFirst
       Repeat
-        Utils.db.Exec("UPdate  " & Tab1 & "  SET  art_fam = &2 where art_code = &1", rfam!codeart, rfam!nfam)
-        r2Result = Utils.db.Exec("SELECT * from  " & Tab2 & " where fam_ligfac = &1 ", rfam!afam)
-        If r2Result.Available Then Utils.db.Exec("UPdate  " & Tab2 & "  SET  fam_ligfac = &2 where fam_ligfac = &1", rfam!afam, rfam!nfam)
-        r2Result = Utils.db.Exec("SELECT * from  " & Tab3 & " where fam_ligbl = &1 ", rfam!afam)
-        If r2Result.Available Then Utils.db.Exec("UPdate  " & Tab3 & "  SET  fam_ligbl = &2 where fam_ligbl = &1", rfam!afam, rfam!nfam)
+        Modifart(rfam!codeart, rfam!nfam)
       Until rfam.MoveNext()
+      Utils.db.Exec("UNLOCK TABLES")
       Me.Mouse = Mouse.Default
       If Start.son Then
         Music.Play
@@ -545,6 +494,15 @@ Public Sub Change3()
 
 End
 
+Public Sub Modifart(numart As String, numfam As String)
+
+  Utils.db.Exec("UPdate  Fiches_Art  SET  art_fam = &2 where art_code = &1", numart, numfam)
+  Utils.db.Exec("UPdate Fiches_HistoLigfac  SET  fam_ligfac = &2 where code_ligfac = &1", numart, numfam)
+  Utils.db.Exec("UPdate Fiches_Ligbl  SET  fam_ligbl = &2 where code_ligbl = &1", numart, numfam)
+  Utils.db.Exec("UPdate  Fiches_LigblM SET  fam_ligbl = &2 where code_ligbl = &1", numart, numfam)
+  Utils.db.Exec("UPdate Fiches_HistoLigfacM  SET  fam_ligfac = &2 where code_ligfac = &1", numart, numfam)
+
+End
 Public Sub Liste_Click()
 
   Dim TabF As String = "CFamille"
@@ -554,12 +512,14 @@ Public Sub Liste_Click()
     Button9.visible = False
   Else
     Listbart.Visible = True
+    listBart.Text = ""
+    listBart.Raise
     Button9.Visible = True
     Try utils.db.Exec("DROP TABLE CFamille")
     Utils.db.Exec("CREATE Temporary TABLE " & TabF &
       "(codeart Char(15) Not Null, " &
       "afam Char(5)," &
-      "nfam Char(5)," &
+      "nfam Char(20)," &
       "PRIMARY KEY (codeart))" & "ENGINE = MYISAM")
 
   Endif
@@ -641,6 +601,7 @@ Public Sub Bouton2_Click()
 
   If Exist(filetxt) Then
     If message.question("Attention ! Vous allez changer les familles a partir du fichier : " & hText.Text & "\n Voulez-vous continuer ?", "Oui", "Non") = 1 Then
+      verrou
       hFile = Open Filetxt For Read
       While Not Eof(hFile)
         Line Input #hFile, Lig
@@ -654,15 +615,51 @@ Public Sub Bouton2_Click()
           Endif
           Message.Warning("La famille " & NFam.Text & " n'existe pas !" & "\nLe produit " & Code.Text & " ne sera pas traité.", "OK")
         Else
-          Change("Bouton2")
+          Modifart(lig2[0], lig2[1])
         Endif
       Wend
       hbutton3.Text = "Quitter"
+      Utils.db.Exec("UNLOCK TABLES")
       Message.Info("Traitement terminé.")
     Endif
   Else
     Message.Error("Fichier inexistant !")
   Endif
+
+End
+
+Public Function verifam(textfm As Textfamille) As Boolean
+  
+  Dim res As Result
+  
+  res = utils.db.Exec("SELECT * FROM Fiches_Fam WHERE code_fam = &1", textfm.Text)
+  If Not res.Available Then
+    Balloon.Delay = 4000
+    Balloon.Warning("Cette famille n'existe pas", textfm)
+    textfm.SetFocus
+    Return False
+  Endif
+  Return True
+End
+
+Public Function verifart() As Boolean
+
+  Dim res As Result
+  
+  res = utils.db.Exec("SELECT * FROM Fiches_Art WHERE art_code=&1", code.Text)
+  If Not res.Available Then
+    Balloon.Delay = 4000
+    Balloon.Warning("Cette article n'existe pas", code)
+    code.SetFocus
+    Return False
+  Endif
+
+  Return True
+End
+
+Public Sub verrou()
+
+  Utils.db.Exec("LOCK TABLES Fiches_Art WRITE, Fiches_HistoLigfac WRITE, Fiches_HistoLigfacM WRITE, Fiches_Ligbl WRITE, Fiches_LigblM WRITE")
 
 End
 
