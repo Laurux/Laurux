@@ -28,10 +28,10 @@ Public Sub Envoi(Email As String, sujet As String, Txt As String, piece As Boole
 
 End
 
-Public Sub Envoi2(Email As String, sujet As String, Corps As String, piece As String)
+Public Sub Envoi2(Email As String, sujet As String, Corps As String, piece As String, Optional piece2 As String)
 
-  If Not IsNull(Start.LocalSettings["/Soc" & Start.Societe & "/Prgmail"]) Then
-    Select Case Start.LocalSettings["/Soc" & Start.Societe & "/Prgmail"]
+  If Not IsNull(Settings["/Soc" & Start.Societe & "/Prgmail"]) Then
+    Select Case Settings["/Soc" & Start.Societe & "/Prgmail"]
       Case "Thunderbird"
         corps = Replace$(corps, ",", "%2C")
         corps = Replace$(corps, "\n", "%0A")
@@ -39,8 +39,11 @@ Public Sub Envoi2(Email As String, sujet As String, Corps As String, piece As St
         corps = Replace$(corps, ")", "}")
         corps = Replace$(corps, "'", " ")
         corps = Replace$(corps, ";", "%2C")
-        'Print "thunderbird -compose" & " \"" & "to=" & Email & ",subject=" & sujet & ",body=" & corps & ",attachment=" & piece & "\""
-        Shell "thunderbird -compose" & " \"" & "to=" & Email & ",subject=" & sujet & ",body=" & corps & ",attachment=" & piece & "\""
+        If Not IsNull(Piece2) Then
+          Shell "thunderbird -compose" & " \"" & "to=" & Email & ",subject=" & sujet & ",body=" & corps & ",attachment='" & piece & "," & Piece2 & "'\""
+        Else
+          Shell "thunderbird -compose" & " \"" & "to=" & Email & ",subject=" & sujet & ",body=" & corps & ",attachment=" & piece & "\""
+        Endif
 
       Case "Icedove"
         corps = Replace$(corps, ",", "%2C")
@@ -77,7 +80,7 @@ Public Sub Envoi3(Email As String, sujet As String, Corps As String, piece As St
         corps = Replace$(corps, ")", "}")
         corps = Replace$(corps, "'", " ")
         corps = Replace$(corps, ";", "%2C")
-        Shell "thunderbird -compose" & " \"" & "to=" & Email & ",subject=" & sujet & ",body=" & corps & ",attachment=" & "'" & piece & "," & piece2 & "'" & "\""
+        Shell "thunderbird -compose" & " \"" & "to=" & Email & ",subject=" & sujet & ",body=" & corps & ",attachment=" & "'" & piece & "'" & "\""
 
       Case "Icedove"
         corps = Replace$(corps, ",", "%2C")
@@ -89,7 +92,7 @@ Public Sub Envoi3(Email As String, sujet As String, Corps As String, piece As St
         Shell "icedove -compose" & " \"" & "to=" & Email & ",subject=" & sujet & ",body=" & corps & ",attachment=" & "'" & piece & "," & piece2 & "'" & "\""
 
       Case "Evolution"
-        Exec ["evolution", "mailto:" & Email & "?subject=" & sujet & "\\&body=" & corps & "\\&attach=" & piece & "," & piece2]
+        Exec ["evolution", "mailto:" & Email & "?subject=" & sujet & "\\&body=" & corps & "\\&attach=" & piece]
 
       Case "Kmail"
         Exec ["kmail -s " & sujet & "--attach " & piece & "--msg " & corps & " " & Email]
