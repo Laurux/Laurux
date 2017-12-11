@@ -114,7 +114,6 @@ Private $sreq As String
 Private $obs As Observer
 Private frais As String = "0"
 
-
 '**********************************************************
 '*initialisation écrans et gestion onglet client          *
 '**********************************************************
@@ -184,7 +183,7 @@ Public Sub _New()
   Endif
   datej.SelectAll
   Datej.SetFocus
-  
+
   If $soption = "B" Or $soption = "T" Then Panel2.Visible = True
   combregr.Add("Sans")
   combregr.Add("Décade")
@@ -212,6 +211,7 @@ Public Sub _New()
   $obs = New Observer(datej) As "dte"
   $obs = New Observer(datei) As "dte"
   $obs = New Observer(dtef) As "dte"
+
 End
 
 '**************************
@@ -327,8 +327,8 @@ Public Sub recup_bl()
       If (orientation And Combotyp.Current.Text = "Autres") Or (Not orientation And Combotyp.Current.Text = "Boissons") Then
         supclient(Colbl.Item[0], Colbl.Item[1])
       Endif
-   Until Colbl.MoveNext()
-   affclient
+    Until Colbl.MoveNext()
+    affclient
   Endif
 
 End
@@ -374,6 +374,7 @@ Public Sub Colbl_Keypress()
     supclient(sclient, nmclient)
     affclient
   Endif
+
 End
 
 Public Sub supclient(sclient As String, nmclient As String)
@@ -382,7 +383,6 @@ Public Sub supclient(sclient As String, nmclient As String)
   Dim Tab3 As String = "Facturefm"
   Dim Tab4 As String = "Bl"
 
-  
   If Divers.value Then
     Utils.db.Exec("delete from " & Tab3 & " WHERE code = &1 and nom = &2", sclient, nmclient)
     Utils.db.Exec("delete from " & Tab4 & " WHERE code = &1 and nom = &2", sclient, nmclient)
@@ -390,13 +390,13 @@ Public Sub supclient(sclient As String, nmclient As String)
     Utils.db.Exec("delete from " & Tab3 & " WHERE code = &1 ", sclient)
     Utils.db.Exec("delete from " & Tab4 & " WHERE code = &1 ", sclient)
   Endif
-  
+
 End
 
 Public Sub affclient()
 
   Dim client As Result
-  
+
   Colbl.Clear
   Coldetail.Clear
   Client = Utils.db.Exec("SELECT * FROM Facturefm order by nom")
@@ -565,7 +565,7 @@ Public Sub requete()          'construction de la requete sql
   Dim bcond As Boolean
   Dim d As Integer
   Dim dte As Date
-  
+
   'gestion des dates
   dteN = Right$(datej.Text, 4) & Mid$(datej.Text, 4, 2) & Left$(datej.Text, 2)
   If combregr.Current.Text = "Sans" Then
@@ -602,6 +602,7 @@ Public Sub requete()          'construction de la requete sql
   If Combocom.Current.Text <> "Tous" Then
     $sreq &= utils.db.Subst(" AND cli_comm=&1", Left(Combocom.Current.Text, 2))
   Endif
+
 End
 
 Public Sub Button5_Click()
@@ -745,6 +746,7 @@ Public Sub Button14_Click()
   If Not liste Then
     If visudoc = False Then Button14.Enabled = False
     Visudoc = False
+    Colbl.MoveFirst()
     If Val(Colbl.item[5]) <> 0 Then
       If Rgmt.Value = True And IsNull(Rglt2.Text) And Not IsNull(Regmt.text) Then
         If IsNull(rglt.text) Then rglt.text = "0,00"
@@ -802,10 +804,14 @@ Public Sub controleMail()
 
 End
 
+'*********************************** On gère l'envoi du document par mail *******************************************
+
 Public Sub Env_Mail()
 
   Dim sText As String
-  Dim sText2 As String
+  Dim sText2, chemin As String
+  Dim piece As String[]
+  Dim intitule As String = Start.LocalSettings["/intitule"]
 
   With Utils
     sText = "Facture"
@@ -818,12 +824,15 @@ Public Sub Env_Mail()
         sText = "Votre " & sText
       Else
         sText &= " No " & Numerofac & " du " & Dtef.Text
-        Stext2 = "Bonjour,\n\nVeuillez trouver ci-joint " & sText & "" & "\n\n" & "\n\nCordialement.\n"
+        Stext2 = "Bonjour,\n\nVeuillez trouver ci-joint votre " & sText & "" & "\n\n" & "\n\nCordialement.\n\n" & intitule
         sText = "Votre " & sText
       Endif
       Me.mouse = Mouse.Wait
       Wait 0.5
-      EnvMail.Envoi2(scourriel, stext, sText2, spiece)
+      'EnvMail.Envoi2(scourriel, stext, sText2, spiece)
+      piece = Split(spiece, "/")
+      spiece = piece[piece.count - 1]
+      EnvMail.Envoi(scourriel, stext, sText2, True, Copie.schemin, "application/pdf", spiece)
       Wait 0.5
       Me.mouse = Mouse.Default
     Else
@@ -899,7 +908,6 @@ Public Sub Impression()
   Dim borientation As Boolean = False
   Dim ccd As Calculconsdroit
   Dim ftottva As Float
-
 
   P = 31
   Pge = 1
@@ -985,7 +993,7 @@ Public Sub Impression()
           Else
             pdf = New Cdocuments("Portrait", "mm", "A4")
           Endif
-          
+
           pdf.Open()
           pdf.AliasNbPages()
           If borientation Then pdf.SetMargins(10, 2)
@@ -995,7 +1003,7 @@ Public Sub Impression()
           numbl = Utils.db.Exec("SELECT * FROM " & tab0 & " where cdclibl = &1 order by numbl", Colbl.Item[0])
           If numbl.Count <> 0 Then
             Ventilation()
-            If borientation Then 
+            If borientation Then
               ccd = New Calculconsdroit(Colbl.Item[0], "FM")
               ccd.comptmat(Right$(dtef.Text, 4) & Nfac)
             Endif
@@ -1012,7 +1020,7 @@ Public Sub Impression()
           ' On calcule le nombre de pages
           P = 31
           If Rcp.Value = False And Pied.Value = False Then p = 34
-          If borientation Then 
+          If borientation Then
             If ccd.nbdecons > 0 Then cptlig += ccd.nbdecons + 1
             P = 16
           Endif
@@ -1171,18 +1179,18 @@ Public Sub Impression()
                   Toteuros = Val(.cpoint(Toteuros)) + Val(.cpoint(Bl!ht))
                   Ligbl = Utils.db.Exec("SELECT * FROM " & tab1 & " where num_ligbl = &1", Bl!num)
                   If Ligbl.Count <> 0 Then
-                    If Not borientation Then 
+                    If Not borientation Then
                       If coln.Value Then pdf.Colonnes(PosY)
                       PosY = PosY + 4
                       If coln.Value Then pdf.Colonnes(PosY)
-                      Else
-                        If coln.Value Then pdf.Colonnes(PosY - 6)
+                    Else
+                      If coln.Value Then pdf.Colonnes(PosY - 6)
                     Endif
                     intituleb = "Bon n° " & numbl!numbl & " du " & .Cdate_Aff(numbl!datebl)
                     pdf.Level4bF(intituleb, PosY)
                     PosY = PosY + 4
                     If borientation Then nbl += 1 Else Nbl = Nbl + 2
-                    Repeat                    'boucle sur ligne de bl pour 1 bl 
+                    Repeat                    'boucle sur ligne de bl pour 1 bl
                       code = Ligbl!code_ligbl
                       intitule = Ligbl!libel_ligbl
                       Txtva = Ligbl!tx_ligbl
@@ -1429,7 +1437,7 @@ Public Sub Impression()
               pdf.Level7F(Coulfond, PosY, "", "", "")
               PosY = PosY + 5
               Calc_tva(borientation)
-              Utils.db.Exec("INSERT INTO " & Tab10 & "(compte, intitule, totalht, codetva) VALUES (&1, &2, &3, &4)", Colbl.Item[0], nom, Mttc, "")
+              Utils.db.Exec("INSERT INTO " & Tab10 & "(compte, intitule, totalht, codetva) VALUES (&1, &2, &3, &4)", Colbl.Item[0], nom, Mttc, " ")
               Verif_solde()
               Nfac = numerofac
               Maj_Compta()
@@ -1471,7 +1479,8 @@ Public Sub Impression()
             Copie.Dupli(User.Home & "/tmp/Facture.pdf", "/Impressions", ty, dtef.Text)
           Endif
           sPiece = Copie.spiece
-          If ExpMail.value Then Env_Mail()
+          If ExpMail.value And Not IsNull(sPiece) Then Env_Mail()
+          If ExpMail.value And IsNull(sPiece) Then Message.Info("Envoi impossible, chemin PDF non renseigné!")
           Nbl = 0
           P = 31
           Inc nbfac
@@ -1557,7 +1566,7 @@ Public Sub Ventilation()
     "intitule Char(40)," &
     "totalht Char(25)," &
     "totaltva Char(25)," &
-    "codetva Char(2)," &
+    "codetva Char(2) not NULL," &
     "PRIMARY KEY (compte,codetva))" & "ENGINE = MYISAM")
 
 End
@@ -2472,7 +2481,7 @@ End
 Public Sub Buttour_Click()
 
   Dim rtour As Rechtour
-  
+
   rtour = New Rechtour As "tourne"
   rtour.Showmodal
 
