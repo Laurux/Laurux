@@ -5258,7 +5258,7 @@ Public Sub Art_KeyPress()
       $lcom.Y = Screen.AvailableHeight - 100
       $lcom.Show
     Endif
-    If Key.Code = 65 Then
+    If Key.Code = 65 Then 'CTRL+a
       Try $lcart.Close
       Try $lcom.Close
       $lcart = New Listecom(Code.Text, cart.Text)
@@ -5456,7 +5456,7 @@ Public Sub Art_KeyPress()
 
   If key.Code = key.F4 Then
     ChkFocus = 2
-    If Not Start.LocalSettings["/Soc" & Start.Societe & "/AffFacture"] Then Articles.ShowModal()
+    Articles.ShowModal()
     Chkfocus = 0
     Recup_type()
     Stop Event
@@ -8222,10 +8222,16 @@ Public Sub Coldetail_Keypress()
             l = Left$(Coldetail.Key, 4)
             Bloc = Coldetail.current[16 + i]
             If Coldetail.current[9 + i] = "A" Or If Coldetail.current[9 + i] = "C" Or If Coldetail.current[9 + i] = "O" Or If Coldetail.current[9 + i] = "R" Or If Coldetail.current[9 + i] = "T" Then
-              If Coldetail.current[9 + i] = "T" And Left$(Coldetail.current[2], 16) = "Numero de série" Then
+              If Coldetail.current[9 + i] = "A" Then
+                Coldetail.movenext()
+                Coldetail.item.Selected = True
+              Endif
+              If Coldetail.current[9 + i] = "T" And Left$(Coldetail.current[2], 17) = "Numéro de série" Then
                 Materiel = Utils.db.Exec("SELECT * FROM " & tabmat & " WHERE mat_serie = &1", Coldetail.current[1])
                 If Materiel.Available Then Utils.db.Exec("Update " & tabmat & " set mat_vendu = &1, mat_cli = &3 where mat_serie = &2", 0, Coldetail.current[1], "")
               Endif
+              Coldetail.MovePrevious()
+              Coldetail.item.Selected = True
               If Coldetail.current[9 + i] = "A" Or If Coldetail.current[9 + i] = "C" Or If Coldetail.current[9 + i] = "O" Or If Coldetail.current[9 + i] = "R" Then
                 Utils.db.Exec("DELETE FROM " & Cbase.Table("TabLigbl") & " where block_ligbl = &1 and num_ligbl = &2", bloc, num2.Text)
                 If i <> 0 Then $opt.suplig(num2.Text, Coldetail.current[0])
@@ -10648,12 +10654,12 @@ Public Sub Impression(Org As String)
                         pu = Round(Val(pu))
                         pu = Format$(Val(pu), "0")
                       Endif
-                      If impref And Tp = "D" Then code = ""
                       If Not IsNull(Coldetail.current[21 + i]) Then
                         Codi = Coldetail.current[21 + i]
                       Else
                         Codi = Code
                       Endif
+                      If impref And Tp = "D" Then codi = ""
                       If Blch.Value = True And Not impdclient Then
                         If BlA5.Value And Not Bfac.value Then
                           pdf2.Level3F(codi, intitule, Pu, qte, Brutht, Rem, Totalht, Txtva, PosY)
@@ -13999,8 +14005,8 @@ Public Sub Envoi()
           If Not IsNull(Colis) Then Colis = Settings["/Soc" & Start.Societe & "/Bexpchemin"] & "/" & Colis
           If impdclient Then scourriel = ""
           If Not impdclient And Not IsNull(variables.sTexte) Then sText = "Votre " & sText & " No " & ty & " du " & Dtef.Text
-          If Not IsNull(Colis) Then 
-          EnvMail.Envoi2(scourriel, stext, sText2, spiece, Colis)
+          If Not IsNull(Colis) Then
+            EnvMail.Envoi2(scourriel, stext, sText2, spiece, Colis)
           Else
             EnvMail.Envoi2(scourriel, stext, sText2, spiece)
           Endif
@@ -14017,7 +14023,8 @@ Public Sub Envoi()
     Endif
 
   End With
-Utils.db.Exec("UNLOCK TABLES")
+  Utils.db.Exec("UNLOCK TABLES")
+
 End
 
 '******************************* Gestion du gridview Colbl ***************************************
