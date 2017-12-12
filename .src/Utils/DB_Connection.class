@@ -241,7 +241,6 @@ Public Sub Is_Filtered(FilterName As String, Request As String) As Boolean
 End
 
 
-
 Public Sub Exec(Request As String, ...) As Result 
   
   Dim rResult As Result
@@ -265,7 +264,7 @@ Public Sub Exec(Request As String, ...) As Result
     'Seul moyen trouvé pour executer une fonction a arg variable depuis une fonction a arg variable
     Request = Object.Call(Me, "Subst", aArg)
   Endif
- 
+
   If Is_Filtered("Exec_SQL", Request) = True Then
     Backtrace = System.Backtrace
     Backtrace.Extract(Backtrace.Length - 1, -1)
@@ -276,6 +275,72 @@ Public Sub Exec(Request As String, ...) As Result
   'Une fois logger on execute la requete
   If Utils.db.Opened = True Then
     rResult = Super.Exec(Request)
+    Return rResult
+  Else
+    'Message.Error("La connection a la Base de donnée est inexistante, Vérifier vos paramètres d'accès.") 
+    Return Null
+  Endif
+
+End
+
+
+Public Sub Create(Table As String) As Result 
+  
+  Dim rResult As Result
+  Dim Backtrace As String[]
+
+  If Is_Filtered("Exec_SQL", "Create " & Table) = True Then
+    Backtrace = System.Backtrace
+    Backtrace.Extract(Backtrace.Length - 1, -1)
+    Backtrace.Extract(0, 1)
+    log.Log("Exec_SQL;" & user_name & ";" & host_id & ";" & machine_id & ";" & process_id & ";" & Backtrace.Join(",") & ";" & "Create " & Table)
+  Endif
+
+  'Une fois logger on execute la requete
+  If Utils.db.Opened = True Then
+    rResult = Super.Create(Table)
+    Return rResult
+  Else
+    'Message.Error("La connection a la Base de donnée est inexistante, Vérifier vos paramètres d'accès.") 
+    Return Null
+  Endif
+
+End
+
+Public Sub Edit(Table As String, Request As String, ...) As Result 
+  
+  Dim rResult As Result
+  Dim aArg As Variant[]
+  Dim oneArg As Variant
+  Dim Backtrace As String[]
+  Dim iInd As Integer
+
+  'This should work but it doen't because Param is a class... not a Argument Array.
+  'rResult = Super.Exec(Request, Param)
+  'Workaround below
+
+  If Param.Count Then
+    aArg = New Variant[Param.Count + 1]
+    aArg[0] = Request
+    iInd = 1
+    For Each oneArg In Param
+      aArg[iInd] = oneArg
+      iInd += 1
+    Next
+    'Seul moyen trouvé pour executer une fonction a arg variable depuis une fonction a arg variable
+    Request = Object.Call(Me, "Subst", aArg)
+  Endif
+
+  If Is_Filtered("Exec_SQL", "Edit " & Table & " : " & Request) = True Then
+    Backtrace = System.Backtrace
+    Backtrace.Extract(Backtrace.Length - 1, -1)
+    Backtrace.Extract(0, 1)
+    log.Log("Exec_SQL;" & user_name & ";" & host_id & ";" & machine_id & ";" & process_id & ";" & Backtrace.Join(",") & ";" & "Edit " & Table & " : " & Request)
+  Endif
+
+  'Une fois logger on execute la requete
+  If Utils.db.Opened = True Then
+    rResult = Super.Edit(Table, Request)
     Return rResult
   Else
     'Message.Error("La connection a la Base de donnée est inexistante, Vérifier vos paramètres d'accès.") 
