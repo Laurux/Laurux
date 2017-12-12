@@ -113,6 +113,7 @@ Public Sub Livre_caisse()
   Dim sqte As String
   Dim totcaisse As String = 0
   Dim totventes As String = 0
+  Dim totboncaisse As String = 0
   Dim Fdc As String = "0"
   Dim Totnbtck As Integer = 0
   Dim Pnm, itva As Float = 0
@@ -148,8 +149,10 @@ Public Sub Livre_caisse()
           pdf.newPage()
           Totnbtck = rTkx.count
           If rTkx.Available Then
-            Repeat
-              If rTkx!savoir = 1 Then
+            Repeat 
+              If rTkx!type = 1 Then
+                Try totboncaisse = Val(.cpoint(totboncaisse)) + Val(.cpoint(rTkx!mttc))
+              Else If rTkx!savoir = 1 Then
                 Try totventes = Val(.cpoint(Totventes)) - Val(.cpoint(rTkx!mttc))
               Else
                 Try totventes = Val(.cpoint(Totventes)) + Val(.cpoint(rTkx!mttc))
@@ -163,7 +166,7 @@ Public Sub Livre_caisse()
           Posy += 8
           pdf.Lines2(Posy)
           Posy += 5
-          rTkhv = Utils.db.Exec(" select * from " & Tabr & " where caisse = &1 order by type", Ncaisse)
+          rTkhv = Utils.db.Exec(" select * from " & Tabr & " where caisse = &1 and left(date,10) = &2 order by type", Ncaisse, Format$(DateChooser1.Value, "dd-mm-yyyy"))
           If rTkhv.Available Then
             'Posy += 5
             'Pdf.Level3(sIntitule, Posy)
@@ -228,7 +231,11 @@ Public Sub Livre_caisse()
             Until rTkhv.MoveNext()
           Endif
           Posy += 5
-          pdf.Level2("Total ventes ", Format$(Val(.cpoint(Totventes)), "0.00"), "", Posy)
+          pdf.Level2("Total ventes (hors clients compte)", Format$(Val(.cpoint(Totventes)), "0.00"), "", Posy)
+          Posy += 5
+          pdf.Lines2(Posy)
+          Posy += 5
+          pdf.Level2("Total bons de caisse ", Format$(Val(.cpoint(totboncaisse)), "0.00"), "", Posy)
           Posy += 5
           pdf.Lines2(Posy)
           Posy += 5
@@ -236,19 +243,6 @@ Public Sub Livre_caisse()
           Posy += 5
           pdf.Lines2(Posy)
           Posy += 5
-          rTkx = Utils.db.Exec(" select * from " & Tabe & " where type = &1", "1")
-          If rTkx.Available Then
-            totventes = 0
-            Repeat
-              Try totventes = Val(.cpoint(Totventes)) + Val(.cpoint(rTkx!mttc))
-            Until rTkx.MoveNext()
-            Posy += 5
-            pdf.Level2("Total bons de caisse ", Format$(Val(.cpoint(Totventes)), "0.00"), "", Posy)
-            Posy += 5
-            pdf.Lines2(Posy)
-            Posy += 5
-          Endif
-          pdf.Lines2(Posy)
           pdf.Level2("Nombre de tickets :", Totnbtck, "", Posy)
           Posy += 5
           Try Pnm = Totventes / Totnbtck
@@ -257,9 +251,10 @@ Public Sub Livre_caisse()
           Posy += 5
           pdf.Lines2(Posy)
           Posy += 5
-          rttva = Utils.db.Exec("select * from  " & Tabl & " WHERE left(intitule,3) = &1 order by intitule", "TVA")
+          'Recapitulatif TVA sur les ticket avec un encaissement
+          rttva = Utils.db.Exec("select * from  " & Cbase.Table("TabLigTck") & " as l inner join " & Cbase.Table("TabEntTck") & " as e on e.numero = l.numero WHERE left(intitule,3) = &1 and e.type = &2 and e.suppr = &3 and e.caisse = &4 and left(e.date,10) = &5 order by intitule", "TVA", 0, 0, Ncaisse, Format$(DateChooser1.Value, "dd-mm-yyyy"))
           If rttva.Available Then
-            pdf.Level2("Récapitulatif TVA", "", "", Posy)
+            pdf.Level2("Recapitulatif TVA (sur encaissement)", "", "", Posy)
             Posy += 5
             tintitule = rttva!intitule
             Repeat
@@ -268,13 +263,26 @@ Public Sub Livre_caisse()
                 Posy += 5
                 itva = 0
               Endif
-              itva = itva + Val(utils.cpoint(rttva!montant))
+              Try itva = itva + Val(utils.cpoint(rttva!montant))
               tintitule = rttva!intitule
+              If posy > 260 Then
+                pdf.Baspage()
+                pdf.newPage
+                Posy = 5
+              Endif
             Until rttva.MoveNext()
             pdf.Level2(Tintitule, itva, "", Posy)
             Posy += 5
             pdf.Lines2(Posy)
           Endif
+          rTkx = Utils.db.Exec(" select * from Fiches_Caisses where code = &1", Ncaisse)
+          'pdf.Level2("Total période (sur encaissement)", Format$(Val(.cpoint(rTkx!fndtotp)), "0.00"), "", Posy)
+          ' Posy += 5
+          ' pdf.Lines2(Posy)
+          pdf.Level2("Total général (sur encaissement)", Format$(Val(.cpoint(rTkx!fndtotg)), "0.00"), "", Posy)
+          Posy += 5
+          pdf.Lines2(Posy)
+
           Try rTkx = Utils.db.Exec(" select * from " & Tabz & " order by fam")
           If Not Error Then
             sqte = "0,00"
