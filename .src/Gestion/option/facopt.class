@@ -638,7 +638,11 @@ Public Function majlig(num As String, numlig As String, textpal As String, textc
   
   If $bimp Then Return 0
   Utils.db.Begin
-  Utils.db.Delete("Fiches_ligcons", "num=&1 AND numlig=&2", num, num & numlig)
+  Utils.db.Exec("DELETE FROM Fiches_ligcons WHERE num=&1 AND numlig=&2", num, num & numlig)
+  
+  If textpal = "-" Then textpal = ""
+  If textcol = "-" Then textcol = ""
+  If artqte = "-" Then artqte = ""
   
   resbl = Utils.db.Exec("SELECT * FROM Fiches_Ligbl WHERE num_ligbl=&1 and numlig_ligbl=&2", num, numlig)
   resart = Utils.db.Exec("SELECT art_consp, art_consc, art_consb FROM Fiches_Art WHERE art_code=&1", resbl!code_ligbl) 
@@ -696,15 +700,19 @@ Public Sub copdecons(numfac As String, numbl As String)
 
   Dim resbl, resfac As Result
   
-  resfac = Utils.db.Exec("SELECT * FROM Fiches_Ligbl WHERE num=&1 AND numlig='D'", numfac)
+  resfac = Utils.db.Exec("SELECT * FROM Fiches_ligcons WHERE num=&1 AND numlig='D'", numfac)
   If resfac.Available Then
     resfac.MoveFirst
     Utils.db.Begin
     Repeat
       resbl = Utils.db.Create("Fiches_ligcons")
-      resbl = resfac
+      resbl!type = "B"
+      resbl!codecons = resfac!codecons
+      resbl!nb = resfac!nb * -1
+      resbl!montant = resfac!montant * -1
+      resbl!envaleur = resfac!envaleur
       resbl!num = numbl
-      resbl!numlig = numbl & Right(resbl!numlig, 4)
+      resbl!numlig = "D"
       resbl.Update
     Until resfac.MoveNext()
     Utils.db.Commit
@@ -723,9 +731,9 @@ Public Sub deplig(num As String, numlig As String, numlig1 As String)
   Dim res, resp, ress As Result
   Dim i As Integer
   'si la ligne suivante ou précedante n'existe pas ==> retour
-  res = Utils.db.Exec("SELECT * FROM Fiches_Ligbl WHERE num_ligbl=&1 AND numlig_ligbl=&2", num, num & numlig)
+  res = Utils.db.Exec("SELECT * FROM Fiches_Ligbl WHERE num_ligbl=&1 AND numlig_ligbl=&2", num, numlig)
   If Not res.Available Then Return
-  res = Utils.db.Exec("SELECT * FROM Fiches_Ligbl WHERE num_ligbl=&1 AND numlig_ligbl=&2", num, num & numlig1)
+  res = Utils.db.Exec("SELECT * FROM Fiches_Ligbl WHERE num_ligbl=&1 AND numlig_ligbl=&2", num, numlig1)
   If Not res.Available Then Return
   'lectue des lignes de consigne pour renum
   Utils.db.Begin

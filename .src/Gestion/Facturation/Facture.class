@@ -667,6 +667,9 @@ Public Sub CleanChamps()
   Bprof.Enabled = True
   BFac.Enabled = True
   BFacA.Enabled = True
+  Textfrais.Text = "0,00"
+  Textto1.Clear
+  If $soption = "P" Or $soption = "T" Then Texttr1.Clear
 
 End
 
@@ -1922,12 +1925,7 @@ Public Sub ColblSelection(bright As Boolean)
             Code.ReadOnly = False
             'Code.Background = Color.TextBackground
           Endif
-          If $soption = "B" Or $soption = "T" Then
-            $opt.imprime = Impfac
-            $opt.numbl = $numbl
-            res = utils.db.Exec("SELECT cli_cons FROM Fiches_Cli WHERE cli_code=&1", code.Text)
-            If res.Available Then $opt.clicons = res!cli_cons
-          Endif
+
           Cv.Text = rResult!cvclibl
           Nom.text = rResult!nmclibl
           Code3.Text = Code.Text
@@ -1956,7 +1954,7 @@ Public Sub ColblSelection(bright As Boolean)
           Adr2.text = rResult!adr2bl
           Cp.Text = rResult!cpbl
           Burd.text = rResult!villebl
-          res = utils.db.Exec("SELECT * FROM Fiches_Ligbl WHERE num_ligbl=&1 AND typel_ligbl='A' LIMIT 1", code.Text)
+          res = utils.db.Exec("SELECT * FROM Fiches_Ligbl WHERE num_ligbl=&1 AND typel_ligbl='A' LIMIT 1", $numbl)
           If res.Available Then
             Textto1.Text = res!tour_ligbl
             If $soption = "P" Or $soption = "T" Then
@@ -1964,7 +1962,7 @@ Public Sub ColblSelection(bright As Boolean)
             Endif
           Endif
           Textfrais.Text = "0,00"
-          Try Textfrais.Text = Format(rResult!gestbl, "0.00")
+          Textfrais.Text = Format(utils.totobs([rResult!gestbl]), "0.00")
           If rResult!acpt = "" Then
             Acpt.Text = "0,00"
           Else
@@ -2027,8 +2025,13 @@ Public Sub ColblSelection(bright As Boolean)
           Try Telport.Text = rResult!tel
           Try Courriel.Text = rResult!email
         Endif
+          If $soption = "B" Or $soption = "T" Then
+            $opt.imprime = Impfac
+            $opt.numbl = $numbl
+          Endif
         rResult = Utils.db.Exec("select * from " & Cbase.Table("TabCli") & " where cli_code = &1", Code.text)
         If rResult.Available Then
+          If $soption = "B" Or $soption = "T" Then $opt.clicons = rResult!cli_cons
           Pays = rResult!cli_pays
           telbur.Text = rResult!cli_tel_bur
           Teldom.text = rResult!cli_tel_dom
@@ -2253,7 +2256,7 @@ Public Sub Recup_ligbl()
                           Case "C"
                             Coldetail.Item[5] = Str(reslig!nb)
                         End Select
-                        Coldetail.Item[22 + i] = reslig!envaleur
+                        Coldetail.Item[23 + i] = reslig!envaleur
                       Endif
                       reslig.MoveNext
                     Next
@@ -2293,6 +2296,10 @@ Public Sub Recup_ligbl()
                   Endif
                   Coldetail.item[18 + i] = Rligbl!mrgart_ligbl
                   Coldetail.item[21 + i] = Rligbl!refl_ligbl
+                  Coldetail.Item[22 + i] = Rligbl!tour_ligbl
+                  If $soption = "P" Or $soption = "T" Then
+                    Coldetail.Item[24 + i] = Rligbl!tipp_ligbl
+                  Endif
                   If Not IsNull(Rligbl!mrgart_ligbl) Then Mrgart = Mrgart + Rligbl!mrgart_ligbl
                 Endif
                 If Rligbl!typel_ligbl = "M" Then
@@ -2426,7 +2433,7 @@ Public Sub calculfindoc()
 
   If $soption = "B" Or $soption = "T" Then
     Totht1.Text = Format(utils.totobs([Totht1.Text, $opt.texttotcons.Text, $opt.texttotdeco.Text, $opt.texttotdr.Text, $opt.texttotss.Text]), "0.00")
-    Totva1.Text = Str(Val(Totva1.Text) + $opt.tvadroit)
+    Totva1.Text = Format$(Utils.totobs([Totva1.Text]) + $opt.tvadroit, "0.00")
     Tottc1.Text = Format(utils.totobs([Totht1.Text, Totva1.Text]), "0.00")
   Endif
 
@@ -8036,11 +8043,13 @@ Public Sub Coldetail_Activate()
           ArtFour.Text = Coldetail.current[20 + i]
           Refl = Coldetail.current[21 + i]
           PdxArt.Text = Coldetail.current[17 + i]
+          Textto1.Text = Coldetail.Current[22 + i]
+          If $soption = "P" Or $soption = "T" Then Texttr1.Text = Coldetail.Current[23 + i]
           If i <> 0 Then
             $textpal.Text = Coldetail.Current[4]
             $textcol.Text = Coldetail.Current[5]
             '            $checcons.Value = Coldetail.Current[22 + i]
-            If Coldetail.Current[22 + i] = "T" Then $checcons.Value = True Else $checcons.Value = False
+            If Coldetail.Current[23 + i] = "T" Then $checcons.Value = True Else $checcons.Value = False
           Endif
           Nlgn = Nlgart.text
           Artdsg.Select
@@ -8196,6 +8205,7 @@ Public Sub Coldetail_Keypress()
   Dim Prod As Boolean = False
   Dim skey As String
   Dim i As Integer
+  Dim nlig As String
 
   If $soption = "B" Or $soption = "T" Then i = 2 Else i = 0
   Tabmat = "Fiches_Materiels"
@@ -8306,7 +8316,6 @@ Public Sub Coldetail_Keypress()
 
     ' On appuie sur la touche - pour faire remonter
     If key.code = 45 Then
-      If i <> 0 Then $opt.deplig(Num2.Text, Coldetail.Current[0], Format(Val(Coldetail.Current[0]) - 1, "0000 "))
       skey = Coldetail.Key
       l = Left$(Coldetail.Key, 4)
       l5 = l
@@ -8317,6 +8326,10 @@ Public Sub Coldetail_Keypress()
         Coldetail.MoveTo(skey)
         Try Coldetail.item.Selected = True
         If Val(l) > 1 Then
+          If i <> 0 Then 
+            nlig = Format(Val(Coldetail.Current[0]) - 1, "0000")
+            $opt.deplig(Num2.Text, nlig, Coldetail.Current[0])
+          Endif
           ' On recupere le numero du bloc précédent ainsi que le type de ligne
           Do While Coldetail.current[16 + i] = Bloc
             Coldetail.MovePrevious()
@@ -8405,10 +8418,13 @@ Public Sub Coldetail_Keypress()
 
     ' On appuie sur la touche + pour faire descendre
     If Key.Code = 43 Then
-      If i <> 0 Then $opt.deplig(Num2.Text, Coldetail.Current[0], Format(Val(Coldetail.Current[0]) + 1, "0000 "))
       skey = Coldetail.Key
       l = Left$(Coldetail.Key, 4)
       l5 = l
+      If i <> 0 Then
+        nlig = Format(Val(Coldetail.Current[0]) + 1, "0000")
+        $opt.deplig(Num2.Text, nlig, Coldetail.Current[0])
+      Endif
       Bloc = Coldetail.current[16 + i]
       Prod = Rprodcomposes(Prod)
       If Prod = False Then
@@ -8638,7 +8654,7 @@ Public Sub Dupli3()
           Utils.db.Exec("INSERT INTO " & Tab & "(num_ligbl, numlig_ligbl, code_ligbl,  libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl, mrgart_ligbl, mrgmo_ligbl, pdstotal_ligbl, tm_ligbl, four_ligbl, refl_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21})", numbon, Format$(Nligne, "0000"), Coldetail.current[1], Coldetail.current[2], Coldetail.current[13 + i], Coldetail.current[3], Coldetail.current[4 + i], Coldetail.current[5 + i], Coldetail.current[6 + i], Coldetail.current[7 + i], Coldetail.current[12 + i], Coldetail.current[8 + i], Coldetail.current[9 + i], Coldetail.current[14 + i], Format$(Nligne, "0000"), Coldetail.current[18 + i], Coldetail.current[19 + i], Coldetail.current[17 + i], lt, Coldetail.current[20 + i], Coldetail.current[21 + i])
 
           If $soption = "B" Or $soption = "T" Then
-            $opt.majlig(numbon, Format$(Nligne, "0000"), Coldetail.Current[4], Coldetail.Current[5], Coldetail.Current[4 + i], Coldetail.Current[22 + i])
+            $opt.majlig(numbon, Format$(Nligne, "0000"), Coldetail.Current[4], Coldetail.Current[5], Coldetail.Current[4 + i], Coldetail.Current[23 + i])
           Endif
           If Coldetail.current[9 + i] = "A" Then
             If Bbon.value Or If BFac.Value Then
@@ -8809,14 +8825,15 @@ Public Sub Enrg_LigArt()
     If Cart.Text <> "" Or typeL = "E" Or typeL = "P" Or typeL = "D" Then
       rResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE num_ligbl = &1 and numlig_ligbl = &2", num.text, Nlgart.text)
       If rResult.Available Then
-        Utils.db.Exec("UPDATE  " & tab & "  SET  num_ligbl = &1 , numlig_ligbl = &2 , code_ligbl = &3, libel_ligbl = &4, fam_ligbl = &5, pu_ligbl = &6, qte_ligbl = &7, brut_ligbl = &8, rem_ligbl = &9, netht_ligbl = &{10}, tx_ligbl = &{11}, nettc_ligbl = &{12}, typel_ligbl = &{13}, dec_ligbl = &{14}, pdstotal_ligbl = &{15}, mrgart_ligbl = &{16}, four_ligbl = &{17}, refl_ligbl = &{18} WHERE num_ligbl = &1 and numlig_ligbl = &2", num.Text, Nlgart.Text, Cart.Text, Artdsg.Text, ArtFam.Text, Artpu.Text, Artqte.Text, Artbrut.Text, rm, Artnet.Text, Arttx.Text, Arttc.Text, typeL, Dec.Text, Val(Pdxart.text), .PointBase(Marge.Text), ArtFour.Text, Refl)
+        Utils.db.Exec("UPDATE  " & tab & "  SET  num_ligbl = &1 , numlig_ligbl = &2 , code_ligbl = &3, libel_ligbl = &4, fam_ligbl = &5, pu_ligbl = &6, qte_ligbl = &7, brut_ligbl = &8, rem_ligbl = &9, netht_ligbl = &{10}, tx_ligbl = &{11}, nettc_ligbl = &{12}, typel_ligbl = &{13}, dec_ligbl = &{14}, pdstotal_ligbl = &{15}, mrgart_ligbl = &{16}, four_ligbl = &{17}, refl_ligbl = &{18}, tour_ligbl = &{19} WHERE num_ligbl = &1 and numlig_ligbl = &2", num.Text, Nlgart.Text, Cart.Text, Artdsg.Text, ArtFam.Text, Artpu.Text, Artqte.Text, Artbrut.Text, rm, Artnet.Text, Arttx.Text, Arttc.Text, typeL, Dec.Text, Val(Pdxart.text), .PointBase(Marge.Text), ArtFour.Text, Refl, Texttr1.Text)
       Else
-        Utils.db.Exec("INSERT INTO " & tab & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl, pdstotal_ligbl, mrgart_ligbl, four_ligbl, refl_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19})", num.Text, Nlgart.Text, Cart.Text, Artdsg.Text, ArtFam.Text, Artpu.Text, .PointBase(Artqte.Text), Artbrut.Text, rm, Artnet.Text, Arttx.Text, Arttc.Text, typeL, Dec.Text, Bloc, Val(Pdxart.text), .PointBase(Marge.Text), ArtFour.Text, Refl)
+        Utils.db.Exec("INSERT INTO " & tab & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl, pdstotal_ligbl, mrgart_ligbl, four_ligbl, refl_ligbl,tour_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20})", num.Text, Nlgart.Text, Cart.Text, Artdsg.Text, ArtFam.Text, Artpu.Text, .PointBase(Artqte.Text), Artbrut.Text, rm, Artnet.Text, Arttx.Text, Arttc.Text, typeL, Dec.Text, Bloc, Val(Pdxart.text), .PointBase(Marge.Text), ArtFour.Text, Refl, Textto1.Text)
       Endif
     Endif
     If $soption = "T" Or $soption = "B" Then
       $opt.majlig(num.Text, Nlgart.Text, $textpal.Text, $textcol.Text, Artqte.Text, $checcons.Value)
     Endif
+    If $soption = "P" Or $soption = "T" And Tab = "Fiches_Ligbl" Then Utils.db.Exec("UPDATE  " & tab & "  SET tipp_ligbl=&3 WHERE num_ligbl = &1 and numlig_ligbl = &2", num.Text, Nlgart.Text, Texttr1.Text)
     Coldetail.Clear
     Recup_ligbl()
   End With
@@ -12649,6 +12666,8 @@ Public Sub Recup_ligfac()
   Dim ilg As Integer = 1
   Dim hgbl As String
   Dim j As Integer
+  Dim snum As String
+  Dim res As Result
 
   If bTypeFacture Then
     hgbl = "Fiches_HistoLigfacM"
@@ -12684,14 +12703,25 @@ Public Sub Recup_ligfac()
           Endif
           If hresult["typel_ligfac"] = "A" Then
             Totalart = Format$(Val(Totalart) + Val(.CPoint(hresult["netht_ligfac"])), "0.00")
-            Coldetail3.Item[21] = hresult!tour_ligfac
+            Coldetail3.Item[22] = hresult!tour_ligfac
             Textto1.Text = hresult!tour_ligfac
             If $soption = "P" Or $soption = "T" Then
-              Coldetail3.Item[22] = hresult!tipp_ligfac
+              Coldetail3.Item[23] = hresult!tipp_ligfac
               Texttr1.Text = hresult!tipp_ligfac
             Endif
             If $soption = "B" Or $soption = "T" Then
-              reslig = utils.db.Exec("SELECT * FROM Fiches_ligcons WHERE num=&1 AND numlig=&2 AND type='B'", num.text, num.Text & hresult!numlig_ligbl)
+              If snum = "" Then
+                res = utils.db.Exec("SELECT numlig FROM Fiches_ligcons WHERE num=&1 and numlig <> 'D' LIMIT 1", Variables.numeroFac)
+                If res.Available Then
+                  snum = Left(res!numlig, 6)
+                Else
+                  res = utils.db.Exec("SELECT numlig FROM Fiches_ligregie WHERE num=&1 LIMIT 1", Variables.numeroFac)
+                  If res.Available Then
+                    snum = Left(res!numlig, 6)
+                  Endif
+                Endif
+              Endif
+              reslig = utils.db.Exec("SELECT * FROM Fiches_ligcons WHERE num=&1 AND numlig=&2 AND type='F'", hresult!num_ligfac, snum & hresult!numlig_ligfac)
               If reslig.Available Then
                 reslig.MoveFirst
                 For j = 0 To reslig.Max
@@ -12699,11 +12729,11 @@ Public Sub Recup_ligfac()
                   If rescons.Available Then
                     Select Case rescons!type
                       Case "P"
-                        Coldetail3.Item[23] = Str(reslig!nb)
-                      Case "C"
                         Coldetail3.Item[24] = Str(reslig!nb)
+                      Case "C"
+                        Coldetail3.Item[25] = Str(reslig!nb)
                     End Select
-                    Coldetail3.Item[25] = Val(reslig!envaleur)
+                    Coldetail3.Item[26] = reslig!envaleur
                   Endif
                   reslig.MoveNext
                 Next
@@ -12715,6 +12745,10 @@ Public Sub Recup_ligfac()
               Coldetail3.Add(hresult["numlig_ligfac"] & ilg, hresult["numlig_ligfac"] & ilg)
               Coldetail3.item[0] = hresult["numlig_ligfac"]
               Coldetail3.item[1] = hresult["code_ligfac"]
+              If Left$(sline, 5) = "Bon n" Then 
+                snum = Mid(sline, 9, 6)
+                sline = "Annule le " & sline
+              Endif
               Coldetail3.item[2] = sline
               Coldetail3.item[8] = hresult["typel_ligfac"]
               Coldetail3.item[17] = hresult["bloc"]
@@ -12878,7 +12912,7 @@ Public Sub Button20_Click()
   Else
     Lgbl = "Fiches_Ligbl"
   Endif
-  Nlgn = "0001"
+  Nlgn = "0000"
   Coldetail.Clear
   Totalart = "0,00"
   Totalmo = "0,00"
@@ -12955,9 +12989,10 @@ Public Sub Button20_Click()
         Tottc1.Text = Tottc.Text
         Totva1.Text = Tottva.Text
         If $soption = "B" Or $soption = "T" Then
-          $opt.affcons
+          $opt.numbl = num.Text
+          $opt.affcons(num.Text)
           $opt.affdecons
-          $opt.affdroit
+          $opt.affdroit(num.Text)
           calculfindoc
         Endif
         Panel6.Visible = False
@@ -12972,9 +13007,6 @@ Public Sub Button20_Click()
           Else
             Maj_QteDep()
           Endif
-        Endif
-        If $soption = "B" Or $soption = "T" Then
-          $opt.numbl = num.Text
         Endif
         Button4_Click()
       Endif
@@ -13003,8 +13035,9 @@ Public Sub Majligbl()
       Utils.db.Exec("INSERT INTO " & Lgbl & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, tm_ligbl, block_ligbl, mrgmo_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", num.Text, Coldetail.item[0], Coldetail.item[1], Coldetail.item[2], Coldetail.item[13 + i], Coldetail.item[3], Coldetail.item[4 + i], Coldetail.item[5 + i], Coldetail.item[6 + i], Coldetail.item[7 + i], Coldetail.item[12 + i], Coldetail.item[8 + i], Coldetail3.item[8], Tm.Text, Coldetail.item[16 + i], Coldetail.item[19 + i])
     Endif
     If Coldetail3.item[8] = "A" Or If Coldetail3.item[8] = "E" Or If Coldetail3.item[8] = "P" Or If Coldetail3.item[8] = "D" Then
-      Totalart = Format$(Val(Totalart) + Val(.CPoint(Coldetail.item[7 + i])), "0.00")
-      Utils.db.Exec("INSERT INTO " & Lgbl & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl, mrgart_ligbl, four_ligbl, refl_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18})", num.Text, Coldetail.item[0], Coldetail.item[1], Coldetail.item[2], Coldetail.item[13 + i], Coldetail.item[3], Coldetail.item[4 + i], Coldetail.item[5 + i], Coldetail.item[6 + i], Coldetail.item[7 + i], Coldetail.item[12 + i], Coldetail.item[8 + i], Coldetail3.item[8], Dec.Text, Coldetail.item[16 + i], Coldetail.item[18 + i], Coldetail.current[20 + i], Coldetail.current[21 + i])
+      Totalart = Format$(utils.totobs([Totalart, Coldetail.item[7 + i]]), "0.00")
+      Utils.db.Exec("INSERT INTO " & Lgbl & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl, mrgart_ligbl, four_ligbl, refl_ligbl, tour_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19})", num.Text, Coldetail.item[0], Coldetail.item[1], Coldetail.item[2], Coldetail.item[13 + i], Coldetail.item[3], Coldetail.item[4 + i], Coldetail.item[5 + i], Coldetail.item[6 + i], Coldetail.item[7 + i], Coldetail.item[12 + i], Coldetail.item[8 + i], Coldetail3.item[8], Dec.Text, Coldetail.item[16 + i], Coldetail.item[18 + i], Coldetail.Item[20 + i], Coldetail.Item[21 + i], Coldetail.item[22 + i])
+      If $soption = "P" Or $soption = "T" Then utils.db.Exec("UPDATE Fiches_Ligbl SET tipp_ligbl=&3 WHERE num_ligbl=&1 AND numlig_ligbl=&2", num.Text, Coldetail.item[0], Coldetail.item[24 + i])
     Endif
     If Coldetail3.item[8] = "O" Then
       Utils.db.Exec("INSERT INTO " & Lgbl & "(num_ligbl, numlig_ligbl, code_ligbl, libel_ligbl, qte_ligbl, typel_ligbl, block_ligbl) VALUES (&1,&2,&3,&4, &5, &6, &7)", num.Text, Coldetail.item[0], Coldetail.item[1], Coldetail.item[2], Coldetail.item[4 + i], Coldetail3.item[8], Coldetail.item[16 + i])
@@ -13013,7 +13046,7 @@ Public Sub Majligbl()
       Utils.db.Exec("INSERT INTO " & Lgbl & "(num_ligbl, numlig_ligbl, code_ligbl, libel_ligbl, typel_ligbl, block_ligbl) VALUES (&1,&2,&3,&4, &5, &6)", num.Text, Coldetail.item[0], Coldetail.item[1], Coldetail.item[2], Coldetail3.item[8], Coldetail.item[16 + i])
     Endif
     If Coldetail3.item[8] = "A" And i <> 0 Then     'enregistrement des consignes si option boisson
-      $opt.majlig(num.Text, Coldetail.item[0], Coldetail.Item[4], Coldetail.Item[5], Coldetail.Item[4 + i], Coldetail.item[22 + i])
+      $opt.majlig(num.Text, Coldetail.item[0], Coldetail.Item[4], Coldetail.Item[5], Coldetail.Item[4 + i], Coldetail.item[23 + i])
     Endif
     If Coldetail.item[9 + i] <> "C" And Coldetail.item[9 + i] <> "T" And Coldetail.item[9 + i] <> "O" And Coldetail.item[9 + i] <> "R" Then
       Try Totalrem = Format$(Val(.CPoint(Totalrem)) + (Val(.CPoint(Coldetail.item[5 + i])) - Val(.CPoint(Coldetail.item[7 + i]))), "0.00")
@@ -13102,11 +13135,12 @@ Public Sub Importlig()
     Coldetail.item[18 + i] = Coldetail3.item[18]
     Coldetail.item[19 + i] = Coldetail3.item[19]
     Coldetail.item[21 + i] = Coldetail3.item[21]
-    If $soption = "P" Or $soption = "T" Then Coldetail.Item[23 + i] = Coldetail3.Item[22]
+    Coldetail.Item[22 + i] = Coldetail3.Item[22]
+    If $soption = "P" Or $soption = "T" Then Coldetail.Item[24 + i] = Coldetail3.Item[23]
     If $soption = "B" Or $soption = "T" Then
-      Coldetail.Item[4] = Coldetail3.Item[23]
-      Coldetail.Item[5] = Coldetail3.Item[24]
-      Coldetail.Item[22 + i] = Coldetail3.Item[25]
+      Coldetail.Item[4] = "-" & Coldetail3.Item[24]
+      Coldetail.Item[5] = "-" & Coldetail3.Item[25]
+      Coldetail.Item[23 + i] = Coldetail3.Item[26]
     Endif
     'ENDIF
   End With
@@ -14919,7 +14953,6 @@ Public Sub Textfrais_LostFocus()
   Endif
   If Val(textfrais.Text) < 0 Then textfrais.Text = "0,00"
   calculfindoc
-  button4_click
 
 End
 
@@ -15126,5 +15159,6 @@ End
 Public Sub option_recalcul()
 
   calculfindoc
-
+  button4_click
+  
 End
