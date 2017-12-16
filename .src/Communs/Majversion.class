@@ -3,11 +3,9 @@
 Private hlb As Label
 Private hpb As ProgressBar
 Public Version As String
-'To test new web site interface
-'Private siteurl As String = "devel.Laurux.fr"
-Private siteurl As String = "www.Laurux.fr"
-'Private wwwpath As String = "https://" & siteurl & "/" & Application.Name & "/"  '
-Private wwwpath As String = "http://" & siteurl & "/file/"
+Private siteurl As String = "www.laurux.fr"
+Private wwwpath As String = "https://" & siteurl & "/" & Application.Name & "/"
+Private selpath As String
 Private version_file As String = "version.txt"
 
 
@@ -18,20 +16,59 @@ Public Sub _New()
 End
 
 Public Sub Form_Open()
-  
-  Dim VersionWebArr As String[]
+
   Dim hClient As HttpClient
   Dim hDoc As HtmlDocument
   Dim sBuffer As String
   Dim Elem As XmlElement[]
   Dim i As Integer = 1
-  Dim wwwlpath As String = wwwpath
   
   Majtitle.Text = "Mise à Jour de " & Application.Name
 
   hClient = New HttpClient As "hClient"
   hDoc = New HtmlDocument As "hDoc"
   hClient.URL = wwwpath
+  hClient.Async = False
+  hClient.Timeout = 60
+  hClient.Get
+
+  'Print "Begin"
+  If hClient.Status < 0 Then
+    'Print "ERROR"
+  Else
+    ' Succès - données lue.
+    If Lof(hClient) Then
+      Read #hClient, sBuffer, Lof(hClient)
+      'Print sBuffer
+      hDoc.HtmlFromString(sBuffer)
+      Elem = hDoc.GetElementsByTagName("a")
+    Endif
+  Endif
+  
+  If Not (IsNull(Elem)) Then
+    While (i < Elem.Length)
+      Type.Add(Elem[i].GetAttribute("href"), 0) '0 for reverse web order
+      Type.Enabled = True
+      i = i + 1
+    Wend
+  Endif
+  
+  selpath = Update_Type(wwwpath, Type.Current.Text)
+  
+End
+
+Public Sub Update_Type(wwwlpath As String, Type As String) As String
+
+  Dim VersionWebArr As String[]
+  Dim hClient As HttpClient
+  Dim hDoc As HtmlDocument
+  Dim sBuffer As String
+  Dim Elem As XmlElement[]
+  Dim i As Integer
+
+  hClient = New HttpClient As "hClient"
+  hDoc = New HtmlDocument As "hDoc"
+  hClient.URL = wwwlpath & Type
   hClient.Async = False
   hClient.Timeout = 60
   hClient.Get
@@ -49,46 +86,22 @@ Public Sub Form_Open()
     Endif
   Endif
   
-  If Not (IsNull(Elem)) Then
-    While (i < Elem.Length)
-      Type.Add(Elem[i].GetAttribute("href"))
-      Type.Enabled = True
-      i = i + 1
-    Wend
-  
-    hClient.URL = wwwpath & Type.Current.Text
-    hClient.Async = False
-    hClient.Timeout = 60
-    hClient.Get
-
-    Print "Begin"
-    If hClient.Status < 0 Then
-      Print "ERROR"
-    Else
-      ' Succès - données lue.
-      If Lof(hClient) Then
-        Read #hClient, sBuffer, Lof(hClient)
-        'Print sBuffer
-        hDoc.HtmlFromString(sBuffer)
-        Elem = hDoc.GetElementsByTagName("a")
-      Endif
-    Endif
-  
-    i = 1
-    While (i < Elem.Length)
-      ListVersion.Add(Elem[i].GetAttribute("href"))
+  ListVersion.Clear()
+  i = 1
+  While (i < Elem.Length)
+    If Elem[i].GetAttribute("href") Match "/" Then
+      ListVersion.Add(Elem[i].GetAttribute("href"), 0) '0 for reverse web order
       ListVersion.Enabled = True
-      i = i + 1
-    Wend
-    
-    wwwpath = wwwlpath & Type.Current.Text & ListVersion.Current.Text
+    Endif
+    i = i + 1
+  Wend
   
-  Endif
+  wwwlpath = wwwlpath & Type & ListVersion.Current.Text
   
   RecupVersion()
   VerAct.Text = "Version Actuelle: " & Version & " (" & Application.Version & ")"
   
-  VersionWebArr = Verif_Maj(wwwpath, False)
+  VersionWebArr = Verif_Maj(wwwlpath, False)
   If (VersionWebArr.Length >= 2) Then
     If VersionWebArr.Length = 2 Then VersionWebArr.Add("?") 'backward compat
     VerWeb.Text = "Version Web: " & VersionWebArr[0] & "." & VersionWebArr[1] & " (" & VersionWebArr[0] & "." & VersionWebArr[1] & "." & VersionWebArr[2] & ")"
@@ -96,12 +109,14 @@ Public Sub Form_Open()
     VerWeb.Text = "Version Web: Not found"
   Endif
   
+  Return wwwlpath
+
 End
 
 
 Public Sub OK_Click()
 
-  Verif_Maj(wwwpath, True)
+  Verif_Maj(selpath, True)
 
 End
 
@@ -119,7 +134,7 @@ Public Sub RecupVersion()
 
   rResult = Utils.db.Exec("SELECT * FROM Fiches_Parametres ")
   If Application.Name Match "Pos"
-    Try Version = rResult!version_pos
+   Try Version = rResult!version_pos
     version_file = "version_pos.txt"
   Else If Application.Name Match "Laurux"
     Try Version = rResult!version
@@ -166,8 +181,22 @@ Public Sub Verif_Maj(Optional wwwlpath As String = wwwpath, Optional Update As B
         If Val(VersionWebArr[1]) > Val(VersionAppArr[1]) Then
           Maj(VersionWebFull, wwwlpath)
         Else
-          If Message.Question("Aucune mise à jour n'est a faire !", "OK", "Forcer") = 2 Then
-            Maj(VersionWebFull, wwwlpath)
+          If Val(VersionWebArr[1]) = Val(VersionAppArr[1]) Then
+            If Not IsNull(VersionWebArr[2]) And Not IsNull(VersionAppArr[2]) Then
+              If Val(VersionWebArr[2]) > Val(VersionAppArr[2]) Then
+                If Message.Question("Une mise à jour de patch est disponible, Voulez-vous mettre a jour?", "OK", "Annuler") = 1 Then
+                  Maj(VersionWebFull, wwwlpath)
+                Endif
+              Else
+                If Message.Question("Aucune mise à jour patch n'est a faire!", "OK", "Forcer") = 2 Then
+                  Maj(VersionWebFull, wwwlpath)
+                Endif
+              Endif
+            Endif
+          Else
+            If Message.Question("Aucune mise à jour majeure n'est a faire!", "OK", "Forcer") = 2 Then
+              Maj(VersionWebFull, wwwlpath)
+            Endif
           Endif
         Endif
       Endif
@@ -290,3 +319,15 @@ Public Sub Avancement(hlb As Label, hpb As ProgressBar)
 
 End
 
+
+Public Sub Type_Click()
+
+  selpath = Update_Type(wwwpath, Type.Current.Text)
+
+End
+
+Public Sub ListVersion_Click()
+
+  selpath = Update_Type(wwwpath, Type.Current.Text)
+
+End
