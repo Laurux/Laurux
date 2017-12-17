@@ -55,7 +55,7 @@ Public Sub Button2_click()
   Dim qteVtes As Float ' Quantité vendue depuis la date de l'inventaire jusqu'a la fin d'exercice
   Dim Tpe As String
   Dim chemin As String = "/Sauve"
-
+  Dim res As Result
   
   qtevtes = 0
   qteAch = 0
@@ -187,7 +187,16 @@ Public Sub Button2_click()
         'On calcul le stock réel
         Cstock.Calc_stock("", "")
         'On vide la table des historiques des inventaires tournants
-        Try Utils.db.Exec("Truncate table " & "Fiches_HisInvT" & "")
+        res = Utils.db.Exec("SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'Fiches_HisInvT'")
+        If res.Available Then
+          res.MoveFirst
+          Repeat
+            If Start.LocalSettings["/dbase/Prefixe"] & Start.LocalSettings["/dbase/Name"] = res!TABLE_SCHEMA Then
+              Utils.db.Exec("Truncate table " & "Fiches_HisInvT" & "")
+              Break
+            Endif
+          Until res.MoveNext()
+        Endif
         'Ouf ! C'est fini
         If son Then
           Music.Play
