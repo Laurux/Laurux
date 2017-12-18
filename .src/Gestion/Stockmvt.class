@@ -244,6 +244,11 @@ Public Sub Buttrait_Click()
   
 End
 
+Public Sub aff_click()
+
+  Butedit.Enabled = False
+
+End
 Private Sub affiche()
 
   GridView1.Clear
@@ -290,6 +295,18 @@ Private Sub affiche()
   $sortie = 0
   $ca = 0
   $marge = 0
+  $res.MoveFirst
+  Repeat
+    If Utils.totobs([$res!qte]) < 0 Then $sortie += (Utils.totobs([$res!qte]) * -1)
+    If Utils.totobs([$res!qte]) > 0 Then $entre += Utils.totobs([$res!qte])
+    $ca += Utils.totobs([$res!ca])
+    $marge += Utils.totobs([$res!mrgart, $res!mrgmo])
+  Until $res.MoveNext()
+  
+  entre.Text = Format($entre, "0.000")
+  sortie.Text = Format($sortie, "0.000")
+  ca.Text = Format($ca, "0.00")
+  marge.Text = Format($marge, "0.00")
   GridView1.Rows.Count = $res.Count
   
 End
@@ -320,19 +337,17 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer)
       GridView1[row, i].Background = coul
       If Utils.totobs([$res!qte]) < 0 Then
         GridView1[row, i].Text = Format(Utils.totobs([$res!qte]) * -1, "0.000")
-        $sortie += Utils.totobs([$res!qte]) * -1
       Else
         GridView1[row, i].Text = Format(0, "0.000")
       Endif
     Endif
   
-    If Radioentre.Value Or Radiotouta.Value Then
+    If Radioentre.Value Or Radiotouta.Value Then 
       Inc i
       GridView1[row, i].Alignment = Align.Right
       GridView1[row, i].Background = coul
       If Utils.totobs([$res!qte]) > 0 Then
         GridView1[row, i].Text = Format(Utils.totobs([$res!qte]), "0.000")
-        $entre += Utils.totobs([$res!qte])
       Else
         GridView1[row, i].Text = Format(0, "0.000")
       Endif
@@ -342,20 +357,13 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer)
       GridView1[row, i].Alignment = Align.Right
       GridView1[row, i].Background = coul
       GridView1[row, i].Text = Format(Utils.totobs([$res!ca]), "0.00")
-      $ca += Utils.totobs([$res!ca])
     Endif
     If Checkmarge.Value Then
       Inc i
       GridView1[row, i].Alignment = Align.Right
       GridView1[row, i].Background = coul
       GridView1[row, i].Text = Format(Utils.totobs([$res!mrgart, $res!mrgmo]), "0.00")
-      $marge += Utils.totobs([$res!mrgart, $res!mrgmo])
     Endif
-    
-    entre.Text = Format($entre, "0.000")
-    sortie.Text = Format($sortie, "0.000")
-    ca.Text = Format($ca, "0.00")
-    marge.Text = Format($marge, "0.00")
   Endif
 End
 '**********************************Edition du gridview***********************************
@@ -365,7 +373,7 @@ Public Sub Butedit_Click()
   Dim hv As ReportHBox
   Dim lab As ReportLabel
   Dim coul As Integer
-  Dim i, j As Byte
+  Dim i, j As Integer
   Dim tot As Float[]
   
   tot = New Float[GridView1.Columns.Max - 2]
@@ -398,27 +406,57 @@ Public Sub Butedit_Click()
     lab.Border = ReportBorder["Right:1pt #000000"]
   Next
   'edition du corp 
-  For i = 0 To GridView1.Rows.Max
+  For i = 0 To $res.Max
+    $res.MoveTo(i)
     hb = New ReportHBox($rpt)
     If Even(i) Then hb.BackGround = ReportBrush.Color(Color.White) Else hb.BackGround = ReportBrush.Color(Color.Lighter(Color.Gray))
-    For j = 0 To GridView1.Columns.Max
-      lab = New ReportLabel(hb)
-      lab.Height = "3mm"
-      lab.Font = font["Serif,-3"]
-      lab.Border = ReportBorder["Right:1pt #000000"]
-      lab.Text = GridView1[i, j].Text
-      lab.Width = "20mm"
-      Select Case j
-        Case 0, 1
-          lab.Alignment = Align.Center
-        Case 2
-          lab.Alignment = Align.Left
-          lab.Expand = True
-        Case Else
-          lab.Alignment = Align.Right
-          tot[j - 3] += Utils.totobs([GridView1[i, j].Text])
-      End Select
-    Next
+    j = 0
+    lab = nlab(hb)
+    If Radiojour.Value Or Radiodetail.Value Then lab.Text = Format($res!dte, "dd.mm.yyyy")
+    If Radiomens.Value Then lab.Text = Format($res!dte, "mm.yyyy")
+    If Radioanuel.Value Then lab.Text = Format($res!dte, "yyyy")
+    lab.Alignment = Align.Center
+    Inc j
+    lab = nlab(hb)
+    lab.Text = $res!code
+    lab.Alignment = Align.Center
+    Inc j
+    lab = nlab(hb)
+    lab.Text = $res!libelle
+    lab.Alignment = Align.Left
+    lab.Expand = True
+    If Radiosortie.Value Or Radiotouta.Value Then
+      Inc j
+      lab = nlab(hb)
+      lab.Alignment = Align.Right
+      If Utils.totobs([$res!qte]) < 0 Then
+        lab.Text = Format(Utils.totobs([$res!qte]) * -1, "0.000")
+        tot[j - 3] += (Utils.totobs([$res!qte]) * -1)
+      Endif
+    Endif
+    If Radioentre.Value Or Radiotouta.Value Then
+      Inc j
+      lab = nlab(hb)
+      lab.Alignment = Align.Right
+      If Utils.totobs([$res!qte]) > 0 Then
+        lab.Text = Format(Utils.totobs([$res!qte]), "0.000")
+        tot[j - 3] += Utils.totobs([$res!qte])
+      Endif
+    Endif
+    If Checkca.Value Then
+      Inc j
+      lab = nlab(hb)
+      lab.Alignment = Align.Right
+      lab.Text = Format(Utils.totobs([$res!ca]), "0.00")
+      tot[j - 3] += Utils.totobs([$res!ca])
+    Endif
+    If Checkmarge.Value Then
+      Inc j
+      lab = nlab(hb)
+      lab.Alignment = Align.Right
+      lab.Text = Format(Utils.totobs([$res!mrgart, $res!mrgmo]), "0.00")
+      tot[j - 3] += Utils.totobs([$res!mrgart, $res!mrgmo])
+    Endif
   Next
   'edition du total
   hb = New ReportHBox($rpt)
@@ -444,6 +482,20 @@ Public Sub Butedit_Click()
 
   $rpt.Preview
 End
+
+Private Function nlab(hb As ReportHBox) As ReportLabel
+  
+  Dim lab As ReportLabel
+  
+  lab = New ReportLabel(hb)
+  lab.Height = "3mm"
+  lab.Font = font["Serif,-3"]
+  lab.Border = ReportBorder["Right:1pt #000000"]
+  lab.Width = "20mm"
+  Return lab
+  
+End
+
 '********************gestion des boutons et textbox******************
 'marque et centrale
 Public Sub btn_Click()
@@ -547,5 +599,11 @@ Public Sub dte_KeyPress()
       DateChooser1.Tag = Last
     Endif
   Endif
+
+End
+
+Public Sub Butquit_Click()
+
+  Me.Close
 
 End
