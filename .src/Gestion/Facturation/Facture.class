@@ -236,7 +236,6 @@ Private basc As Boolean = False
 Private bacquitte As Boolean = False
 Private $lcom As Listecom
 Private $lcart As Listecom
-Private refl As String 'Référence longue
 Private hTxtb As Textbox
 Private hpanel As Panel
 Private $soption As String      'option boisson et pp
@@ -268,7 +267,7 @@ Public Sub _New(bfacture As Boolean)
     Butto1.Visible = False
     Me.Title = "Facturation entretien"
   Endif
-
+RefLongue()
   date1doc = Date(dt[0], dt[1], dt[2])
   date2doc = date1doc - n
   Frame4.Visible = False
@@ -2186,7 +2185,7 @@ Public Sub Recup_ligbl()
   Mrgmo = 0
   Mrg.text = "0,00"
   Poids.text = "0,000"
-  Refl = ""
+  hTxtb.Text = ""
   chkfocus = 1
   Coldetail.Clear
   With utils
@@ -5190,59 +5189,53 @@ Public Sub aff_photo()
 
 End
 
+'**********************************************
+'*                 Gestion référence longue            *
+'**********************************************
 Public Sub RefLongue()
 
   Dim hTxtl As Label
-  Dim cw As Float
 
-  'si on modifie la largeur du panel3 il faut aussi modifier la variable cw ici et à la fin de cette class
-  cw = panel3.Width / 952
-  hpanel = New Panel(Panel3)
-  HPanel.Border = Border.Etched
-  HPanel.Background = &HD4D0C8&
-  hTxtb = New TextBox(hPanel) As "Txtb"
-  hTxtl = New Label(hPanel)
-  hTxtb.Font = Desg.Font
-  hpanel.w = 440 * cw
-  HPanel.Y = Desg.Y + (34 * cw)
-  HPanel.h = 60 * cw
-  HPanel.X = 280 * cw
-  hTxtl.w = Desg.W - (60 * cw)
-  hTxtl.Y = 6 * cw
-  hTxtl.h = 18 * cw
-  hTxtl.X = 6 * cw
-  hTxtl.Text = "Saisie de la référence longue."
-  hTxtl.Alignment = Align.center
-  hTxtl.Font = Desg.Font
-  hTxtb.w = Desg.W - (60 * cw)
-  hTxtb.Y = HPanel.h - ((desg.H + (4 * cw)))
-  hTxtb.h = Desg.H
-  hTxtb.X = 6 * cw
+  hTxtb = New TextBox(panel3) As "Txtb"
+  hTxtb.Font = Cart.Font
+  hTxtb.w = Cart.W
+  hTxtb.Y = Depg.y
+  hTxtb.h = Cart.H
+  hTxtb.X = Cart.X
   hTxtb.MaxLength = 15
-  If Not IsNull(Refl) Then hTxtb.Text = Refl
-  hTxtb.SetFocus
-  Try Utils.ObsGotf(hTxtb)
-  HPanel.Visible = True
+  If Settings["/Soc" & Start.Societe & "/Refl"] Then
+    hTxtb.Visible = True
+  Else
+    hTxtb.Visible = False
+  Endif
+
+End
+
+Public Sub Txtb_GotFocus()
+
+  Try Utils.ObsGotf(Last)
+
+End
+
+Public Sub Txtb_LostFocus()
+
+  Try Utils.ObsLstf(Last)
 
 End
 
 Public Sub Txtb_Keypress()
 
   If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
-    Refl = hTxtb.Text
-    HPanel.Visible = False
     Stop Event
-    Artpu.SetFocus
-    Artpu.Select
-  Endif
-  If Key.code = Key.Esc Or Key.code = Key.Escape Then
-    HPanel.Visible = False
-    Stop Event
-    Artpu.SetFocus
-    Artpu.Select
+    Artqte.SetFocus
+    Artqte.Select
   Endif
 
 End
+
+'**********************************************
+'*            Fin gestion référence longue            *
+'**********************************************
 
 Public Sub Art_KeyPress()
 
@@ -5255,11 +5248,11 @@ Public Sub Art_KeyPress()
     If Key.code = 82 Then 'R
       Select Case Last.Tag
         Case 2
-          RefLongue()
+           hTxtb.setfocus
         Case 3
-          RefLongue()
+           hTxtb.setfocus
         Case 4
-          RefLongue()
+          hTxtb.setfocus
       End Select
     Endif
 
@@ -6413,16 +6406,6 @@ Public Sub Button11_Click()
     b = 0
   Else
     If Cart.Text <> "" Then
-      If IsNull(Refl) Then
-        Try Refl = hTxtb.Text
-        If Not Error Then
-          hTxtb.Clear
-          HPanel.Visible = False
-        Endif
-      Else
-        Try hTxtb.Clear
-        Try HPanel.Visible = False
-      Endif
       If Val(Artpu.text) = 0 Then
         If start.son Then
           Music.Play
@@ -6528,7 +6511,7 @@ Public Sub Enrg_Art()
           PdxArt.text = Format$(Val(Utils.cpoint(Pdx)) * Val(Utils.cpoint(Artqte.Text)), "0.000")
         Endif
         Coldetail.current[4 + i] = Artqte.Text
-        If Not IsNull(Refl) Then Coldetail.current[21 + i] = Refl
+        If Not IsNull(hTxtb.Text) Then Coldetail.current[21] = hTxtb.Text
         If Len(Artnet.text) - InStr(Artnet.text, ",") = 2 Then Coldetail.current[7 + i] = Artnet.text & "  "
         Qteecot = Val(Utils.cpoint(Artqte.Text))
         If Left$(Cart.Text, 1) = "*" Then Cart.Text = Mid$(Cart.Text, 2, Len(Cart.Text))
@@ -6568,7 +6551,7 @@ Public Sub Enrg_Art()
     Coldetail.item[12 + i] = Arttx.text
     Coldetail.item[13 + i] = ArtFam.text
     Coldetail.item[20 + i] = ArtFour.text
-    Coldetail.item[21 + i] = Refl
+    Coldetail.item[21 + i] = hTxtb.Text
     Coldetail.item[14 + i] = Dec.text
     Bloc = Nlgart.text & Cart.text & Round(Rnd(1000, 9999))
     Coldetail.item[16 + i] = Bloc
@@ -8041,7 +8024,7 @@ Public Sub Coldetail_Activate()
           Arttx.Text = Coldetail.current[12 + i]
           Artfam.Text = Coldetail.current[13 + i]
           ArtFour.Text = Coldetail.current[20 + i]
-          Refl = Coldetail.current[21 + i]
+          hTxtb.Text = Coldetail.current[21 + i]
           PdxArt.Text = Coldetail.current[17 + i]
           Textto1.Text = Coldetail.Current[22 + i]
           If $soption = "P" Or $soption = "T" Then Texttr1.Text = Coldetail.Current[23 + i]
@@ -8825,9 +8808,9 @@ Public Sub Enrg_LigArt()
     If Cart.Text <> "" Or typeL = "E" Or typeL = "P" Or typeL = "D" Then
       rResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE num_ligbl = &1 and numlig_ligbl = &2", num.text, Nlgart.text)
       If rResult.Available Then
-        Utils.db.Exec("UPDATE  " & tab & "  SET  num_ligbl = &1 , numlig_ligbl = &2 , code_ligbl = &3, libel_ligbl = &4, fam_ligbl = &5, pu_ligbl = &6, qte_ligbl = &7, brut_ligbl = &8, rem_ligbl = &9, netht_ligbl = &{10}, tx_ligbl = &{11}, nettc_ligbl = &{12}, typel_ligbl = &{13}, dec_ligbl = &{14}, pdstotal_ligbl = &{15}, mrgart_ligbl = &{16}, four_ligbl = &{17}, refl_ligbl = &{18}, tour_ligbl = &{19} WHERE num_ligbl = &1 and numlig_ligbl = &2", num.Text, Nlgart.Text, Cart.Text, Artdsg.Text, ArtFam.Text, Artpu.Text, Artqte.Text, Artbrut.Text, rm, Artnet.Text, Arttx.Text, Arttc.Text, typeL, Dec.Text, Val(Pdxart.text), .PointBase(Marge.Text), ArtFour.Text, Refl, Texttr1.Text)
+        Utils.db.Exec("UPDATE  " & tab & "  SET  num_ligbl = &1 , numlig_ligbl = &2 , code_ligbl = &3, libel_ligbl = &4, fam_ligbl = &5, pu_ligbl = &6, qte_ligbl = &7, brut_ligbl = &8, rem_ligbl = &9, netht_ligbl = &{10}, tx_ligbl = &{11}, nettc_ligbl = &{12}, typel_ligbl = &{13}, dec_ligbl = &{14}, pdstotal_ligbl = &{15}, mrgart_ligbl = &{16}, four_ligbl = &{17}, refl_ligbl = &{18}, tour_ligbl = &{19} WHERE num_ligbl = &1 and numlig_ligbl = &2", num.Text, Nlgart.Text, Cart.Text, Artdsg.Text, ArtFam.Text, Artpu.Text, Artqte.Text, Artbrut.Text, rm, Artnet.Text, Arttx.Text, Arttc.Text, typeL, Dec.Text, Val(Pdxart.text), .PointBase(Marge.Text), ArtFour.Text, hTxtb.Text, Texttr1.Text)
       Else
-        Utils.db.Exec("INSERT INTO " & tab & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl, pdstotal_ligbl, mrgart_ligbl, four_ligbl, refl_ligbl,tour_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20})", num.Text, Nlgart.Text, Cart.Text, Artdsg.Text, ArtFam.Text, Artpu.Text, Artqte.Text, Artbrut.Text, rm, Artnet.Text, Arttx.Text, Arttc.Text, typeL, Dec.Text, Bloc, Val(Pdxart.text), .PointBase(Marge.Text), ArtFour.Text, Refl, Textto1.Text)
+        Utils.db.Exec("INSERT INTO " & tab & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl, pdstotal_ligbl, mrgart_ligbl, four_ligbl, refl_ligbl,tour_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20})", num.Text, Nlgart.Text, Cart.Text, Artdsg.Text, ArtFam.Text, Artpu.Text, Artqte.Text, Artbrut.Text, rm, Artnet.Text, Arttx.Text, Arttc.Text, typeL, Dec.Text, Bloc, Val(Pdxart.text), .PointBase(Marge.Text), ArtFour.Text, hTxtb.Text, Textto1.Text)
       Endif
     Endif
     If $soption = "T" Or $soption = "B" Then
