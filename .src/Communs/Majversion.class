@@ -57,7 +57,7 @@ Public Sub Form_Open()
   
 End
 
-Public Sub Update_Type(wwwlpath As String, Type As String) As String
+Public Sub Update_Type(wwwlpath As String, Type As String, Optional Ver As String = Null) As String
 
   Dim VersionWebArr As String[]
   Dim hClient As HttpClient
@@ -73,9 +73,9 @@ Public Sub Update_Type(wwwlpath As String, Type As String) As String
   hClient.Timeout = 60
   hClient.Get
 
-  Print "Begin"
   If hClient.Status < 0 Then
-    Print "ERROR"
+    Message.Warning("Impossible d'accèder au information de mise à jour")
+    Return Null
   Else
     ' Succès - données lue.
     If Lof(hClient) Then
@@ -86,12 +86,19 @@ Public Sub Update_Type(wwwlpath As String, Type As String) As String
     Endif
   Endif
   
+  If IsNull(Elem) Then
+    Return Null
+  Endif
+  
   ListVersion.Clear()
   i = 1
   While (i < Elem.Length)
     If Elem[i].GetAttribute("href") Match "/" Then
       ListVersion.Add(Elem[i].GetAttribute("href"), 0) '0 for reverse web order
       ListVersion.Enabled = True
+      If Not IsNull(Ver) Then
+        ListVersion.Index = ListVersion.Find(Ver)
+      Endif
     Endif
     i = i + 1
   Wend
@@ -328,6 +335,6 @@ End
 
 Public Sub ListVersion_Click()
 
-  selpath = Update_Type(wwwpath, Type.Current.Text)
+  selpath = Update_Type(wwwpath, Type.Current.Text, ListVersion.Current.Text)
 
 End
