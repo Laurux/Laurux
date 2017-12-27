@@ -105,21 +105,29 @@ Public Sub Main()
       Music.Play
     Endif
     Pids = File.Load(User.home & "/" & Application.Name & ".lock")
-    psExist = Shell "ps -p " & Pids Wait
-    If psExist.Value = 0 Then
-      If Message.Warning(("Il semblerait que " & Application.Name & "\nProcess : " & Pids & "\nsoit encore ouvert!\n\nOuvrir deux fois Laurux peut causer des dysfonctionnements (erreur de stock etc...)\net utiliser un programme qui n'a pas été fermé normalement \nsignifie que la base n'est peut-être pas à jour et que vous devriez faire une restauration."), ("Ne pas ouvrir"), ("Ouvrir")) = 2 Then
+    If Not IsNull(Pids) Then
+      psExist = Shell "ps -p " & Pids Wait
+      If psExist.Value = 0 Then
+        If Message.Warning(("Il semblerait que " & Application.Name & "\nProcess : " & Pids & "\nsoit encore ouvert!\n\nOuvrir deux fois Laurux peut causer des dysfonctionnements (erreur de stock etc...)\net utiliser un programme qui n'a pas été fermé normalement \nsignifie que la base n'est peut-être pas à jour et que vous devriez faire une restauration."), ("Ne pas ouvrir"), ("Ouvrir")) = 1 Then
+          Quit
+        Endif
+        'Try Kill User.home & "/" & Application.Name & ".lock"
+        Lancement()
+      Else
+      'le process est inexistant
+        Try Kill User.home & "/" & Application.Name & ".lock"
         Lancement()
       Endif
     Else
-      'le process est inexistant
-      Try Kill User.home & "/" & Application.Name & ".lock"
+      If Message.Warning(("Il semblerait que " & Application.Name & "\nsoit encore ouvert (Fichier de lock existe mais est vide : " & User.home & "/" & Application.Name & ".lock)!\n\nOuvrir deux fois Laurux peut causer des dysfonctionnements(erreur de stock etc...)\net utiliser un programme qui n'a pas été fermé normalement\nsignifie que la base n'est peut-être pas à jour et que vous devriez faire une restauration."), ("Ne pas ouvrir"), ("Ouvrir")) = 1 Then
+        Quit
+      Endif
+      'Try Kill User.home & "/" & Application.Name & ".lock"
       Lancement()
     Endif
   Else
     Lancement()
   Endif
-  
-  Try Kill User.home & "/" & Application.Name & ".lock"
 
 End
 
@@ -158,13 +166,39 @@ Public Sub Coul()
 
 End
 
-Public Sub Lancement()
+Public Sub UnLock()
+
+  Dim Pids As String = ""
   
+  Try Pids = File.Load(User.home & "/" & Application.Name & ".lock") & " "
+  'first with space separators (very few risk due to linux PID assignement for subset match)
+  Pids = Replace$(Pids, " " & CStr(Application.Id), "")
+  Pids = Replace$(Pids, CStr(Application.Id) & " ", "")
+  'second special case without separators if alone
+  Pids = Replace$(Pids, CStr(Application.Id), "")
+  If IsNull(Trim(Pids)) Then
+    Kill User.home & "/" & Application.Name & ".lock"
+  Else
+    Pids = Trim(Pids)
+    File.Save(User.home & "/" & Application.Name & ".lock", Pids)
+  Endif
+  
+End
+
+Public Sub Lock()
+
   Dim Pids As String = ""
   
   Try Pids = File.Load(User.home & "/" & Application.Name & ".lock") & " "
   File.Save(User.home & "/" & Application.Name & ".lock", Pids & Application.Id)
   
+End
+
+
+Public Sub Lancement()
+
+  
+  Lock()
   If IsNull(proform) Then Proform = "&HF9F9BD&"
   If IsNull(Commande) Then Commande = "&HF9F9BD&" ""
   If IsNull(Devis) Then Devis = "&HF9F9BD&"
