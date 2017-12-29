@@ -704,7 +704,8 @@ Public Sub Gen_ecr(View As Boolean)
           Maj_Compta()
           Variables.inumr = Numr
           Majnum()
-          Print #Hnew, Colbl.Item[0] & String$(10 - Len(Colbl.Item[0]), " ") & Colbl.Item[1] & String$(35 - Len(Colbl.Item[1]), " ") & Colbl.Item[2] & String$(15 - Len(Colbl.Item[2]), " ") & Colbl.Item[3] & String$(10 - Len(Colbl.Item[3]), " ") & libel & String$(30 - Len(libel), " ") & "     " & Numr & String$(15 - Len(Str(Numr)), " ") & Numr2 & String$(15 - Len(Str(Numr2)), " ")
+          If Len(libel) > 30 Then libel = Left(libel, 30)
+          Print #Hnew, Colbl.Item[0] & String$(10 - Len(Colbl.Item[0]), " ") & Colbl.Item[1] & String$(35 - Len(Colbl.Item[1]), " ") & Colbl.Item[2] & String$(15 - Len(Colbl.Item[2]), " ") & Colbl.Item[3] & String$(10 - Len(Colbl.Item[3]), " ") & libel & String(30 - Len(libel), " ") & "     " & Numr & String$(15 - Len(Str(Numr)), " ") & Numr2 & String$(15 - Len(Str(Numr2)), " ")
           Raz_Ventilation()
           Toteuros = 0
           'Endif
@@ -1014,7 +1015,7 @@ Public Sub Maj_Compta()
             Mtd = Val(.cpoint(rResult!totalht))
             Mtc = 0
           Endif
-          Utils.db.Exec("INSERT INTO " & Tmvt & "(jour, numero, compte, collectif, intitule, dte, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, numerodef, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19})", Jnl, numr, coll, collectif, Intit, .Cdate_Dbase(Datej.Text), numr, Libel, Mtd, Mtc, Valid, Prov, Tresor, pointee, lettree, cloturee, relance, numr2, dateech2)
+          Utils.db.Exec("INSERT INTO " & Tmvt & "(jour, numero, compte, collectif, intitule, dte, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, numerodef, dateech) VALUES (&1, &2, &3, &4, &5, &6, &7, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19})", Jnl, numr, coll, collectif, Intit, .Cdate_Dbase(Datej.Text), numr, Libel, Abs(Mtd), Abs(Mtc), Valid, Prov, Tresor, pointee, lettree, cloturee, relance, numr2, dateech2)
           rrResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " Where compte_cc = &1", coll)
           If rrResult!solde = "" Then
             Sld = Mtc - Mtd
@@ -1304,10 +1305,14 @@ Private Sub totalconsigne(dte As Date, numbl As String, numfr As String)
   bloc = Format(dte, "dd.mm.yyyy") & numbl & numfr
   respar = utils.db.Exec("SELECT * FROM Fiches_Parametres")
   res = utils.db.Exec("SELECT SUM(montant) AS montant FROM Fiches_ligcons WHERE bloc=&1 AND numlig<>'D'", bloc)
-  If res.Available Then tot = res!montant
+  If Not IsNull(res!montant) Then
+    tot = res!montant
+  Endif
   res = utils.db.Exec("SELECT SUM(montant) AS montant FROM Fiches_ligcons WHERE bloc=&1 AND numlig='D'", bloc)
-  If res.Available Then
+  If Not IsNull(res!montant) Then
     tot = tot + res!montant
+  Endif
+  If tot <> 0 Then
     rescons = utils.db.Exec("SELECT intitule_cc FROM Fiches_Comptes WHERE compte_cc = &1", respar!consfou)
     utils.db.Begin
     res = utils.db.Edit("Totalisation", "compte=&1", respar!consfou)
