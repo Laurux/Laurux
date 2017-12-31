@@ -14,7 +14,7 @@ vvecho = @true
 endif
 
 ifeq ("$(O)","")
-O:=Stable
+O:=.hidden/Stable
 endif
 
 all: $(APP)
@@ -32,11 +32,13 @@ $(APP): .project $(shell find .src -type f)
 clean:
 	$(vecho) "Cleaning $(PROJECT)"	
 	$(Q)rm -f $(APP)
+	$(Q)rm -rf $(O)
 	$(Q)rm -rf .gambas
 
 $(O)/$(VERSION)/$(PROJECT).tar.gz: $(APP) Icones/Larus.png
 	$(vecho) "Packaging $(PROJECT) v$(VERSION) ($(GIT_SHA1)) in path $(O)/$(VERSION)"
 	$(Q) mkdir -p $(O)/$(VERSION)
+	$(Q) echo "$(PROJECT) v$(VERSION)" > $(O)/$(VERSION)/version.txt
 	$(Q) tar --transform 's,^,$(PROJECT)/,' -zcf $@ $^
 
 .phony: package
