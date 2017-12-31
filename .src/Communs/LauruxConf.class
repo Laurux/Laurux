@@ -264,8 +264,7 @@ Public Sub Button1_Click()
       Fmenuc.text = "Société en cours : " & rResult!type_sc & " - " & rResult!int_sc
       Fmenuf.text = "Société en cours : " & rResult!type_sc & " - " & rResult!int_sc
     Else
-      nouveau = True
-      Createbase()
+      If Createbase(Nbase.text) Then Me.close
     Endif
   Else
     Message.Warning("Le tunnel SSH demandé ne peut être monté")
@@ -275,8 +274,7 @@ Catch
     Message.Warning("Attention, l' utilisateur ou le mot de passe est erroné ! \n Veuillez controler votre saisie SVP et vérifier que l'utisateur soit bien créé dans MySQL!")
   Else
     If Left$(error.Text, 38) = "Cannot open database: Unknown database" Then
-      Nouveau = True
-      Createbase()
+      If Createbase(Nbase.text) Then Me.close
     Else
       If Left$(error.Text, 35) = "Cannot open database: Can't connect" Then
         Message.Warning("Attention, accès MySQL impossible ! \n Veuillez vérifier que MySQL soit bien installé et que le service soit lancé SVP !")
@@ -288,16 +286,18 @@ Catch
 
 End
 
-Public Sub createbase()
+Public Sub Createbase(Base As String, Optional AsCurrent As Boolean = True) As Boolean
 
   Dim hcon As New Connection
   Dim sTemp As String
+  Dim Soc As String = Right$(Base, 2)
+  Dim Tab As String
   Dim $ipr As New Integer[]
 
   If son Then
     Music.Play
   Endif
-  If message.Question("Le programme va créer la base " & Nbase.Text & ".", "Oui", "Non") = 1 Then
+  If message.Question("Le programme va créer la base " & Base & ".", "Oui", "Non") = 1 Then
     Me.mouse = Mouse.wait
     Try Utils.db.Close
 
@@ -309,10 +309,10 @@ Public Sub createbase()
     hcon.Port = Port.Text
     Try hcon.open
     If Error Then Print Error.Text
-    hcon.Databases.Add(Nbase.Text)
+    hcon.Databases.Add(Base)
     hcon.Close
     Start.LocalSettings["/dbase/Con-ssh"] = Bssh.Value
-    Start.LocalSettings["/Soc"] = Right$(Nbase.Text, 2)
+    If AsCurrent Then Start.LocalSettings["/Soc"] = Soc
     Start.LocalSettings["/intitule"] = intitule
     Start.LocalSettings["/son"] = 0
     Start.LocalSettings["/Tips"] = 1
@@ -359,46 +359,42 @@ Public Sub createbase()
     Start.LocalSettings["/Soc" & Start.Societe & "/Lettrage"] = 1
     Start.LocalSettings["/Soc" & Start.Societe & "/Impbl"] = 0
     Start.LocalSettings["/Soc" & Soc & "/nbfam"] = "5"
-    $ipr.Add(2)
     $ipr.Add(5)
     Start.LocalSettings["/Soc" & Soc & "/ipr"] = $ipr
     'mise des options à faux
     Start.LocalSettings["/Soc" & Soc & "/pp"] = False
     Start.LocalSettings["/Soc" & Soc & "/bois"] = False
     Start.LocalSettings.Save
-    If nouveau = True Then
-      sTemp = Temp$("Lauruxdb")
-      Try Mkdir sTemp
-      sTemp &/= "Laurux01.sql"
-      Try Kill sTemp
-      Copy "Laurux01.sql" To sTemp
-      If IsNull(Start.LocalSettings["/dbase/Host"]) Then
-        Shell "mysql -u " & Utils.db.login & " -p" & Utils.db.Password & " " & "Laurux01  < " & sTemp Wait
-      Else
-        Shell "mysql -h " & Start.LocalSettings["/dbase/Host"] & " -u " & Utils.db.login & " -p" & Utils.db.Password & " " & "Laurux01  < " & sTemp Wait
-      Endif
+    sTemp = Temp$("Lauruxdb")
+    Try Mkdir sTemp
+    sTemp &/= "Laurux01.sql"
+    Try Kill sTemp
+    Copy "Laurux01.sql" To sTemp
+    If IsNull(Start.LocalSettings["/dbase/Host"]) Then
+      Shell "mysql -u " & Utils.db.login & " -p" & Utils.db.Password & " " & "Laurux" & Soc & " < " & sTemp Wait
+    Else
+      Shell "mysql -h " & Start.LocalSettings["/dbase/Host"] & " -u " & Utils.db.login & " -p" & Utils.db.Password & " " & "Laurux" & Soc & " < " & sTemp Wait
     Endif
+    'Cas special si la connection à la base a echouée car elle n'existait pas... maintenant c'est ok (si besoin le tunnel est déjà monté)
+    If Not Utils.db.Opened Then Utils.db.Open()
+    Tab = "Fiches_Societes"
+    Utils.db.Exec("UPdate  " & Base & "." & Tab & "  SET cd_sc = &1 where cd_sc = 01", Soc)
+    
     Start.LocalSettings["/Societes/Soc" & Soc] = Majversion.Version
     Start.LocalSettings.Reload
-    Start.societe = soc
+    If AsCurrent Then Start.societe = soc
     Me.mouse = Mouse.Default
-    If nouveau = True Then
-      Message.Info("Laurux est installé et la base de démarrage a été restaurée !\nVous pouvez maintenant relancer Laurux.")
-      Start.UnLock()
-      Utils.fermeTunnel()
-      Utils.db.Close
-      Quit
-    Else
-      Message.Warning("La base a été créée !")
-    Endif
-    Me.close
+    Message.Info("La base de démarrage a été installé sur " & Base & "!\nCette base peut être maintenant sélectionné.")
+    Return True
+  Else
+    Return False
   Endif
 
 End
 
 Public Sub Button2_Click()
 
-  Me.close
+  Try Me.close
 
 End
 
@@ -429,8 +425,21 @@ Public Sub Form_Close()
     Start.LocalSettings["/dbase/ssh/Portlocal"] = Portlocal.Text
   Endif
 
-  'Utils.fermeTunnel()
-  ' Print Now & " - " & "Fermeture de la fenêtre\n"
+  'Modal during empty/non working configuration
+  'Else restart Laurux with new database connection
+  If Not Me.Modal
+    Me.Hide
+    Start.UnLock()
+    Utils.fermeTunnel()
+    Utils.db.Close
+    Try Fmenu.Close
+    Try Fmenuc.Close
+    Try Fmenuf.Close
+    Try Fmenu.delete
+    Try Fmenuc.delete
+    Try Fmenuf.delete
+    Start.Main()
+  Endif
 
 End
 

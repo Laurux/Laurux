@@ -63,8 +63,10 @@ End
 
 Public Sub Button1_Click()
 
-  Dim TabS1, TabS2, TabS3 As String
+  Dim TabS1, TabS2 As String
   Dim $S1, $S2 As String
+  Dim Existing As Boolean = False
+  Dim elements As Variant
 
   $S1 = Right$(S1.Text, Len(S1.Text) - 6)
   $S2 = Right$(Nbase.Text, Len(Nbase.Text) - 6)
@@ -73,168 +75,222 @@ Public Sub Button1_Click()
     Return
   Endif
   If Message.Question("Ok pour dupliquer la société " & $S1 & " vers la société " & $S2 & " ?", "Oui", "Non") = 1 Then
-    Me.mouse = Mouse.Wait
     Utils.db.Exec("set sql_mode = &1", "no_auto_value_on_zero")
     TabS1 = "Fiches_Parametres"
     TabS2 = "Fiches_Parametres"
-    Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+    
+    For Each elements In Utils.db.Databases
+      If elements.name = Nbase.Text Then Existing = True
+    Next
+    If Existing Then
+      If Message.Warning("La base " & $S2 & " existe .\nEtes vous sur de vouloir écraser son contenu?", "Non", "Oui") = 1 Then Return
+    Else
+      'on initialise le schema avec la base de défaut
+      If Not LauruxConf.Createbase(Nbase.Text, False) Then Return
+    Endif
+    
+    Me.mouse = Mouse.Wait
+    Try Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+    If Error Then
+      If Existing Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nSuppression Impossible!")
+    Endif
     Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
     Utils.db.Exec("UPdate  " & Nbase.Text & "." & Tabs2 & " SET  dnbon = &1, dnfac = &1, dncom = &2", "000000", "00000")
     Utils.db.Exec("UPdate  " & Nbase.Text & "." & Tabs2 & " SET  numecriture = &1,numecriture2 = &2", 0, 0)
     If Chk1.value = False Then Utils.db.Exec("UPdate  " & Nbase.Text & "." & Tabs2 & " SET  dnc = &1", "411000")
     If Chk2.value = False Then Utils.db.Exec("UPdate  " & Nbase.Text & "." & TabS2 & "  SET  dnf = &1", "401000")
-    If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
 
     TabS1 = "Fiches_Tvaav"
     TabS2 = "Fiches_Tvaav"
-    Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+    Try Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+    If Error Then
+      If Existing Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nSuppression Impossible!")
+    Endif
     Utils.db.Exec("create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
-    If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
-
+    
     TabS1 = "Fiches_Tvaac"
     TabS2 = "Fiches_Tvaac"
-    Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+    Try Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+    If Error Then
+      If Existing Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nSuppression Impossible!")
+    Endif
     Utils.db.Exec("create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
-    If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
-
+    
     TabS1 = "Fiches_Journaux"
     TabS2 = "Fiches_Journaux"
-    Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+    Try Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+    If Error Then
+      If Existing Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nSuppression Impossible!")
+    Endif
     Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
-    If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
-
+    
     TabS1 = "Fiches_Echeances"
     TabS2 = "Fiches_Echeances"
-    Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+    Try Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+    If Error Then
+      If Existing Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nSuppression Impossible!")
+    Endif
     Utils.db.Exec("create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
-    If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
-
+   
     TabS1 = "Fiches_Comptes"
     TabS2 = "Fiches_Comptes"
-    TabS3 = "Fiches_Parametres"
-    Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
-    Utils.db.Exec("create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
-    If Error Then
-      Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
-    Else
-      Utils.db.Exec("UPdate  " & Nbase.Text & "." & TabS2 & "  SET  solde = &1, soldep = &2", 0, 0, 0)
-      If Chk1.value = False Then
-        Utils.db.Exec("delete from " & Nbase.Text & "." & TabS2 & " where Left(compte_cc, 3) = &1 And coll <> &2", "411", "1")
-      Endif
-      If Chk2.value = False Then
-        Utils.db.Exec("delete from " & Nbase.Text & "." & TabS2 & " where Left(compte_cc, 3) = &1 And coll <> &2", "401", "1")
-      Endif
+    'Pour les comptes c'est plus complex on garde les comptes clients/fournisseur de base si on ne les duplique pas explicitement
+    'On duplique cependant tous les autres comptes 
+    Utils.db.Exec("Delete From " & Nbase.Text & "." & TabS2 & " where ( Left(compte_cc, 3) <> &1 And Left(compte_cc, 3) <> &2 ) Or coll = &3", "411", "401", "1")
+    If Chk1.value = True Then
+      Utils.db.Exec("Delete From " & Nbase.Text & "." & TabS2 & " where Left(compte_cc, 3) = &1 And coll <> &2", "411", "1")
+      Utils.db.Exec("Insert Into " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & " where Left(compte_cc, 3) = &1 And coll <> &2", "411", "1")
     Endif
+    If Chk2.value = True Then
+      Utils.db.Exec("Delete From " & Nbase.Text & "." & TabS2 & " where Left(compte_cc, 3) = &1 And coll <> &2", "401", "1")
+      Utils.db.Exec("Insert Into " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & " where Left(compte_cc, 3) = &1 And coll <> &2", "401", "1")
+    Endif
+    Utils.db.Exec("Insert Into " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & " where ( Left(compte_cc, 3) <> &1 And Left(compte_cc, 3) <> &2 ) Or coll = &3", "411", "401", "1")
+    Utils.db.Exec("UPdate  " & Nbase.Text & "." & TabS2 & "  SET  solde = &1, soldep = &2", 0, 0, 0)
 
     TabS1 = "Fiches_Txt_Relances"
     TabS2 = "Fiches_Txt_Relances"
-    Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+    Try Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+    If Error Then
+      If Existing Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nSuppression Impossible!")
+    Endif
     Utils.db.Exec("create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
-    If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
-
+    
     TabS1 = "Fiches_Etiquettes"
     TabS2 = "Fiches_Etiquettes"
-    Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+    Try Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+    If Error Then
+      If Existing Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nSuppression Impossible!")
+    Endif
     Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
-    If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
-
+    
     TabS1 = "Fiches_Cpostaux"
     TabS2 = "Fiches_Cpostaux"
-    Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+    Try Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+    If Error Then
+      If Existing Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nSuppression Impossible!")
+    Endif
     Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
-    If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
+
+    TabS1 = "Fiches_Societes"
+    TabS2 = "Fiches_Societes"
+    Try Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+    If Error Then
+      If Existing Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nSuppression Impossible!")
+    Endif
+    Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
+    Utils.db.Exec("UPdate  " & Nbase.Text & "." & TabS2 & "  SET  cd_sc = &1", $S2)
 
     If Chk1.value = True Then
       TabS1 = "Fiches_Cli"
       TabS2 = "Fiches_Cli"
-      Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+      Try Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+      If Error Then
+        If Existing Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nSuppression Impossible!")
+      Endif
       Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
-      If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
     Endif
 
     If Chk1.value = True Then
       TabS1 = "Fiches_AdrlivC"
       TabS2 = "Fiches_AdrlivC"
-      Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+      Try Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+      If Error Then
+        If Existing Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nSuppression Impossible!")
+      Endif
       Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
-      If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
     Endif
 
     If Chk1.value = True Then
       TabS1 = "Fiches_ContactC"
       TabS2 = "Fiches_ContactC"
-      Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+      Try Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+      If Error Then
+        If Existing Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nSuppression Impossible!")
+      Endif
       Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
-      If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
     Endif
 
     If Chk2.value = True Then
       TabS1 = "Fiches_Four"
       TabS2 = "Fiches_Four"
-      Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+      Try Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+      If Error Then
+        If Existing Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nSuppression Impossible!")
+      Endif
       Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
-      If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
     Endif
 
     If Chk2.value = True Then
       TabS1 = "Fiches_ContactF"
       TabS2 = "Fiches_ContactF"
-      Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+      Try Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+      If Error Then
+        If Existing Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nSuppression Impossible!")
+      Endif
       Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
-      If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
     Endif
 
     If Chk3.value = True Then
       TabS1 = "Fiches_Fam"
       TabS2 = "Fiches_Fam"
-      Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+      Try Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+      If Error Then
+        If Existing Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nSuppression Impossible!")
+      Endif
       Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
-      If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
     Endif
 
     If Chk4.value = True Then
       TabS1 = "Fiches_Art"
       TabS2 = "Fiches_Art"
-      Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
-      Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
+      Try Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
       If Error Then
-        Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
-      Else
-        Utils.db.Exec("UPdate  " & Nbase.Text & "." & TabS2 & "  SET  art_qte = &1, art_com = &2, art_stkdep = &3, art_ddate = &4, art_datefbt = &5", 0, 0, 0, "", "")
-        TabS1 = "Fiches_CdBarre"
-        TabS2 = "Fiches_CdBarre"
-        Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
-        Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
-        If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
+        If Existing Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nSuppression Impossible!")
       Endif
+      Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
+      Utils.db.Exec("UPdate  " & Nbase.Text & "." & TabS2 & "  SET  art_qte = &1, art_com = &2, art_stkdep = &3, art_ddate = &4, art_datefbt = &5", 0, 0, 0, "", "")
+      TabS1 = "Fiches_CdBarre"
+      TabS2 = "Fiches_CdBarre"
+      Try Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+      If Error Then
+        If Existing Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nSuppression Impossible!")
+      Endif
+      Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
     Endif
 
     If Chk5.value = True Then
       TabS1 = "Fiches_Commentaires"
       TabS2 = "Fiches_Commentaires"
-      Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+      Try Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+      If Error Then
+        If Existing Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nSuppression Impossible!")
+      Endif
       Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
-      If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
     Endif
 
     If Chk6.value = True Then
       TabS1 = "Fiches_Mo"
       TabS2 = "Fiches_Mo"
-      Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+      Try Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+      If Error Then
+        If Existing Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nSuppression Impossible!")
+      Endif
       Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
-      If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
     Endif
 
     If Chk6.value = True Then
       TabS1 = "Fiches_Txtmo"
       TabS2 = "Fiches_Txtmo"
-      Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+      Try Utils.db.Exec("drop table " & Nbase.Text & "." & TabS2)
+      If Error Then
+        If Existing Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nSuppression Impossible!")
+      Endif
       Utils.db.Exec("Create table " & Nbase.Text & "." & TabS2 & " SELECT * FROM " & S1.Text & "." & TabS1 & "")
-      If Error Then Message.Error("Problème sur table " & TabS2 & " de la société " & $S2 & ".\nTransfert données impossible !")
     Endif
 
-    Message.Warning("Transfert terminé !")
     Me.mouse = Mouse.Default
+    Message.Warning("Transfert terminé !")
   Endif
 
 End
