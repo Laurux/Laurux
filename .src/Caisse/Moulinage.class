@@ -1613,19 +1613,20 @@ End
 '*****************************************
 Private Sub genfac()
 
-  Dim res, resentz, resligz, resentfac, resligfac, respar, reslig As Result
+  Dim res, respu, resentz, resligz, resentfac, resligfac, respar, reslig As Result
   Dim i, j As Integer
   Dim rem As Float
   Dim pu, pxttc, mttc, mht, mtva, mremise As Float
   Dim snfac, snumlig As String
 
   'recuperation et maj du n° facture
-  respar = utils.db.Edit("Fiches_Parametres", "ind='0'")
+'  respar = utils.db.Edit("Fiches_Parametres", "ind='0'")
+  respar = utils.db.Exec("SELECT * FROM Fiches_Parametres")
   snfac = Str(Year(DateChooser1.Value)) & Format(Val(respar!dnfac) + 1, "000000")
-  respar!dnfac = Format(Val(respar!dnfac) + 1, "000000")
+'  respar!dnfac = Format(Val(respar!dnfac) + 1, "000000")
 
   'selection des entetes fichier z
-  resentz = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where left(date,10) = &1 and client = &2 and not suppr group by numero", Format$(DateChooser1.Value, "dd-mm-yyyy"), client)
+  resentz = Utils.db.Exec("SELECT numero FROM " & Cbase.Table("TabEntTck") & " where left(date,10) = &1 and client = &2 and not suppr group by numero", Format$(DateChooser1.Value, "dd-mm-yyyy"), client)
   If resentz.Available Then
     utils.db.Begin
     resentz.MoveFirst
@@ -1745,7 +1746,7 @@ Private Sub genfac()
         resentfac!villefac = res!cli_ville
         resentfac!datefac = DateChooser1.Value
         resentfac.Update
-        respar.Update
+        utils.db.Exec("UPDATE Fiches_Parametres SET dnfac=&1", snfac) 
 
         'mise a jour des lignes de facture
         reslig = utils.db.Exec("SELECT SUM(pu) as pu, SUM(montant) as montant, SUM(remise) as remise, SUM(quantite) as quantite, SUM(tva) as mtva, SUM(marge) as marge, fam,code FROM Tmp_Caisse GROUP BY code,fam")
@@ -1761,35 +1762,29 @@ Private Sub genfac()
         reslig.MoveFirst
         For j = 0 To reslig.Max
           resligfac = Utils.db.Create("Fiches_HistoLigfac")
+          res = utils.db.Exec("SELECT * FROM Fiches_Art WHERE art_code=&1", reslig!code)
           resligfac!num_ligfac = snfac
           snumlig = Str(Val(snumlig) + 1)
           resligfac!numlig_ligfac = Format(snumlig, "0000")
           resligfac!code_ligfac = reslig!code
-          resligfac!pu_ligfac = Format(reslig!pu, "0.00")
-          'resligfac!brut_ligfac = Format(reslig!montant, "0.00")
-          resligfac!brut_ligfac = Format(reslig!pu * reslig!quantite, "0.00")
+          If res.Available Then resligfac!pu_ligfac = Format(res!art_pvht, "0.00") Else resligfac!pu_ligfac = "0,00"
+          resligfac!brut_ligfac = Format(Val(resligfac!pu_ligfac) * reslig!quantite, "0.00")
           resligfac!rem_ligfac = Format(reslig!remise, "0.00")
-          'resligfac!netht_ligfac = Format(reslig!montant - reslig!remise, "0.00")
-          'resligfac!nettc_ligfac = Format((reslig!montant - reslig!remise) + reslig!mtva, "0.00")
           resligfac!netht_ligfac = Format(reslig!montant, "0.00")
           resligfac!nettc_ligfac = Format(reslig!montant + reslig!mtva, "0.00")
           resligfac!mrgart_ligfac = reslig!marge
-          'resligfac!nettc_ligfac = Format((reslig!montant - reslig!remise), "0.00")
           resligfac!typel_ligfac = "A"
           'lecture des données sur fiche article
-          res = utils.db.Exec("SELECT * FROM Fiches_Art WHERE art_code=&1", reslig!code)
           If res.Available Then
             resligfac!libel_ligfac = res!art_design
             resligfac!fam_ligfac = res!art_fam
             resligfac!tx_ligfac = res!art_tva
             resligfac!qte_ligfac = Format(reslig!quantite, utils.Find_nbdec(res!art_dec))
-            'resligfac!pu_ligfac = Format(reslig!montant / reslig!quantite, utils.Find_nbdec(res!art_nbd))
             res = utils.db.Exec("SELECT * FROM Fiches_Tvaav WHERE code_tva=&1", resligfac!tx_ligfac)
             If res.Available Then resligfac!mtx_ligfac = res!taux_tva
           Else
             resligfac!libel_ligfac = "Article inconnu"
             resligfac!qte_ligfac = Format(reslig!quantite, "0.000")
-            'resligfac!pu_ligfac = Format((reslig!montant / reslig!quantite), "0.00")
             resligfac!fam_ligfac = reslig!fam
           Endif
           resligfac.Update
@@ -1854,7 +1849,7 @@ Private Sub creatmp()
     "quantite Decimal(9,3)," &
     "tva Decimal(8,2)," &
     "marge Decimal(8,2)," &
-    "fam Char(5)," &
+    "fam Char(20)," &
     "PRIMARY KEY (lInd))")
 
 End
