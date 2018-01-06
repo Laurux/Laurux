@@ -180,10 +180,11 @@ Public Sub Traitement()
   Dim TotA As String = 0
   Dim BrutA As String = 0
   Dim RemiseA As String = 0
-  Dim Fam As String
+  Dim Cdfam, Fam As String
   Dim Fm As Integer
   Dim Bflag As Boolean = False
   Dim Bht As String
+  Dim cdf As Integer = 0
 
   Tab = "Fiches_HistoFac"
   Tab2 = "Fiches_HistoLigfac"
@@ -337,18 +338,23 @@ Public Sub Traitement()
             If Fact.value = True Then LigResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " Where num_ligfac = &1 and typel_ligfac <> &2 and typel_ligfac <> &3 and typel_ligfac <> &4 and typel_ligfac <> &5 and typel_ligfac <> &6 and typel_ligfac <> &7 union SELECT * FROM " & Tab5 & " Where num_ligfac = &1 and typel_ligfac <> &2 and typel_ligfac <> &3 and typel_ligfac <> &4 and typel_ligfac <> &5 and typel_ligfac <> &6 and typel_ligfac <> &7", rResult!numfac, "T", "E", "C", "P", "R", "O")
             If LigResult.Available Then
               Repeat
-                If RadioButton1.Value Then
-                  TotResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " Where codeFam = &1", Left$(LigResult!fam_ligfac, 2))
+                cdfam = LigResult!fam_ligfac
+                If IsNull(cdfam) Then
+                  TotResult = Utils.db.Exec("SELECT * FROM Fiches_Art Where art_code = &1", LigResult!code_ligfac)
+                  Cdfam = TotResult!art_fam
+                Endif
+                FamResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " Where code_fam = &1", cdfam)
+                If FamResult.Available Then
+                  Fam = FamResult!libell_fam
                 Else
-                  TotResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " Where codeFam = &1", LigResult!fam_ligfac)
+                  Fam = " Famille inconnue"
+                Endif
+                If RadioButton1.Value Then
+                  TotResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " Where codeFam = &1", Left$(cdfam, 2))
+                Else
+                  TotResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " Where codeFam = &1", cdfam)
                 Endif
                 If TotResult.Available Then
-                  FamResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " Where code_fam = &1", LigResult!fam_ligfac)
-                  If FamResult.Available Then
-                    Fam = FamResult!libell_fam
-                  Else
-                    Fam = " Famille inconnue"
-                  Endif
                   If IsNull(LigResult!qte_ligfac) Then
                     qteA = "1"
                   Else
@@ -365,7 +371,6 @@ Public Sub Traitement()
                 Else
                   qteA = LigResult!qte_ligfac
                   BrutA = LigResult!brut_ligfac
-                  'RemiseA = LigResult!rem_ligfac
                   TotA = LigResult!netht_ligfac
                   RemiseA = Format$(Val(BrutA) - Val(TotA), "0.00")
                   If RadioButton1.Value Then
@@ -395,18 +400,24 @@ Public Sub Traitement()
       If Bflag = True Then
         If rResult.Available Then
           Repeat
+
             If Facn.value = True Then LigResult = Utils.db.Exec("SELECT * FROM " & Tab8 & " Where num_ligbl = &1 and typel_ligbl <> &2 and typel_ligbl <> &3 and typel_ligbl <> &4 and typel_ligbl <> &5 and typel_ligbl <> &6 and typel_ligbl <> &7 and typel_ligbl <> &8", rResult!numbl, "T", "E", "C", "P", "R", "O", "D")
             If Face.value = True Then LigResult = Utils.db.Exec("SELECT * FROM " & Tab9 & " Where num_ligbl = &1 and typel_ligbl <> &2 and typel_ligbl <> &3 and typel_ligbl <> &4 and typel_ligbl <> &5 and typel_ligbl <> &6 and typel_ligbl <> &7 and typel_ligbl <> &8", rResult!numbl, "T", "E", "C", "P", "R", "O", "D")
             If Fact.value = True Then LigResult = Utils.db.Exec("SELECT * FROM " & Tab8 & " Where num_ligbl = &1 and typel_ligbl <> &2 and typel_ligbl <> &3 and typel_ligbl <> &4 and typel_ligbl <> &5 and typel_ligbl <> &6  and typel_ligbl <> &7 and typel_ligbl <> &8 union SELECT * FROM " & Tab9 & " Where num_ligbl = &1 and typel_ligbl <> &2 and typel_ligbl <> &3 and typel_ligbl <> &4 and typel_ligbl <> &5 and typel_ligbl <> &6 and typel_ligbl <> &7 and typel_ligbl <> &8", rResult!numbl, "T", "E", "C", "P", "R", "O", "D")
             If LigResult.Available Then
               Repeat
+                cdfam = LigResult!fam_ligbl
+                If IsNull(cdfam) Then
+                  TotResult = Utils.db.Exec("SELECT * FROM Fiches_Art Where art_code = &1", LigResult!code_ligbl)
+                  Cdfam = TotResult!art_fam
+                Endif
                 If RadioButton1.Value Then
-                  TotResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " Where codeFam = &1", Left$(LigResult!fam_ligbl, 2))
+                  TotResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " Where codeFam = &1", Left$(Cdfam, 2))
                 Else
-                  TotResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " Where codeFam = &1", LigResult!fam_ligbl)
+                  TotResult = Utils.db.Exec("SELECT * FROM " & Tab3 & " Where codeFam = &1", Cdfam)
                 Endif
                 If TotResult.Available Then
-                  FamResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " Where code_fam = &1", LigResult!fam_ligbl)
+                  FamResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " Where code_fam = &1", Cdfam)
                   If FamResult.Available Then
                     Fam = FamResult!libell_fam
                   Else
