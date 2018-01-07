@@ -46,7 +46,8 @@ Public Sub _New()
   Colabt.Columns[1].Text = "Intitulé"
   Colabt.Columns[2].Text = "Type écriture"
   Colabt.Columns[3].Text = "Type saisie"
-  Colecr.Columns.count = 6
+  
+  Colecr.Columns.count = 9
   Colecr.Columns[0].Width = 90
   Colecr.Columns[1].Width = 232
   Colecr.Columns[2].Alignment = 2
@@ -56,11 +57,19 @@ Public Sub _New()
   Colecr.Columns[4].Width = 80
   Colecr.Columns[5].Width = 0
   Colecr.Columns[0].Text = "Compte"
-  Colecr.Columns[1].Text = "Libellé"
+  Colecr.Columns[1].Text = "Intitulé"
   Colecr.Columns[2].Text = "Débit"
   Colecr.Columns[3].Text = "Crédit"
   Colecr.Columns[4].Text = "Lig"
   Colecr.Columns[4].Alignment = 2
+  
+  Colecr.Columns[6].Width = 232
+  Colecr.Columns[6].Text = "Libellé"
+  Colecr.Columns[7].Width = 90
+  Colecr.Columns[7].Text = "Num Doc"
+  Colecr.Columns[8].Width = 90
+  Colecr.Columns[8].Text = "Num Lot"
+  
   Solde.text = "0,00"
   ComboBox1.text = "1- Montant"
   dbl = ""
@@ -182,6 +191,9 @@ Public Sub Colabt_Click()
         If Error Then Colecr.Item[2] = "0,00"
         Colecr.Item[4] = recrt!lig
         Colecr.Item[5] = recrt!lind
+        Colecr.Item[6] = recrt!libelle
+        Colecr.Item[7] = recrt!numDoc
+        Colecr.Item[8] = recrt!numLot
         'ELSE
         'Colecr.Item[2] = Format$(Val(Utils.cpoint(recrt!debit)), "0")
         'Colecr.Item[3] = Format$(Val(Utils.cpoint(recrt!credit)), "0")
@@ -221,6 +233,11 @@ Public Sub Button2_Click()
     Intitule.clear
     Compte.Clear
     Montant.Clear
+    
+    NumDoc.Clear
+    NumLot.Clear
+    LibelleEcrit.Clear
+    
     Solde.text = "0,00"
     Libelle.SetFocus
     Colecr.Clear
@@ -266,6 +283,11 @@ Public Sub Button7_Click()
           Colecr.Item[3] = "0"
         Endif
       Endif
+      
+      Colecr.Item[6] = LibelleEcrit.Text
+      Colecr.Item[7] = NumDoc.Text
+      Colecr.Item[8] = NumLot.Text
+      
       'IF type2 = "VE" AND Debit.value = TRUE THEN Solde.Text = Format$(Val(.cpoint(Solde.Text)) + Val(.cpoint(Montant.Text)), "0.00")
       'IF type2 = "VE" AND Credit.value = TRUE THEN Solde.Text = Format$(Val(.cpoint(Solde.Text)) - Val(.cpoint(Montant.Text)), "0.00")
       If type2 = "AC" And Debit.value = True Then Solde.Text = Format$(Val(.cpoint(Solde.Text)) - Val(.cpoint(Montant.Text)), "0.00")
@@ -281,8 +303,13 @@ Public Sub Button7_Click()
       Endif
       Calculsolde()
       Montant.Text = Format$(Val(Utils.cpoint(Solde.text)), "0.00")
+      
       Compte.Clear
       Intitule.Clear
+      LibelleEcrit.Clear
+      NumDoc.Clear
+      NumLot.Clear
+      
       'Colecr.Clear
       Compte.SetFocus
     End With
@@ -303,6 +330,11 @@ Public Sub Colecr_Activate()
 
   Compte.text = Colecr.Current[0]
   Intitule.Text = Colecr.Current[1]
+  
+  LibelleEcrit.Text = Colecr.Current[6]
+  NumDoc.Text = Colecr.Current[7]
+  NumLot.Text = Colecr.Current[8]
+  
   If Val(Colecr.Current[2]) = 0 Then
     Montant.Text = Colecr.Current[3]
   Else
@@ -351,9 +383,9 @@ Public Sub Button3_Click()
       Repeat
         recrt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigabon") & " Where lind = &1", Colecr.Item[5])
         If recrt.Available Then
-          Utils.db.Exec("UPdate " & Cbase.Table("TabLigabon") & " set numero = &1, compte = &2, intitule = &3, debit = &4 , credit =&5, lig = &6 Where lind = &7", code.text, Colecr.Item[0], Colecr.Item[1], Colecr.Item[2], Colecr.Item[3], Colecr.Item[4], Colecr.Item[5])
+          Utils.db.Exec("UPdate " & Cbase.Table("TabLigabon") & " set numero = &1, compte = &2, intitule = &3, debit = &4 , credit =&5, lig = &6 , libelle = &8 , numDoc = &9 , numLot = &10 Where lind = &7", code.text, Colecr.Item[0], Colecr.Item[1], Colecr.Item[2], Colecr.Item[3], Colecr.Item[4], Colecr.Item[5], Colecr.Item[6], Colecr.Item[7], Colecr.Item[8])
         Else
-          Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigabon") & "(numero, compte, intitule, debit, credit, lig) VALUES (&1, &2, &3, &4, &5, &6)", code.text, Colecr.Item[0], Colecr.Item[1], Colecr.Item[2], Colecr.Item[3], Colecr.Item[4])
+          Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigabon") & "(numero, compte, intitule, debit, credit, lig, libelle, numDoc, numLot) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9)", code.text, Colecr.Item[0], Colecr.Item[1], Colecr.Item[2], Colecr.Item[3], Colecr.Item[4], Colecr.Item[6], Colecr.Item[7], Colecr.Item[8])
         Endif
       Until Colecr.MoveNext()
       Colabt.Clear
