@@ -2940,6 +2940,9 @@ CREATE TABLE `Fiches_Ligabon` (
   `credit` char(10) NOT NULL,
   `lig` int(2) DEFAULT NULL,
   `lind` int(11) NOT NULL AUTO_INCREMENT,
+  `libelle` varchar(50) DEFAULT NULL,
+  `numDoc` char(10) DEFAULT NULL,
+  `numLot` char(10) DEFAULT NULL,
   PRIMARY KEY (`lind`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
