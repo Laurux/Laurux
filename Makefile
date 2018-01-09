@@ -17,7 +17,17 @@ ifeq ("$(O)","")
 O:=.hidden/Stable
 endif
 
-all: $(APP)
+all: $(APP) $(APP).desktop
+
+$(APP).desktop:
+	$(Q) echo "[Desktop Entry]" > $@
+	$(Q) echo "Name=$(APP)" >> $@
+	$(Q) echo "Exec=sh -c \"mkdir -p \\\$$HOME/.local/share/icons && cp -f \\\$$HOME/$(APP)/Icones/Larus.png \\\$$HOME/.local/share/icons/ ; cp \\\$$HOME/$(APP)/$(APP).desktop `xdg-user-dir DESKTOP` ; \\\$$HOME/$(APP)/$(APP)\"" >> $@
+	$(Q) echo "Icon=Larus.png" >> $@
+	$(Q) echo "Terminal=false" >> $@
+	$(Q) echo "Type=Application" >> $@
+	$(Q) echo "Categories=Finance" >> $@
+	$(Q) chmod 755 $@
 
 $(APP): .project $(shell find .src -type f)
 	$(vvecho) "Setting version info sha1 to $(GIT_SHA1) for $(GIT_BRANCH)"
@@ -35,7 +45,7 @@ clean:
 	$(Q)rm -rf $(O)
 	$(Q)rm -rf .gambas
 
-$(O)/$(VERSION)/$(PROJECT).tar.gz: $(APP) Icones/Larus.png
+$(O)/$(VERSION)/$(PROJECT).tar.gz: $(APP) $(APP).desktop Icones/Larus.png
 	$(vecho) "Packaging $(PROJECT) v$(VERSION) ($(GIT_SHA1)) in path $(O)/$(VERSION)"
 	$(Q) mkdir -p $(O)/$(VERSION)
 	$(Q) echo "$(PROJECT) v$(VERSION)" > $(O)/$(VERSION)/version.txt
