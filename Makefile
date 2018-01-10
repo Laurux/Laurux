@@ -42,6 +42,7 @@ $(APP): .project $(shell find .src -type f)
 clean:
 	$(vecho) "Cleaning $(PROJECT)"	
 	$(Q)rm -f $(APP)
+	$(Q)rm -f $(APP).desktop
 	$(Q)rm -rf $(O)
 	$(Q)rm -rf .gambas
 
