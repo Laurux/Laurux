@@ -835,6 +835,15 @@ Public Sub Entete2_KeyPress()
     End Select
   Endif
 
+  If Key.code = Key.F3 Then
+    Affadrliv()
+    If Not IsNull(Nombl.text) Then
+      Edit2.Visible = True
+      AffBledit2.value = True
+      Bl_edit()
+    Endif
+  Endif
+
   If Key.code = Key.F4 Then
     Select Case Last.tag
       Case 2
@@ -1200,7 +1209,7 @@ Public Sub Button15_Click()
     'If Tribl = "code_ligbl" Then
     'tribl = "numbl"
     ' tribl2 = "numbl"
-    NOB.Text = "Nom client"
+    'NOB.Text = "Nom client"
     'Endif
     Tot_Remises()
     Button4_Click()
@@ -9564,25 +9573,31 @@ End
 
 Public Sub AffBledit2_Click()
 
-  Dim rAdrbl As Result
-
   If AffBledit2.value = True Then
     If Edit2.Visible = False Then
       Edit2.Visible = True
-      rAdrbl = Utils.db.Exec("SELECT * FROM Fiches_AdrlivBL where numbl = &1", Numero.Text)
-      If rAdrbl.Available Then
-        Nombl.text = rAdrbl!nom
-        Adr1Bl.Text = rAdrbl!adr1
-        Adr2Bl.Text = rAdrbl!adr2
-        CpBl.Text = rAdrbl!cp
-        Villebl.Text = rAdrbl!ville
-      Endif
+      Affadrliv()
       Nombl.SetFocus
       Blch.Value = False
     Endif
   Else
     Edit2.visible = False
     Blch.Value = True
+  Endif
+
+End
+
+Public Sub Affadrliv()
+
+  Dim rAdrbl As Result
+
+  rAdrbl = Utils.db.Exec("SELECT * FROM Fiches_AdrlivBL where numbl = &1", num.text)
+  If rAdrbl.Available Then
+    Nombl.text = rAdrbl!nom
+    Adr1Bl.Text = rAdrbl!adr1
+    Adr2Bl.Text = rAdrbl!adr2
+    CpBl.Text = rAdrbl!cp
+    Villebl.Text = rAdrbl!ville
   Endif
 
 End
@@ -9824,6 +9839,16 @@ End
 '**********************************************************
 Public Sub Button16_Click()
 
+  Dim blrslt As Result
+
+  If Not IsNull(Nombl.text) Then
+    BlRslt = Utils.db.Exec("SELECT * FROM Fiches_AdrlivBL where numbl = &1", Num.text)
+    If BlRslt.Available Then
+      Utils.db.Exec("Update Fiches_AdrlivBL set nom = &2, adr1 = &3 , adr2 = &4, cp = &5, ville = &6 where numbl = &1", num.Text, Nombl.text, Adr1Bl.Text, Adr2Bl.Text, CpBl.Text, Villebl.Text)
+    Else
+      Try Utils.db.Exec("Insert INTO Fiches_AdrlivBL (numbl,nom, adr1, adr2, cp, ville) VALUE (&1, &2, &3, &4, &5, &6)", num.Text, Nombl.text, Adr1Bl.Text, Adr2Bl.Text, CpBl.Text, Villebl.Text)
+    Endif
+  Endif
   Start.LocalSettings["/Soc" & Start.Societe & "/Recap"] = Recap.Value
   ' Start.LocalSettings["/Soc" & Start.Societe & "/Impttc"] = Impttc.Value
   Start.LocalSettings["/Soc" & Start.Societe & "/Entete"] = Entete.Value
@@ -11385,16 +11410,6 @@ Public Sub Impression(Org As String)
       Endif
     End With
     Me.Mouse = Mouse.Default
-    If AffBledit2.Value And If Bbon.Value Then
-      If Not IsNull(Rs2) Then
-        BlRslt = Utils.db.Exec("SELECT * FROM Fiches_AdrlivBL where numbl = &1", Num.text)
-        If BlRslt.Available Then
-          Utils.db.Exec("Update Fiches_AdrlivBL set nom = &2, adr1 = &3 , adr2 = &4, cp = &5, ville = &6 where numbl = &1", num.Text, Nombl.text, Adr1Bl.Text, Adr2Bl.Text, CpBl.Text, Villebl.Text)
-        Else
-          Try Utils.db.Exec("Insert INTO Fiches_AdrlivBL (numbl,nom, adr1, adr2, cp, ville) VALUE (&1, &2, &3, &4, &5, &6)", num.Text, Nombl.text, Adr1Bl.Text, Adr2Bl.Text, CpBl.Text, Villebl.Text)
-        Endif
-      Endif
-    Endif
     Button16_Click()
     'Visudoc = False
     If Not IsNull(num.text) Then
