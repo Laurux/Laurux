@@ -4946,6 +4946,20 @@ Public Sub Maj368()
 
   Dim $ipr As New Integer[]
   Dim txt As String
+
+  Start.LocalSettings.Save
+  If Exist(User.Home & "/.config/gambas3/Laurux3.conf")
+    If Not Exist(User.Home & "/.config/gambas3/" & Application.Name & ".conf")
+      Copy User.Home & "/.config/gambas3/Laurux3.conf" To User.Home & "/.config/gambas3/" & Application.Name & ".conf"
+    Else
+      If Exist(User.Home & "/.config/gambas3/" & Application.Name & ".conf.bak") Then Kill User.Home & "/.config/gambas3/" & Application.Name & ".conf.bak"
+      Copy User.Home & "/.config/gambas3/" & Application.Name & ".conf" To User.Home & "/.config/gambas3/" & Application.Name & ".conf.bak"
+      Kill User.Home & "/.config/gambas3/" & Application.Name & ".conf"
+      Copy User.Home & "/.config/gambas3/Laurux3.conf" To User.Home & "/.config/gambas3/" & Application.Name & ".conf"
+      Message.Warning("Warning Maj368 a déplacé le fichier de conf actuel source:\n" & User.Home & "/.config/gambas3/" & Application.Name & ".conf\nvers destination:\n" & User.Home & "/.config/gambas3/" & Application.Name & ".conf.bak!\nLe fichier de conf de la version précédente a été recopié au nouvel emplacement\nVeuillez verifier son contenu!\n source: " & User.Home & "/.config/gambas3/Laurux3.conf\n destination: " & User.Home & "/.config/gambas3/" & Application.Name & ".conf")
+    Endif
+  Endif
+  Start.LocalSettings.Reload
   
   Tab = "Fiches_Docactif"
   Try Utils.db.EXEC("Drop TABLE " & Tab & "")
@@ -5057,14 +5071,6 @@ Public Sub Maj368()
       Tab = "Fiches_EntTickets" & rResult!code
       Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (prev_numero Char(7))")
     Until rResult.MoveNext()
-  Endif
-  
-  If Exist(User.Home & "/.config/gambas3/Laurux3.conf")
-    If Not Exist(User.Home & "/.config/gambas3/" & Application.Name & ".conf")
-      Move User.Home & "/.config/gambas3/Laurux3.conf" To User.Home & "/.config/gambas3/" & Application.Name & ".conf"
-    Else
-      Message.Warning("Warning Maj368 n'a pas déplacé les fichiers de conf, car la source et la destination existent!\nVeuillez verifier manuellement les configurations!\n source: " & User.Home & "/.config/gambas3/Laurux3.conf\n destination: " & User.Home & "/.config/gambas3/" & Application.Name & ".conf")
-    Endif
   Endif
   
   If Not Error Then bmaj = True
