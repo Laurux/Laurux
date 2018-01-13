@@ -42,8 +42,8 @@ Public Sub _new(num As String, choix As String)
   Dim montht, montcons As Float
   Dim numfac, qst As String
   
-  $num = num                                              ' si $schoix=B num de bon =F num facture = FM num client
-  $schoix = choix                                       ' "B" ==> saisie factures "F" réedition des factures "FM" factures fin de mois
+  $num = num                                              ' si $schoix=B num de bon =F num facture = FM num client =M num facture
+  $schoix = choix                                       ' "B" ==> saisie factures "F" réedition des factures "FM" factures fin de mois "M" facture magasin
   If choix = "FM" Then                                   ' facture fin de mois =>regarde dans tous les bons
     $schoix = "B"
     res = Utils.db.Exec("SELECT num FROM Bl WHERE code=&1", $num)
@@ -55,6 +55,7 @@ Public Sub _new(num As String, choix As String)
   Else
     $slstnum.Add($num)
   Endif
+  If $schoix = "M" Then Return            'Voir pour les consignes + tard
  For Each numfac In $slstnum
   vri = ["", "", "", "", "", "", "", ""]
   'Gestion des consignes
@@ -309,21 +310,57 @@ Public Sub comptmat(Optional numfac As String)    'enregistrement de la compta m
   Dim drt As Calculdroit
   Dim i, nvign As Integer
   Dim num As String
-  
-   Utils.db.Begin
-   'regarde dans le/les bons si un article est en droit suspendu ==> incremente le n° de vignette
-   For Each num In $slstnum
-     resvig = Utils.db.Exec("SELECT suspendu FROM Fiches_Ligbl,Fiches_Art,Fiches_regie WHERE num_ligbl=&1 AND art_code=code_ligbl AND Fiches_regie.code=art_dra AND suspendu='TRUE' LIMIT 1 ", num)
-     If resvig.Available Then
-      respar = Utils.db.Edit("Fiches_Parametres", "WHERE ind=0")
-      nvign = Val(respar!nvign)
-      nvign += 1
-      respar!nvign = Format(nvign, "0000000000000000000000000")
-      respar.Update
-      Break
+
+  Utils.db.Begin
+  'regarde dans le/les bons si un article est en droit suspendu ==> incremente le n° de vignette
+  For Each num In $slstnum
+    If $schoix = "M" Then 
+      resvig = Utils.db.Exec("SELECT suspendu FROM Fiches_HistoLigfac, Fiches_Art,Fiches_regie WHERE num_ligfac=&1 AND art_code=code_ligfac AND Fiches_regie.code=art_dra AND suspendu='TRUE' LIMIT 1 ", num)
+    Else
+      resvig = Utils.db.Exec("SELECT suspendu FROM Fiches_Ligbl, Fiches_Art,Fiches_regie WHERE num_ligbl=&1 AND art_code=code_ligbl AND Fiches_regie.code=art_dra AND suspendu='TRUE' LIMIT 1 ", num)
+    Endif
+    If resvig.Available Then
+      If resvig!suspendu Then
+        respar = Utils.db.Exec("SELECT * FROM Fiches_Parametres")
+        nvign = Val(respar!nvign)
+        nvign += 1
+        Utils.db.Exec("UPDATE Fiches_Parametres SET nvign=&1", Format(nvign, "0000000000000000000000000"))
+        Break
+      Endif
     Endif
   Next
   
+  'Facture magasin
+  If $schoix = "M" Then
+    reslig = Utils.db.Exec("SELECT numlig_ligfac,qte_ligfac,art_code,art_dra,art_volm,art_deg,datefac FROM Fiches_HistoLigfac, Fiches_HistoFac, Fiches_Art WHERE num_ligfac=&1 AND numfac=&1 AND code_ligfac=art_code AND art_dra IS NOT NULL", $slstnum[0])
+    If reslig.Available Then
+      reslig.MoveFirst
+      For i = 0 To reslig.Max
+        drt = New Calculdroit(reslig!art_dra, reslig!art_volm, reslig!art_deg, reslig!qte_ligfac)
+        res = Utils.db.Create("Fiches_ligregie")
+        res!dtmouv = reslig!datefac
+        res!num = numfac
+        res!numlig = Space(6) & reslig!numlig_ligfac
+        res!type = "S"
+        res!codeart = reslig!art_code
+        res!coderegie = reslig!art_dra
+        res!qte = reslig!qte_ligfac
+        res!volume = drt.vol
+        res!degres = reslig!art_deg
+        res!volumeap = drt.volap
+        res!montdr = drt.droit
+        res!txtvadr = drt.tauxtvadr
+        res!montss = drt.secu
+        res!txtvass = drt.tauxtvass
+        res!cloture = False
+        If Val($stotdr) <> 0 Then res!vignette = Format(nvign, "0000000000000000000000000")
+        res.Update
+        reslig.MoveNext
+      Next
+      Utils.db.Commit
+    Endif
+  
+  Endif
   'Factures fin de mois
   If $schoix = "FM" Then
     For Each num In $slstnum
@@ -336,7 +373,7 @@ Public Sub comptmat(Optional numfac As String)    'enregistrement de la compta m
           res!dtmouv = reslig!datebl
           res!num = numfac
           res!numlig = num & reslig!numlig_ligbl
-          res!type = "C"    'permet de renuméroter les lignes pour qu'elles s'accordent avec Histoloigfac
+          res!type = "C"    'permet de renuméroter les lignes pour qu'elles s'accordent avec Histoligfac
           res!codeart = reslig!art_code
           res!coderegie = reslig!art_dra
           res!qte = reslig!qte_ligbl
@@ -394,7 +431,7 @@ Public Function poid() As String
   Dim res As Result
   Dim i As Integer
   
-  If $schoix = "FM" Then Return " "
+  If $schoix = "M" Then Return " "
   If $schoix = "B" Then
     res = Utils.db.Exec("SELECT SUM(qte_ligb*art_poids) as poid FROM Fiches_Ligbl,Fiches_Art WHERE num_ligbl=&1 AND art_code=code_ligbl", $num)
   Else
