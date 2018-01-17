@@ -4960,7 +4960,7 @@ Public Sub Maj368()
     Endif
   Endif
   Start.LocalSettings.Reload
-  
+
   Tab = "Fiches_Docactif"
   Try Utils.db.EXEC("Drop TABLE " & Tab & "")
   Try Utils.db.EXEC("CREATE TABLE " & Tab &
@@ -4972,15 +4972,14 @@ Public Sub Maj368()
     "host_id VARCHAR(50), " &
     "userdb_name VARCHAR(50), " &
     "PRIMARY KEY (doc_type, doc_num))")
-  
+
   Tab = "Fiches_EntTicketz"
   Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (prev_numero Char(7))")
-  
+
   Tab = "Fiches_Parametres"
   Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (version_pos Char(5))")
   Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (conf BLOB)")
-  
-  
+
   Tab = "Fiches_Parametres"
   Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (version_pos Char(5))")
 
@@ -4990,7 +4989,7 @@ Public Sub Maj368()
   Try Utils.db.Exec("ALTER TABLE " & Tab & " modify numero Integer(11) NOT NULL")
   Try Utils.db.Exec("ALTER TABLE " & Tab & " modify numerodef Integer(11)")
   Try Utils.db.Exec("ALTER TABLE " & Tab & " modify intitule VarChar(40)")
-  
+
   Tab = "Fiches_MvtM"
   Try Utils.db.Exec("ALTER TABLE " & Tab & " modify numdoc CHAR(10)")
   Try Utils.db.Exec("ALTER TABLE " & Tab & " modify numlot CHAR(10)")
@@ -5014,7 +5013,7 @@ Public Sub Maj368()
   Try Utils.db.Exec("ALTER TABLE Fiches_LigTicketz MODIFY fam char(20)")
   Try Utils.db.Exec("ALTER TABLE Fiches_ImpArtDef MODIFY cfam char(20)")
   'initialise la longueure des familles et les s/totaux si ça n'a pas déjà été fait
-  Try txt = Start.LocalSettings["/Soc" & Start.Societe & "/nbfam"] 
+  Try txt = Start.LocalSettings["/Soc" & Start.Societe & "/nbfam"]
   If txt = Null Then
     Try Start.LocalSettings["/Soc" & Start.Societe & "/nbfam"] = "5"
     Try $ipr.Add(5)
@@ -5024,12 +5023,12 @@ Public Sub Maj368()
     Try Start.LocalSettings["/Soc" & Start.Societe & "/bois"] = False
     Start.LocalSettings.Save
   Endif
-   'ajout fiche client
+  'ajout fiche client
   Try Utils.db.Exec("ALTER TABLE Fiches_Cli ADD (cli_tour char(15))")
   Try Utils.db.Exec("ALTER TABLE Fiches_Cli ADD cli_gestion decimal(5,2) DEFAULT 0.00")
   Try Utils.db.Exec("ALTER TABLE Fiches_Cli ADD cli_regr char(1) DEFAULT 'S'")
   Try Utils.db.Exec("ALTER TABLE Fiches_Cli ADD cli_siret char(14)")
-  
+
   'ajout fiche adresse de livraison
   Try Utils.db.Exec("ALTER TABLE Fiches_AdrlivC ADD (tourne char(15))")
   'fichier des bl
@@ -5040,13 +5039,13 @@ Public Sub Maj368()
   'ficher des factures
   Try Utils.db.Exec("ALTER TABLE Fiches_HistoLigfac ADD tour_ligfac char(15)")
   Try Utils.db.Exec("ALTER TABLE Fiches_HistoLigfacM ADD tour_ligfac char(15)")
-  Try Utils.db.Exec("ALTER TABLE Fiches_HistoFac ADD gestfac decimal(5,2) DEFAULT 0.00") 
+  Try Utils.db.Exec("ALTER TABLE Fiches_HistoFac ADD gestfac decimal(5,2) DEFAULT 0.00")
   Try Utils.db.Exec("ALTER TABLE Fiches_HistoFacM ADD gestfac decimal(5,2) DEFAULT 0.00")
-    'ajout fichier parametre
+  'ajout fichier parametre
   Try Utils.db.Exec("ALTER TABLE Fiches_Parametres ADD frais decimal(6,2)")
   Try Utils.db.Exec("ALTER TABLE Fiches_Parametres ADD cptfrais char(8)")
   Try Utils.db.Exec("ALTER TABLE Fiches_Parametres ADD tvafrais char(2)")
-    'fichier des tournées
+  'fichier des tournées
   Try Utils.db.Exec("CREATE TABLE Fiches_tourne " &
     "(code char(15) ," &
     "tourne char(50) ," &
@@ -5060,10 +5059,10 @@ Public Sub Maj368()
       Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (prev_numero Char(7))")
     Until rResult.MoveNext()
   Endif
- 'Mise à jour des caisses
- Tab = "Fiches_Touches"
+  'Mise à jour des caisses
+  Tab = "Fiches_Touches"
   Try Utils.db.Exec("ALTER TABLE " & Tab & " modify touche Char(6)")
-  
+
   Tab1 = "Fiches_Caisses"
   rResult = Utils.db.Exec("SELECT * FROM " & Tab1 & " ")
   If rResult.Available Then
@@ -5072,7 +5071,22 @@ Public Sub Maj368()
       Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (prev_numero Char(7))")
     Until rResult.MoveNext()
   Endif
-  
+  Tab = "Fiches_HisEntTickets"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (date2 datetime)")
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
+  If rResult.Available Then
+    Repeat
+      If Left$(rResult!date, 3) = "201" Then
+        Utils.db.Exec("UPdate   " & Tab & " SET date2 = &1 WHERE lInd = &2", Left$(rResult!date, 4) & "." & Mid$(rResult!date, 6, 2) & "." & Mid$(rResult!date, 9, 2) & " " & Mid$(rResult!date, 12, 2) & Mid$(rResult!date, 15, 2), rResult!lInd)
+      Else
+        If Mid$(rResult!date, 7, 3) = "201" Then
+          Utils.db.Exec("UPdate   " & Tab & " SET date2 = &1 WHERE lInd = &2", Mid$(rResult!date, 7, 4) & "." & Mid$(rResult!date, 4, 2) & "." & Left$(rResult!date, 2) & " " & Mid$(rResult!date, 13, 2) & Mid$(rResult!date, 16, 2), rResult!lInd)
+        Endif
+      Endif
+    Until rResult.MoveNext()
+    Try Utils.db.Exec("ALTER TABLE " & Tab & " drop date")
+    Try Utils.db.Exec("ALTER TABLE " & Tab & " change date2 date Datetime")
+  Endif
   If Not Error Then bmaj = True
 
 End
