@@ -54,7 +54,7 @@ Fnt As String ' Variable pour la police
 sKey As String
 Phot_art As String
 Bl As String
-Rcpt As String
+Numrecept As String
 Prd As String
 produit As String
 produit2 As String
@@ -85,6 +85,7 @@ Public Sub _New(code As String)
   CLT.Text = "Client"
   SE.Text = "Numéro série  "
   fourn.Text = "Ref Fournisseur"
+  Rcpt.Text = "Reception"
   B = 0
   Stk = 1
   Stk2 = 1
@@ -142,6 +143,7 @@ Public Sub colmat_Data(Row As Integer, Column As Integer)
     MatTable[3] = "mat_design"
     MatTable[4] = "mat_cli"
     MatTable[5] = "mat_cfour"
+    MatTable[6] = "mat_rcpt"
     Try .rs1.MoveTo(Row)
     Try colmat.data.Text = Str(.rs1[MatTable[Column]])
     If Not Error Then
@@ -178,13 +180,14 @@ End
 Public Sub Tris()
 
   With colmat
-    .Columns.count = 6
+    .Columns.count = 7
     .Columns[0].Width = 1
     .Columns[1].Width = CO.Width - 1
     .Columns[2].Width = SE.Width
     .Columns[3].Width = Inte.Width
     .Columns[4].Width = CLT.Width
     .Columns[5].Width = Fourn.Width
+    .Columns[6].Width = Rcpt.Width
   End With
 
 End
@@ -242,7 +245,11 @@ Public Sub Deb2()
       If tri = "mat_serie" Then
         lpd = "cast(mat_serie as char)"
       Else
-        lpd = tri
+        If tri = "mat_rcpt" Then
+          lpd = "cast(mat_rcpt as char), cast(mat_code as char), cast(mat_serie as char)"
+        Else
+          lpd = tri
+        Endif
       Endif
     Endif
     If Radiobutton1.Value Then
@@ -578,7 +585,7 @@ Public Sub Maj_Zones()
     Rmat = Utils.db.Exec("SELECT * FROM " & Tab2 & " where mat_serie = &1 and mat_code = &2", colmat[colmat.row, 2].Text, colmat[colmat.row, 1].Text)
     If Rmat.Available Then
       Bl = Rmat!mat_bl
-      Rcpt = Rmat!mat_rcpt
+      Numrecept = Rmat!mat_rcpt
       code.Text = Rmat!mat_serie
       codep.Text = Rmat!mat_code
       Desg.Text = Rmat!mat_design
@@ -846,6 +853,7 @@ Public Sub colmat_Click()
   CLT.Text = "Client"
   SE.Text = "Numéro série   "
   Fourn.Text = "Ref Fournisseur"
+  Rcpt.Text = "Reception"
   nv = 0
 
 End
@@ -1511,6 +1519,19 @@ Public Sub fourn_GotFocus()
 
 End
 
+Public Sub Rcpt_LostFocus()
+
+  Try Utils.ObsLstf(Rcpt)
+
+End
+
+Public Sub Rcpt_GotFocus()
+
+  Try Utils.ObsGotf(Rcpt)
+  Rcpt_Click()
+
+End
+
 Public Sub Dbclk()
 
   If Not Dbl Then
@@ -1533,6 +1554,7 @@ Public Sub Co_Click()
   CLT.Text = "Client"
   SE.Text = "Numéro série   "
   fourn.Text = "Ref Fournisseur"
+  Rcpt.Text = "Reception"
   Tri = "mat_code"
   Deb2()
 
@@ -1566,6 +1588,7 @@ Public Sub Inte_Click()
   CLT.Text = "Client"
   SE.Text = "Numéro série   "
   fourn.Text = "Ref Fournisseur"
+  Rcpt.Text = "Reception"
   Tri = "mat_design"
   Deb2()
 
@@ -1632,6 +1655,7 @@ Public Sub Ta_Click()
   CLT.Text = "Client"
   SE.Text = "Numéro série   "
   fourn.Text = "Ref Fournisseur"
+  Rcpt.Text = "Reception"
   Tri = "mat_paht"
   Deb2()
 
@@ -1665,6 +1689,7 @@ Public Sub Cof_Click()
   CLT.Text = "Client"
   SE.Text = "Numéro série   "
   fourn.Text = "Ref Fournisseur"
+  Rcpt.Text = "Reception"
   Tri = "mat_coef"
   Deb2()
 
@@ -1698,6 +1723,7 @@ Public Sub TTc_Click()
   CLT.Text = "Client"
   SE.Text = "Numéro série   "
   fourn.Text = "Ref Fournisseur"
+  Rcpt.Text = "Reception"
   Tri = "mat_pvttc"
   Deb2()
 
@@ -1731,6 +1757,7 @@ Public Sub SE_Click()
   CLT.Text = "Client"
   SE.Text = ""
   fourn.Text = "Ref Fournisseur"
+  Rcpt.Text = "Reception"
   Tri = "mat_serie"
   Deb2()
 
@@ -1773,6 +1800,7 @@ Public Sub fourn_Click()
   SE.Text = "Numéro série   "
   fourn.Text = ""
   Tri = "mat_cfour"
+  Rcpt.Text = "Reception"
   Deb2()
 
 End
@@ -1787,6 +1815,45 @@ Public Sub fourn_KeyPress()
 
   If Left$(Key.Text, 1) = "*" Then
     fourn.Text = Mid$(fourn.Text, 2, Len(fourn.Text) - 1)
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+  Endif
+  Deb2()
+Catch
+
+End
+Public Sub Rcpt_Click()
+
+  sel = ""
+  Dbl = ""
+  'ref()
+  Co.Text = "Code"
+  Inte.Text = "Intitulé"
+  CLT.Text = "Client"
+  SE.Text = "Numéro série   "
+  fourn.Text = ""
+  fourn.Text = "Ref Fournisseur"
+  Rcpt.Text = ""
+  Tri = "mat_rcpt"
+  Deb2()
+
+End
+
+Public Sub Rcpt_Dblclick()
+
+  Dbclk()
+
+End
+
+Public Sub Rcpt_KeyPress()
+
+  If Left$(Key.Text, 1) = "*" Then
+    Rcpt.Text = Mid$(Rcpt.Text, 2, Len(Rcpt.Text) - 1)
+    sel = "%" & sel
   Else
     If key.code = key.backspace Then
       sel = Left$(sel, (Len(sel) - 1))
@@ -2351,7 +2418,7 @@ Public Sub Histo_Achat()
       Colachat.Columns[6].Width = 100
       Colachat.Columns[7].Alignment = 2
       Colachat.Columns[7].Width = 96
-      Colachat.Columns[0].Text = "N° Bl"
+      Colachat.Columns[0].Text = "N° BR"
       Colachat.Columns[1].Text = "Date"
       Colachat.Columns[2].Text = "Code"
       Colachat.Columns[3].Text = "Nom"
@@ -2364,8 +2431,8 @@ Public Sub Histo_Achat()
         If Not Ligprod.Available Then Ligprod = Utils.db.Exec("SELECT * FROM " & Prod & " where art_cfour = &1", codep.text)
         Produit = Ligprod!art_code
         Produit2 = Ligprod!art_cfour
-        Ligrcpt = Utils.db.Exec("SELECT * FROM " & Tab & " where numrecpt = &1 and code = &2", rcpt, produit)
-        If Not Ligrcpt.Available Then Ligrcpt = Utils.db.Exec("SELECT * FROM " & Tab & " where numrecpt = &1 and code = &2", rcpt, produit2)
+        Ligrcpt = Utils.db.Exec("SELECT * FROM " & Tab & " where numrecpt = &1 and code = &2", Numrecept, produit)
+        If Not Ligrcpt.Available Then Ligrcpt = Utils.db.Exec("SELECT * FROM " & Tab & " where numrecpt = &1 and code = &2", Numrecept, produit2)
         If Ligrcpt.Available Then
           Do
             fours = Utils.db.Exec("SELECT * FROM " & Tab2 & " where fo_code = &1 ", Ligrcpt!four)
