@@ -110,18 +110,10 @@ Public Sub affiche()
     Repeat
       Coltk[i, 6].Text = ""
       Coltk[i, 0].Text = tkresult!numero
-      Try d = Left$(tkResult!date, 10) 
-        If Not Error Then
-          If Left$(tkResult!date, 3) = "201" Then
-            Coltk[i, 1].Text = Left$(tkResult!date, 4) & "." & Mid$(tkResult!date, 6, 2) & "." & Mid$(tkResult!date, 9, 2) & " " & Mid$(tkResult!date, 12, 2) & Mid$(tkResult!date, 15, 2)
-          Else
-            If Mid$(tkResult!date, 7, 3) = "201" Then
-              Coltk[i, 1].Text = Mid$(tkResult!date, 7, 4) & "." & Mid$(tkResult!date, 4, 2) & "." & Left$(tkResult!date, 2) & " " & Mid$(tkResult!date, 13, 2) & Mid$(tkResult!date, 16, 2)
-            Endif
-        Endif
-      Else
-        Coltk[i, 1].Text = Format$(tkresult!date, "dd.mm.yyyy hh:nn")
-       Endif
+      Try Coltk[i, 1].Text = Format$(tkresult!date, "dd.mm.yyyy hh:nn")
+      If Error Then
+        Coltk[i, 1].Text = Utils.Cdate_Carte(Utils.Cdate_Comp(tkresult!date))
+      Endif
       Coltk[i, 1].Alignment = 3
       Coltk[i, 2].Text = tkresult!mht
       Coltk[i, 3].Text = tkresult!mtva
@@ -592,7 +584,7 @@ Public Sub Button4_Click()
     rTva2 = Utils.db.Exec(" select * from " & Cbase.Table("TabHisLigTck") & " where numero = &1 and type <> &2 order by cast(numlig as unsigned)", Label3.text & Label5.Text, "M")
     If rTva2.Available Then
       Repeat
-        If rtva2!type <> "L" And rtva2!type <> "T" Then
+        If rtva2!type <> "L" And rtva2!type <> "T" And rntck!type <> "C" Then
           rtva = Utils.db.Exec(" select * from " & Tatva & " where code = &1", rTva2!tva)
           Try qte = rTva2!qte
           If Error Then qte = 1
@@ -622,7 +614,7 @@ Public Sub Button4_Click()
         Else
           Pdf.Level4(rntck!code, rntck!intitule, rntck!montant, rntck!qte, PosY)
         Endif
-        If rntck!type <> "L" Then Total = Val(Utils.cpoint(Total)) + Val(Utils.cpoint(rntck!montant))
+        If rntck!type <> "L" And rntck!type <> "C" Then Total = Val(Utils.cpoint(Total)) + Val(Utils.cpoint(rntck!montant))
         Posy = Posy + 5
       Endif
     Until rntck.MoveNext()
