@@ -44,6 +44,16 @@ Ectx As Boolean ' Si gestion de l'eco-taxe
 Cpp As Boolean ' Si gestion de la copie privee
 Cop As String ' montant copie privée
 Ect As String ' montant eco-taxe
+i As Integer = 1 ' gestion du numero de série
+Gmateriel As Boolean 'si gestion du materiel dans les preferences
+Materiel As Boolean ' si le produit est un materiel
+Design2 As String
+Fam As String
+CEquivalent As String
+CBarre As String
+CFournisseur As String
+rmats As Result
+rmat As Result
 Modif As String ' Flag pour savoir si la ligne est en modification
 NlgModif As String ' Flag pour réuperer le numéro de ligne modifiée
 Nouveau As Boolean = True 'Flag pour savoir si on est en création ou en modification
@@ -126,6 +136,8 @@ Public Sub _New(Num As String, Four As String, sDate As String, anomalie As Bool
     TextLabel18.Text = "Tmq"
   Endif
   TextLabel12.Text = Start.LocalSettings["/Soc" & Start.Societe & "/Taxe"]
+  Try Gmateriel = Start.LocalSettings["/Soc" & Start.Societe & "/Materiel"]
+  If Error Then Gmateriel = False
   Nbl2.Text = snum
   codef = sfour
   dater = sdate
@@ -882,10 +894,18 @@ Public Sub Btn_Click()
           If b = 0 Then
             'pbhtLF()
             Maj_colrcp()
-            CleanChamps()
-            Cart.SetFocus
-            Cart.Select
-            modif = "0"
+            If Materiel And Gmateriel Then
+              del_serie()
+              Num_serie()
+              Numero.SetFocus
+            Else
+              If b = 0 Then
+                CleanChamps()
+                Cart.SetFocus
+                Cart.Select
+                modif = "0"
+              Endif
+            Endif
           Else
             Cart.SetFocus
             Cart.Select
@@ -1269,8 +1289,14 @@ Public Sub art_man()
           Dart.text = rarts!art_design
           Refourn.Text = rarts!art_cfour
           If bCentrale = True Then Refourn.Text = rarts!art_refcentrale
-          Fourn = Rarts!art_four
+          Design2 = rarts!art_design2
+          Fourn = rarts!art_four
           scentrale = rarts!art_refcentrale
+          Fam = rarts!art_fam
+          Materiel = rarts!art_mat
+          Cfournisseur = rarts!art_cfour
+          Cbarre = rarts!art_cbarre
+          Cequivalent = rarts!art_cequ
           nbd = rarts!art_nbd
           Stocke = rarts!art_stocke
           If $soption = "P" Or $soption = "T" Then
@@ -2301,38 +2327,49 @@ Public Sub Colrcp_Activate()
       Cart.text = Colrcp.Current[1]
       art_man()
       If b = "0" Then
-        Dart.text = Colrcp.Current[2]
-        Pbht.text = Colrcp.Current[3]
-        Tr.text = Colrcp.Current[4]
-        Paht.text = Colrcp.Current[5]
-        qtecom.text = Colrcp.Current[6 + $o]
-        Totht.text = Colrcp.Current[7 + $o]
-        If Not IsNull(Colrcp.Current[8 + $o]) Then Prvt.text = Format$(Val(.cpoint(Colrcp.Current[8 + $o])), "0.00")
-        Frais.text = Colrcp.Current[9 + $o]
-        If Not IsNull(Colrcp.Current[10 + $o]) Then Coef.text = Colrcp.Current[10 + $o]
-        If Not IsNull(Colrcp.Current[11 + $o]) Then Pvht.text = Colrcp.Current[11 + $o]
-        If Not IsNull(Colrcp.Current[12 + $o]) Then Pvttc.text = Colrcp.Current[12 + $o]
-        If Start.LocalSettings["/Soc" & Start.Societe & "/Tmq"] Then
-          Calc_Percent()
+        If Materiel And Gmateriel Then
+          If Message.Question("Attention ! La ligne rappelée est un matériel ! \n les numéros de série devront être ressaisis.\n Voulez-vous continuer ?", "Oui", "Non") = 1 Then
+            b = 0
+          Else
+            b = 1
+          Endif
         Endif
-        If $soption = "B" Or $soption = "T" Then
-          $textpal.Text = Colrcp.Current[6]
-          $textcol.Text = Colrcp.Current[7]
+        If b = "0" Then
+          Dart.text = Colrcp.Current[2]
+          Pbht.text = Colrcp.Current[3]
+          Tr.text = Colrcp.Current[4]
+          Paht.text = Colrcp.Current[5]
+          qtecom.text = Colrcp.Current[6 + $o]
+          Totht.text = Colrcp.Current[7 + $o]
+          If Not IsNull(Colrcp.Current[8 + $o]) Then Prvt.text = Format$(Val(.cpoint(Colrcp.Current[8 + $o])), "0.00")
+          Frais.text = Colrcp.Current[9 + $o]
+          If Not IsNull(Colrcp.Current[10 + $o]) Then Coef.text = Colrcp.Current[10 + $o]
+          If Not IsNull(Colrcp.Current[11 + $o]) Then Pvht.text = Colrcp.Current[11 + $o]
+          If Not IsNull(Colrcp.Current[12 + $o]) Then Pvttc.text = Colrcp.Current[12 + $o]
+          If Start.LocalSettings["/Soc" & Start.Societe & "/Tmq"] Then
+            Calc_Percent()
+          Endif
+          If $soption = "B" Or $soption = "T" Then
+            $textpal.Text = Colrcp.Current[6]
+            $textcol.Text = Colrcp.Current[7]
+          Endif
+          qtecom.SetFocus
+          qtecom.Select
+          Modif = "1"
+          Colrcp.MoveFirst
+            'Do
+            'Colrcp.Item.Selected = True
+            'If Colrcp.Item[1] = Cart.text Or If Colrcp.Item[1] = Refourn.Text Then
+            'Colrcp.Item.Selected = True
+            'Break
+            'Endif
+          'Loop Until Colrcp.MoveNext()
         Endif
-        qtecom.SetFocus
-        qtecom.Select
-        Modif = "1"
-        Colrcp.MoveFirst
-        'Do
-        'Colrcp.Item.Selected = True
-        'If Colrcp.Item[1] = Cart.text Or If Colrcp.Item[1] = Refourn.Text Then
-        'Colrcp.Item.Selected = True
-        'Break
-        'Endif
-        'Loop Until Colrcp.MoveNext()
-      Else
-        Cart.clear
-        B = 0
+      Endif
+      If b = "1" Then
+        CleanChamps()
+        b = 0
+        Cart.SetFocus
       Endif
     Endif
   End With
@@ -2420,6 +2457,102 @@ Public Sub Maj_Quantite(ArtCode As String, ArtQte As Float)
   Endif
 
   Utils.db.Exec("UNLOCK TABLES")
+
+End
+
+'******************Gestion des numéros de série**********************************
+
+'*******************************************
+'*      On saisit les numéros de série     *
+'*******************************************
+Public Sub Num_serie()
+
+  Dim qte As String
+
+  Panel5.Visible = True
+  Panel5.Raise
+  If Val(qtecom.Text) = 1 Then
+    Label3.Text = "Saisie du numéro de série"
+  Else
+    qte = Posnum.Pos(i)
+    Label3.Text = "Saisie du " & qte & " numéro de série"
+  Endif
+  numero.SetFocus
+
+End
+
+
+'*******************************************
+'*        On enregistre le materiel        *
+'*******************************************
+Public Sub Button8_KeyPress()
+
+  If Key.code = Key.enter Or Key.code = Key.return Then Button8_Click()
+
+End
+
+Public Sub del_serie()
+
+  ' on efface les numéros de série saisis
+  rmats = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMat") & " where mat_code = &1 and mat_rcpt = &2", Cart.Text, Ncom.Text)
+  If rmats.Available Then
+    Repeat 
+      If rmats!mat_vendu = 1 Then
+        Message.Warning("Attention le matériel " & Cart.Text & " numéro " & rmats!mat_serie & " a été vendu!, il est impossible de modifier le numéro de ce matériel.")
+        Inc i
+      Else
+        Utils.db.Exec("delete from " & Cbase.Table("TabMat") & " WHERE mat_code = &1 and mat_rcpt = &2 and mat_serie = &3", Cart.Text, Ncom.Text, rmats!mat_serie)
+      Endif
+    Until rmats.Movenext()
+  Endif
+
+End
+
+'************************************************************
+'*    On enregistre le materiel dans la table materiels     *
+'************************************************************
+Public Sub Button8_Click()
+
+  If Not IsNull(numero.text) Then
+    rmat = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMat") & " where mat_code = &1 AND mat_serie = &2 ", Cart.Text, numero.text)
+    If Not rmat.Available Then
+      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMat") & "(mat_serie,mat_code,mat_design, mat_fam,mat_four,mat_cequ,mat_cbarre,mat_cfour,mat_paht,mat_dpa,mat_dfour,mat_ddate,mat_frais,mat_prvt,mat_eco,mat_cdarr,mat_nbd,mat_design2,mat_qte, mat_vendu, mat_rcpt) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21})", Numero.text, Cart.text, Dart.Text, fam, four.text, Cequivalent, Cbarre, Cfournisseur, Val(Pauv.text), Val(Pauv.text), Four.text, datej.text, Val(Frais.text), Val(Prvt.text), Val(Ect), Arr.Text, Nbd, Design2, 1, 0, Ncom.Text)
+      numero.Clear
+      Inc i
+      If i <= Val(qtecom.Text) Then
+        Num_serie()
+      Else
+        numero.Clear
+        i = 1
+        Panel5.Visible = False
+        CleanChamps()
+        Cart.SetFocus
+      Endif
+    Else
+      Message.Warning("Création impossible, ce materiel existe déjà !")
+      Numero.SetFocus
+      Numero.Select
+    Endif
+  Else
+    Message.Warning("Veuillez saisir un numéro de série SVP !")
+    Numero.SetFocus
+    Numero.Select
+  Endif
+
+End
+
+'*******************************************
+'*   On ferme la saisie du materiel        *
+'*******************************************
+Public Sub Button10_Click()
+
+  If Message.Question("Attention ! Vous n'avez pas saisi l'ensemble des numéros de série. Voulez-vous quand même fermer ?", "Oui", "Non") = 1 Then
+    numero.Clear
+    i = 1
+    Panel5.Visible = False
+    CleanChamps()
+    Cart.SetFocus
+  Endif
 
 End
 
@@ -2707,6 +2840,13 @@ Public Sub Delcom()
           Maj_Quantite(LigCom!code, - Val(.cpoint(LigCom!qte)))
           Utils.db.Exec("delete from " & Tab & " WHERE numrecpt = &1 and four = &2 and nligne = &3", Ncom.Text, four.Text, LigCom!nligne)
         Until LigCom.MoveNext()
+      Endif
+      If Gmateriel Then
+        ' on efface les numéros de série saisis
+        rmats = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMat") & " where mat_rcpt = &1", Ncom.Text)
+        If rmats.count > 0 Then
+          Utils.db.Exec("delete from " & Cbase.Table("TabMat") & " WHERE mat_rcpt = &1", Ncom.Text)
+        Endif
       Endif
       Tab = "Fiches_Entrecpt"
       Utils.db.Exec("delete from " & Tab & " WHERE numrecpt = &1 and four = &2", Ncom.Text, four.Text)
