@@ -290,10 +290,12 @@ End
 
 Public Sub Button2_Click()
 
-  Dim rarts, cart, tikh As Result
+  Dim rarts, cart, tikh, rcli As Result
   Dim Tabl, Tab2, Tab3 As String
   Dim code, codec, rupt, rupt2, numcom As String
   Dim intitule, intitulea, intitulec As String
+  Dim client, clientc, cli_nom, cli_pnm As String
+  Dim Order As String
   Dim Fami As String
   Dim rfourn As String
   Dim rCentrale As String
@@ -528,9 +530,16 @@ Public Sub Button2_Click()
       pdf.Entete("Impression des ventes sur les derniers " & Jours.Text & " jours")
       pdf.Level13V()
       PosY = 24
+      
+      If CheckBox2.Value = True Then
+        Order = "client, art_code, art_qte"
+      Else
+        Order = "art_code, art_qte"
+      Endif
 
-      tikh = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisLigTck") & " left join " & Cbase.Table("TabHisEntTck") & " on " & Cbase.Table("TabHisLigTck") & ".numero = " & Cbase.Table("TabHisEntTck") & ".numero " & " left join " & Cbase.Table("TabArt") & " on art_design = intitule" & " where Date(date) >= &1 and Date(date) <= &2 and art_code >= &3 and art_code <= &4 and art_four >= &5 and art_four <= &6 order by art_qte,art_code", dates, datej, Art.Text, Art2.Text, Four.Text, Four2.Text)
+      tikh = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisLigTck") & " left join " & Cbase.Table("TabHisEntTck") & " on " & Cbase.Table("TabHisLigTck") & ".numero = " & Cbase.Table("TabHisEntTck") & ".numero " & " left join " & Cbase.Table("TabArt") & " on art_design = intitule" & " where Date(date) >= &1 and Date(date) <= &2 and art_code >= &3 and art_code <= &4 and art_four >= &5 and art_four <= &6 order by " & Order, dates, datej, Art.Text, Art2.Text, Four.Text, Four2.Text)
       intitulec = Null
+      clientc = Null
       Qtecom = 0
       Stocke = 0
       stkmini = 0
@@ -540,6 +549,20 @@ Public Sub Button2_Click()
       code = ""
       If tikh.Available Then
         Repeat
+          If (clientc <> tikh!client)
+            rcli = Utils.db.Exec("SELECT * FROM Fiches_Cli where cli_code = &1", tikh!client)
+            If rcli.Available Then
+              cli_nom = rcli!cli_nom
+              cli_pnm = rcli!cli_pnm
+            Else
+              cli_nom = ""
+              cli_pnm = ""
+            Endif 
+            posy += 4
+            pdf.ligne(PosY)
+            pdf.level14("", "Vente au client " & tikh!client, "", cli_nom, "", cli_pnm, "", "", PosY)
+            posy += 2
+          Endif
           If (intitulec <> tikh!intitule)
             If CheckBox1.Value Or Stocke Then
               PosY += 4
@@ -562,6 +585,7 @@ Public Sub Button2_Click()
           code = tikh!art_code
           Stocke = tikh!art_stocke
           intitulec = tikh!intitule
+          clientc = tikh!client
           fourn = tikh!art_four
           If Stocke Then
             stkmini = tikh!art_stkmin
