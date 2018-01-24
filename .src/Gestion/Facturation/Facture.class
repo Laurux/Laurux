@@ -6885,6 +6885,13 @@ Public Sub Button22_Click()
         Numero.SetFocus
         Numero.clear
       Else
+        If Not IsNull(rmat!mat_rcpt) Then
+          If DocActif.Is_Lock("Reception", rmat!mat_rcpt) Then
+            Numero.SetFocus
+            Numero.clear
+            Return
+          Endif
+        Endif
         Enrg_Numserie()
         Numero.Clear
         Panel7.Visible = False
@@ -6940,26 +6947,15 @@ Public Sub Enrg_Numserie()
         If Coldetail.item[16 + i] = Blocnum And Coldetail.item[9 + i] = "T" And Left$(Coldetail.item[2], 17) = "Numéro de série" Then
           Coldetail.item[1] = Numero.Text
           Coldetail.item[2] = "Numéro de série " & Numero.Text
+          Nlgmodif = Format$(Val(Coldetail.item[0]), "0000")
           maj_serie = False
         Else
-          If maj_serie = True Then
-            If Coldetail.item[16 + i] = Blocnum And Coldetail.item[9 + i] = "T" And Left$(Coldetail.item[2], 17) = "Numéro de série" Then
-              Coldetail.MoveLast()
-              Try Coldetail.item.Selected = True
-              Nlgmodif = Format$(Val(Coldetail.item[0]) + 1, "0000")
-              Coldetail.Add(NlgModif, NlgModif)
-              Coldetail.item[1] = Numero.Text
-              Coldetail.item[2] = "Numéro de série " & Numero.Text
-              Coldetail.item[9 + i] = "T"
-              Coldetail.item[14 + i] = Dec.text
-              Coldetail.item[16 + i] = Bloc
-            Endif
+          If maj_serie = True And Coldetail.item[0] = Nlgmodif Then
+            Enrg_Art()
+            Blocnum = Coldetail.item[16 + i]
           Endif
         Endif
       Until Coldetail.MoveNext()
-      Enrg_Art()
-      Maj_Base()
-      'Enrg_Art()
     Endif
     rResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE num_ligbl = &1 and numlig_ligbl = &2", num.text, NlgModif)
     If rResult.Available Then
@@ -6968,7 +6964,6 @@ Public Sub Enrg_Numserie()
       Utils.db.Exec("INSERT INTO " & tab & "(num_ligbl, numlig_ligbl, libel_ligbl, typel_ligbl, block_ligbl, code_ligbl) VALUES (&1, &2, &3, &4, &5, &6)", numligbl2, NlgModif, "Numéro de série " & Numero.Text, "T", Blocnum, Numero.text)
     Endif
     Enrgnum()
-    'Enrg_Art()
     Majnumserie = 0
     Ren_ligbl()
     Maj_Base()
