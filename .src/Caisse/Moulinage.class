@@ -293,8 +293,10 @@ Public Sub Livre_caisse()
               Repeat
                 sFam = "Famille " & Left$(rTkx!fam, 2)
                 If sFam2 <> sFam Then
-                  pdf.Level2(sFam2 & " " & rTkFam!libell_fam & " " & Format$(Val(utils.cpoint(sMTfam)) / Totventes * 100, "0.00") & " %", sMTfam, sqte, Posy)
-                  Posy += 5
+                  If (totventes + totboncaisse) <> 0 Then
+                    pdf.Level2(sFam2 & " " & rTkFam!libell_fam & " " & Format$(Val(utils.cpoint(sMTfam)) / (Totventes + totboncaisse) * 100, "0.00") & " %", sMTfam, sqte, Posy)
+                    Posy += 5
+                  Endif
                   sMtfam = "0,00"
                   sQte = "0,00"
                 Endif
@@ -305,9 +307,10 @@ Public Sub Livre_caisse()
                 sqte = Format$(Val(.cpoint(sqte)) + Val(.cpoint(rTkx!qte)), "0.00")
                 sFam2 = sFam
               Until rTkx.MoveNext()
-              If totventes = 0 Then totventes = 1
-              pdf.Level2(sFam & " " & sLFam & " " & Format$(Val(utils.cpoint(sMTfam)) / Totventes * 100, "0.00") & " %", sMTfam, sqte, Posy)
-              Posy += 5
+              If (totventes + totboncaisse) <> 0 Then
+                pdf.Level2(sFam & " " & sLFam & " " & Format$(Val(utils.cpoint(sMTfam)) / (Totventes + totboncaisse) * 100, "0.00") & " %", sMTfam, sqte, Posy)
+                Posy += 5
+              Endif
             Endif
           Endif
         Endif
@@ -484,6 +487,10 @@ Public Sub Moulinage()
                 If rResult.Available Then
                   ivente = rResult!intitule_cc
                 Endif
+                'On ajoute un header au ticket supprimé au cas our
+                If rTck!suppr Then
+                  Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, intitule, type) VALUES (&1, &2, &3, &4)", rTck!numero, "000", "Ticket supprimé!", "C")
+                Endif
                 If Not IsNull(rTck!mttc) And Not rTck!suppr Then
                   If rTck!savoir = "1" Then
                     Maj_Totalisation(Client, ivente, "-" & rTck!mttc)
@@ -635,11 +642,8 @@ Public Sub Moulinage()
                           Endif
                         Endif
                       Endif
-                      If rltck!type = "T" Then
-                        Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, rltck!numlig, code, $intit, rltck!montant, qte, "A", Fam, rltck!mht, rltck!mrem, rltck!tva)
-                      Else
-                        Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, rltck!numlig, code, $intit, rltck!montant, qte, rltck!type, Fam, rltck!mht, rltck!mrem, rltck!tva)
-                      Endif
+                      'on garde l'historique du ticket tel quel
+                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, rltck!numlig, code, $intit, rltck!montant, rltck!qte, rltck!type, Fam, rltck!mht, rltck!mrem, rltck!tva)
                       If Not rTck!suppr Then
                         If rTck!savoir = "1" Then
                           If rlTck!type <> "L" And If rlTck!type <> "M" And If rlTck!type <> "C" Then Maj_Totalisation(Tva, iTva, "-" & montant)
@@ -701,6 +705,25 @@ Public Sub Moulinage()
               Endif
               'Puis on gère les clients en compte
               scli = rTck!client
+              'On garde une trace du ticket meme supprimé
+              If rTck!type = "1" And rTck!suppr Then
+                numlig = 0
+                Inc numlig
+                nmlig = Format$(Str(numlig), "000")
+                Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, intitule, type) VALUES (&1, &2, &3, &4)", rTck!numero, nmlig, "Ticket non enregistré sur BL car supprimé!", "C")
+                rlTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigTck") & " where numero = &1 order by lInd", rTck!numero)
+                If rlTck.Available Then
+                  Repeat
+                    ' On conserve l'historique du ticket client compte meme supprimé au meme format que les tickets caisse
+                    Inc numlig
+                    nmlig = Format$(Str(numlig), "000")
+                    If rlTck!type = "A" Or If rlTck!type = "M" Or If rlTck!type = "S" Or If rlTck!type = "T" Or If rlTck!type = "L" Or If rlTck!type = "C" Then
+                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, nmlig, rlTck!code, rltck!intitule, rltck!montant, rlTck!qte, rltck!type, rltck!fam, rltck!mht, rltck!mrem, rltck!tva)
+                    Endif
+                  Until rlTck.MoveNext()
+                Endif
+              Endif
+              'Si le ticket n'est pas supprimé
               If rTck!type = "1" And Not rTck!suppr Then
                 'On increment le numero de bon
                 numbon = Val(numbon) + 1
@@ -735,15 +758,20 @@ Public Sub Moulinage()
                 rlTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigTck") & " where numero = &1 order by lInd", rTck!numero)
                 If rlTck.Available Then
                   Repeat
+                    ' On conserve l'historique du ticket client compte au meme format que les tickets caisse
+                    If rlTck!type = "A" Or If rlTck!type = "M" Or If rlTck!type = "S" Or If rlTck!type = "T" Or If rlTck!type = "L" Or If rlTck!type = "C" Then
+                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, nmlig, rlTck!code, rltck!intitule, rltck!montant, rltck!qte, rltck!type, rltck!fam, rltck!mht, rltck!mrem, rltck!tva)
+                    Endif
                     If rlTck!type = "A" Then
                       qte = rlTck!qte
                       Recup_Art(rlTck!code, qte, rlTck!mht, rlTck!montant, rlTck!tva)
                       Inc numlig
-                      nmlig = Format$(Str(numlig), "0000")
+                      nmlig = Format$(Str(numlig), "000")
                       Bloc = nmlig
                       Remart = Val(.cpoint(Remart)) + Val(.cpoint(artbrut)) - Val(.cpoint(artnet))
                       totalht = totalht + Val(.cpoint(artnet))
                       totalttc = totalttc + Val(.cpoint(Arttc))
+                      'on enregistre la ligne du Bl
                       Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigbl") & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15})", numbon, nmlig, rlTck!code, artdsg, artfam, artpu, qte, artbrut, Artrm, artnet, Arttx, Arttc, "A", Nbd, Bloc)
                     Endif
                     If rlTck!type = "O" Then

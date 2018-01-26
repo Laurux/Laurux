@@ -519,11 +519,13 @@ Public Sub Report(Org As String)
   Dim ArtResult As Result
   Dim HResult As Result
   Dim EntkResult As Result
+  Dim rcli As Result
   Dim Tab As String
   Dim code As String
   Dim intitule As String
   Dim Fami As String
   Dim four3 As String
+  Dim ClientCaisse As String
   Dim Pvht As Float
   Dim dte As String
   Dim qte As Float
@@ -646,13 +648,20 @@ Public Sub Report(Org As String)
               Endif
             Endif
             Bflag = False
-            'On récupère les tickets
+            'On récupère les tickets Caisse uniquement
             'If HBox3.Visible = True Then
               If Fact.value = True Or If Factk.value = True Or If Fact2.value = True Or If Factk2.value = True Then
+                  rcli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCliCaisse") & "")
+                  If rcli.Available Then
+                    ClientCaisse = rcli!code
+                  Else
+                    'default client caisse
+                    ClientCaisse = "411027"
+                  Endif
                 HResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisLigTck") & " WHERE code = &1 AND type = &2 ", code, "A")
                 If HResult.Available Then
                   Repeat
-                    EntkResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisEntTck") & " WHERE numero = &1", HResult!numero)
+                    EntkResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisEntTck") & " WHERE numero = &1 and suppr = &2 and client = &3", HResult!numero, 0, ClientCaisse)
                     If EntkResult.Available Then
                       If Utils.Cdate_Comp(EntkResult!date) >= Utils.Cdate_dbase(dten0.Text) And Utils.Cdate_Comp(EntkResult!date) <= Utils.Cdate_dbase(dten1.Text) Then
                         qte = qte + Val(.cpoint(Hresult!qte))
@@ -705,7 +714,7 @@ Public Sub Report(Org As String)
               Endif
             Endif
             If Fact.value = True And bl.value Then
-              HResult = Utils.db.Exec("SELECT * FROM " & Tab8 & " as e inner join " & Tab6 & " as a on a.numbl = e.num_ligbl WHERE code_ligbl = &1 and typel_ligbl <> &2 union SELECT * FROM " & Tab9 & " as e inner join " & Tab7 & " as a on a.numfac = e.num_ligbl  WHERE code_ligbl = &1 and typel_ligbl <> &2 and datebl >= &3 and datebl <= &4", code, "A", Utils.Cdate_Dbase(dteN0.Text), Utils.Cdate_Dbase(dteN1.Text))
+              HResult = Utils.db.Exec("SELECT * FROM " & Tab8 & " as e inner join " & Tab6 & " as a on a.numbl = e.num_ligbl WHERE code_ligbl = &1 and typel_ligbl = &2 and datebl >= &3 and datebl <= &4 union SELECT * FROM " & Tab9 & " as e inner join " & Tab7 & " as a on a.numfac = e.num_ligbl  WHERE code_ligbl = &1 and typel_ligbl = &2 and datebl >= &3 and datebl <= &4", code, "A", Utils.Cdate_Dbase(dteN0.Text), Utils.Cdate_Dbase(dteN1.Text))
               If HResult.Available Then
                 Repeat
                   'On travaille avec les BL
