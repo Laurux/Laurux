@@ -13700,16 +13700,17 @@ Public Sub ToggleButton10_Click()
   Else
     Colal.Visible = True
     Colal.Raise
-    Colal.Columns.count = 5
+    Colal.Columns.count = 6
     Colal.Columns[0].Width = 0
     Colal.Columns[1].Width = 80
     Colal.Columns[2].Width = 150
     Colal.Columns[3].Width = 150
-    Colal.Columns[4].Width = 200
+    Colal.Columns[4].Width = 400
     Colal.Columns[1].Text = "Rs"
     Colal.Columns[2].Text = "Nom"
     Colal.Columns[3].Text = "Prénom"
     Colal.Columns[4].Text = "Ville"
+     Colal.Columns[5].Text = "Code"
   Endif
   Aff_AdrC()
 
@@ -13718,7 +13719,8 @@ End
 Public Sub Aff_AdrC()
 
   Dim AdrResult As Result
-
+Dim champ As Boolean = False
+Colal.Clear
   AdrResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabAdrC") & " order by nom", Code.Text)
   If AdrResult.Available Then
     Repeat
@@ -13728,10 +13730,27 @@ Public Sub Aff_AdrC()
       Colal.item[2] = AdrResult!nom
       Colal.item[3] = AdrResult!pnm
       Colal.item[4] = AdrResult!ville
+      Colal.item[5] = AdrResult!code
     Until AdrResult.MoveNext()
     Colal.MoveFirst
+    Repeat
+      If Colal.item[5] = Code.text Then
+        Champ = True
+        Break
+      Endif
+    Until Colal.MoveNext()
+    If champ Then
     Colal.SetFocus
     Colal.item.Selected = True
+    If Colal.count > 9 Then 
+    Colal.Height = Edit.height + Edit2.Height - 30
+    Colal.Raise
+    Endif
+    Else
+      Colal.MoveFirst
+      Colal.SetFocus
+    Colal.item.Selected = True
+    Endif
   Endif
 
 End
@@ -13755,6 +13774,16 @@ Public Sub Colal_Click()
   Endif
 
 End
+
+Public Sub Colal_Keypress()
+  
+  If Key.code = Key.escape Or If Key.code = Key.esc Then Colal.visible = False
+  If Key.code = Key.Enter Or If Key.code = Key.Return Then 
+Colal.MoveCurrent
+  Colal_Click()
+  Endif
+End
+
 
 Public Sub CleanChampsAdr()
 
