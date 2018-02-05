@@ -244,6 +244,29 @@ Public Sub Is_Filtered(FilterName As String, Request As String) As Boolean
   
 End
 
+Public Sub Engine() As String
+  
+  If Super.Type = "mysql" Then
+    Return " ENGINE = InnoDB" '"MYISAM"
+  Else
+    Return ""
+  Endif
+  
+End
+
+Public Sub AutoIncrement(Optional Fld As String = "lind", Optional Type As String = "INT", Optional Size As Integer = -1) As String
+  
+  If Super.Type = "mysql" Then
+    If (Size > 0) Then
+      Type = Type & "(" & CStr(Size) & ")"
+    Endif
+    Return Fld & " " & Type & " NOT NULL AUTO_INCREMENT, PRIMARY KEY (" & Fld & ")"
+  Else
+    Return Fld & " INTEGER PRIMARY KEY AUTOINCREMENT"
+  Endif
+  
+End
+
 
 Public Sub Exec(Request As String, ...) As Result 
   
@@ -252,6 +275,9 @@ Public Sub Exec(Request As String, ...) As Result
   Dim oneArg As Variant
   Dim Backtrace As String[]
   Dim iInd As Integer
+  Dim regex As RegExp
+  Dim filling As String
+  Dim i As Integer
 
   'This should work but it doen't because Param is a class... not a Argument Array.
   'rResult = Super.Exec(Request, Param)
@@ -274,6 +300,69 @@ Public Sub Exec(Request As String, ...) As Result
     Backtrace.Extract(Backtrace.Length - 1, -1)
     Backtrace.Extract(0, 1)
     log.Log("Exec_SQL;" & user_name & ";" & host_id & ";" & machine_id & ";" & process_id & ";" & Backtrace.Join(",") & ";" & Request)
+  Endif
+  
+  If Super.type = "sqlite3" Then
+    'Disable locking mecanism in sqlite3
+    If UCase(Request) Match "LOCK" Then Return Null
+    If UCase(Request) Match "UNLOCK" Then Return Null
+    regex = New RegExp
+    'lpad case
+    '---------
+    Try regex.Compile("lpad[(]([^,]+)[,]+([^,]+)[,]+([^,]+)[)]")
+    If Error Then Message.Error("Echec a la compilation du Filtre lpad :" & Error.Text)
+    Try regex.Exec(Request)
+    If Error Then Message.Error("Echec a l'execution du Filtre lpad :" & Error.Text)
+    If regex.Count >= 1 Then
+      If (regex.Count <> 3) Then
+        Message.Error("Unsupported sqlite3 lpad request conversion format")
+      Else
+        'Message.Info("Found!")
+        For i = 1 To regex[2].Text Step 1
+          filling &= Chr(Asc(regex[3].Text, 2))
+        Next
+        Request = Replace(Request, regex[0].Text, "substr('" & filling & "' || " & regex[1].Text & ", -" & regex[2].Text & ", " & regex[2].Text & ")")
+      Endif
+      'substr( '0000000000' || mycolumn, -10, 10)
+      'replace(replace(substr(quote(zeroblob((7 + 1) / 2)), 3, (7 - length("foo"))), "'", ""), "0", "W");
+    Endif
+    'left case
+    '---------
+    Try regex.Compile("left[(]([^,]+)[,]+([^,]+)[)]")
+    If Error Then Message.Error("Echec a la compilation du Filtre left :" & Error.Text)
+    Try regex.Exec(Request)
+    If Error Then Message.Error("Echec a l'execution du Filtre left :" & Error.Text)
+    If regex.Count >= 1 Then
+      If (regex.Count <> 2) Then
+        Message.Error("Unsupported sqlite3 left request conversion format")
+      Else
+        'Message.Info("Found!")
+        Request = Replace(Request, regex[0].Text, "substr(" & regex[1].Text & ",0," & CStr(Val(regex[2].Text) + 1) & ")")
+      Endif
+    Endif
+    'right case
+    '---------
+    Try regex.Compile("right[(]([^,]+)[,]+([^,]+)[)]")
+    If Error Then Message.Error("Echec a la compilation du Filtre right :" & Error.Text)
+    Try regex.Exec(Request)
+    If Error Then Message.Error("Echec a l'execution du Filtre right :" & Error.Text)
+    If regex.Count >= 1 Then
+      If (regex.Count <> 2) Then
+        Message.Error("Unsupported sqlite3 right request conversion format")
+      Else
+        'Message.Info("Found!")
+        Request = Replace(Request, regex[0].Text, "substr(" & regex[1].Text & ",length(" & regex[1].Text & ")-" & CStr(Val(regex[2].Text) - 1) & ")")
+      Endif
+    Endif
+    'Special stuff for sqlite, does not handle properly case sensitive data on selection / update
+    If UCase(Request) Match "WHERE" Then
+      i = InStr(UCase(Request), "ORDER")
+      If i > 0 
+        Request = Left$(Request, i - 1) & " COLLATE NOCASE " & Right$(Request, (Len(Request) - i) + 1)
+      Else
+        Request &= " COLLATE NOCASE"
+      Endif
+    Endif
   Endif
 
   'Une fois logger on execute la requete
@@ -301,7 +390,7 @@ Public Sub Create(Table As String) As Result
   Endif
 
   'Une fois logger on execute la requete
-  If Utils.db.Opened = True Then
+  If Super.Opened = True Then
     rResult = Super.Create(Table)
     Return rResult
   Else
@@ -343,7 +432,7 @@ Public Sub Edit(Table As String, Request As String, ...) As Result
   Endif
 
   'Une fois logger on execute la requete
-  If Utils.db.Opened = True Then
+  If Super.Opened = True Then
     rResult = Super.Edit(Table, Request)
     Return rResult
   Else

@@ -46,6 +46,9 @@ Public Sub _new()
   Utils.Observers(Me)
   Me.Center
   Nbase.Clear
+  ComboBox1.Text = Start.LocalSettings["/dbase/type"]
+  ComboBox1_Click()
+  FileChooser1.Filter = ["*.sqlite", "SQlite Database File"]
   If Start.LocalSettings["/Soc" & Start.Societe & "/Prefixe"] Then
     TextLabel2.visible = True
     Prefixe.visible = True
@@ -102,7 +105,11 @@ Public Sub _new()
   Try login.Text = Start.LocalSettings["/dbase/Login"]
   Try Port.Text = Start.LocalSettings["/dbase/Port"]
   If IsNull(Port.text) Then Port.text = "3306"
-  Try Host.Text = Start.LocalSettings["/dbase/Host"]
+  If ComboBox1.Text = "mysql"
+    Try Host.Text = Start.LocalSettings["/dbase/Host"]
+  Else
+    Try FileChooser1.Root = Start.LocalSettings["/dbase/Host"]
+  Endif
   If Start.LocalSettings["/Soc" & Start.Societe & "/Blocsoc"] = False Or If IsNull(Start.LocalSettings["/Soc" & Start.Societe & "/Blocsoc"]) Then
     Try Maj.Value = Start.LocalSettings["/dbase/Maj"]
     Maj.Enabled = True
@@ -131,7 +138,12 @@ Catch
   Try login.Text = Start.LocalSettings["/dbase/Login"]
   Try Port.Text = Start.LocalSettings["/dbase/Port"]
   If IsNull(Port.text) Then Port.text = "3306"
-  Try Host.Text = Start.LocalSettings["/dbase/Host"]
+  If ComboBox1.Text = "mysql"
+    Try Host.Text = Start.LocalSettings["/dbase/Host"]
+  Else
+    Try FileChooser1.Root = Start.LocalSettings["/dbase/Host"]
+  Endif
+  
   If Start.LocalSettings["/Soc" & Start.Societe & "/Blocsoc"] = False Or If IsNull(Start.LocalSettings["/Soc" & Start.Societe & "/Blocsoc"]) Then
     Try Maj.Value = Start.LocalSettings["/dbase/Maj"]
     Maj.Enabled = True
@@ -168,6 +180,7 @@ End
 Public Sub Button1_Click()
 
   Dim $ready_connect As Boolean
+  Dim data As Table
 
   $ready_connect = True
   Soc = Start.LocalSettings["/Soc"]
@@ -175,13 +188,18 @@ Public Sub Button1_Click()
   intitule = "  "
   Start.LocalSettings["/Societes/Soc" & Soc] = Majversion.Version
   '# -- Partie commune aux connexions avec ou sans tunnel
-  Start.LocalSettings["/dbase/type"] = "mysql"
+  Start.LocalSettings["/dbase/type"] = ComboBox1.Text
   Start.LocalSettings["/dbase/Prefixe"] = Prefixe.Text
-  Start.LocalSettings["/dbase/Name"] = Nbase.Text
   Start.LocalSettings["/dbase/Login"] = login.Text
   Start.LocalSettings["/dbase/Password"] = hexdblKey.crypt("en", Password.Text, "Laurux")
   Start.LocalSettings["/dbase/Port"] = Port.Text
-  Start.LocalSettings["/dbase/Host"] = Host.Text
+  If Start.LocalSettings["/dbase/type"] = "mysql"
+    Start.LocalSettings["/dbase/Host"] = Host.Text
+    Start.LocalSettings["/dbase/Name"] = Nbase.Text
+  Else 'sqlite3
+    Start.LocalSettings["/dbase/Host"] = File.Dir(FileChooser1.SelectedPath)
+    Start.LocalSettings["/dbase/Name"] = File.BaseName(FileChooser1.SelectedPath)
+  Endif
   Start.LocalSettings["/dbase/Maj"] = Maj.Value
 
   '# -- Partie variant suivant que l'on utilise un tunnel ssh ou pas
@@ -201,7 +219,7 @@ Public Sub Button1_Click()
   ' Le type reste bien entendu mysql
   Utils.db.type = Start.LocalSettings["/dbase/type"]
   ' le nom est celui de la base
-  Utils.db.Name = Nbase.Text
+  Utils.db.Name = Start.LocalSettings["/dbase/Name"]
   ' le login est celui de la base
   Utils.db.Login = Start.LocalSettings["/dbase/Login"]
   ' le mot de passe est celui de la base
@@ -249,10 +267,22 @@ Public Sub Button1_Click()
 
   If $ready_connect Then
     Try Utils.db.Close
-    Utils.db.name = Prefixe.Text & Nbase.Text
-    Utils.db.Open
-    Try Utils.db.exec("SET NAMES 'latin1'")
-    If Not IsNull(Utils.db.Login) Then Shell "mysql -h " & Start.LocalSettings["/dbase/Host"] & " " & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " -e \"use " & Utils.db.Name & ";" & "SET @@global.sql_mode= NO_ENGINE_SUBSTITUTION " & "; \"" Wait
+    
+    
+    If Start.LocalSettings["/dbase/type"] = "mysql"
+      Utils.db.name = Prefixe.Text & Nbase.Text
+      Utils.db.Open
+      Try Utils.db.exec("SET NAMES 'latin1'")
+      If Not IsNull(Utils.db.Login) Then Shell "mysql -h " & Start.LocalSettings["/dbase/Host"] & " " & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " -e \"use " & Utils.db.Name & ";" & "SET @@global.sql_mode= NO_ENGINE_SUBSTITUTION " & "; \"" Wait
+    Else 'sqlite3
+      Utils.db.Host = Start.LocalSettings["/dbase/Host"]
+      Utils.db.Name = Utils.db.Name & ".sqlite"
+      Utils.db.Open
+      For Each data In Utils.db.Tables
+        Print data.Name
+      Next
+      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabSoc"))
+    Endif
     If Not Error Then
       rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabSoc") & " where cd_sc = &1", Right$(Nbase.text, 2))
       Message.Info("Le fichier de configuration a été crée ou modifié !\nLa société " & Right$(Nbase.Text, 2) & " " & rResult!type_sc & " - " & rResult!int_sc & " est la société de travail en cours.")
@@ -386,7 +416,7 @@ End
 
 Public Sub Button2_Click()
 
-  Try Me.close
+  Me.close
 
 End
 
@@ -400,14 +430,19 @@ Public Sub Form_Close()
 
   Start.LocalSettings["/dbase/Prefixe"] = Prefixe.Text
   Start.LocalSettings["/dbase/Con-ssh"] = Bssh.Value
-  Start.LocalSettings["/dbase/type"] = "mysql"
+  Start.LocalSettings["/dbase/type"] = ComboBox1.Text
   $Nbase = Split(Nbase.Text, "_")
-  Try Start.LocalSettings["/dbase/Name"] = $Nbase[1]
-  If Error Then Start.LocalSettings["/dbase/Name"] = $Nbase[0]
   Start.LocalSettings["/dbase/Login"] = login.Text
   Start.LocalSettings["/dbase/Password"] = hexdblKey.crypt("en", Password.Text, "Laurux")
   Start.LocalSettings["/dbase/Port"] = Port.Text
-  Start.LocalSettings["/dbase/Host"] = Host.Text
+  If ComboBox1.Text = "mysql"
+    Try Start.LocalSettings["/dbase/Name"] = $Nbase[1]
+    If Error Then Start.LocalSettings["/dbase/Name"] = $Nbase[0]
+    Start.LocalSettings["/dbase/Host"] = Host.Text
+  Else
+     Start.LocalSettings["/dbase/Host"] = File.Dir(FileChooser1.SelectedPath)
+     Start.LocalSettings["/dbase/Name"] = File.BaseName(FileChooser1.SelectedPath)
+  Endif
   Start.LocalSettings["/dbase/Maj"] = Maj.Value
   If Bssh.value Then
     Start.LocalSettings["/dbase/ssh/Login"] = Loginssh.Text
@@ -455,5 +490,21 @@ End
 Public Sub Button3_Click()
 
   Doc.Open("Conf")
+
+End
+
+Public Sub ComboBox1_Click()
+
+  If ComboBox1.Text = "mysql"
+    Frame1.Visible = True
+    Bssh.Visible = True
+    Frame2.Visible = True
+    FileChooser1.Visible = False
+  Else
+    Frame1.Visible = False
+    Bssh.Visible = False
+    Frame2.Visible = False
+    FileChooser1.Visible = True
+  Endif
 
 End
