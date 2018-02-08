@@ -1,0 +1,83 @@
+' Gambas class file
+
+Public resext As Result
+Private $dtei As Date
+Private $dtes As Date
+Private $scpt As String
+Private $jouran As String
+
+Public Struct borne
+  nomfich As String
+  dteinf As Date
+  dtesup As Date
+End Struct
+
+Private $brn As Borne[]
+
+Public Sub _new(cpt As String, dtei As String, dtes As String, ltr As String, vld As Boolean, stri As String)
+
+  Dim res, resf As Result
+  Dim i, prms, der As Integer
+  Dim si As String
+  Dim req, lett As String
+  Dim brn1 As Borne
+  Dim dte As Date
+  
+  $scpt = cpt
+  $dtei = Date(Right(dtei, 4), Val(Mid(dtei, 4, 2)), Val(Left(dtei, 2)))
+  $dtes = Date(Right(dtes, 4), Val(Mid(dtes, 4, 2)), Val(Left(dtes, 2)))
+  Select Case ltr
+    Case "o"
+      lett = Utils.db.Subst(" AND lettree=&1", True)
+    Case "n"
+      lett = Utils.db.Subst(" AND lettree=&1", False)
+    Case "t"
+      lett = ""
+  End Select
+  res = Utils.db.Exec("SELECT * FROM Fiches_Parametres")
+  If res.Available Then
+    $brn = New Borne[]
+    $jouran = res!jdr
+    'on recupere les les fichiers mvt et leurs date d'exercice
+    For i = 5 To 0 Step -1
+      si = Str(i)
+      If i = 0 Then si = ""
+      resf = Utils.db.Exec("SELECT * FROM Fiches_Mvt" & si & " LIMIT 1")
+      If resf.Available Then
+        brn1 = New Borne
+        brn1.nomfich = "Fiches_Mvt" & si
+        brn1.dtesup = res["dteclec" & si]
+        brn1.dteinf = DateAdd(brn1.dtesup, gb.Month, -12)
+        brn1.dteinf = DateAdd(brn1.dteinf, gb.Day, 1)
+        $brn.Add(brn1)
+      Endif
+    Next
+    'on recupere les bornes du 1° au dernier exercie demandé
+    For i = $brn.Max To 0 Step -1
+      If Format($dtei, "yyyymmdd") >= Format($brn[i].dteinf, "yyyymmdd") And Format($dtei, "yyyymmdd") <= Format($brn[i].dtesup, "yyyymmdd") Then
+        prms = i
+      Endif
+      If Format($dtes, "yyyymmdd") >= Format($brn[i].dteinf, "yyyymmdd") And Format($dtes, "yyyymmdd") <= Format($brn[i].dtesup, "yyyymmdd") Then
+        der = i
+      Endif
+    Next
+    'creation de la requete
+    For i = prms To der
+      If i = prms Then
+        If $dtei <> $brn[i].dteinf And ltr = "t" Then
+          req = Utils.db.Subst("SELECT SUM(montantd) AS montantd,SUM(montantc) AS montantc,STR_TO_DATE(&1,'%m %d %Y') as dte,compte,'Report a nouveau' AS libelle,0 as numero,'  ' as jour,' ' AS numdoc, False AS tresorerie,False as lettree, True AS cloturee,' ' AS dateech,' ' AS collectif FROM " & $brn[i].nomfich & " WHERE dte BETWEEN &2 AND &3 AND compte=&4 AND validee=&5", Format($dtei, "mmddyyyy"), Format($brn[i].dteinf, "yyyymmdd"), Format($dtei, "yyyymmdd"), cpt, vld)
+          req &= Utils.db.Subst(" UNION ALL (SELECT montantd,montantc,dte,compte,libelle,numero,jour,numdoc,tresorerie,lettree,cloturee,dateech,collectif FROM " & $brn[i].nomfich & " WHERE dte BETWEEN &1 AND &2 AND compte=&3 " & lett & " AND validee=&4)", Format($dtei, "yyyymmdd"), Format($dtes, "yyyymmdd"), cpt, vld)
+        Else
+          req = Utils.db.Subst("SELECT montantd,montantc,dte,compte,libelle,numero,jour,numdoc,tresorerie,lettree,cloturee,dateech,collectif FROM " & $brn[i].nomfich & " WHERE dte BETWEEN &1 AND &2 AND compte=&3 " & lett & " AND validee=&4", Format($dtei, "yyyymmdd"), Format($dtes, "yyyymmdd"), cpt, vld)
+        Endif
+      Else
+        req &= Utils.db.Subst(" UNION (SELECT montantd,montantc,dte,compte,libelle,numero,jour,numdoc,tresorerie,lettree,cloturee,dateech,collectif FROM " & $brn[i].nomfich & " WHERE dte BETWEEN &1 AND &2 AND compte=&3 " & lett & " AND validee=&4 AND jour<>&5)", Format($dtei, "yyyymmdd"), Format($dtes, "yyyymmdd"), cpt, vld, $jouran)
+      Endif
+    Next
+    req &= " ORDER BY " & stri
+    resext = Utils.db.Exec(req) 
+  Endif
+  
+
+End
+ 
