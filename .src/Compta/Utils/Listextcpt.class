@@ -14,36 +14,36 @@ End Struct
 
 Private $brn As Borne[]
 
-Public Sub _new(cpt As String, dtei As String, dtes As String, ltr As String, vld As Boolean, stri As String)
+Public Sub _new(cpt As String, dtei As String, dtes As String, ltr As String, vld As Boolean, stri As String, Optional origin As String, dteech As String)
 
-  Dim res, resf As Result
+  Dim res, resf, res1 As Result
   Dim i, prms, der As Integer
   Dim si As String
-  Dim req, lett As String
+  Dim req, lett, cli As String
   Dim brn1 As Borne
   Dim dte As Date
   
   $scpt = cpt
   $dtei = Date(Right(dtei, 4), Val(Mid(dtei, 4, 2)), Val(Left(dtei, 2)))
   $dtes = Date(Right(dtes, 4), Val(Mid(dtes, 4, 2)), Val(Left(dtes, 2)))
-  Select Case ltr
-    Case "o"
-      lett = Utils.db.Subst(" AND lettree=&1", True)
-    Case "n"
-      lett = Utils.db.Subst(" AND lettree=&1", False)
-    Case "t"
-      lett = ""
-  End Select
   res = Utils.db.Exec("SELECT * FROM Fiches_Parametres")
   If res.Available Then
     $brn = New Borne[]
     $jouran = res!jdr
+      Select Case ltr
+       Case "o"
+          lett = Utils.db.Subst(" AND lettree=&1", True)
+        Case "n"
+          lett = Utils.db.Subst(" AND lettree=&1 AND jour<>&2", False, $jouran)
+        Case "t"
+          lett = ""
+      End Select
     'on recupere les les fichiers mvt et leurs date d'exercice
     For i = 5 To 0 Step -1
       si = Str(i)
       If i = 0 Then si = ""
       resf = Utils.db.Exec("SELECT * FROM Fiches_Mvt" & si & " LIMIT 1")
-      If resf.Available Then
+      If resf.Available Or i = 0 Then
         brn1 = New Borne
         brn1.nomfich = "Fiches_Mvt" & si
         brn1.dtesup = res["dteclec" & si]
@@ -53,6 +53,8 @@ Public Sub _new(cpt As String, dtei As String, dtes As String, ltr As String, vl
       Endif
     Next
     'on recupere les bornes du 1° au dernier exercie demandé
+    If Format($dtei, "yyyymmdd") < Format($brn[0].dteinf, "yyyymmdd") Then $dtei = $brn[0].dteinf
+    der = $brn.Max
     For i = $brn.Max To 0 Step -1
       If Format($dtei, "yyyymmdd") >= Format($brn[i].dteinf, "yyyymmdd") And Format($dtei, "yyyymmdd") <= Format($brn[i].dtesup, "yyyymmdd") Then
         prms = i
@@ -62,22 +64,88 @@ Public Sub _new(cpt As String, dtei As String, dtes As String, ltr As String, vl
       Endif
     Next
     'creation de la requete
+    If origin = "relance" Then
+      cli = " compte LIKE &3 AND collectif is null AND (" & Utils.db.Subst("dateech <= &1 Or dte<=&1", dteech) & " OR dateech is null) "
+    Else
+      cli = " compte=&3 "
+    Endif
     For i = prms To der
       If i = prms Then
         If $dtei <> $brn[i].dteinf And ltr = "t" Then
-          req = Utils.db.Subst("SELECT SUM(montantd) AS montantd,SUM(montantc) AS montantc,STR_TO_DATE(&1,'%m %d %Y') as dte,compte,'Report a nouveau' AS libelle,0 as numero,'  ' as jour,' ' AS numdoc, False AS tresorerie,False as lettree, True AS cloturee,' ' AS dateech,' ' AS collectif FROM " & $brn[i].nomfich & " WHERE dte BETWEEN &2 AND &3 AND compte=&4 AND validee=&5", Format($dtei, "mmddyyyy"), Format($brn[i].dteinf, "yyyymmdd"), Format($dtei, "yyyymmdd"), cpt, vld)
-          req &= Utils.db.Subst(" UNION ALL (SELECT montantd,montantc,dte,compte,libelle,numero,jour,numdoc,tresorerie,lettree,cloturee,dateech,collectif FROM " & $brn[i].nomfich & " WHERE dte BETWEEN &1 AND &2 AND compte=&3 " & lett & " AND validee=&4)", Format($dtei, "yyyymmdd"), Format($dtes, "yyyymmdd"), cpt, vld)
+          'calcul du report a nouveau si nécessaire
+          dte = DateAdd($dtei, gb.Day, -1)
+          res1 = Utils.db.Exec("SELECT * FROM " & $brn[i].nomfich & " WHERE dte BETWEEN &1 AND &2 AND compte=&3 AND validee=&4 LIMIT 1", Format($brn[i].dteinf, "yyyymmdd"), Format(dte, "yyyymmdd"), cpt, vld) 
+          If res1.Available Then
+            req = Utils.db.Subst("SELECT SUM(montantd) AS montantd,SUM(montantc) AS montantc,STR_TO_DATE(&1,'%m %d %Y') as dte,compte,'Report a nouveau' AS libelle,0 as numero,'  ' as jour,' ' AS numdoc, ' ' AS tresorerie,' ' as lettree, 'T' AS cloturee,' ' AS dateech,' ' AS collectif,' ' AS numlot,' ' AS relance,' ' AS lind FROM " & $brn[i].nomfich & " WHERE dte BETWEEN &2 AND &3 AND compte=&4 AND validee=&5", Format($dtei, "mmddyyyy"), Format($brn[i].dteinf, "yyyymmdd"), Format(dte, "yyyymmdd"), cpt, vld)
+            dte = dtsup(i)
+            req &= Utils.db.Subst(" UNION (SELECT montantd,montantc,dte,compte,libelle,numero,jour,numdoc,tresorerie,lettree,cloturee,dateech,collectif,numlot,relance,lind FROM " & $brn[i].nomfich & " WHERE dte BETWEEN &1 AND &2 AND " & cli & lett & " AND validee=&4)", Format($dtei, "yyyymmdd"), Format(dte, "yyyymmdd"), cpt, vld)
+          Else
+            'sans calcul du report a nouveau
+            dte = dtsup(i)
+            req &= Utils.db.Subst("SELECT montantd,montantc,dte,compte,libelle,numero,jour,numdoc,tresorerie,lettree,cloturee,dateech,collectif,numlot,relance,lind FROM " & $brn[i].nomfich & " WHERE dte BETWEEN &1 AND &2 AND " & cli & lett & " AND validee=&4", Format($dtei, "yyyymmdd"), Format(dte, "yyyymmdd"), cpt, vld)
+          Endif
         Else
-          req = Utils.db.Subst("SELECT montantd,montantc,dte,compte,libelle,numero,jour,numdoc,tresorerie,lettree,cloturee,dateech,collectif FROM " & $brn[i].nomfich & " WHERE dte BETWEEN &1 AND &2 AND compte=&3 " & lett & " AND validee=&4", Format($dtei, "yyyymmdd"), Format($dtes, "yyyymmdd"), cpt, vld)
+          'requete sur année complete
+          dte = dtsup(i)
+          req = Utils.db.Subst("SELECT montantd,montantc,dte,compte,libelle,numero,jour,numdoc,tresorerie,lettree,cloturee,dateech,collectif,numlot,relance,lind FROM " & $brn[i].nomfich & " WHERE dte BETWEEN &1 AND &2 AND" & cli & lett & " AND validee=&4", Format($dtei, "yyyymmdd"), Format(dte, "yyyymmdd"), cpt, vld)
         Endif
       Else
-        req &= Utils.db.Subst(" UNION (SELECT montantd,montantc,dte,compte,libelle,numero,jour,numdoc,tresorerie,lettree,cloturee,dateech,collectif FROM " & $brn[i].nomfich & " WHERE dte BETWEEN &1 AND &2 AND compte=&3 " & lett & " AND validee=&4 AND jour<>&5)", Format($dtei, "yyyymmdd"), Format($dtes, "yyyymmdd"), cpt, vld, $jouran)
+        'requete sur année suivante
+        dte = dtsup(i)
+        req &= Utils.db.Subst(" UNION (SELECT montantd,montantc,dte,compte,libelle,numero,jour,numdoc,tresorerie,lettree,cloturee,dateech,collectif,numlot,relance,lind FROM " & $brn[i].nomfich & " WHERE dte BETWEEN &1 AND &2 AND " & cli & lett & " AND validee=&4 AND jour<>&5)", Format($dtei, "yyyymmdd"), Format(dte, "yyyymmdd"), cpt, vld, $jouran)
       Endif
     Next
     req &= " ORDER BY " & stri
     resext = Utils.db.Exec(req) 
   Endif
   
-
 End
- 
+
+Private Function dtsup(ind As Integer) As Date
+  
+  If Format($dtes, "yyyymmdd") >= Format($brn[ind].dtesup, "yyyymmdd") Then
+    Return $brn[ind].dtesup
+  Else
+    Return $dtes
+  Endif
+  
+End
+
+Public Function litleres(num As String) As Result
+  
+  Dim res As Result
+  Dim i As Integer
+  
+  i = cherche(num)
+  If i > -1 Then
+    res = Utils.db.Exec("SELECT * FROM " & $brn[i].nomfich & " WHERE numero=&1", num)
+    Return res
+  Endif
+  
+End
+
+Private Function cherche(num As Integer) As Integer
+
+  Dim ok As Boolean
+  Dim i As Integer
+  
+  resext.MoveFirst
+  Repeat
+    If num = resext!numero Then
+      ok = True 
+      Break
+    Endif
+  Until resext.MoveNext()
+  If ok Then
+    ok = False
+   For i = 0 To $brn.Max
+     If Format(resext!dte, "yyyymmdd") >= Format($brn[i].dteinf, "yyyymmdd") And Format(resext!dte, "yyyymmdd") <= Format($brn[i].dtesup, "yyyymmdd") Then
+       ok = True
+       Break
+     Endif
+   Next
+  Endif
+  If ok Then Return i Else Return -1
+End
+
+
