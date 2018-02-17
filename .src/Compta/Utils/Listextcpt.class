@@ -63,6 +63,7 @@ Public Sub _new(cpt As String, dtei As String, dtes As String, ltr As String, vl
         der = i
       Endif
     Next
+    If Not cpt Then Return
     'creation de la requete
     If origin = "relance" Then
       cli = " compte LIKE &3 AND collectif is null AND (" & Utils.db.Subst("dateech <= &1 Or dte<=&1", dteech) & " OR dateech is null) "
@@ -104,6 +105,9 @@ End
 Private Function dtsup(ind As Integer) As Date
   
   If Format($dtes, "yyyymmdd") >= Format($brn[ind].dtesup, "yyyymmdd") Then
+    If ind = $brn.Max Then
+      Return $dtes
+    Endif
     Return $brn[ind].dtesup
   Else
     Return $dtes
@@ -116,7 +120,7 @@ Public Function litleres(num As String) As Result
   Dim res As Result
   Dim i As Integer
   
-  i = cherche(num)
+  i = cherche(num, "numero")
   If i > -1 Then
     res = Utils.db.Exec("SELECT * FROM " & $brn[i].nomfich & " WHERE numero=&1", num)
     Return res
@@ -124,14 +128,15 @@ Public Function litleres(num As String) As Result
   
 End
 
-Private Function cherche(num As Integer) As Integer
+Private Function cherche(num As Variant, chp As String) As Integer
 
   Dim ok As Boolean
   Dim i As Integer
+  Dim dtes As Date
   
   resext.MoveFirst
   Repeat
-    If num = resext!numero Then
+    If num = resext[chp] Then
       ok = True 
       Break
     Endif
@@ -139,7 +144,8 @@ Private Function cherche(num As Integer) As Integer
   If ok Then
     ok = False
    For i = 0 To $brn.Max
-     If Format(resext!dte, "yyyymmdd") >= Format($brn[i].dteinf, "yyyymmdd") And Format(resext!dte, "yyyymmdd") <= Format($brn[i].dtesup, "yyyymmdd") Then
+     dtes = dtsup(i)
+     If Format(resext!dte, "yyyymmdd") >= Format($brn[i].dteinf, "yyyymmdd") And Format(resext!dte, "yyyymmdd") <= Format(dtes, "yyyymmdd") Then
        ok = True
        Break
      Endif
@@ -148,4 +154,82 @@ Private Function cherche(num As Integer) As Integer
   If ok Then Return i Else Return -1
 End
 
+Public Sub letcpt(lind As Variant, value As Boolean, numlot As String, choix As String)
+  
+  Dim i As Integer
+  Dim dtes As Date
+  
+  If choix = "tresor" Then
+    i = cherche(lind, "numero")
+    lind = resext!lind
+  Else
+    i = cherche(lind, "lind")
+  Endif
+  If i > -1 Then
+    Select Case choix
+      Case "numlot", "tresor"
+        Utils.db.Exec("UPDATE " & $brn[i].nomfich & " SET numlot = &1 where lind = &2 ", numlot, lind)
+      Case "lettrage"
+        Utils.db.Exec("UPDATE " & $brn[i].nomfich & " SET numlot = &1, lettree = &2 where lind = &3 ", numlot, value, lind)
+    End Select
+    
+  Endif
+End
 
+Public Sub letgroupe(Nlot As String, Nlot2 As String, ltr As Boolean, numcpt As String)
+
+  Dim i As Integer
+  
+  For i = 0 To $brn.Max
+    Utils.db.Exec("UPDATE " & $brn[i].nomfich & " SET lettree = &1, numlot = &3 WHERE numlot = &2 AND compte = &4", ltr, Nlot, Nlot2, numcpt)
+  Next
+
+End
+
+Private Function ctrl(numlot As String, vald As Boolean, Optional numcpt As String) As Result
+  
+  Dim res As Result
+  Dim req As String
+  Dim dtes As Date
+  Dim i As Integer
+  Dim cpt As String
+  
+  If numcpt Then cpt = numcpt Else cpt = $scpt
+  dtes = dtsup(0)
+  req = Utils.db.Subst("SELECT montantd,montantc,dte,compte,libelle,numero,jour,numdoc,tresorerie,lettree,cloturee,dateech,collectif,numlot,relance,lind FROM " & $brn[i].nomfich & " WHERE compte = &1 AND numlot = &2 AND validee = &3 AND dte BETWEEN &4 AND &5", cpt, numlot, vald, Format($brn[i].dteinf, "yyyymmdd"), Format(dtes, "yyyymmdd"))
+  For i = 1 To $brn.Max
+    dtes = dtsup(i)
+    req &= Utils.db.Subst(" UNION (SELECT montantd,montantc,dte,compte,libelle,numero,jour,numdoc,tresorerie,lettree,cloturee,dateech,collectif,numlot,relance,lind  FROM " & $brn[i].nomfich & " WHERE compte = &1 and numlot = &2 and validee = &3 AND dte BETWEEN &4 AND &5)", cpt, numlot, vald, Format($brn[i].dteinf, "yyyymmdd"), Format(dtes, "yyyymmdd"))
+  Next
+  res = Utils.db.Exec(req)
+  Return res
+  
+End
+
+Public Function Controle(numlot As String, vald As Boolean, Optional numcpt As String) As Integer
+
+  Dim LetResult As Result
+  Dim TotLd As Float
+  Dim TotLc As Float
+  Dim TotL As Float
+
+  With Utils
+    If Not numcpt Then numcpt = $scpt
+    LetResult = ctrl(numlot, vald, numcpt)
+    'LetResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " Where numlot = &1 and compte = &2 and validee = &3", numlotT, numcpt, 1)
+    If LetResult.Available Then
+      Repeat
+        TotLd = TotLd + LetResult!montantd
+        TotLc = TotLc + LetResult!montantc
+      Until LetResult.MoveNext()
+      TotL = TotLd - TotLc
+    Endif
+    If TotL = 0 Then
+      Return 1
+    Else
+      Return 0
+    Endif
+
+  End With
+
+End

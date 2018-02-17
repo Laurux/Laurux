@@ -72,9 +72,11 @@ Private rappel As Boolean = False 'variable pour savoir si une écriture a été
 Private hder As TextBox
 Private Sjour As String 'on mémorise le numéro du journal
 Private Ext As Boolean = False
+Private $lstex As Listextcpt
 
 Public Sub _new(num2 As String)
 
+  $lstex = New Listextcpt("", "01.01.1900", "31.12.9999", "t", True, "") 'pour le cas de rappel d'écriture dans la saisie des reglements
   numr = num2
   If Not IsNull(num2) Then Ext = True
   Utils.Observers(Me)
@@ -616,7 +618,9 @@ Public Sub Lettrage()
     EcritL.Columns[8].Text = "Numero"
     EcritL.Columns[9].Alignment = 1
     EcritL.Columns[9].Text = "Let"
-    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & "  WHERE compte = &1 and lettree = &2 and validee = &3 or compte = &1 and lettree is null and validee = &3 order by dte", numcompte.Text, 0, 1)
+    $lstex = New Listextcpt(numcompte.Text, "01.01.1900", "31.12.9999", "n", True, "dte asc")
+    rResult = $lstex.resext
+'    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & "  WHERE compte = &1 and lettree = &2 and validee = &3 or compte = &1 and lettree is null and validee = &3 order by dte", numcompte.Text, 0, 1)
     If rResult.Available Then
       B2 = 3
       EcritL.Visible = True
@@ -1647,12 +1651,13 @@ Public Sub Enrg_Ecr()
             Endif
           Endif
         Endif
-        Controle()
+        lettrable = $lstex.Controle(numlotT, True, numcpt)
         If Lettrable = 1 Then
-          rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " WHERE numlot = &1 and compte = &2", numlotT, numcpt)
-          If rResult.Available Then
-            Utils.db.Exec("Update " & Cbase.Table("TabMvt") & " set lettree = &1 where numlot = &2 and compte = &3", 1, numlotT, numcpt)
-          Endif
+'          rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " WHERE numlot = &1 and compte = &2", numlotT, numcpt)
+'          If rResult.Available Then
+          $lstex.letgroupe(numlotT, numlotT, True, numcpt)
+'            Utils.db.Exec("Update " & Cbase.Table("TabMvt") & " set lettree = &1 where numlot = &2 and compte = &3", 1, numlotT, numcpt)
+'          Endif
         Endif
       Until Ecrit1.Movenext()
       rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " WHERE compte_cc = &1", Cptt.text)
@@ -1705,35 +1710,6 @@ Public Sub Enrg_Ecr()
 
 End
 
-Public Sub Controle()
-
-  Dim LetResult As Result
-  Dim TotLd As String
-  Dim TotLc As String
-  Dim TotL As Float
-
-  With Utils
-    TotLd = "0"
-    TotLc = "0"
-    LetResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & " Where numlot = &1 and compte = &2 and validee = &3", numlotT, numcpt, 1)
-    If LetResult.Available Then
-      Repeat
-        TotLd = Val(.cpoint(TotLd)) + LetResult!montantd
-        TotLc = Val(.cpoint(TotLc)) + LetResult!montantc
-      Until LetResult.MoveNext()
-      TotL = Val(.cpoint(TotLd)) - Val(.cpoint(TotLc))
-    Endif
-    If TotL = 0 Then
-      Lettrable = 1
-    Else
-      Lettrable = 0
-    Endif
-    TotLd = 0
-    TotLc = 0
-    Totl = 0
-  End With
-
-End
 
 Public Sub ToggleButton6_Enter()
 
@@ -2181,10 +2157,11 @@ Public Sub Ecrit3()
           Else
             Nlot2 = Nlot
           Endif
-          rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & "  WHERE numlot = &1 and collectif is null", Nlot)
-          If rResult.Available Then
-            Utils.db.Exec("UPDATE " & Cbase.Table("TabMvt") & " SET lettree = &1, numlot = &3 WHERE numlot =  &2", 0, Nlot, Nlot2)
-          Endif
+'          rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & "  WHERE numlot = &1 and collectif is null", Nlot)
+ '         If rResult.Available Then
+          $lstex.letgroupe(Nlot, Nlot2, False, Cptt.Text)
+ '           Utils.db.Exec("UPDATE " & Cbase.Table("TabMvt") & " SET lettree = &1, numlot = &3 WHERE numlot =  &2", 0, Nlot, Nlot2)
+'          Endif
         End With
         Numcompte.SetFocus
         ' On passe l'écriture en provisoire
@@ -2253,8 +2230,9 @@ Public Sub Selct_Click()
         numdoc.Text = EcritL.Item[3]
         numcpt = EcritL.Item[1]
         Libelecrit.Text = EcritL.Item[5]
-        Utils.db.Exec("UPDATE " & Cbase.Table("TabMvt") & " SET numlot = &1 where compte = &2 and numero = &3", numlotT, numcompte.Text, numlet)
-        Sha1Calc.CalcSha1(Cbase.Table("TabMvt"), numlet)
+        $lstex.letcpt(numlet, True, numlotT, "tresor")
+'        Utils.db.Exec("UPDATE " & Cbase.Table("TabMvt") & " SET numlot = &1 where compte = &2 and numero = &3", numlotT, numcompte.Text, numlet)
+'        Sha1Calc.CalcSha1(Cbase.Table("TabMvt"), numlet) 'PATRICKMAG Revoir le lettrage exercice clot avec Sha1
       Endif
     Until EcritL.Movenext()
     numlot.Text = numlotT

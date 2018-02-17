@@ -39,6 +39,7 @@ Private Lettrable As Integer
 Private Tri As String
 Public Bsel As Boolean = False
 Public Desg As String
+Private $lstex As Listextcpt
 
 Public Function convBool(bln As Boolean) As String
 
@@ -267,6 +268,7 @@ Public Sub affichage()
 
   Dim Tab As String
   Dim Totd, Totc As Float
+  Dim odr As String
 
   Tab = "Fiches_Mvt"
   Tab2 = "Fiches_Comptes"
@@ -309,18 +311,31 @@ Public Sub affichage()
       Label2.Text = rrResult!intitule_cc
       Compt = ""
     Endif
+    If Tdate.Value Then
+      odr = "dte DESC"
+    Else
+      odr = "dte Asc"
+    Endif
     If ConvBool(Enl.value) = 1 Then
-      If Tdate.value = False Then
-        rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE compte = &1 and lettree = &2  and validee = &3 order by dte", cpt.text, 0, 1)
-      Else
-        rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE compte = &1 and lettree = &2  and validee = &3  order by dte", cpt.text, 0, 1)
-      Endif
+    '  If Tdate.value = False Then
+        $lstex = New Listextcpt(cpt.Text, "01.01.1900", "31.12.9999", "n", True, odr)
+        rResult = $lstex.resext
+ '       rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE compte = &1 and lettree = &2  and validee = &3 order by dte", cpt.text, 0, 1)
+     ' Else
+ '       lstex = New Listextcpt(cpt.Text, "01.01.1900", "31.12.9999", "n", True, odr)
+  '      rResult = lstex.resext
+        'rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE compte = &1 and lettree = &2  and validee = &3  order by dte", cpt.text, 0, 1)
+      'Endif
     Else
       If ConvBool(El.value) = 1 Then
-        rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE compte = &1 and lettree = &2 and validee = &3   order by dte", cpt.text, 1, 1)
+        $lstex = New Listextcpt(cpt.Text, "01.01.1900", "31.12.9999", "o", True, odr)
+        rResult = $lstex.resext
+ '       rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE compte = &1 and lettree = &2 and validee = &3   order by dte", cpt.text, 1, 1)
       Else
         If ConvBool(Toutes.value) = 1 Then
-          rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE compte = &1  and validee = &2 order by dte", cpt.text, 1)
+          $lstex = New Listextcpt(cpt.Text, "01.01.1900", "31.12.9999", "t", True, odr)
+          rResult = $lstex.resext
+          'rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE compte = &1  and validee = &2 order by dte", cpt.text, 1)
         Endif
       Endif
     Endif
@@ -405,10 +420,11 @@ Public Sub Button5_Click()
     Colcli.MoveFirst()
     Repeat
       If Colcli.Item[8] = "*" Then
-        rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE lind = &1 ", Colcli.Item[9])
-        If rResult.Available Then
-          Utils.db.Exec("Update " & Tab & " SET numlot = &1 where lind = &2 ", numlot.Text, Colcli.Item[9])
-        Endif
+'        rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE lind = &1 ", Colcli.Item[9])
+'        If rResult.Available Then
+        $lstex.letcpt(Val(Colcli.Item[9]), True, numlot.Text, "numlot")
+ '         Utils.db.Exec("Update " & Tab & " SET numlot = &1 where lind = &2 ", numlot.Text, Colcli.Item[9])
+        'Endif
       Endif
     Until Colcli.Movenext()
     If Totselection.Text <> "0,00" Then
@@ -420,57 +436,24 @@ Public Sub Button5_Click()
       affichage()
       clear()
     Else
-      Controle()
+      Lettrable = $lstex.Controle(numlot.Text, True)
       Colcli.MoveFirst
       If Lettrable = 1 And IsNull(numlot.text) Then numlot.Text = Colcli.Current[4]
       Repeat
         If Colcli.Item[8] = "*" And Lettrable = 1 Then
           Compt = Colcli.Item[0]
           num = Colcli.Item[7]
-          rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE compte = &1 and lind =&2 ", Compt, Colcli.Item[9])
-          If rResult.Available Then
-            Utils.db.Exec("Update " & Tab & " SET numlot = &1, lettree = &2 where lind = &3 ", numlot.Text, 1, Colcli.Item[9])
-          Endif
+'          rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE compte = &1 and lind =&2 ", Compt, Colcli.Item[9])
+ '         If rResult.Available Then
+          $lstex.letcpt(Val(Colcli.Item[9]), True, numlot.Text, "lettrage")
+'            Utils.db.Exec("Update " & Tab & " SET numlot = &1, lettree = &2 where lind = &3 ", numlot.Text, 1, Colcli.Item[9])
+         ' Endif
         Endif
       Until Colcli.Movenext()
       Colcli.Clear
       Affichage()
       clear()
     Endif
-  Endif
-
-End
-
-Public Sub Controle()
-
-  Dim num As String
-  Dim Tab As String
-  Dim TotLd As Float
-  Dim TotLc As Float
-  Dim TotL As Float
-
-  Tab = "Fiches_Mvt"
-  If Colcli.Available Then
-    Colcli.MoveFirst
-    Repeat
-      If Colcli.Item[8] = "*" Then
-        Compt = Colcli.Item[0]
-        num = Colcli.Item[7]
-        rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE compte = &1 and numlot = &2 and validee = &3", Compt, numlot.Text, 1)
-        If rResult.Available Then
-          Repeat
-            TotLd = TotLd + rResult!montantd
-            TotLc = TotLc + rResult!montantc
-            TotL = TotLd - TotLc
-          Until rResult.MoveNext()
-        Endif
-      Endif
-    Until Colcli.Movenext()
-  Endif
-  If TotL = 0 Then
-    Lettrable = 1
-  Else
-    Lettrable = 0
   Endif
 
 End
@@ -531,18 +514,16 @@ End
 
 Public Sub Button7_Click()
 
-  Dim Tab As String
-
-  Tab = "Fiches_Mvt"
   If Colcli.Available Then
     Colcli.MoveFirst
     Repeat
       If Colcli.Item[8] = "*" Then
-        rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE lind = &1 ", Colcli.Item[9])
-        If rResult.Available Then
-          Utils.db.Exec("UPdate " & Tab & " SET numlot = &1, lettree = &2 where lind = &3", numlot.Text, 0, Colcli.Item[9])
-          Sha1Calc.CalcSha1(Tab, rResult!numero)
-        Endif
+'        rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE lind = &1 ", Colcli.Item[9])
+'        If rResult.Available Then
+        $lstex.letcpt(Val(Colcli.Item[9]), False, numlot.Text, "lettrage")
+'          Utils.db.Exec("UPdate " & Tab & " SET numlot = &1, lettree = &2 where lind = &3", numlot.Text, 0, Colcli.Item[9])
+'          Sha1Calc.CalcSha1(Tab, rResult!numero) 'PATRICKMAG Revoir le lettrage exercice clot avec Sha1
+'        Endif
       Endif
     Until Colcli.Movenext()
     Colcli.Clear
@@ -602,9 +583,8 @@ Public Sub Tdate_Click()
 
   If Tdate.Value = True Then
     Colcli.Sorted = False
-    affichage()
   Else
     Colcli.sorted = True
   Endif
-
+  affichage
 End

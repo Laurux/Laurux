@@ -71,7 +71,8 @@ Private sTri As String
 Public Bsel As Boolean = False
 Public sCmpt As String
 Public sDesg As String
-Private lstex As Listextcpt
+Private $lstex As Listextcpt
+Private $rpt As Report
 
 '*************************
 '* On initialise l'écran *
@@ -402,13 +403,13 @@ Public Sub Cmpt_KeyPress()
     Select Case Last.tag
 
       Case 1
-        'dteN0_LF()
+        dteN0_LF()
         dteN1.SetFocus
         dteN1.Select
         Stop Event
 
       Case 2
-        'dteN1_LF()
+        dteN1_LF()
         cpt.SetFocus
         cpt.Select
         Stop Event
@@ -742,20 +743,20 @@ Public Sub affichage()
     Endif
 
     If Enl.value = True Then
-      lstex = New Listextcpt(cpt.Text, DteN0.Text, dteN1.Text, "n", True, sTri)
+      $lstex = New Listextcpt(cpt.Text, DteN0.Text, dteN1.Text, "n", True, sTri)
       'rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " WHERE compte = &1 and lettree = &2  and validee = &3 order by &4", cpt.text, 0, 1, sTri)
     Else
       If El.value = True Then
-        lstex = New Listextcpt(cpt.Text, DteN0.Text, dteN1.Text, "o", True, sTri)
+        $lstex = New Listextcpt(cpt.Text, DteN0.Text, dteN1.Text, "o", True, sTri)
         'rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " WHERE compte = &1 and lettree = &2 and validee = &3 order by  &4", cpt.Text, 1, 1, sTri)
       Else
         If Toutes.value = True Then
-          lstex = New Listextcpt(cpt.Text, DteN0.Text, dteN1.Text, "t", True, sTri)
+          $lstex = New Listextcpt(cpt.Text, DteN0.Text, dteN1.Text, "t", True, sTri)
           'rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " WHERE compte = &1  and validee = &2 order by " & sTri & "", cpt.text, 1)
         Endif
       Endif
     Endif
-    rResult = lstex.resext
+    rResult = $lstex.resext
     Utils.db.Exec("drop Table IF exists " & Tab1 & "")
     Utils.db.Exec("CREATE TABLE " & Tab1 &
       "(compte Char(8) NOT NULL," &
@@ -1349,7 +1350,7 @@ Public Sub Colcli_Activate()
         sJournal = Colcli.current[8]
         sNumero = Colcli.current[7]
         If num <> 0 Then
-          mvt = lstex.litleres(num)
+          mvt = $lstex.litleres(num)
         Else
           Return
         Endif
@@ -1464,4 +1465,222 @@ Public Sub Button6_Click()
   Start.LocalSettings.Save
   Me.Close
 
+End
+
+'****************************Edition******************************
+
+Public Sub butedit_Click()
+  
+  Dim ressoc, res As Result
+  Dim vb, vb1 As ReportVBox
+  Dim hb As ReportHBox
+  Dim lab As ReportLabel
+  Dim coul As Integer
+  Dim totd, totc, sld As Float
+  
+  If Not Bclient.Value And Not Bfournisseur.Value Then Return
+  coul = Val("&H" & Hex(Start.R) & Hex(Start.G) & Hex(Start.B))
+  $rpt = New Report
+  vb = New ReportVBox($rpt)
+  vb.Fixed = True
+  vb.Autoresize = True
+'  vb.Border = ReportBorder(
+  lab = New ReportLabel(vb)
+  lab.Height = "7mm"
+  lab.Text = "Impression des extraits de compte au " & Format$(Now, "dd.mm.yyyy")
+  lab.Alignment = Align.Center
+  lab.BackGround = ReportBrush.Color(coul)
+  lab.Font = Font["Serif,Bold,Italic,+2"]
+  hb = New ReportHBox(vb)
+  hb.Expand = True
+  hb.Autoresize = True
+
+  ressoc = Utils.db.Exec("SELECT * FROM Fiches_Societes")
+  If ressoc.Available Then
+    vb1 = New ReportVBox(hb)
+    vb1.Expand = True
+    lab = New ReportLabel(vb1)
+    lab.Text = ressoc!type_sc & " " & ressoc!int_sc
+    lab.Font = font["Serif,Bold,+1"]
+    lab = New ReportLabel(vb1)
+    lab.Text = ressoc!adr1_sc
+    lab.Font = font["Serif,-1"]
+    lab = New ReportLabel(vb1)
+    lab.Text = ressoc!adr2_sc
+    lab.Font = font["Serif,-1"]
+    lab = New ReportLabel(vb1)
+    lab.Text = ressoc!cp_sc & " " & ressoc!burdis_sc
+    lab.Font = font["Serif,-1"]
+    lab = New ReportLabel(vb1)
+    lab.Text = ressoc!tel_sc
+    lab.Font = font["Serif,-1"]
+    lab = New ReportLabel(vb1)
+    lab.Text = ressoc!email_sc
+    lab.Font = font["Serif,-1"]
+    lab = New ReportLabel(vb1)
+    lab.Text = ressoc!site
+    lab.Font = font["Serif,-1"]
+  Endif
+  If Bclient.Value Or Bfournisseur.Value Then
+    vb1 = New ReportVBox(hb)
+    If Bclient.Value Then
+      res = utils.db.Exec("SELECT * FROM Fiches_Cli WHERE cli_code=&1", cpt.Text)
+      ajouadr(vb1, res!cli_rs_soc, res!cli_nom & " " & res!cli_pnm, res!cli_adr1, res!cli_adr2, res!cli_cd_ptl & " " & res!cli_ville) 
+    Endif
+    If Bfournisseur.Value Then
+      res = utils.db.Exec("SELECT * FROM Fiches_Four WHERE fo_code=&1", cpt.Text)
+      ajouadr(vb1, res!fo_rs_soc, res!fo_nom & " " & res!fo_pnm, res!fo_adr1, res!fo_adr2 & res!fo_cd_ptl & " " & res!fo_ville)
+    Endif
+    
+  Endif
+  hb = New ReporthBox(vb)
+  hb.Border = ReportBorder["Top:1pt #000000;Bottom:1pt #000000;Left:1pt #000000;Right:1pt #000000"]
+  hb.Height = "5mm"
+  
+  lab = New ReportLabel(hb)
+  lab.Width = "30mm"
+  lab.Height = "5mm"
+  lab.Border = ReportBorder["Right:1pt #000000"]
+  lab.Text = "Date"
+  lab.Alignment = Align.Center
+  
+  lab = New ReportLabel(hb)
+  lab.Expand = True
+  lab.Height = "5mm"
+  lab.Border = ReportBorder["Right:1pt #000000"]
+  lab.Text = "libelle"
+  lab.Alignment = Align.Center
+  
+  lab = New ReportLabel(hb)
+  lab.Width = "30mm"
+  lab.Height = "5mm"
+  lab.Border = ReportBorder["Right:1pt #000000"]
+  lab.Text = "Debit"
+  lab.Alignment = Align.Center
+  
+  lab = New ReportLabel(hb)
+  lab.Width = "30mm"
+  lab.Height = "5mm"
+  lab.Border = ReportBorder["Right:1pt #000000"]
+  lab.Text = "Credit"
+  lab.Alignment = Align.Center
+  
+  lab = New ReportLabel(hb)
+  lab.Width = "30mm"
+  lab.Height = "5mm"
+  lab.Text = "Solde"
+  lab.Alignment = Align.Center
+  
+  $lstex.resext.MoveFirst
+  
+  Repeat
+    totd += $lstex.resext!montantd
+    totc += $lstex.resext!montantc
+    sld = totd - totc
+    ajoulign(sld)
+  Until $lstex.resext.MoveNext()
+  
+  hb = New ReporthBox($rpt)
+  hb.Border = ReportBorder["Top:1pt #000000;Bottom:1pt #000000;Left:1pt #000000;Right:1pt #000000"]
+  hb.Height = "5mm"
+  
+  lab = New ReportLabel(hb)
+  lab.Expand = True
+  lab.Height = "5mm"
+  lab.Border = ReportBorder["Right:1pt #000000"]
+  lab.Text = "TOTAL "
+  lab.Alignment = Align.Center
+  
+  lab = New ReportLabel(hb)
+  lab.Width = "30mm"
+  lab.Height = "5mm"
+  lab.Border = ReportBorder["Right:1pt #000000"]
+  lab.Text = Format(totd, "0.00")
+  lab.Alignment = Align.Right
+  
+  lab = New ReportLabel(hb)
+  lab.Width = "30mm"
+  lab.Height = "5mm"
+  lab.Border = ReportBorder["Right:1pt #000000"]
+  lab.Text = Format(totc, "0.00")
+  lab.Alignment = Align.Right
+  
+  lab = New ReportLabel(hb)
+  lab.Width = "30mm"
+  lab.Height = "5mm"
+  lab.Text = Format(sld, "0.00")
+  lab.Alignment = Align.Right
+  
+  $rpt.Preview
+End
+
+Private Sub ajoulign(sld As Float)
+  
+  Dim lab As ReportLabel
+  Dim hb As ReportHBox
+  
+  hb = New ReporthBox($rpt)
+  hb.Height = "4mm"
+  
+  lab = New ReportLabel(hb)
+  lab.Width = "30mm"
+  lab.Height = "4mm"
+  lab.Font = font["Serif,-2"]
+  lab.Text = Format($lstex.resext!dte, "dd.mm.yyyy")
+  lab.Alignment = Align.Left
+  lab.Border = ReportBorder["Right:1pt #000000"]
+  
+  lab = New ReportLabel(hb)
+  lab.Expand = True
+  lab.Height = "4mm"
+  lab.Font = font["Serif,-2"]
+  lab.Text = $lstex.resext!libelle
+  lab.Alignment = Align.Left
+  lab.Border = ReportBorder["Right:1pt #000000"]
+  
+  lab = New ReportLabel(hb)
+  lab.Width = "30mm"
+  lab.Height = "4mm"
+  lab.Font = font["Serif,-2"]
+  lab.Text = Format($lstex.resext!montantd, "0.00")
+  lab.Alignment = Align.Right
+  lab.Border = ReportBorder["Right:1pt #000000"]
+  
+  lab = New ReportLabel(hb)
+  lab.Width = "30mm"
+  lab.Height = "4mm"
+  lab.Font = font["Serif,-2"]
+  lab.Text = Format($lstex.resext!montantc, "0.00")
+  lab.Alignment = Align.Right
+  lab.Border = ReportBorder["Right:1pt #000000"]
+  
+  lab = New ReportLabel(hb)
+  lab.Width = "30mm"
+  lab.Height = "4mm"
+  lab.Font = font["Serif,-2"]
+  lab.Text = Format(sld, "0.00")
+  lab.Alignment = Align.Right
+  
+End
+
+
+Private Sub ajouadr(vb1 As ReportVBox, rs As String, nom As String, adr1 As String, adr2 As String, ville As String)
+  
+  Dim lab As ReportLabel
+  
+  lab = New ReportLabel(vb1)
+  lab.Text = rs & " " & nom
+  
+  lab = New ReportLabel(vb1)
+  lab.text = adr1
+   
+  lab = New ReportLabel(vb1)
+  lab.text = adr2
+   
+  lab = New ReportLabel(vb1)
+  lab.text = ville
+   
+  lab = New ReportLabel(vb1)
+  lab.text = "Du : " & dten0.Text & " au : " & dten1.Text
+   
 End
