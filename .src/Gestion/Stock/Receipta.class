@@ -106,6 +106,9 @@ Private $incol As Integer
 Private $o As Integer
 Private $bcrea As Boolean
 Private $fcd As Fourconsdroi
+Private $lastvalidbldoc As String
+Private $lastvalidfour As String
+
 
 Public Sub _New()
 
@@ -242,6 +245,12 @@ Public Sub _New()
   TextLabel12.Text = Start.LocalSettings["/Soc" & Start.Societe & "/Taxe"]
   Try Rcptman.value = Start.LocalSettings["/Soc" & Start.Societe & "/Rcptman"]
   Codefour.setfocus
+  If Not Start.LocalSettings["/Soc" & Start.Societe & "/NumBr"] Then
+    Numbl.ReadOnly = True
+    Numbl.Background = &HD4D0C8&
+  Endif
+  $lastvalidbldoc = ""
+  $lastvalidfour = ""
 
 End
 
@@ -285,7 +294,8 @@ End
 '**********************************************************
 Public Sub RazBl()
 
-  If numbl.Text <> Null Then DocActif.Free_Lock("Reception", numbl.Text)
+  If $lastvalidbldoc <> "" Then DocActif.Free_Lock("Reception", $lastvalidbldoc)
+  $lastvalidbldoc = ""
   CleanChamps()
   codefour.Clear
   nomfour.Clear
@@ -320,7 +330,6 @@ Public Sub CreateBR()
   numbl.Text = Val(numbl.Text) + 1
   numbl.Text = Format$(numbl.Text, "000000")
   Utils.db.Exec("UPDATE  Fiches_Parametres SET  dnbr = &1", numbl.Text)
-  DocActif.Get_Lock("Reception", numbl.Text)
 
 End
 
@@ -408,40 +417,32 @@ Public Sub Rcpt_KeyPress()
           Stop Event
 
         Case 3
-          EntResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntrecpt") & " where numrecpt = &1 and four = &2", numbl.Text, codefour.Text)
-          If EntResult.count <> 0 Then
-            Message.Warning("Ce numéro de bon existe déjà !")
-            Numbl.clear
-            Return
+          If numbl.Text = "" Then
+            Datej.Text = Format$(Now, "dd.mm.yyyy")
+            If son Then
+              Music.Play
+            Endif
+            message.Warning(" Veuillez saisir un numéro de BL SVP ! ")
+            numbl.SetFocus
+            numbl.select
           Else
-            If numbl.Text = "" Then
-              Datej.Text = Format$(Now, "dd.mm.yyyy")
-              If son Then
-                Music.Play
-              Endif
-              message.Warning(" Veuillez saisir un numéro de BL SVP ! ")
-              numbl.SetFocus
-              numbl.select
-            Else
-              If Not bTotal Then
-                Ver_comm()
-                If b <> 1 Then
-                  Verifbl()
-                  If B = 1 Then
-                    b = 0
-                    Datej.Text = Format$(Now, "dd.mm.yyyy")
-                    Numbl.SetFocus
-                  Else
-                    If Datej.Text = "" Then Datej.Text = Format$(Now, "dd.mm.yyyy")
-                    Datej.SetFocus
-                    Datej.Select
-                  Endif
+            If Not bTotal Then
+              Ver_comm()
+              If b <> 1 Then
+                If Verifbl() = True Then
+                  b = 0
+                  Datej.Text = Format$(Now, "dd.mm.yyyy")
+                  Numbl.SetFocus
+                Else
+                  If Datej.Text = "" Then Datej.Text = Format$(Now, "dd.mm.yyyy")
+                  Datej.SetFocus
+                  Datej.Select
                 Endif
-              Else
-                If Datej.Text = "" Then Datej.Text = Format$(Now, "dd.mm.yyyy")
-                Datej.SetFocus
-                Datej.Select
               Endif
+            Else
+              If Datej.Text = "" Then Datej.Text = Format$(Now, "dd.mm.yyyy")
+              Datej.SetFocus
+              Datej.Select
             Endif
           Endif
           bloc
@@ -826,9 +827,16 @@ Public Sub Rcpt_KeyPress()
   If Key.code = Key.F9 Then
     Select Case Last.tag
       Case 3
-        CreateBR()
-        Stop Event
+        If Start.LocalSettings["/Soc" & Start.Societe & "/NumBr"] Then
+          If Codefour.Text = "" Then
+            Message.Warning(" Veuillez saisir un code fournisseur SVP ! ")
+          Else
+            CreateBR()
+            Verifbl()
+          Endif
+        Endif
     End Select
+    Stop Event
   Endif
 
 End
@@ -1190,9 +1198,9 @@ Public Sub form_close()
       Enrgcoml()
     Endif
   Endif
+  RazBl()
   Start.LocalSettings["/Soc" & Start.Societe & "/Col/LcolRA"] = "col0:" & Colrcp.Columns[0].Width & ";" & "col1:" & Colrcp.Columns[1].Width & ";" & "col2:" & Colrcp.Columns[2].Width & ";" & "col3:" & Colrcp.Columns[3].Width & ";" & "col4:" & Colrcp.Columns[4].Width & ";" & "col5:" & Colrcp.Columns[5].Width & ";" & "col6:" & Colrcp.Columns[6].Width & ";" & "col7:" & Colrcp.Columns[7].Width & ";" & "col8:" & Colrcp.Columns[8].Width
   Start.LocalSettings.Save
-  
 
 End
 
@@ -1233,8 +1241,19 @@ Public Sub ToggleButton1_Click()
   Datej.Text = Format$(Now, "dd.mm.yyyy")
   If bTotal Then
     Datej.Text = Format$(Now, "dd.mm.yyyy")
-    RecupCom()
-    Cart.SetFocus
+    If Not Start.LocalSettings["/Soc" & Start.Societe & "/NumBr"] Then
+      CreateBR()
+      If Verifbl() = True Then
+        Codefour.Text = ""
+        Codefour.SetFocus
+      Else
+        RecupCom()
+        Cart.SetFocus
+      Endif
+    Else
+      RecupCom()
+      Numbl.SetFocus
+    Endif
   Else
     numcom.SetFocus
   Endif
@@ -1286,9 +1305,20 @@ End
 Public Sub fourMan()
 
   Dim rResult As Result
+  Dim Ltab As String
 
-  Tab = "Fiches_Four"
-  rResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE fo_code = &1", codefour.Text)
+  If Colrcp.Count <> 0 Then
+    If son Then
+      Music.Play
+    Endif
+    B = 1
+    codefour.Text = $lastvalidfour
+    Message.Warning("Veuillez valider votre saisie en cours SVP !", "Ok")
+    Return
+  Endif
+  $lastvalidfour = codefour.Text
+  Ltab = "Fiches_Four"
+  rResult = Utils.db.Exec("SELECT * FROM " & Ltab & " WHERE fo_code = &1", codefour.Text)
   $four = Codefour.Text
   nomfour.Text = rResult!fo_nom
   bCentrale = rResult!fo_centrale
@@ -1320,21 +1350,28 @@ End
 '************************************************
 '* On verifie si le bl a deja ete saisit        *
 '************************************************
-Public Sub Verifbl()
+Public Sub Verifbl() As Boolean
 
   Dim rResult As Result
+  Dim ko As Boolean = False
 
   Tab = "Fiches_Entrecpt"
-  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where numrecpt = &1", numbl.Text)
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where four = &1 and numrecpt = &2", Codefour.Text, Numbl.Text)
   If rResult.Available Then
-    B = 1
+    ko = True
     If son Then
       Music.Play
     Endif
     message.Warning("Ce Bl a deja ete saisit chez ce fournisseur", "OK")
   Else
-    B = 0
+    ' On ne prend le lock que sur un seul BR à la fois
+    If $lastvalidbldoc <> "" Then DocActif.Free_Lock("Reception", $lastvalidbldoc)
+    $lastvalidbldoc = Right(Numbl.Text, 4) & "@" & Right(Codefour.Text, 3)
+    DocActif.Get_Lock("Reception", $lastvalidbldoc)
   Endif
+  
+  B = ko ' c'est si vilain ces variables globales... je sais pas si on va s'en sortir un jour!!!
+  Return ko
 
 End
 
@@ -3005,6 +3042,9 @@ Public Sub Colcom_Click()
   $four = Colcom.Item[0]
   $num = Colcom.Item[2]
   'If DocActif.Get_Lock("CommandeF", $num) = False Then Return
+  If Numbl.Text = "" And Not Start.LocalSettings["/Soc" & Start.Societe & "/NumBr"] Then
+    CreateBR()
+  Endif
   AffColcom()
 
 End
@@ -3039,6 +3079,7 @@ Public Sub AffColcom()
         EntResult = Utils.db.Exec("SELECT * FROM " & tab3 & " WHERE numcom = &1 and four = &2", $num, codefour.Text)
         Datej.Text = Format$(Now, "dd.mm.yyyy")
         numcom.Text = LigResult!numcom
+        fourMan()
         Try An.value = EntResult!anomalie
         If Error Then An.value = False
         Commentaire = EntResult!commentaire
@@ -3111,7 +3152,7 @@ Public Sub AffColcom()
         Nlgn = Format$(Colrcp.count + 1, "000")
         Nl = Nlgn
         Nlg = 1
-        If bTotal Then CreateBR()
+        'If bTotal Then CreateBR()
       Endif
       Colcom.clear
       Colcom.visible = False
@@ -3276,7 +3317,7 @@ Public Sub RecupCom()
     Endif
     If Colrcp.Count > 0 Then
       bas_doc()
-      CreateBR()
+      'CreateBR()
     Else
       If Not bsaisie Then
         Message.Warning("Aucune commande pour ce fournisseur !")
@@ -3339,11 +3380,11 @@ Public Sub RecupLig()
           Colrcp.Item[15] = LigResult!pattc
         Loop Until LigResult.MoveNext()
         bas_doc()
-        If bTotal Then
-          CreateBR()
-        Else
-          Numbl.setfocus
-        Endif
+        'If bTotal Then
+        '  CreateBR()
+        'Else
+        '  Numbl.setfocus
+        'Endif
       Endif
     End With
   Endif

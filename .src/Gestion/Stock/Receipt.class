@@ -88,6 +88,7 @@ Private $incol As Integer
 Private $o As Integer
 Private $bcrea As Boolean
 Private $fcd As Fourconsdroi
+Private $lastvalidbldoc As String
 
 Public Sub _New()
 
@@ -236,6 +237,12 @@ Public Sub _New()
     "mat_rcpt char(15)," &
     "PRIMARY KEY (mat_serie, mat_code))" & "ENGINE = MYISAM")
   TextLabel23.Text = Start.LocalSettings["/Soc" & Start.Societe & "/Taxe"]
+  
+  If Not Start.LocalSettings["/Soc" & Start.Societe & "/NumBr"] Then
+    Nbl.ReadOnly = True
+    Nbl.Background = &HD4D0C8&
+  Endif
+  $lastvalidbldoc = ""
 
 End
 
@@ -280,7 +287,8 @@ End
 '**********************************************************
 Public Sub RazBl()
 
-  If Nbl.Text <> Null Then DocActif.Free_Lock("Reception", Nbl.Text)
+  If $lastvalidbldoc <> "" Then DocActif.Free_Lock("Reception", $lastvalidbldoc)
+  $lastvalidbldoc = ""
   CleanChamps()
   four.Clear
   fournom.Clear
@@ -314,7 +322,6 @@ Public Sub CreateBR()
   nbl.Text = Val(nbl.Text) + 1
   nbl.Text = Format$(nbl.Text, "000000")
   Utils.db.Exec("UPDATE  Fiches_Parametres SET  dnbr = &1", nbl.Text)
-  DocActif.Get_Lock("Reception", nbl.Text)
 
 End
 
@@ -385,9 +392,7 @@ Public Sub Rcpt_KeyPress()
             Nbl.SetFocus
             Nbl.select
           Else
-            Verifbl()
-            If B = 1 Then
-              b = 0
+            If Verifbl() = True Then
               Datej.Text = Format$(Now, "dd.mm.yyyy")
               Nbl.SetFocus
             Else
@@ -731,9 +736,16 @@ Public Sub Rcpt_KeyPress()
   If Key.code = Key.F9 Then
     Select Case Last.tag
       Case 2
-        CreateBR()
-        Stop Event
+        If Start.LocalSettings["/Soc" & Start.Societe & "/NumBr"] Then
+          If Four.Text = "" Then
+            Message.Warning(" Veuillez saisir un code fournisseur SVP ! ")
+          Else
+            CreateBR()
+            Verifbl()
+          Endif
+        Endif
     End Select
+    Stop Event
   Endif
 
 End
@@ -990,10 +1002,9 @@ Public Sub form_close()
           Endif
         Endif
       Endif
-    Else
-      RazBl()
     Endif
   Endif
+  RazBl()
   Start.LocalSettings["/Soc" & Start.Societe & "/Col/LcolR"] = "col0:" & Colrcp.Columns[0].Width & ";" & "col1:" & Colrcp.Columns[1].Width & ";" & "col2:" & Colrcp.Columns[2].Width & ";" & "col3:" & Colrcp.Columns[3].Width & ";" & "col4:" & Colrcp.Columns[4].Width & ";" & "col5:" & Colrcp.Columns[5].Width & ";" & "col6:" & Colrcp.Columns[6].Width & ";" & "col7:" & Colrcp.Columns[7].Width & ";" & "col8:" & Colrcp.Columns[9].Width
   Start.LocalSettings.Save
 
@@ -1018,7 +1029,12 @@ Public Sub ToggleButton1_Click()
   Datej.Text = Format$(Now, "dd.mm.yyyy")
   If Not Start.LocalSettings["/Soc" & Start.Societe & "/NumBr"] Then
     CreateBR()
-    Cart.SetFocus
+    If Verifbl() = True Then
+      Four.Text = ""
+      Four.SetFocus
+    Else
+      Cart.SetFocus
+    Endif
   Else
     Nbl.SetFocus
   Endif
@@ -1056,21 +1072,28 @@ End
 '************************************************
 '* On verifie si le bl a deja ete saisit        *
 '************************************************
-Public Sub Verifbl()
+Public Sub Verifbl() As Boolean
 
   Dim rResult As Result
+  Dim ko As Boolean = False
 
   Tab = "Fiches_Entrecpt"
   rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where four = &1 and numrecpt = &2", four.Text, Nbl.Text)
   If rResult.Available Then
-    B = 1
+    ko = True
     If son Then
       Music.Play
     Endif
     message.Warning("Ce Bl a deja ete saisit chez ce fournisseur", "OK")
   Else
-    B = 0
+    ' On ne prend le lock que sur un seul BR à la fois
+    If $lastvalidbldoc <> "" Then DocActif.Free_Lock("Reception", $lastvalidbldoc)
+    $lastvalidbldoc = Right(Nbl.Text, 4) & "@" & Right(four.Text, 3)
+    DocActif.Get_Lock("Reception", $lastvalidbldoc)
   Endif
+  
+  B = ko ' c'est si vilain ces variables globales... je sais pas si on va s'en sortir un jour!!!
+  Return ko
 
 End
 
