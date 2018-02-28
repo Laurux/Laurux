@@ -37,7 +37,7 @@ Public Sub Calc_stock(Art As String, art2 As String)
       Endif
     Endif
     If ArtResult.Available Then
-      Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabArt") & " WRITE, " & Cbase.Table("TabBl") & " WRITE, " & Cbase.Table("TabLigbl") & " WRITE, " & Cbase.Table("TabBlM") & " Write, " & Cbase.Table("TabLigblM") & " WRITE, " & Cbase.Table("TabHisFac") & " WRITE, " & Cbase.Table("TabHisLigFac") & " WRITE, " & Cbase.Table("TabHisFacm") & " WRITE, " & Cbase.Table("TabHisLigFacm") & " WRITE, " & Cbase.Table("TabMvtexp") & " WRITE, " & Cbase.Table("TabEntrecpt") & " WRITE, " & Cbase.Table("TabLigrecpt") & " WRITE, " & Cbase.Table("TabHEntTck") & "  WRITE, " & Cbase.Table("TabHLigTck") & "  WRITE, " & Cbase.Table("TabSdepots") & " WRITE, " & tab3 & " write ")
+      Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabArt") & " WRITE, " & Cbase.Table("TabBl") & " WRITE, " & Cbase.Table("TabLigbl") & " WRITE, " & Cbase.Table("TabBlM") & " Write, " & Cbase.Table("TabLigblM") & " WRITE, " & Cbase.Table("TabHisFac") & " WRITE, " & Cbase.Table("TabHisLigFac") & " WRITE, " & Cbase.Table("TabHisFacm") & " WRITE, " & Cbase.Table("TabHisLigFacm") & " WRITE, " & Cbase.Table("TabMvtexp") & " WRITE, " & Cbase.Table("TabEntrecpt") & " WRITE, " & Cbase.Table("TabLigrecpt") & " WRITE, " & Cbase.Table("TabHEntTck") & "  WRITE, " & Cbase.Table("TabHLigTck") & "  WRITE, " & Cbase.Table("TabSdepots") & " WRITE, " & tab3 & " write, Fiches_Mvtexpdc WRITE ")
       Repeat
         'On initialise la quantité avec le stock de départ
         If qte_art = 0 Then Try qte_art = ArtResult!art_stkdep
@@ -51,13 +51,53 @@ Public Sub Calc_stock(Art As String, art2 As String)
           dte2 = Format(dte1, "yyyymmdd")
         'Endif
         ' Puis on sélectionne tous les BL et les factures
-        res = Utils.db.Exec("SELECT SUM(REPLACE(qte_ligbl,',','.') * -1) as qte FROM Fiches_Ligbl JOIN Fiches_Bl ON num_ligbl=numbl WHERE datebl >= &1 and (type = 'B' OR type = 'F') AND code_ligbl=&2 AND typel_ligbl = 'A'" &
-          " UNION(SELECT SUM(REPLACE(qte_ligbl,',','.') * -1) as qte FROM Fiches_LigblM JOIN Fiches_BlM ON num_ligbl=numbl WHERE datebl >= &1 and (type = 'B' OR type = 'F') AND code_ligbl=&2 AND typel_ligbl = 'A')" &
-          " UNION(SELECT SUM(REPLACE(qte_ligfac,',','.') * -1) as qte FROM Fiches_HistoFac JOIN Fiches_HistoLigfac ON num_ligfac=numfac WHERE datefac >= &1 AND code_ligfac=&2 AND typel_ligfac = 'A')" &
-          " UNION(SELECT SUM(REPLACE(qte_ligfac,',','.') * -1) as qte FROM Fiches_HistoFacM JOIN Fiches_HistoLigfacM ON num_ligfac=numfac WHERE datefac >= &1 AND code_ligfac=&2 AND typel_ligfac = 'A')" &  
-          " UNION(SELECT SUM(REPLACE(qte,',','.')) as qte FROM Fiches_Ligrecpt WHERE daterecpt>= &1 AND code=&2)" &
-          " UNION(SELECT SUM(IF(qtep IS NULL,'0',REPLACE(qtep,',','.')) - (IF(qtem IS NULL,'0',REPLACE(qtem,',','.')))) as qte FROM Fiches_Mvtexp WHERE daterecpt>=&1 AND code=&2)" &
-          " UNION(SELECT SUM(IF(type='S',REPLACE(qte,',','.')*-1,REPLACE(qte,',','.'))) AS qte FROM Fiches_Sdepots WHERE code='01' AND date >= &1 AND cart=&2)", dte2, ArtResult!art_code)
+        res = Utils.db.Exec( 
+        "SELECT" &
+            " SUM(Replace(qte_ligbl, ',','.') * -1) as qte" &
+          " FROM" &
+            " Fiches_Ligbl JOIN Fiches_Bl ON num_ligbl = numbl" &
+          " WHERE" &
+            " datebl >= &1 And (type = 'B' OR type = 'F') AND code_ligbl=&2 AND typel_ligbl = 'A'" &
+        " UNION(SELECT" &
+            " SUM(REPLACE(qte_ligbl,',','.') * -1) as qte" &
+          " FROM" &
+            " Fiches_LigblM JOIN Fiches_BlM ON num_ligbl=numbl" &
+          " WHERE" &
+            " datebl >= &1 and (type = 'B' OR type = 'F') AND code_ligbl=&2 AND typel_ligbl = 'A')" &
+        " UNION(SELECT" &
+            " SUM(REPLACE(qte_ligfac,',','.') * -1) as qte" &
+          " FROM" &
+            " Fiches_HistoFac JOIN Fiches_HistoLigfac ON num_ligfac=numfac" &
+          " WHERE" &
+            " datefac >= &1 AND code_ligfac=&2 AND typel_ligfac = 'A')" &
+        " UNION(SELECT" &
+            " SUM(REPLACE(qte_ligfac,',','.') * -1) as qte" &
+          " FROM" &
+            " Fiches_HistoFacM JOIN Fiches_HistoLigfacM ON num_ligfac=numfac" &
+          " WHERE" &
+            " datefac >= &1 AND code_ligfac=&2 AND typel_ligfac = 'A')" &  
+        " UNION(SELECT" &
+            " SUM(REPLACE(qte,',','.'))* &3 as qte" &
+          " FROM" &
+            " Fiches_Ligrecpt" &
+          " WHERE" &
+            " daterecpt>= &1 AND code=&2)" &
+        " UNION(SELECT" &
+            " SUM(IF(qtep IS NULL,'0',REPLACE(qtep,',','.')) - (IF(qtem IS NULL,'0',REPLACE(qtem,',','.')))) as qte" &
+          " FROM" &
+            " Fiches_Mvtexp" &
+          " WHERE" &
+            " daterecpt=&1 AND code=&2)" &
+        " UNION(SELECT" &
+            " SUM(IF(qtep IS NULL,'0',REPLACE(qtep,',','.')) - (IF(qtem IS NULL,'0',REPLACE(qtem,',','.')))) as qte" &
+          " FROM" &
+            " Fiches_Mvtexpdc WHERE daterecpt>=&1 AND code=&2)" & 
+        " UNION(SELECT" &
+            " SUM(IF(type='S',REPLACE(qte,',','.')*-1,REPLACE(qte,',','.'))) AS qte" &
+          " FROM" &
+            " Fiches_Sdepots" &
+          " WHERE" &
+            " code='01' AND date >= &1 AND cart=&2)", dte2, ArtResult!art_code, ArtResult!art_txconv)
         If res.Available Then
           res.MoveFirst
           Repeat
