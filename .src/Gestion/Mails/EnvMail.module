@@ -28,7 +28,7 @@ Public Sub Envoi(Email As String, sujet As String, Txt As String, piece As Boole
 
 End
 
-Public Sub Envoi2(Email As String, sujet As String, Corps As String, piece As String, Optional piece2 As String)
+Public Sub Envoi2b(Email As String, sujet As String, Corps As String, piece As String, Optional piece2 As String)
 
   If Not IsNull(Start.LocalSettings["/Soc" & Start.Societe & "/Prgmail"]) Then
     Select Case Start.LocalSettings["/Soc" & Start.Societe & "/Prgmail"]
@@ -96,6 +96,89 @@ Public Sub Envoi3(Email As String, sujet As String, Corps As String, piece As St
 
       Case "Kmail"
         Exec ["kmail -s " & sujet & "--attach " & piece & "--msg " & corps & " " & Email]
+
+    End Select
+  Else
+    Message.Warning("Le gestionnaire de messagerie n'est pas défini dans les préférences !")
+  Endif
+
+End
+
+Public Sub Envoi5(Email As String, sujet As String, Corps As String, piece As String, Optional piece2 As String[])
+Dim Pjointe, piece3 As String
+Dim i As Integer
+  If Not IsNull(Start.LocalSettings["/Soc" & Start.Societe & "/Prgmail"]) Then
+    Select Case Start.LocalSettings["/Soc" & Start.Societe & "/Prgmail"]
+      Case "Thunderbird"
+        corps = Replace$(corps, ",", "%2C")
+        corps = Replace$(corps, "\n", "%0A")
+        corps = Replace$(corps, "(", "{")
+        corps = Replace$(corps, ")", "}")
+        corps = Replace$(corps, "'", " ")
+        corps = Replace$(corps, ";", "%2C")
+          If piece2.Count > 0 Then
+            piece3 = "thunderbird -compose" & " \"" & "to=" & Email & ",subject=" & sujet & ",body=" & corps & ",attachment='" & piece & ""
+          Endif
+          If piece2.count > 0 Then
+For i = 1 To piece2.count - 1
+  If Not IsNull(Piece2[i]) Then piece3 &= "," & Settings["/Soc" & Start.Societe & "/Bexpchemin"] & "/" & Piece2[i] 
+Next
+piece3 &= "'\""
+         Shell piece3
+        Else
+          Shell "thunderbird -compose" & " \"" & "to=" & Email & ",subject=" & sujet & ",body=" & corps & ",attachment=" & piece & "\""
+        Endif
+    End Select
+  Else
+    Message.Warning("Le gestionnaire de messagerie n'est pas défini dans les préférences !")
+  Endif
+
+End
+
+Public Sub Envoi2(Email As String, sujet As String, Corps As String, piece As String, Optional piece2 As String, Optional piece3 As String[])
+Dim Pjointe, piece4 As String
+Dim i As Integer
+  If Not IsNull(Start.LocalSettings["/Soc" & Start.Societe & "/Prgmail"]) Then
+    Select Case Start.LocalSettings["/Soc" & Start.Societe & "/Prgmail"]
+      Case "Thunderbird"
+        corps = Replace$(corps, ",", "%2C")
+        corps = Replace$(corps, "\n", "%0A")
+        corps = Replace$(corps, "(", "{")
+        corps = Replace$(corps, ")", "}")
+        corps = Replace$(corps, "'", " ")
+        corps = Replace$(corps, ";", "%2C")
+         If Not IsNull(piece3) Then
+           If Not IsNull(Piece2) Then
+            piece4 = "thunderbird -compose" & " \"" & "to=" & Email & ",subject=" & sujet & ",body=" & corps & ",attachment='" & piece & "," & Piece2 & "'\""
+          Else
+            piece4 = "thunderbird -compose" & " \"" & "to=" & Email & ",subject=" & sujet & ",body=" & corps & ",attachment='" & piece & ""
+          Endif
+          For i = 1 To piece3.count - 1
+            If Not IsNull(Piece3[i]) Then piece4 &= "," & Settings["/Soc" & Start.Societe & "/Bexpcheminpj"] & "/" & Piece3[i] 
+          Next
+          piece4 &= "'\""
+         Shell piece4
+       Else
+        If Not IsNull(Piece2) And If IsNull(piece3) Then
+          Shell "thunderbird -compose" & " \"" & "to=" & Email & ",subject=" & sujet & ",body=" & corps & ",attachment='" & piece & "," & Piece2 & "'\""
+        Else
+          Shell "thunderbird -compose" & " \"" & "to=" & Email & ",subject=" & sujet & ",body=" & corps & ",attachment=" & piece & "\""
+        Endif
+        Endif
+      Case "Icedove"
+        corps = Replace$(corps, ",", "%2C")
+        corps = Replace$(corps, "\n", "%0A")
+        corps = Replace$(corps, "(", "{")
+        corps = Replace$(corps, ")", "}")
+        corps = Replace$(corps, "'", " ")
+        corps = Replace$(corps, ";", "%2C")
+        Shell "icedove -compose" & " to=" & Email & ",subject=" & sujet & " ,attachment=" & piece & ",body=" & corps
+
+      Case "Evolution"
+        Exec ["evolution", "mailto:" & Email & "?subject=" & sujet & "\\&body=" & corps & "\\&attach=" & piece]
+
+      Case "Kmail"
+        Exec ["kmail -s " & sujet & " --attach " & piece & " --msg " & corps & " " & Email]
 
     End Select
   Else
