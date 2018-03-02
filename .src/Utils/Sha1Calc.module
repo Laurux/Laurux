@@ -1,107 +1,111 @@
 ' Gambas module file
 
-Public Function CalcSha1(numecr As String, Optional lind As String = Null)
+
+Public Function CalcSha1(numecr As String, Optional lind As String = Null, Optional update As Boolean = True) As String
 
   Dim sresult, s2Result As Result
-  Dim $cle, $cle2 As String
+  Dim $cle, $cle2, $cleout As String
   If IsNull(lind) Then
-    sResult = Utils.db.Exec("SELECT * FROM Fiches_Mvt WHERE numero = &1 order by lind desc limit 1", numecr)
+    sResult = Utils.db.Exec("SELECT * FROM Fiches_Mvt WHERE numero = &1 order by lind desc", numecr)
   Else
     sResult = Utils.db.Exec("SELECT * FROM Fiches_Mvt WHERE numero = &1 and lind = &2", numecr, lind)
   Endif
   If sResult.Available Then
-    s2Result = Utils.db.Exec("SELECT * FROM Fiches_Mvt WHERE numero < &1 order by lind desc limit 1", numecr - 1)
+    s2Result = Utils.db.Exec("SELECT * FROM Fiches_Mvt WHERE numero < &1 order by lind desc limit 1", numecr)
     If s2Result.Available Then
       $cle2 = s2Result!control
     Endif
     Repeat
-      $cle = $cle2
+      $cle = Trim($cle2)
       $cle &= sResult!jour & sResult!numero & sResult!compte & sResult!intitule & sResult!dte & sResult!numdoc & sResult!numlot & sResult!libelle & sResult!montantd & sResult!montantc & sResult!validee & sResult!provisoire & sResult!tresorerie & sResult!lettree & sResult!cloturee
       $cle &= sResult!numerodef & sResult!collectif & sResult!datee & sResult!dateech & sResult!numcol & sResult!pointee & sResult!nrlv & sResult!dteval & sResult!relance & sResult!export
       $cle = Replace$($cle, ")", "")
       $cle = Replace$($cle, "(", "")
       $cle = Replace$($cle, "'", "")
-      Shell "echo " & $cle & " | sha1sum 2>&1" To $cle2
-      Utils.db.Exec("update Fiches_Mvt set  control = &2 where lind = &1", sResult!lind, Left$($cle2, 40))
+      $cleout = Base64$(Digest["sha1"]($cle))
+      If update = True Then
+        Utils.db.Exec("update Fiches_Mvt set  control = &2 where lind = &1", sResult!lind, Left$($cleout, 40))
+      Endif
     Until sResult.MoveNext()
   Endif
+  
+  Return $cleout
 
 End
 
-Public Function CalcSha12()
+Public Function CalcSha1_all()
 
   Dim sresult, s2Result As Result
-  Dim $cle, $cle2 As String
-
+  Dim PB As ProgBar
+  
   sResult = Utils.db.Exec("SELECT * FROM Fiches_Mvt order by numero asc")
   If sResult.Available Then
+    PB = New ProgBar("Generation Cles", sResult.Count)
+    PB.Show()
     Repeat
-      $cle2 = ""
-      s2Result = Utils.db.Exec("SELECT * FROM Fiches_Mvt WHERE numero < &1 order by lind desc limit 1", sResult!numero - 1)
-      If s2Result.Available Then
-        $cle2 = s2Result!control
-      Endif
-      $cle = $cle2
-      $cle &= sResult!jour & sResult!numero & sResult!compte & sResult!intitule & sResult!dte & sResult!numdoc & sResult!numlot & sResult!libelle & sResult!montantd & sResult!montantc & sResult!validee & sResult!provisoire & sResult!tresorerie & sResult!lettree & sResult!cloturee
-      $cle &= sResult!numerodef & sResult!collectif & sResult!datee & sResult!dateech & sResult!numcol & sResult!pointee & sResult!nrlv & sResult!dteval & sResult!relance & sResult!export
-      $cle = Replace$($cle, ")", "")
-      $cle = Replace$($cle, "(", "")
-      $cle = Replace$($cle, "'", "")
-      Shell "echo " & $cle & " | sha1sum 2>&1" To $cle2
-      Utils.db.Exec("update Fiches_Mvt set  control = &2 where lind = &1", sResult!lind, Left$($cle2, 40))
+      If PB.Avancement("Ecriture " & sResult!numero, 10) = True Then Break
+      CalcSha1(sResult!numero)
     Until sResult.MoveNext()
+    PB.Close()
   Endif
 
 End
 
-Public Function CalcSha2(lind As String) As String
+Public Function CalcSha1_Verify(numecr As String, Optional lind As String = Null) As Boolean
 
   Dim sresult, s2Result As Result
   Dim $cle, $cle2 As String
+  Dim verifok As Boolean = True 
 
-  sResult = Utils.db.Exec("SELECT * FROM Fiches_Mvt WHERE lind = &1", lind)
-  If sResult.Available Then
-    s2Result = Utils.db.Exec("SELECT * FROM Fiches_Mvt WHERE numero < &1 order by lind desc limit 1", sResult!numero - 1)
-    If s2Result.Available Then
-      $cle2 = s2Result!control
-    Endif
-    $cle = $cle2
-    $cle &= sResult!jour & sResult!numero & sResult!compte & sResult!intitule & sResult!dte & sResult!numdoc & sResult!numlot & sResult!libelle & sResult!montantd & sResult!montantc & sResult!validee & sResult!provisoire & sResult!tresorerie & sResult!lettree & sResult!cloturee
-    $cle &= sResult!numerodef & sResult!collectif & sResult!datee & sResult!dateech & sResult!numcol & sResult!pointee & sResult!nrlv & sResult!dteval & sResult!relance & sResult!export
-    $cle = Replace$($cle, ")", "")
-    $cle = Replace$($cle, "(", "")
-    $cle = Replace$($cle, "'", "")
-    Shell "echo " & $cle & " | sha1sum 2>&1" To $cle2
-    Return Left$($cle2, 40)
+  If IsNull(lind) Then
+    sResult = Utils.db.Exec("SELECT * FROM Fiches_Mvt WHERE numero = &1 order by lind desc", numecr)
+  Else
+    sResult = Utils.db.Exec("SELECT * FROM Fiches_Mvt WHERE numero = &1 and lind = &2", numecr, lind)
   Endif
+
+  If sResult.Available Then
+    Repeat
+      $cle = CalcSha1(sResult!numero, sResult!lind, False)
+      If $cle <> sResult!control And Not IsNull(sResult!control) Then
+        verifok = False
+      Endif
+    Until sResult.MoveNext()
+  Endif
+
+  Return verifok
 
 End
 
-'Clé pour la caisse
-Public Function CalcShaC($Ncaisse As String, $numero As String)
+'Clé pour la caisse associé aux tickets precedent
+Public Function CalcSha1T($Tab As String, $Ncaisse As String, $numero As String, prev_numero As String, Optional update As Boolean = True) As String
 
-  Dim sresult, s2Result As Result
-  Dim $cle, $cle2, $Tab As String
+  Dim sresult As Result
+  Dim lresult As Result
+  Dim $cle, $cleout As String
 
-  $Tab = "Fiches_EntTicketz"
   sResult = Utils.db.Exec("SELECT * FROM  " & $Tab & " WHERE caisse = &1 and numero = &2", $Ncaisse, $numero)
   If sResult.Available Then
     Repeat
-      $cle2 = "" '
-      s2Result = Utils.db.Exec("SELECT * FROM Fiches_Mvt order by numero desc, lind desc limit 1")
-      If s2Result.Available Then
-        $cle2 = s2Result!control
-      Endif
-      $cle = $cle2
-      $cle &= sResult!caisse & sResult!numero & sResult!date & sResult!client & sResult!scheque & sResult!mcheque & sResult!nmcheque & sResult!scarte & sResult!mcarte & sResult!nmcarte & sResult!sespeces & sResult!mespeces & sResult!scredit & sResult!mcredit & sResult!mht & sResult!mtva & sResult!mttc & sResult!statut & sResult!savoir
+      $cle = sResult!caisse & sResult!numero & sResult!date & sResult!client & sResult!scheque & sResult!mcheque & sResult!nmcheque & sResult!scarte & sResult!mcarte & sResult!nmcarte & sResult!sespeces & sResult!mespeces & sResult!scredit & sResult!mcredit & sResult!mht & sResult!mtva & sResult!mttc & sResult!savoir
       $cle &= sResult!scavoir & sResult!mavoir & sResult!type & sResult!vendeur & sResult!carte & sResult!points & sResult!sbonus & sResult!mbonus & sResult!sresto & sResult!mresto & sResult!sbachat & sResult!mbachat & sResult!nom & sResult!suppr & sResult!retro
       $cle = Replace$($cle, ")", "")
       $cle = Replace$($cle, "(", "")
       $cle = Replace$($cle, "'", "")
-      Shell "echo " & $cle & " | sha1sum 2>&1" To $cle2
-      Utils.db.Exec("update  " & $Tab & " set  control = &2 where lInd = &1", sResult!lInd, Left$($cle2, 40))
+      'On chaine les contrôle avec le ticket précédent si il existe dans la table
+      lResult = Utils.db.Exec("SELECT * FROM  " & $Tab & " WHERE caisse = &1 and numero = &2", $Ncaisse, prev_numero)
+      
+      If lResult.Available Then
+        $cle &= Trim(lResult!control)
+      Else
+        prev_numero = ""
+      Endif
+      $cleout = Base64$(Digest["sha1"]($cle))
+      If update = True Then
+        Utils.db.Exec("update  " & $Tab & " set control = &2 , prev_numero = &3 where lInd = &1", sResult!lInd, Left$($cleout, 40), prev_numero)
+      Endif
     Until sResult.MoveNext()
   Endif
+  
+  Return $cleout
 
 End
-

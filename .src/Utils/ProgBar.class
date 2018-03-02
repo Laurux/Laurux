@@ -1,0 +1,96 @@
+' Gambas class file
+
+Private $nbelem As Integer
+Private $curelem As Integer
+Private $refresh As Integer
+Private $unit As String
+Private $paused As Boolean
+Private $stopped As Boolean
+
+
+Public Sub _New(Titre As String, nbelem As Integer, Optional Stopable As Boolean = False, Optional unit As String = "", Optional detail As Boolean = False)
+
+  Title.Text = Titre
+  $nbelem = nbelem
+  $curelem = 0
+  DetailLog.Visible = detail
+  Stop.Visible = Stopable
+  $paused = False
+  $stopped = False
+  'l'arret n'est géré qu'en mode persistant lors de l'avancement
+  Me.Persistent = True
+
+End
+
+Public Sub Form_Open()
+
+  Utils.Observers(Me)
+  elemdone.Text = $curelem & " / " & $nbelem & " " & $unit
+  
+End
+
+Public Sub Form_Close()
+
+ If Stop.Visible Then $stopped = True
+  
+End
+
+Public Sub Enable_Detail()
+
+  DetailLog.Visible = True
+  
+End
+
+Public Sub Disable_Detail()
+
+  DetailLog.Visible = False
+  
+End
+
+Public Sub IsStoppable(Val As Boolean)
+
+  Stop.Visible = Val
+  
+End
+
+
+Public Sub Avancement(Optional Info As String = "", Optional refresh_increment As Integer = 1) As Boolean
+
+  $curelem += 1
+  $refresh += 1
+  If $refresh = refresh_increment Then
+    $refresh = 0
+    ProgressionBar.Value = (CFloat($curelem) / $nbelem)
+    If DetailLog.Visible Then DetailLog.Text &= CInt(ProgressionBar.Value * 100) & "% :  " & Info & "\n"
+    elemdone.Text = $curelem & " / " & $nbelem & " " & $unit
+    While $paused
+      Wait 0.1
+    Wend
+    Wait 0.05
+  Endif
+  Wait 0.05
+  
+  Return $stopped
+  
+End
+
+Public Sub Pause_Click()
+
+  If $paused Then
+    $paused = False
+    Pause.Text = "Pause"
+  Else
+    $paused = True
+    Pause.Text = "Reprendre"
+  Endif 
+
+End
+
+Public Sub Stop_Click()
+  
+  $stopped = True
+  $paused = False
+  Pause.Text = "Pause"
+  
+End
+

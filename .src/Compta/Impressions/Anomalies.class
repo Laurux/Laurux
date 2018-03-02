@@ -8,6 +8,7 @@ Public Sub Button2_Click()
   Dim PosY As Integer
   Dim i As Integer
   Dim pdf As Ccompta
+  Dim PB As ProgBar
 
   i = 0
   rResult = Utils.db.Exec("SELECT * FROM  Fiches_Mvt")
@@ -16,25 +17,28 @@ Public Sub Button2_Click()
   pdf = New Ccompta("Portrait", "mm", "A4")
   pdf.Open()
   pdf.AliasNbPages()
-  pdf.Entete("Impression des anomalies des clés")
+  pdf.Entete("Contrôle des Ecritures (Anomalies des cles)")
   pdf.Level0P(ste)
   PosY = PosY + 160
   dte = Format$(Now, "dd.mm.yyyy")
   pdf.Level1A2()
   PosY = 32
-  rResult = Utils.db.Exec("SELECT * FROM  Fiches_Mvt Order by numero asc")
+  rResult = Utils.db.Exec("SELECT * FROM  Fiches_Mvt Order by numero asc, lind desc")
   If rResult.Available Then
+    PB = New ProgBar("Recherche des anomalies", rResult.Count)
+    PB.Enable_Detail()
+    PB.IsStoppable(True)
+    PB.Show()
     Me.Mouse = Mouse.wait
     Repeat
-      $cle = rResult!control
-      $cle2 = Sha1Calc.CalcSha2(rResult!lind)
-      If $cle <> $cle2 Then
-        pdf.Level2A2(rResult!numero, rResult!compte, rResult!intitule, rResult!dte, $cle, $cle2, posy)
+      If PB.Avancement("Ecriture " & rResult!numero, 10) = True Then Break
+      If Not Sha1Calc.CalcSha1_Verify(rResult!numero, rResult!lind) Then
+        pdf.Level2A2(rResult!numero, rResult!compte, rResult!intitule, Format$(rResult!dte, "dd.mm.yyyy"), rResult!control, Sha1Calc.CalcSha1(rResult!numero, rResult!lind, False), posy)
         PosY += 5
         Inc i
         If posy > 283 Then
           pdf.Baspage()
-          pdf.Entete("Impression du plan comptable")
+          pdf.Entete("Contrôle des Ecritures (Anomalies des cles)")
           pdf.Level0P(ste)
           PosY = PosY + 160
           dte = Format$(Now, "dd.mm.yyyy")
@@ -43,6 +47,7 @@ Public Sub Button2_Click()
         Endif
       Endif
     Until rResult.movenext()
+    PB.Close()
     Me.mouse = Mouse.Default
     If i > 0 Then
       pdf.Lines(PosY)

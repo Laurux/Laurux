@@ -337,38 +337,6 @@ Public Sub Livre_caisse()
 
 End
 
-Public Function VerifSha1(sha1 As String, numero As String, prev_numero As String) As Boolean
-
-  Dim sresult As Result
-  Dim lresult As Result
-  Dim cle, cle2, Tab As String
-
-  Tab = "Fiches_EntTicketz"
-  sResult = Utils.db.Exec("SELECT * FROM  " & Tab & " WHERE numero = &1", numero)
-  If sResult.Available Then
-    cle = sResult!caisse & sResult!numero & sResult!date & sResult!client & sResult!scheque & sResult!mcheque & sResult!nmcheque & sResult!scarte & sResult!mcarte & sResult!nmcarte & sResult!sespeces & sResult!mespeces & sResult!scredit & sResult!mcredit & sResult!mht & sResult!mtva & sResult!mttc & sResult!statut & sResult!savoir
-    cle &= sResult!scavoir & sResult!mavoir & sResult!type & sResult!vendeur & sResult!carte & sResult!points & sResult!sbonus & sResult!mbonus & sResult!sresto & sResult!mresto & sResult!sbachat & sResult!mbachat & sResult!nom & sResult!suppr & sResult!retro
-    cle = Replace$(cle, ")", "")
-    cle = Replace$(cle, "(", "")
-    cle = Replace$(cle, "'", "")
-    'On chaine les contrôle avec le ticket précédent si il existe dans la table
-    lResult = Utils.db.Exec("SELECT * FROM  " & Tab & " WHERE numero = &1", prev_numero)
-    If lResult.Available Then
-      cle &= lResult!control
-    Else
-      prev_numero = ""
-    Endif
-    Shell "echo " & cle & " | sha1sum 2>&1" To cle2
-    If sha1 = Left$(cle2, 40) Then
-      Return True
-    Else
-      Return False
-    Endif
-  Else
-    Return False
-  Endif
-
-End
 
 Public Sub Moulinage()
 
@@ -447,7 +415,7 @@ Public Sub Moulinage()
           Repeat
             'On verifie la somme de controle des tiquets
             If rTck!control Then
-              If Not VerifSha1(rTck!control, rTck!numero, rTck!prev_numero) Then
+              If Sha1Calc.CalcSha1T("Fiches_EntTicketz", rTck!caisse, rTck!numero, rTck!prev_numero, False) <> Trim(rTck!control) Then
                 Error_Verif_Tck.Add(rTck!numero)
               Endif
             Else
@@ -481,7 +449,12 @@ Public Sub Moulinage()
             bretro = rtck!retro
             sDate = Mid(rtck!date, 7, 4) & Mid(rtck!date, 4, 2) & Left(rtck!date, 2) & Mid(rtck!date, 13, 2) & Mid(rtck!date, 16, 2) & "00"
             Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisEntTck") & " (caisse, numero, date, client, scheque, mcheque, scarte, mcarte, sespeces, mespeces, scredit, mcredit, mht, mtva, mttc, savoir, scavoir, mavoir, vendeur, carte, points, sresto, mresto, nom, suppr) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24}, &{25})", rtck!caisse, rtck!numero, sdate, rtck!client, rtck!scheque, rtck!mcheque, rtck!scarte, rtck!mcarte, rtck!sespeces, rtck!mespeces, rtck!scredit, rtck!mcredit, rtck!mht, rtck!mtva, rtck!mttc, rtck!savoir, rtck!scavoir, rtck!mavoir, rtck!vendeur, rtck!carte, rtck!points, resto, rtck!mresto, rtck!nom, rtck!suppr)
-            Sha1Calc.CalcShaC(rtck!caisse, rtck!numero)
+            'TODO V3.69
+            'Il faut rajouter le champ prev_numero, retro et type dans la table HisEntTck
+            'si prev_numero est null prendre le dernier ticket de cette caisse si il existe
+            'de manière générale il faut aligner les tables Lignes & Ent Ticket entre Laurux/Laurux-Pos pour
+            'améliorer le support commun de class et fonctionnalité
+            'Sha1Calc.CalcSha1T(Cbase.Table("TabHisEntTck"), rtck!caisse, rtck!numero, rtck!prev_numero)
             If Jnl Then
               If rTck!type = "0" Then
                 rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", client)

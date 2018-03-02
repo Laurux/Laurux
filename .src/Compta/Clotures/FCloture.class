@@ -120,17 +120,11 @@ Public Sub Button1_Click()
             If rResult!numero <> num And IsNull(rResult!numerodef) Or If rResult!numero <> num And rResult!numerodef = 0 Then numecr = numecr + 1
             num = rResult!numero
             cpt = rResult!compte
-            '  If Not IsNull(rResult!control) Then
-            $cle = Sha1Calc.CalcSha2(rResult!lind)
-            If $cle <> rResult!control And Not IsNull(rResult!control) Then
-              If Format$(rResult!dte, "yyyy") >= "2018" Then
-                Message.Error("Clôture impossible ! Une clé calculée ne correspond pas à celle mémorisée dans la table.")
-                Me.mouse = mouse.Default
-                FCloture.Close()
-                Return
-              Else
-                Sha1Calc.CalcSha1(rResult!numero)
-              Endif
+            If Not Sha1Calc.CalcSha1_verify(rResult!numero) Then
+              Message.Error("Clôture impossible ! Une clé calculée ne correspond pas à celle mémorisée dans la table.")
+              Me.mouse = mouse.Default
+              FCloture.Close()
+              Return
             Endif
             ' Endif
             If IsNull(rResult!numerodef) Or If rResult!numerodef = 0 Then
@@ -138,6 +132,7 @@ Public Sub Button1_Click()
             Else
               Utils.db.Exec("UPdate  " & Tab & "  SET cloturee =  &1, dteval =&5 where numero = &2 and compte = &4", 1, num, numecr, cpt, Format$(Now, "yyyymmdd"))
             Endif
+            'Une fois cloturee on recalcul le control
             Sha1Calc.CalcSha1(Numecr)
           Until rResult.MoveNext()
         Endif
