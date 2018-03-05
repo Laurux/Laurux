@@ -43,20 +43,20 @@ Public Sub Calc_stock(Art As String, art2 As String)
         If qte_art = 0 Then Try qte_art = ArtResult!art_stkdep
         If Error Then qte_Art = 0
         ' On regarde si inventaire tournant
-        MvtexpResult = Utils.db.Exec("SELECT * FROM  Fiches_HisInvT WHERE inv_code = &1 and inv_date >= &2 order by inv_date desc", ArtResult!art_code, dte2)
-        If MvtexpResult.Available Then
-          dte2 = Format(MvtexpResult!inv_date, "yyyymmdd")
-          qte_art = MvtexpResult!inv_qtecomptee
-        Else
+        'MvtexpResult = Utils.db.Exec("SELECT * FROM  Fiches_HisInvT WHERE inv_code = &1 and inv_date >= &2 order by inv_date desc", ArtResult!art_code, dte2)
+       ' If MvtexpResult.Available Then
+         ' dte2 = Format(MvtexpResult!inv_date, "yyyymmdd")
+         ' qte_art = MvtexpResult!inv_qtecomptee
+       ' Else
           dte2 = Format(dte1, "yyyymmdd")
-        Endif
+        'Endif
         ' Puis on sélectionne tous les BL et les factures
         res = Utils.db.Exec("SELECT SUM(REPLACE(qte_ligbl,',','.') * -1) as qte FROM Fiches_Ligbl JOIN Fiches_Bl ON num_ligbl=numbl WHERE datebl >= &1 and (type = 'B' OR type = 'F') AND code_ligbl=&2 AND typel_ligbl = 'A'" &
           " UNION(SELECT SUM(REPLACE(qte_ligbl,',','.') * -1) as qte FROM Fiches_LigblM JOIN Fiches_BlM ON num_ligbl=numbl WHERE datebl >= &1 and (type = 'B' OR type = 'F') AND code_ligbl=&2 AND typel_ligbl = 'A')" &
           " UNION(SELECT SUM(REPLACE(qte_ligfac,',','.') * -1) as qte FROM Fiches_HistoFac JOIN Fiches_HistoLigfac ON num_ligfac=numfac WHERE datefac >= &1 AND code_ligfac=&2 AND typel_ligfac = 'A')" &
           " UNION(SELECT SUM(REPLACE(qte_ligfac,',','.') * -1) as qte FROM Fiches_HistoFacM JOIN Fiches_HistoLigfacM ON num_ligfac=numfac WHERE datefac >= &1 AND code_ligfac=&2 AND typel_ligfac = 'A')" &  
           " UNION(SELECT SUM(REPLACE(qte,',','.')) as qte FROM Fiches_Ligrecpt WHERE daterecpt>= &1 AND code=&2)" &
-          " UNION(SELECT SUM(IF(qtep IS NULL,'0',REPLACE(qtep,',','.')) - (IF(qtem IS NULL,'0',REPLACE(qtem,',','.')))) as qte FROM Fiches_Mvtexp WHERE daterecpt=&1 AND code=&2)" &
+          " UNION(SELECT SUM(IF(qtep IS NULL,'0',REPLACE(qtep,',','.')) - (IF(qtem IS NULL,'0',REPLACE(qtem,',','.')))) as qte FROM Fiches_Mvtexp WHERE daterecpt>=&1 AND code=&2)" &
           " UNION(SELECT SUM(IF(type='S',REPLACE(qte,',','.')*-1,REPLACE(qte,',','.'))) AS qte FROM Fiches_Sdepots WHERE code='01' AND date >= &1 AND cart=&2)", dte2, ArtResult!art_code)
         If res.Available Then
           res.MoveFirst
