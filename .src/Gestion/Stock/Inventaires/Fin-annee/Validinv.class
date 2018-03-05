@@ -56,12 +56,12 @@ Public Sub Button2_click()
   Dim Tpe As String
   Dim chemin As String = "/Sauve"
   Dim res As Result
-  
+
   qtevtes = 0
   qteAch = 0
   Tpe = "A"
   If Not Exist(User.home & chemin) Then Mkdir User.home & chemin
-  Shell "mysqldump -h " & Start.LocalSettings["/dbase/Host"] & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " " & "Laurux" & " " & "--add-drop-table" & " " & ">" & " " & User.home & "/Sauve/LauruxInv.sql" & Format$(Now, "yyyymmdd") Wait
+  Shell "mysqldump -h " & Start.LocalSettings["/dbase/Host"] & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " " & Utils.db.Name & " " & "--add-drop-table" & " " & ">" & " " & User.home & "/Sauve/LauruxInv.sql" & Format$(Now, "yyyymmdd") Wait
   Try rartinv = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabInv") & "")
   If Not Error Then
     If rartinv.Available Then
@@ -93,7 +93,7 @@ Public Sub Button2_click()
                   Endif
                   ' Si la date est inférieure à la date de fin d'année et postérieure à la date de l'inventaire et si le code est bien un article
                   ' Cas ou l'inventaire a été généré avant la date de fin d'exercice
-                  If Not Error And dte.Available And .Cdate_Comp(dte!datefac) > .Cdate_Comp(rartinv!inv_date) And .Cdate_Comp(dte!datefac) < .Cdate_Comp(finexo) And Rqte!typel_ligfac = "A" And Rqte!code_ligfac = rartinv!inv_code Then
+                  If Not Error And dte.Available And Utils.Cdate_Comp(dte!datefac) > utils.Cdate_Comp(rartinv!inv_date) And utils.Cdate_Comp(dte!datefac) < utils.Cdate_Comp(finexo) And Rqte!typel_ligfac = "A" And Rqte!code_ligfac = rartinv!inv_code Then
                     qteVtes = qteVtes + Val(Rqte!qte_ligfac)
                   Endif
                   ' Si la date est postérieure à la date de fin d'année et antérieure à la date de l'inventaire et si le code est bien un article
@@ -205,6 +205,12 @@ Public Sub Button2_click()
         Message.Warning("Traitement terminé", "Ok")
         Me.Close
       Endif
+    Else
+      If son Then
+        Music.Play
+      Endif
+      Message.Warning("Attention! Il n'existe aucun inventaire\n Veuillez passer par la procédure d'initialisation d'inventaire SVP")
+      Me.Close
     Endif
   Else
     If son Then
@@ -213,49 +219,51 @@ Public Sub Button2_click()
     Message.Warning("Attention! Il n'existe aucun inventaire\n Veuillez passer par la procédure d'initialisation d'inventaire SVP")
     Me.Close
   Endif
-  
+
 End
-  '****************génération du stock de départ de la compta matiére
+'****************génération du stock de départ de la compta matiére
+
 Public Sub button4_Click()
-    
+
   Dim res, respar, resinv, resregie As Result
   Dim i As Integer
   Dim dte As Date
   Dim ccd As Calculdroit
   Dim vol, volap As Float
-    
-    respar = Utils.db.Exec("SELECT dtepec FROM Fiches_Parametres")
-    dte = Date(Right(respar!dtepec, 4), Val(Left(respar!dtepec, 2)), 1)
-    dte = DateAdd(dte, gb.Month, 1)
-    If Message.Question("La nouvelle date de début sera : " & Format(dte, "dd.mm.yyyy") & " étes vous d'accord ?", "Oui", "Non") = 2 Then Return
-    Utils.db.Begin
-    resregie = Utils.db.Exec("SELECT * FROM Fiches_regie")
-    If resregie.Available Then
-      resregie.MoveFirst
-      Repeat
-        resinv = Utils.db.Exec("SELECT * FROM Fiches_Inv,Fiches_Art WHERE inv_code=art_code and art_dra=&1", resregie!code)
-        If resinv.Available Then
-          resinv.MoveFirst
-          Repeat
-            ccd = New Calculdroit(resinv!art_dra, resinv!art_volm, resinv!art_deg, resinv!inv_qtecomptee)
-            vol += ccd.vol
-            volap += ccd.volap
-          Until resinv.MoveNext()
-          res = Utils.db.Create("Fiches_ligregie")
-          res!dtmouv = dte
-          res!type = "I"
-          res!coderegie = resregie!code
-          res!volume = vol
-          res!volumeap = volap
-          res!cloture = True
-          res.Update
-          vol = 0
-          volap = 0
-        Endif
-      Until resregie.MoveNext()
-      
-    Endif
-    Utils.db.Commit
+
+  respar = Utils.db.Exec("SELECT dtepec FROM Fiches_Parametres")
+  dte = Date(Right(respar!dtepec, 4), Val(Left(respar!dtepec, 2)), 1)
+  dte = DateAdd(dte, gb.Month, 1)
+  If Message.Question("La nouvelle date de début sera : " & Format(dte, "dd.mm.yyyy") & " étes vous d'accord ?", "Oui", "Non") = 2 Then Return
+  Utils.db.Begin
+  resregie = Utils.db.Exec("SELECT * FROM Fiches_regie")
+  If resregie.Available Then
+    resregie.MoveFirst
+    Repeat
+      resinv = Utils.db.Exec("SELECT * FROM Fiches_Inv,Fiches_Art WHERE inv_code=art_code and art_dra=&1", resregie!code)
+      If resinv.Available Then
+        resinv.MoveFirst
+        Repeat
+          ccd = New Calculdroit(resinv!art_dra, resinv!art_volm, resinv!art_deg, resinv!inv_qtecomptee)
+          vol += ccd.vol
+          volap += ccd.volap
+        Until resinv.MoveNext()
+        res = Utils.db.Create("Fiches_ligregie")
+        res!dtmouv = dte
+        res!type = "I"
+        res!coderegie = resregie!code
+        res!volume = vol
+        res!volumeap = volap
+        res!cloture = True
+        res.Update
+        vol = 0
+        volap = 0
+      Endif
+    Until resregie.MoveNext()
+
+  Endif
+  Utils.db.Commit
+
 End
 
 Public Sub Button3_Click()
