@@ -52,7 +52,9 @@ Public Sub Button2_Click()
 
   Dim rResult As Result
   Dim Tab As String = "Fiches_Caisses"
+  Dim i As Integer
 
+  'on regarde si les caisses sont connectés
   rResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
   If rResult.Available Then
     Repeat
@@ -61,6 +63,22 @@ Public Sub Button2_Click()
         Return
       Endif
     Until rResult.MoveNext()
+  Endif
+  'on regarde si les tickets z sont tirés
+  For i = 1 To 9
+    If Utils.db.Tables.Exist("Fiches_EntTickets" & Str(i)) Then
+      rResult = Utils.db.Exec("SELECT * FROM Fiches_EntTickets" & Str(i) & " LIMIT 1 ")
+      If rResult.Available Then
+        Message.Warning("Traitement impossible, le ticket Z n'est pas tiré")
+        Return
+      Endif
+    Endif
+  Next
+  'on regarde si le moulinage est fait
+  rResult = Utils.db.Exec("SELECT * FROM Fiches_EntTicketz LIMIT 1")
+  If rResult.Available Then
+    Message.Warning("Traitement impossible, le moulinage n'est pas fait")
+    Return
   Endif
   Me.Mouse = Mouse.Wait
   If Cbx.value = True Then
