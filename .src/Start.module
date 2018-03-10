@@ -30,6 +30,24 @@ Public B2 As Integer
 Public Motdepasse As String
 Private hlb As Label
 Public NoTips As Boolean = False
+Public StartDate As Date
+Public MainWindow As Window
+
+'Arguments
+Public Arg_Config_File As String
+Public Arg_Log As Boolean
+Public Arg_Replay As Boolean
+Public Arg_Start_Societe As String
+Public Arg_Restore_DB As String
+Public Arg_LogFile As String
+
+'Timer for Replaying Event
+Public hReplayTimer As Timer
+Public Evens As String[]
+Public Ev As Date
+Public Evc As Integer
+Public Evl As Integer
+
 
 Public Sub Main()
 
@@ -39,10 +57,21 @@ Public Sub Main()
   Dim Pids As String
   Dim psExist As Process
   
-  Try Start.version_branch = File.Load("branch.txt")
-  Try Start.version_sha1 = File.Load("sha1.txt")
+  Try Start.version_branch = Trim(File.Load("branch.txt"))
+  Try Start.version_sha1 = Trim(File.Load("sha1.txt"))
   
-  Start.LocalSettings = New Settings(User.Home &/ ".config/gambas3" &/ Application.Name & ".conf", Application.Name & " local configuration")
+  Parse_Args()
+  StartDate = Now
+  
+  Start.LocalSettings = New Settings(Arg_Config_File, Application.Name & " local configuration")
+
+  If IsNull(Arg_Start_Societe) Then
+    Try Societe = Start.LocalSettings["/Soc"]
+  Else
+    Societe = Format(CInt(Arg_Start_Societe), "00")
+    Start.LocalSettings["/Soc"] = Societe
+    Start.LocalSettings["/dbase/Name"] = Start.LocalSettings["/dbase/Prefixe"] & "Laurux" & Societe
+  Endif
 
   If Start.LocalSettings["/dbase/Con-ssh"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Replique"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Breplique"] Then
     Btunnel = Utils.ControlTunnel()
@@ -52,7 +81,6 @@ Public Sub Main()
     Endif
   Endif
 
-  Try Societe = Start.LocalSettings["/Soc"]
   Try Son = Start.LocalSettings["/son"]
   Music.Load(Musique)
   Proform = Start.LocalSettings["/Coul/Prf"]
@@ -198,6 +226,13 @@ End
 
 Public Sub Lancement()
 
+  Dim hFile As File
+  Dim sLine As String
+  Dim ev As Date
+  Dim wa As Integer
+  Dim Menu As Object
+  Dim Tips As FTips
+  
   
   Lock()
   If IsNull(proform) Then Proform = "&HF9F9BD&"
@@ -215,17 +250,123 @@ Public Sub Lancement()
   If IsNull(Nstockes) Then Nstockes = "&HF9F9BD&"
   If IsNull(Suspendus) Then Suspendus = "&HF9F9BD&"
   If Start.LocalSettings["/Soc" & Societe & "/Compta"] Then
-    Fmenuc.Show
+    Menu = New Fmenuc
   Else
     If Start.LocalSettings["/Soc" & Societe & "/Gestion"] Then
-      Fmenuf.Show
+      Menu = New Fmenuf
     Else
-      Fmenu.Show
+      Menu = New Fmenu
     Endif
   Endif
   If Start.LocalSettings["/Soc" & Societe & "/Caisse"] Then Caisse = True
+  
+  Object.Call(Menu, "Show")
+  MainWindow = Object.GetProperty(Menu, "Window")
+  
   If Start.LocalSettings["/Tips"] And Not NoTips Then
-    Ftips.Run
+    Tips = New FTips
+    Tips.Show()
+  Endif
+ 
+  If Arg_Replay Then
+    
+    If Exist(Arg_LogFile) Then
+      
+      hFile = Open Arg_LogFile For Input
+      Ev = Now
+      Evl = Evc = 0
+      Evens = []
+      While Not Eof(hFile)
+        Line Input #hFile, sLine
+        If sLine Like "*;GUI;*" Then
+         Evens.Add(sLine)
+         Inc Evl
+        Endif
+      Wend
+      hReplayTimer = New Timer As "ReplayTimer"
+      hReplayTimer.Delay = 2000 'Initial Delay is 2sec
+      hReplayTimer.Enabled = True
+      
+    Else
+      Print "Le fichier de log " & Arg_LogFile & " ne peut pas etre rejoué, fichier innexistant!"
+      Quit
+    Endif
+  Endif
+
+End
+
+
+Public Sub ReplayTimer_Timer()
+
+  Dim rReplayTimer As Timer
+  
+  'We must create recursive timer to support ShowModal windows which does not return from timer
+  'Impact on memory is unknown, normally timer is existing on scope base
+  rReplayTimer = New Timer As "ReplayTimer"
+  
+  If Evc <= Evl Then
+    Inc Evc
+    Ev = ReplayObserver.Replay_Event(rReplayTimer, Ev, Evens[Start.Evc - 1])
+    'recursive event complete for a ShowModal
+    'return to default timer
+    rReplayTimer.Enabled = False
+    hReplayTimer.Delay = rReplayTimer.Delay
+  Else
+    hReplayTimer.Enabled = False
+  Endif
+
+End
+
+
+Public Sub Parse_Args()
+  
+  Dim remaining_args As String[]
+  Dim rarg As String
+  'Arguments Default Value si besoin
+  
+  Args.Begin(Application.Name & " Usage\n")
+  
+  Arg_Config_File = Args.Get("c", "config", "fichier de configuration", Application.Name & ".conf")
+  If IsNull(Arg_Config_File) Then
+    Arg_Config_File = User.Home &/ ".config/gambas3" &/ Application.Name & ".conf"
+  Else
+    If Not Exist(Arg_Config_File) Then
+      Print "Impossible de Trouver le fichier de conf fourni: " & Arg_Config_File 
+      Quit
+    Endif
+  Endif
+  Arg_Log = Args.Has("l", "log", "Active le logging")
+  Arg_Replay = Args.Has("r", "replay", "Active le replay")
+  Arg_LogFile = Args.Get("", "logfile", "fichier de log (si logging/replay activé)", Application.Name & ".log")
+  
+  If Args.Has("", "version-full", "Version / sha1 / branche") Then
+    Print Application.Name & " " & Application.Version
+    Print "Branche: " & Start.version_branch
+    Print "SHA1: " & Start.version_sha1
+    Quit
+  Endif
+  
+  Arg_Start_Societe = Args.Get("s", "societe", "societe de demarrage", "01")
+  Arg_Restore_DB = Args.Get("", "restore", "fichier de database à restaurer au démarrage", Application.Name & ".sql")
+  
+  remaining_args = Args.End()
+  
+  For Each rarg In remaining_args
+    Print "Arg: " & rarg
+  Next
+  
+End
+
+Public Sub Restore_Args()
+  
+  If Not IsNull(Arg_Restore_DB) Then
+    If Not Exist(Arg_Restore_DB) Then
+      Print "Erreur: Impossible de trouver le fichier" & Arg_Restore_DB & "!"
+      Quit
+    Endif
+    Print "ATTENTION CE MODULE DE RESTAURATION DOIT S'UTILISER EN MODE DEBUG UNIQUEMENT" 
+    Print "Restauration de la Societe " & Societe & " avec la base de donnée " & Arg_Restore_DB & "."
+    Utils.Fill_DataBase("Laurux" & Societe, Arg_Restore_DB)
   Endif
 
 End

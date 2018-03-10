@@ -832,13 +832,6 @@ Catch
 
 End
 
-Public Sub REPLAY_Button_Click()
-  
-  Print Me.Object
-  
-End
-
-
 
 Public Sub Recursive_Observers(hCont As Variant, Source As Variant[])
 
@@ -860,6 +853,22 @@ Public Sub Recursive_Observers(hCont As Variant, Source As Variant[])
     ROArray.Add(RO)
     'Return 'do not Return we must go deeper in Menu
   Endif
+  If hCont Is Panel Then
+    RO = New ReplayObserver(hCont, NSource)
+    ROArray.Add(RO)
+    'Return 'do not Return we must go deeper in Menu
+  Endif
+  If hCont Is Form Then
+    RO = New ReplayObserver(hCont, NSource)
+    ROArray.Add(RO)
+    'Return 'do not Return we must go deeper in Menu
+  Endif
+  If hCont Is TabStrip Then
+    RO = New ReplayObserver(hCont, NSource)
+    ROArray.Add(RO)
+    'Return 'do not Return we must go deeper in each TapStrip Control
+  Endif
+  
   If hCont Is Button Then
     RO = New ReplayObserver(hCont, NSource)
     ROArray.Add(RO)
@@ -890,12 +899,37 @@ Public Sub Recursive_Observers(hCont As Variant, Source As Variant[])
     ROArray.Add(RO)
     Return
   Endif
+  If hCont Is ColumnView Then
+    RO = New ReplayObserver(hCont, NSource)
+    ROArray.Add(RO)
+    Return
+  Endif
+  If hCont Is TreeView Then
+    RO = New ReplayObserver(hCont, NSource)
+    ROArray.Add(RO)
+    Return
+  Endif
+  If hCont Is ListView Then
+    RO = New ReplayObserver(hCont, NSource)
+    ROArray.Add(RO)
+    Return
+  Endif
+  If hCont Is Label Then
+    RO = New ReplayObserver(hCont, NSource)
+    ROArray.Add(RO)
+    Return
+  Endif
   If hCont Is TextBox Then
     RO = New ReplayObserver(hCont, NSource)
     ROArray.Add(RO)
     Return
   Endif
   If hCont Is TextArea Then
+    RO = New ReplayObserver(hCont, NSource)
+    ROArray.Add(RO)
+    Return
+  Endif
+  If hCont Is ListBox Then
     RO = New ReplayObserver(hCont, NSource)
     ROArray.Add(RO)
     Return
@@ -915,19 +949,25 @@ Public Sub Recursive_Observers(hCont As Variant, Source As Variant[])
   For Each hCtrl In hCont.Children
     'Need to reduce code once all usefull control identified
     If hCtrl Is Button Then Me.Recursive_Observers(hCtrl, NSource)
+    If hCtrl Is ToolButton Then Me.Recursive_Observers(hCtrl, NSource)
     If hCtrl Is ToggleButton Then Me.Recursive_Observers(hCtrl, NSource)
     If hCtrl Is Panel Then Me.Recursive_Observers(hCtrl, NSource)
     If hCtrl Is HBox Then Me.Recursive_Observers(hCtrl, NSource)
     If hCtrl Is VBox Then Me.Recursive_Observers(hCtrl, NSource)
+    If hCtrl Is ScrollView Then Me.Recursive_Observers(hCtrl, NSource)
+    If hCtrl Is Expander Then Me.Recursive_Observers(hCtrl, NSource)
     If hCtrl Is TabStrip Then Me.Recursive_Observers(hCtrl, NSource) 
     If hCtrl Is Frame Then Me.Recursive_Observers(hCtrl, NSource)
     If hCtrl Is Menu Then Me.Recursive_Observers(hCtrl, NSource)
-    'If hCtrl Is Label Then Me.Recursive_Observers(hCtrl, NSource)
+    If hCtrl Is Label Then Me.Recursive_Observers(hCtrl, NSource)
     'If hCtrl Is TextLabel Then Me.Recursive_Observers(hCtrl, NSource)
     If hCtrl Is ColumnView Then Me.Recursive_Observers(hCtrl, NSource)
+    If hCtrl Is TreeView Then Me.Recursive_Observers(hCtrl, NSource)
+    If hCtrl Is ListView Then Me.Recursive_Observers(hCtrl, NSource)
     If hCtrl Is TableView Then Me.Recursive_Observers(hCtrl, NSource)
     If hCtrl Is GridView Then Me.Recursive_Observers(hCtrl, NSource)
     If hCtrl Is Combobox Then Me.Recursive_Observers(hCtrl, NSource)
+    If hCtrl Is ListBox Then Me.Recursive_Observers(hCtrl, NSource)
     If hCtrl Is Textedit Then Me.Recursive_Observers(hCtrl, NSource)
     If hCtrl Is CheckBox Then Me.Recursive_Observers(hCtrl, NSource)
     If hCtrl Is TextBox Or If hCtrl Is TextArea Then Me.Recursive_Observers(hCtrl, NSource)
@@ -1427,3 +1467,23 @@ Public Function PageFormatGetY(Page As String) As Integer
 
 End
 
+Public Sub Fill_DataBase(Tab As String, filepath As String)
+  
+  Dim sTemp As String
+  Dim fTemp As String
+  
+  sTemp = Temp$("Lauruxdb")
+  Try Mkdir sTemp
+  fTemp = sTemp & "/" & File.Name(filepath)
+  Try Kill fTemp
+  Copy filepath To fTemp 'la copie est nécessaire si le fichier est embarqué dans le binaire Laurux
+  If IsNull(Start.LocalSettings["/dbase/Host"]) Then
+    Shell "mysql -u " & Utils.db.login & " -p" & Utils.db.Password & " " & Tab & " < " & fTemp Wait
+  Else
+    Shell "mysql -h " & Start.LocalSettings["/dbase/Host"] & " -u " & Utils.db.login & " -p" & Utils.db.Password & " " & Tab & " < " & fTemp Wait
+  Endif
+  
+  Kill fTemp
+  Rmdir sTemp
+  
+End

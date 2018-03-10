@@ -68,7 +68,7 @@ Public Sub Form_Open()
   Dim Pr As Prefs
 
   Tab = "Fiches_Parametres"
-  Try Soc = Start.LocalSettings["/Soc"]
+  Try Soc = Start.Societe
   Try intitule = Start.LocalSettings["/intitule"]
   If Start.LocalSettings["/Soc" & Start.Societe & "/Exp"] = True Then Exprt = "1"
   Menushowhide(Exprt)
@@ -144,11 +144,15 @@ Public Sub Form_Open()
   Endif
   If $con_ok Then
     Try Utils.db.Open
+    'function de restauration a partir de la ligne de commande
+    'a n'utiliser que pour des tests
+    Start.Restore_Args()
+    
     Try Utils.db.exec("SET NAMES 'latin1'")
     If Not IsNull(Utils.db.Login) Then Shell "mysql -h " & Start.LocalSettings["/dbase/Host"] & " " & " -u " & Utils.db.Login & " -p" & Utils.db.Password & " -e \"use " & Utils.db.Name & ";" & "SET @@global.sql_mode=NO_ENGINE_SUBSTITUTION " & "; \"" Wait
     rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabSoc") & " where cd_sc = &1", Soc)
     If rResult.Available Then Soc = Soc & " " & rResult!type_sc & " - " & rResult!int_sc
-    Fmenu.text = "Société en cours : " & Soc
+    Me.text = "Société en cours : " & Soc
 
     If Application.Path = "/usr/bin/" & Application.Name Then
       Menu173.Visible = False
@@ -219,7 +223,7 @@ Public Sub Form_Open()
 
 Catch
   If Error.text = "Connection is not opened" Then
-    Message.Warning("Attention, la base Laurux " & Start.LocalSettings["/Soc"] & " n 'existe pas !\n Veuillez remplir le fichier de configuration SVP !")
+    Message.Warning("Attention, la base Laurux " & Start.Societe & " n 'existe pas !\n Veuillez remplir le fichier de configuration SVP !")
   Else
     If Left$(error.Text, 19) = "Driver name missing" Then
       Message.Warning("Attention, le fichier de configuration n'existe pas ! \n Veuillez completer les zones nécéssaires à sa création SVP !")
@@ -231,7 +235,7 @@ Catch
           Message.Warning("Attention, l' utilisateur ou le mot de passe est erroné ! \n Veuillez controler votre saisie SVP !")
         Else
           If Left$(error.Text, 38) = "Cannot open database: Unknown database" Then
-            Message.Warning("Attention, la base Laurux " & Start.LocalSettings["/Soc"] & " n 'existe pas !\n Veuillez remplir le fichier de configuration SVP !")
+            Message.Warning("Attention, la base Laurux " & Start.Societe & " n 'existe pas !\n Veuillez remplir le fichier de configuration SVP !")
           Else
             message.Error(Error.Text & " " & Error.Where)
           Endif
@@ -592,7 +596,7 @@ End
 
 Public Sub Menu15_Click()
 
-  Articles.ShowModal()
+  Articles.Show()
 
 End
 
@@ -624,7 +628,7 @@ Public Sub Menu21_Click()
   Endif
 
   hForm = New Saisecrit("")
-  hForm.Showmodal()
+  hForm.Show()
 
 End
 
@@ -780,7 +784,7 @@ End
 
 Public Sub Menu57_Click()
 
-  FSauve.ShowModal()
+  FSauve.Show()
 
 End
 
@@ -814,7 +818,7 @@ Public Sub Menu60_Click()
     Endif
   Endif
 
-  FClotureAn.ShowModal()
+  FClotureAn.Show()
 
 End
 

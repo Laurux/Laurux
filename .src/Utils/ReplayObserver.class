@@ -9,17 +9,111 @@ Public Sub _new(hCont As Variant, Source As Variant[])
   
 End
 
-
 Public Sub Observer_Click()
+
+  Dim Value As String = "True"
+  Dim focus As Boolean = False
   
-  Utils.db.GUI_Event($hObserver.Object, $hObserver.Tag, "Click", "True")
+  Try focus = Object.GetProperty($hObserver.Object, "HasFocus")
+  If Error Or focus Or Object.Class($hObserver.Object).Name = "TabStrip" Then 'true by default for click without HasFocus property
+  
+    If Object.Class($hObserver.Object).Name = "CheckBox" Then
+      Value = Object.GetProperty($hObserver.Object, "Value")
+    Else If Object.Class($hObserver.Object).Name = "ListBox" Then 
+      Value = Object.GetProperty($hObserver.Object, "Index")
+    Else If Object.Class($hObserver.Object).Name = "ListView" Then 
+      Value = Object.GetProperty($hObserver.Object, "Key")
+    Else If Object.Class($hObserver.Object).Name = "ColumnView" Then 
+      Value = Object.GetProperty($hObserver.Object, "Key")
+    Else If Object.Class($hObserver.Object).Name = "TreeView" Then
+      Value = Object.GetProperty($hObserver.Object, "Key")
+    Else If Object.Class($hObserver.Object).Name = "GridView" Then
+      Value = Object.GetProperty($hObserver.Object, "Row") & "x" & Object.GetProperty($hObserver.Object, "Column")
+    Else If Object.Class($hObserver.Object).Name = "ComboBox" Then
+      Value = Object.GetProperty($hObserver.Object, "Index")
+    Else If Object.Class($hObserver.Object).Name = "TabStrip" Then
+      Value = Object.GetProperty($hObserver.Object, "Index")
+    Endif
+
+    Utils.db.GUI_Event($hObserver.Object, $hObserver.Tag, "Click", Value)
+  
+  Endif
   
 End
 
-
 Public Sub Observer_Keypress()
+
+  Dim focus As Boolean = False
   
-  Utils.db.GUI_Event($hObserver.Object, $hObserver.Tag, "Keypress", Key.code)
+  Try focus = Object.GetProperty($hObserver.Object, "HasFocus")
+  If Not Error And focus Then
+    If Key.Normal And Key.Code >= Key.Space And Key.Code <= Key["z"] Then
+      Utils.db.GUI_Event($hObserver.Object, $hObserver.Tag, "Keypress", Key.Text)
+    Else
+      Utils.db.GUI_Event($hObserver.Object, $hObserver.Tag, "Keypress", Key.code)
+    Endif
+  Endif
+  
+End
+
+Public Sub Observer_MouseWheel()
+  
+  Dim Value As String = ""
+  If Object.Class($hObserver.Object).Name = "GridView" Then
+    Value = Object.GetProperty($hObserver.Object, "Value")
+    Utils.db.GUI_Event($hObserver.Object, $hObserver.Tag, "MouseWheel", Value)
+  Else If Object.Class($hObserver.Object).Name = "TreeView" Then
+    Value = Object.GetProperty($hObserver.Object, "Value")
+    Utils.db.GUI_Event($hObserver.Object, $hObserver.Tag, "MouseWheel", Value)
+  Endif
+  
+End
+Public Sub Observer_MouseUp()
+'  
+'  Dim Value As String = ""
+'  If Object.Class($hObserver.Object).Name = "GridView" Then
+'    Value = Object.GetProperty($hObserver.Object, "Value")
+'    Utils.db.GUI_Event($hObserver.Object, $hObserver.Tag, "MouseUp", Value)
+'  Else If Object.Class($hObserver.Object).Name = "TreeView" Then
+'    Value = Object.GetProperty($hObserver.Object, "Value")
+'    Utils.db.GUI_Event($hObserver.Object, $hObserver.Tag, "MouseUp", Value)
+'  Endif
+  Dim Value As String = ""
+  If Object.Class($hObserver.Object).Name = "Label" Then
+    Utils.db.GUI_Event($hObserver.Object, $hObserver.Tag, "Click", "")
+  Endif
+
+  
+End
+
+Public Sub Observer_MouseDown()
+  
+  Dim Value As String = ""
+  If Object.Class($hObserver.Object).Name = "ToolButton" Then
+    Utils.db.GUI_Event($hObserver.Object, $hObserver.Tag, "Click", "")
+  Endif
+'  If Object.Class($hObserver.Object).Name = "GridView" Then
+'    Value = Object.GetProperty($hObserver.Object, "Value")
+'    Utils.db.GUI_Event($hObserver.Object, $hObserver.Tag, "MouseDown", Value)
+'  Else If Object.Class($hObserver.Object).Name = "TreeView" Then
+'    Value = Object.GetProperty($hObserver.Object, "Value")
+'    Utils.db.GUI_Event($hObserver.Object, $hObserver.Tag, "MouseDown", Value)
+'  Endif
+'  
+End
+
+Public Sub Observer_Close(Optional Index As Integer = 0)
+  
+  Utils.db.GUI_Event($hObserver.Object, $hObserver.Tag, "Close", Index)
+  
+End
+
+Public Sub Observer_GotFocus()
+  
+
+  If Object.Class($hObserver.Object).Name = "TextBox" Or Object.Class($hObserver.Object).Name = "TextArea" Then
+    Utils.db.GUI_Event($hObserver.Object, $hObserver.Tag, "Focus", "")
+  Endif
   
 End
 
@@ -35,3 +129,223 @@ Public Sub Source() As Variant[]
   Return $hObserver.Tag
   
 End
+
+
+Static Public Sub Replay_Click(ctx As Variant, eve As String, val As String)
+  
+  Dim out As String
+  
+    If Object.Class(ctx).Name = "CheckBox" Then
+      ctx.Value = CInt(val)
+    Else If Object.Class(ctx).Name = "Button" Then
+      ctx.Value = True
+    Else If Object.Class(ctx).Name = "Menu" Then
+      ctx.Value = True
+    Else If Object.Class(ctx).Name = "GridView" Then
+      ctx.Row = Split(val, "x")[0]
+      ctx.Column = Split(val, "x")[1]
+      Object.Call(ctx.window, ctx.Name & "_Click") 'Workaround to trigger _Click Event assume ctx.window is calling class... urghhh
+    Else If Object.Class(ctx).Name = "TreeView" Then
+      ctx.Moveto(val)
+    Else If Object.Class(ctx).Name = "ColumnView" Then
+      If ctx.MoveTo(val) Then
+        Print "Fail to select ColumnView Key " & Val
+      Endif
+      ctx.UnselectAll()
+      ctx.Selection = [val]
+      Object.Call(ctx.window, ctx.Name & "_Click") 'Workaround to trigger _Click Event assume ctx.window is calling class... urghhh
+    Else If Object.Class(ctx).Name = "ListView" Then
+      'ctx.Value = True
+    Else If Object.Class(ctx).Name = "ListBox" Then
+      ctx.Index = CInt(val)
+      Object.Call(ctx.window, ctx.Name & "_Click") 'Workaround to trigger _Click Event assume ctx.window is calling class... urghhh
+    Else If Object.Class(ctx).Name = "ComboBox" Then
+      ctx.Index = CInt(val)
+    Else If Object.Class(ctx).Name = "TabStrip" Then
+      ctx.Index = CInt(val)
+    Else If Object.Class(ctx).Name = "Label" Then
+      ctx.SetFocus() 'don't know how to trigger mouse-up event
+      Mouse.Move(ctx.ScreenX, ctx.ScreenY)
+      If Mouse.Inside(ctx) And ctx.HasFocus Then
+        'Shell "xdotool click 1" Wait
+        Shell "xdotool mousedown 1" Wait
+        Shell "xdotool mouseup 1" Wait
+      Else
+        Print "Failed to simulate click event on Label " & ctx.Name
+      Endif
+    Else
+      If val = "True" Then
+        ctx.Value = True
+      Else
+        ctx.Value = False
+      Endif 
+    Endif
+  
+End
+
+Static Public Sub Replay_Keypress(ctx As Variant, eve As String, val As String)
+  
+  Dim s As String
+
+  If Len(val) = 1 Then
+    s = val
+  Else If CInt(val) = Key.BackSpace Then
+    s = "[BackSpace]"
+  Else If CInt(val) = Key.Delete Then
+    s = "[Delete]"
+  Else If CInt(val) = Key.Return Then
+    s = "[Return]"
+  Else If CInt(val) = Key.Tab Then
+    s = "[Tab]"
+  Else
+    Print "Replay Key unsupported: " & val
+  Endif
+  Desktop.SendKeys(s)
+
+End
+
+Static Public Sub Replay_Close(ctx As Variant, eve As String, val As String)
+
+  ctx.Close()
+
+End
+
+
+Static Public Sub Replay_Focus(ctx As Variant, eve As String, val As String)
+
+  If ctx.HasFocus = False Then
+        ctx.SetFocus()
+  Endif
+
+End
+
+Static Public Sub Replay_Event(hReplayTimer As Timer, Lastev As Date, Action As String) As Date
+  
+  Dim act, ctrl As String[]
+  Dim eve_val, eve, val, win As String
+  Dim when_date, when_day, when_month, when_year As String
+  Dim when_time, when_hour, when_minutes, when_second, when_milli As String
+
+  Dim when As Date
+  Dim hCont As Variant
+  Dim menu As Menu
+  Dim ctx As Variant
+  Dim i As Integer
+  Dim found As Integer
+  Dim waiting As Float
+  Dim swin As Window
+  Dim Check As Boolean
+  
+  act = Split(Action, ";")
+  when_date = Split(act[0], " ")[0]
+  when_time = Split(act[0], " ")[1]
+  when_day = Split(when_date, "/")[1]
+  when_month = Split(when_date, "/")[0]
+  when_year = Split(when_date, "/")[2]
+  when_hour = Split(when_time, ":")[0]
+  when_minutes = Split(when_time, ":")[1]
+  when_second = Split(when_time, ":")[2]
+  when_milli = Split(when_second, ".")[1]
+  when_second = Split(when_second, ".")[0]
+  when = Date(when_year, when_month, when_day, when_hour, when_minutes, when_second, when_milli)
+  
+  act = Split(act[act.Length - 1], "#")
+  eve_val = Split(act[0], "@")[0]
+  eve = Split(eve_val, "=")[0]
+  val = Split(eve_val, "=")[1]
+  win = act[1]
+  ctrl = act.extract(2, act.Length - 3)
+  
+  
+  'Teste que la window current est bien celle attendue
+  If IsNull(Application.ActiveWindow) Then
+    For Each swin In Windows
+      If swin.Name = win Then
+        ctx = swin
+        Break
+      Endif
+    Next
+  Else
+    If Application.ActiveWindow.Name <> win Then
+      Print "Erreur window " & win & " n'est pas actuellement active (" & Application.ActiveWindow.Name & "), impossible de rejouer l'action " & eve & " = " & val & ":" & ctrl.Join(",")
+      Quit
+      'Return Null
+    Else
+      ctx = Application.ActiveWindow
+    Endif
+  Endif
+  
+  If IsNull(ctx) Then
+    Print "Window " & win & " introuvable, impossible de rejouer l'action " & eve & " = " & val & ":" & ctrl.Join(",")
+    Quit
+  Else
+    Print eve & " = " & val & ":" & ctx.Name & ":" & ctrl.Join(",")
+  Endif
+  
+  
+  i = 0
+  found = 0
+  
+  While ((i < ctrl.Length) And (Not IsNull(ctx)))
+    
+    ' search for control first
+    For Each hcont In ctx.Children
+      If hcont.Name = ctrl[i] Then
+        'Print "Found " & i
+        Inc found 
+        Break
+      Endif
+    Next
+    
+    If (Found <= i) Then 'on cherche les menus si on a pas trouvé le control
+      Try Check = Not IsNull(Object.GetProperty(ctx, "Menus"))
+      If Not Error Then
+        For Each hcont In ctx.Menus
+          If hcont.Name = ctrl[i] Then
+            'Print "Found menu " & i
+            Inc found 
+            Break
+          Endif
+        Next
+      Endif
+    Endif
+    
+    Inc i
+    If found = i Then
+      ctx = hcont
+    Endif
+  Wend
+  
+  'on a trouvé toute la hierarchie des controles en jeux dans l'evenement
+  If found = ctrl.Length Then
+    
+    Try waiting = DateDiff(Lastev, when, gb.Millisecond)
+    If Error Then waiting = 1000
+    If waiting > 20000.0 Then
+      waiting = 1000.0
+    Endif
+    If waiting >= 0 Then
+      hReplayTimer.Delay = waiting + 10
+      hReplayTimer.Start()
+    Else
+      Print "Attente Negative... ceci est probablement impossible =  a debugger!!!"
+    Endif
+    Print "Next event in " & waiting & " Milliseconds ( " & when & " )"
+    
+    If eve = "Keypress" Then
+      Replay_Keypress(ctx, eve, val)
+    Else If eve = "Click" Then
+      Replay_Click(ctx, eve, val)
+    Else If eve = "Focus" Then
+      Replay_Focus(ctx, eve, val)
+    Else If eve = "Close" Then
+      Replay_Close(ctx, eve, val)
+    Endif
+    
+    Return when
+  Else
+    Return Null 'retourner null est probablement une mauvaise idee
+  Endif
+  
+End
+
