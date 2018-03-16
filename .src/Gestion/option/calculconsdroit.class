@@ -352,6 +352,7 @@ Public Sub comptmat(Optional numfac As String)    'enregistrement de la compta m
         res!txtvadr = drt.tauxtvadr
         res!montss = drt.secu
         res!txtvass = drt.tauxtvass
+        res!volumess = drt.volumess
         res!cloture = False
         If Val($stotdr) <> 0 Then res!vignette = Format(nvign, "0000000000000000000000000")
         res.Update
@@ -384,6 +385,7 @@ Public Sub comptmat(Optional numfac As String)    'enregistrement de la compta m
           res!txtvadr = drt.tauxtvadr
           res!montss = drt.secu
           res!txtvass = drt.tauxtvass
+          res!volumess = drt.volumess
           res!cloture = False
           If Val($stotdr) <> 0 Then res!vignette = Format(nvign, "0000000000000000000000000")
           res.Update
@@ -417,6 +419,7 @@ Public Sub comptmat(Optional numfac As String)    'enregistrement de la compta m
       res!txtvadr = drt.tauxtvadr
       res!montss = drt.secu
       res!txtvass = drt.tauxtvass
+      res!volumess = drt.volumess
       res!cloture = False
       If Val($stotdr) <> 0 Then res!vignette = Format(nvign, "0000000000000000000000000")
       res.Update
@@ -431,14 +434,14 @@ Public Function poid() As String
   Dim res As Result
   Dim i As Integer
   
-  If $schoix = "M" Then Return " "
+  If $schoix = "M" Or $schoix = "FM" Then Return " "
   If $schoix = "B" Then
-    res = Utils.db.Exec("SELECT SUM(qte_ligb*art_poids) as poid FROM Fiches_Ligbl,Fiches_Art WHERE num_ligbl=&1 AND art_code=code_ligbl", $num)
+    res = Utils.db.Exec("SELECT SUM(REPLACE(qte_ligb,',','.') * art_poids) as poid FROM Fiches_Ligbl,Fiches_Art WHERE num_ligbl=&1 AND art_code=code_ligbl", $num)
   Else
-    res = Utils.db.Exec("SELECT SUM(REPLACE(qte_ligfac,',','.')*art_poids) as poid FROM Fiches_HistoLigfac,Fiches_Art WHERE num_ligfac=&1 AND art_code=code_ligfac", $num)
+    res = Utils.db.Exec("SELECT SUM(REPLACE(qte_ligfac,',','.') * art_poids) as poid FROM Fiches_HistoLigfac,Fiches_Art WHERE num_ligfac=&1 AND art_code=code_ligfac", $num)
   Endif
   
-  Return Format(res!poid, "0.00")
+  If Not IsNull(res!poid) Then Return Format(res!poid, "0.00") Else Return "0,00"
 
 End
 

@@ -98,6 +98,18 @@ Public Sub Form_Open()
       Try css.Text = rResult!css
       Try nvign.Text = rResult!nvign
       Try tvass.Text = rResult!tvass
+      Try arretdr.Text = rResult!arrete
+      rResult = utils.db.Exec("SELECT * FROM Fiches_Societes")
+      If rResult.Available Then
+        Try ident.Text = rResult!ident
+        Try caution.Text = rResult!caution
+      Endif
+    Endif
+    If $soption = "P" Or $soption = "T" Then
+      rResult = utils.db.Exec("SELECT * FROM Fiches_Societes")
+      If rResult.Available Then
+        Try reg.Text = rResult!tipp
+      Endif
     Endif
   End With
   datec.SetFocus
@@ -554,30 +566,18 @@ Public Sub Par_KeyPress()
     Case 26
       Chk()
       If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
-        mc_LostFocus()
-        If b = 1
-          mc.SetFocus
-          mc.Select
-          b = 0
-        Else
-          mc2.SetFocus
-          mc2.Select
-        Endif
+        mc2.SetFocus
+        mc2.Select
+        mcdt(mc)
         Stop Event
       Endif
 
     Case 27
       Chk()
       If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
-        mc2_LostFocus()
-        If b = 1 Then
-          mc2.SetFocus
-          mc2.Select
-          b = 0
-        Else
-          Devise.SetFocus
-          Devise.Select
-        Endif
+        Devise.SetFocus
+        Devise.Select
+        mcdt(mc2)
         Stop Event
       Endif
 
@@ -709,11 +709,34 @@ Public Sub Par_KeyPress()
               tvass.Select
             Endif
           Else
-            datec.SetFocus
-            datec.Select
+            ident.SetFocus
+            ident.Select
           Endif
           Stop Event
         Endif
+    
+    Case 39
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        caution.SetFocus
+        caution.Select
+        Stop Event
+      Endif
+      
+    Case 40
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        arretdr.SetFocus
+        arretdr.Select
+        Stop Event
+      Endif
+      
+    Case 41
+      Chk()
+      If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+        conscli.SetFocus
+        conscli.Select
+        mcdt(arretdr)
+        Stop Event
+      Endif
 
   End Select
 
@@ -1225,7 +1248,7 @@ Public Sub Dnfournisseur_LostFocus()
 
 End
 
-Public Sub mc_LostFocus()
+Public Sub mcdt(mc As TextBox)
 
   Dim smc As String
 
@@ -1239,25 +1262,6 @@ Public Sub mc_LostFocus()
       B = 1
       Mc.SetFocus
       Mc.Select
-    Endif
-  End With
-
-End
-
-Public Sub mc2_LostFocus()
-
-  Dim smc As String
-
-  With Utils
-    smc = mc2.text
-    smc = "01." & smc
-    smc = .Cdate_calc(smc)
-    smc = .Cdate_aff(smc)
-    mc2.text = Mid$(smc, 4, 3) & Right$(smc, 4)
-    If mc2.Text = "00.0:00" Then
-      B = 1
-      Mc2.SetFocus
-      Mc2.Select
     Endif
   End With
 
@@ -1361,8 +1365,8 @@ Public Sub Button2_Click()
   If b = 0 Then Coretro_LostFocus()
   If b = 0 Then Dnbon_LostFocus()
   If b = 0 Then Dnfac_LostFocus()
-  If b = 0 Then mc_LostFocus()
-  If b = 0 Then mc2_LostFocus()
+  If b = 0 Then mcdt(mc)
+  If b = 0 Then mcdt(mc2)
   If b = 0 Then Viremc_LostFocus()
   If b = 0 Then Viremchq_LostFocus()
   If b = 0 Then Virema_LostFocus()
@@ -1375,13 +1379,18 @@ Public Sub Button2_Click()
     If Not Verif_Compte(consfou.Text) And b = 0 Then meserrc(consfou)
     If Not Verif_Compte(css.Text) And b = 0 Then meserrc(css)
     If Not Veriftva(tvass.Text) And b = 0 Then meserrt(tvass)
+    
   Endif
   With utils
     If b <> 1 Then
       Utils.db.Exec("UPdate  " & Tab & "  SET  dteclec = &1, dteclec1 = &2, dteclec2 =&3,  dteclec3 =&4, dteclec4 =&5, dteclec5 =&6,  dtepc =&7, dtetdec =&8, dtefedec =&9, cptrplus =&{10}, cptrmoins =&{11}, jdr =&{12}, cptrsplus =&{13}, cptrsmoins =&{14},dnc = &{15}, dnf = &{16}, dnbon = &{17}, dnfac = &{18}, coretro = &{19}, jrnal = &{20}, jrnal2 = &{21}, jrnal3 = &{22}, devise = &{23}, dtepp = &{24}, dtepec = &{25}, viremc = &{26}, viremchq = &{27}, virema = &{28}, jrnal4 = &{29}, jrnal5 = &{30}, nfac = &{31}, version = &{32}, version_pos = &{33}", Utils.Cdate_Dbase(datec.Text), .Cdate_Dbase(date1.Text), .Cdate_Dbase(date2.Text), .Cdate_Dbase(date3.Text), .Cdate_Dbase(date4.Text), .Cdate_Dbase(date5.Text), .Cdate_Dbase(datepc.Text), .Cdate_Dbase(datetdec.Text), .Cdate_Dbase(datefedec.Text), regulplus.Text, regulmoins.Text, Jreport.Text, Resultplus.Text, Resultmoins.Text, dnclient.Text, dnfournisseur.Text, dnbon.Text, dnfac.Text, coretro.Text, jrnal.Text, jrnal2.Text, jrnal3.Text, devise.text, mc.Text, mc2.Text, Viremc.Text, Viremchq.Text, Virema.Text, jrnal4.Text, jrnal5.Text, NfacM.value, Version.text, VersionPos.text)
       Utils.db.Exec("UPdate  " & Tab & "  SET  frais = &1, cptfrais = &2, tvafrais =&3", Val(Utils.cpoint(frais.Text)), cptfrais.Text, tvafrais.Text)
       If $soption = "B" Or $soption = "T" Then
-         Utils.db.Exec("UPdate  " & Tab & "  SET conscli = &1, consfou = &2, nvign = &3, css = &4, tvass = &5", conscli.Text, consfou.Text, nvign.Text, css.Text, tvass.Text) 
+         Utils.db.Exec("UPdate  " & Tab & "  SET conscli = &1, consfou = &2, nvign = &3, css = &4, tvass = &5,arrete=&6", conscli.Text, consfou.Text, nvign.Text, css.Text, tvass.Text, arretdr.Text) 
+         utils.db.Exec("UPdate Fiches_Societes SET ident=&1, caution=&2", ident.Text, caution.Text)
+      Endif
+      If $soption = "P" Or $soption = "T" Then 
+        utils.db.Exec("UPdate Fiches_Societes SET tipp=&1", reg.Text)
       Endif
       datec.SetFocus
       datec.Select

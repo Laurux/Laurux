@@ -19,6 +19,7 @@ Private $bsuspendu As Boolean
 Private $bdrsurfac As Boolean
 Private $sfam As String
 Private $scodedr As String
+Private $fvolumess As Float
 
 Property droit As Float
 Property secu As Float
@@ -36,7 +37,7 @@ Property Read drsurfac As Boolean
 Property Read famille As String
 Property tauxtvadr As String
 Property tauxtvass As String
-Property Read code As String
+Property Read volumess As Float
 
 
 Public Sub _new(dra As String, vol As Float, deg As Float, qte As Float, Optional fam As String)   'passage de l'article avec 1 seul resultat
@@ -52,7 +53,7 @@ Public Sub _new(dra As String, vol As Float, deg As Float, qte As Float, Optiona
       Message.Error("Probleme de TVA sur régie n° " & resdr!code & " " & resdr!nom, "OK")
       Return
     Endif
-    $volap = qte * (vol / 100) * (deg / 100)
+    If resdr!ap Then $volap = qte * (vol / 100) * (deg / 100) Else $volap = 0
     $vol = qte * (vol / 100)
     If resdr!ap Then
       If Not IsNull(resdr!tauxa) Then $fdroit = Round($volap * (resdr!tauxa / 100), -3)
@@ -65,8 +66,10 @@ Public Sub _new(dra As String, vol As Float, deg As Float, qte As Float, Optiona
       If deg >= resdr!degres Then
         If resdr!ap Then
           $fsecu = Round($volap * (resdr!tauxss / 100), -3)
+          $fvolumess = $volap
         Else
           $fsecu = Round($vol * (resdr!tauxss / 100), -3)
+          $fvolumess = $vol
         Endif
         respar = Utils.db.Exec("SELECT taux_tva FROM Fiches_Parametres,Fiches_Tvaav WHERE code_tva=tvass")
         If respar.Available Then
@@ -224,5 +227,11 @@ End
 Private Function code_Read() As String
 
   Return $scodedr
+
+End
+
+Private Function volumess_Read() As Float
+
+  Return $fvolumess
 
 End
