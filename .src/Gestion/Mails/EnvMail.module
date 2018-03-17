@@ -3,7 +3,11 @@
 Public Sub Envoi(Email As String, sujet As String, Txt As String, piece As Boolean, chemin As String, TypeM As String, FileN As String)
 
   Dim Hmail As New SmtpClient
-
+  Dim spiece As String[]
+  Dim spiece2 As String
+  Dim piece2 As String = Start.LocalSettings["/Soc" & Start.Societe & "/Pdfchemin"]
+  spiece = Split(piece2, "/")
+  spiece2 = spiece[spiece.count - 1]
   With Hmail
     If Not IsNull(Email) Then
       .Debug = True
@@ -18,8 +22,13 @@ Public Sub Envoi(Email As String, sujet As String, Txt As String, piece As Boole
       .To.Add(Email)
       .Bcc.Add(Settings["/Adrmail"])
       .Add(Txt, "text/plain")
-      If piece = True Then
+      If piece = True And IsNull(piece2) Then
         .Add(File.Load(chemin & FileN), TypeM, FileN)
+      Else
+        If piece = True And Not IsNull(piece2) Then 
+          .Add(File.Load(chemin & FileN), TypeM, FileN)
+          .Add(File.Load(piece2), TypeM, spiece2)
+        Endif
       Endif
       Try .Send()
       If Error Then Message.Error("Veuillez vérifier le courriel du client " & Email & " SVP car l'envoi n'a pas pu se faire !")
@@ -80,7 +89,7 @@ Public Sub Envoi3(Email As String, sujet As String, Corps As String, piece As St
         corps = Replace$(corps, ")", "}")
         corps = Replace$(corps, "'", " ")
         corps = Replace$(corps, ";", "%2C")
-        Shell "thunderbird -compose" & " \"" & "to=" & Email & ",subject=" & sujet & ",body=" & corps & ",attachment=" & "'" & piece & "'" & "\""
+        Shell "thunderbird -compose" & " \"" & "to=" & Email & ",subject=" & sujet & ",body=" & corps & ",attachment=" & "'" & piece & "," & Piece2 & "'\""
 
       Case "Icedove"
         corps = Replace$(corps, ",", "%2C")
