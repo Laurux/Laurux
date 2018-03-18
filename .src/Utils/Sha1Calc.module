@@ -1,31 +1,71 @@
 ' Gambas module file
 
-Const $champ As String = "jour,numero,compte,intitule,dte,numdoc,libelle,montantd,montantc,numerodef,collectif,lind"
+Private Const $champ As String = "jour,numero,compte,intitule,dte,numdoc,libelle,montantd,montantc,numerodef,collectif,lind"
 
-Public Function CalcSha1(numecr As String, Optional lind As String = Null, Optional update As Boolean = True) As String
 
-  Dim sresult, s2Result As Result
+Public Function CalcSha1(Tab As String, numecr As String, Optional lind As String = Null, Optional update As Boolean = True) As String
+
+  Dim sresult, s2Result, mResult As Result
   Dim $cle, $cle2, $cleout As String
+  Dim TabM As String
+  
   If IsNull(lind) Then
-    sResult = Utils.db.Exec("SELECT " & $champ & " FROM Fiches_Mvt WHERE numero = &1 order by lind desc", numecr)
+    'on recupère le premier element de l'ecriture
+    sResult = Utils.db.Exec("SELECT " & $champ & " FROM " & Tab & " WHERE numero = &1 order by lind asc", numecr)
   Else
-    sResult = Utils.db.Exec("SELECT " & $champ & " FROM Fiches_Mvt WHERE numero = &1 and lind = &2", numecr, lind)
+    sResult = Utils.db.Exec("SELECT " & $champ & " FROM " & Tab & " WHERE numero = &1 and lind = &2", numecr, lind)
   Endif
   If sResult.Available Then
-    s2Result = Utils.db.Exec("SELECT control FROM Fiches_Mvt WHERE numero < &1 order by lind desc limit 1", numecr)
-    If s2Result.Available Then
-      $cle2 = s2Result!control
+    'Calcul TabM
+    If IsNumber(Right(Tab, 1)) Then 'Fiches_Mvt[1-X]
+      TabM = Left(Tab, Len(Tab) - 1) & "M" & Right(Tab, 1)
+    Else
+      TabM = Tab & "M"
     Endif
+
+    'on prend l'ecriture précédente (helas quelque soit son état provisoire...)
+    s2Result = Utils.db.Exec("SELECT numero,control FROM " & Tab & " WHERE numero < &1 order by numero desc, lind asc limit 1", numecr)
+    If s2Result.Available Then
+      'on recherche si l'ecriture précédente à eu une modif, si oui on prend le control original qui est la première entrée (asc lind2)
+      mResult = Utils.db.Exec("SELECT numero,control FROM " & TabM & " WHERE numero = &1 order by lind2 asc limit 1", s2Result!numero)
+      If mResult.Available Then
+        $cle2 = mResult!control
+      Else
+        $cle2 = s2Result!control
+      Endif
+    Endif
+
+    'on recherche le meme genre d'ecriture dans la table modifié
+    mResult = Utils.db.Exec("SELECT numero,control FROM " & TabM & " WHERE numero < &1 order by numero desc, lind2 asc limit 1", numecr)
+    'si le numéro d'écriture précédente exite mais que la table modifié en a une plus récente c'est probablement du
+    'à une suppression dans la table principale on prend alors le controle de la table modifié 
+    If s2Result.Available And mResult.Available
+      If CInt(mResult!numero) > CInt(s2Result!numero) Then
+        $cle2 = mResult!control
+      Endif
+    Else
+      'ce cas apparait si la premiere ecriture de l'exercice est supprimé
+      If mResult.Available Then
+        $cle2 = mResult!control
+      Else
+        'ce cas apparait si on est la premiere ecriture de l'exercice
+        $cle2 = ""
+      Endif
+    Endif
+    
+    'En cas d'ecriture modifié on chaine les 2 premieres sommes de controle originale de l'ecriture (performance --, securite ++)
+    mResult = Utils.db.Exec("SELECT numero,control FROM " & TabM & " WHERE numero = &1 order by lind asc limit 2", numecr)
+    If mResult.Available
+      Repeat
+        $cle2 &= mResult!control
+      Until mResult.MoveNext()
+    Endif
+    
     Repeat
-      $cle = Trim($cle2)
-      $cle &= sResult!jour & sResult!numero & sResult!compte & sResult!intitule & sResult!dte & sResult!numdoc & sResult!libelle & sResult!montantd & sResult!montantc & sResult!numerodef & sResult!collectif & sResult!lind
-'      $cle &= sResult!numerodef & sResult!collectif & sResult!datee & sResult!dateech & sResult!numcol & sResult!pointee & sResult!nrlv & sResult!dteval & sResult!relance & sResult!export
-      $cle = Replace$($cle, ")", "")
-      $cle = Replace$($cle, "(", "")
-      $cle = Replace$($cle, "'", "")
+      $cle = Trim($cle2) & sResult!jour & sResult!numero & sResult!compte & sResult!intitule & sResult!dte & sResult!numdoc & sResult!libelle & sResult!montantd & sResult!montantc & sResult!numerodef & sResult!collectif & sResult!lind
       $cleout = Base64$(Digest["sha1"]($cle))
       If update = True Then
-        Utils.db.Exec("update Fiches_Mvt set  control = &2 where lind = &1", sResult!lind, Left$($cleout, 40))
+        Utils.db.Exec("update " & Tab & " set  control = &2 where lind = &1", sResult!lind, Left$($cleout, 40))
       Endif
     Until sResult.MoveNext()
   Endif
@@ -34,39 +74,39 @@ Public Function CalcSha1(numecr As String, Optional lind As String = Null, Optio
 
 End
 
-Public Function CalcSha1_all()
+Public Function CalcSha1_all(Tab As String)
 
   Dim sresult, s2Result As Result
   Dim PB As ProgBar
   
-  sResult = Utils.db.Exec("SELECT numero FROM Fiches_Mvt GROUP BY numero ORDER BY numero ASC")
+  sResult = Utils.db.Exec("SELECT numero FROM " & Tab & " order by numero asc")
   If sResult.Available Then
     PB = New ProgBar("Generation Cles", sResult.Count)
     PB.Show()
     Repeat
       If PB.Avancement("Ecriture " & sResult!numero, 10) = True Then Break
-      CalcSha1(sResult!numero)
+      CalcSha1(Tab, sResult!numero)
     Until sResult.MoveNext()
     PB.Close()
   Endif
   
 End
 
-Public Function CalcSha1_Verify(numecr As String, Optional lind As String = Null) As Boolean
+Public Function CalcSha1_Verify(Tab As String, numecr As String, Optional lind As String = Null) As Boolean
 
   Dim sresult, s2Result As Result
   Dim $cle, $cle2 As String
   Dim verifok As Boolean = True 
 
   If IsNull(lind) Then
-    sResult = Utils.db.Exec("SELECT * FROM Fiches_Mvt WHERE numero = &1 order by lind desc", numecr)
+    sResult = Utils.db.Exec("SELECT numero,control,lind FROM " & Tab & " WHERE numero = &1 order by lind asc", numecr)
   Else
-    sResult = Utils.db.Exec("SELECT * FROM Fiches_Mvt WHERE numero = &1 and lind = &2", numecr, lind)
+    sResult = Utils.db.Exec("SELECT numero,control,lind FROM " & Tab & " WHERE numero = &1 and lind = &2", numecr, lind)
   Endif
 
   If sResult.Available Then
     Repeat
-      $cle = CalcSha1(sResult!numero, sResult!lind, False)
+      $cle = CalcSha1(Tab, sResult!numero, sResult!lind, False)
       If $cle <> sResult!control And Not IsNull(sResult!control) Then
         verifok = False
       Endif
@@ -89,9 +129,6 @@ Public Function CalcSha1T($Tab As String, $Ncaisse As String, $numero As String,
     Repeat
       $cle = sResult!caisse & sResult!numero & sResult!date & sResult!client & sResult!scheque & sResult!mcheque & sResult!nmcheque & sResult!scarte & sResult!mcarte & sResult!nmcarte & sResult!sespeces & sResult!mespeces & sResult!scredit & sResult!mcredit & sResult!mht & sResult!mtva & sResult!mttc & sResult!savoir
       $cle &= sResult!scavoir & sResult!mavoir & sResult!type & sResult!vendeur & sResult!carte & sResult!points & sResult!sbonus & sResult!mbonus & sResult!sresto & sResult!mresto & sResult!sbachat & sResult!mbachat & sResult!nom & sResult!suppr & sResult!retro
-      $cle = Replace$($cle, ")", "")
-      $cle = Replace$($cle, "(", "")
-      $cle = Replace$($cle, "'", "")
       'On chaine les contrôle avec le ticket précédent si il existe dans la table
       lResult = Utils.db.Exec("SELECT * FROM  " & $Tab & " WHERE caisse = &1 and numero = &2", $Ncaisse, prev_numero)
       

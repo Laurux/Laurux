@@ -356,6 +356,7 @@ Public Sub Movt()
     Else
       Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,cloturee, datee, Pointee) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Journal.Text, numecrit.Text, Cptt.Text, LbCptbanque, .Cdate_Dbase(Datej.Text), numdoc.Text, numlot.Text, libelletresor.Text, montantdb, montantcd, 0, 1, 1, iLet, 0, .Cdate_Dbase(datee.Text), 0)
     Endif
+    Sha1Calc.CalcSha1(Cbase.Table("TabMvt"), numecrit.Text)
   End With
 
 End
@@ -1642,6 +1643,7 @@ Public Sub Enrg_Ecr()
           If rResult.Available Then
             Utils.db.Exec("Update " & Cbase.Table("TabMvt") & " set lettree = &1 where numlot = &2 and compte = &3", 1, numlotT, numcpt)
           Endif
+          Sha1Calc.CalcSha1(Cbase.Table("TabMvt"), rResult!numero)
         Endif
       Until Ecrit1.Movenext()
       rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " WHERE compte_cc = &1", Cptt.text)
@@ -1665,7 +1667,7 @@ Public Sub Enrg_Ecr()
           Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & " (jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,cloturee,datee) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Journal.Text, numecrit.Text, Cptt.Text, LbCptbanque, Utils.Cdate_Dbase(Datej.Text), numdocT, numlotT, libelletresor.Text, Montand, Montanc, 1, 0, 1, iLet, 0, Utils.Cdate_Dbase(datej.Text))
         Endif
       Endif
-      Sha1Calc.CalcSha1(Numecrit.Text)
+      Sha1Calc.CalcSha1("Fiches_Mvt", Numecrit.Text)
       Montand = 0
       Montanc = 0
       ecrit1.clear
@@ -1984,6 +1986,7 @@ Public Sub ecrit2()
             If Val(.CPoint(soldeecrit.Text)) = 0 Then soldeecrit.Text = "0,00"
           Until rResult.MoveNext()
           Utils.db.Exec("UPdate  " & Cbase.Table("TabMvt") & "  SET  validee = &1, provisoire = &2 where numero = &3", 0, 1, num)
+          Sha1Calc.CalcSha1(Cbase.Table("TabMvt"), num)
           Datej.Text = Ecrit1.Item[6]
           Journal.Text = Ecrit1.Item[8]
           ecrit1.MoveLast()
@@ -2164,7 +2167,7 @@ Public Sub Ecrit3()
         Numcompte.SetFocus
         ' On passe l'écriture en provisoire
         Utils.db.Exec("UPDATE  " & Cbase.Table("TabMvt") & "  SET  validee = &2, provisoire = &3 where numero = &1", numecrit.Text, 0, 1)
-        Sha1Calc.CalcSha1(numecrit.Text)
+        Sha1Calc.CalcSha1("Fiches_Mvt", numecrit.Text)
       Else
         If Ext = True Then Me.close
       Endif
@@ -2228,6 +2231,7 @@ Public Sub Selct_Click()
         numcpt = EcritL.Item[1]
         Libelecrit.Text = EcritL.Item[5]
         Utils.db.Exec("UPDATE " & Cbase.Table("TabMvt") & " SET numlot = &1 where compte = &2 and numero = &3", numlotT, numcompte.Text, numlet)
+        Sha1Calc.CalcSha1(Cbase.Table("TabMvt"), numlet)
       Endif
     Until EcritL.Movenext()
     numlot.Text = numlotT
