@@ -156,6 +156,40 @@ Private Function calcdate() As Boolean
 End
 
 Public Sub Edition_Click()
+  
+  Dim tabl As Collection
+  Dim dcl As Declaration
+  Dim res As Result
+  
+  If ctrl() And cloture.Value Then Return
+  tabl = Edit(False)
+  If cloture.Value Then
+    'validation des lignes 
+    Utils.db.Exec("UPDATE Fiches_ligregie,Fiches_regie SET cloture='True' WHERE coderegie=Fiches_regie.code AND dtmouv BETWEEN &1 AND &2 AND cloture='False' AND (Fiches_ligregie.type='S' OR Fiches_ligregie.type='E') AND suspendu=&3", Format($dteinf, "yyyymmdd"), Format($dtesup, "yyyymmdd"), suspendu.Value)
+    'ecriture du stock début de période prochaine
+    For Each dcl In tabl
+      Utils.db.Begin
+      res = Utils.db.Create("Fiches_ligregie")
+      res!dtmouv = DateAdd($dteinf, gb.Month, 1)
+      res!type = "M"
+      res!coderegie = tabl.Key
+      res!volume = dcl.totvol.vae.vfp
+      res!volumeap = dcl.totvol.vap.vfp
+      res!volumess = dcl.volumess
+      res.Update
+      Utils.db.Commit
+    Next
+  Endif
+End
+
+Public Sub Redition_Click()
+
+  ctrl
+  Edit(True)
+
+End
+
+Private Function Edit(clt As Boolean) As Collection
 
   Dim tabl As New Collection
   Dim dcl As New Declaration
@@ -166,12 +200,13 @@ Public Sub Edition_Click()
   
   'creation du tableau à passer au report (Ecomptamat)
   Application.Busy = 1
-  If ctrl() And cloture.Value Then 
-    Application.Busy = 0
-    Return
-  Endif
   'stock debut de periode
-  res = Utils.db.Exec("SELECT * FROM Fiches_ligregie, Fiches_regie WHERE  dtmouv BETWEEN &1 AND &2 AND (Fiches_ligregie.type='M' OR Fiches_ligregie.type='I') AND Fiches_regie.code=coderegie AND suspendu=&3 ", Format($dteinf, "yyyymmdd"), Format($dtesup, "yyyymmdd"), suspendu.Value)
+  'on prend d'abord l'inventaire début année
+  res = Utils.db.Exec("SELECT * FROM Fiches_ligregie, Fiches_regie WHERE dtmouv BETWEEN &1 AND &2 AND Fiches_ligregie.type='M' AND Fiches_regie.code=coderegie AND suspendu=&3 ", Format($dteinf, "yyyymmdd"), Format($dtesup, "yyyymmdd"), suspendu.Value)
+  If Not res.Available Then
+    'si début d'année n'existe pas => stock début de période
+    res = Utils.db.Exec("SELECT * FROM Fiches_ligregie, Fiches_regie WHERE  dtmouv BETWEEN &1 AND &2 AND Fiches_ligregie.type='I' AND Fiches_regie.code=coderegie AND suspendu=&3 ", Format($dteinf, "yyyymmdd"), Format($dtesup, "yyyymmdd"), suspendu.Value)
+  Endif
   If res.Available Then
     res.MoveFirst
     Repeat
@@ -182,7 +217,7 @@ Public Sub Edition_Click()
     Until res.MoveNext()
   Endif
   'volume entrés
-  res = Utils.db.Exec("SELECT SUM(volume) as volume, SUM(volumeap) as volumeap,coderegie FROM Fiches_ligregie,Fiches_regie WHERE dtmouv BETWEEN &1 AND &2 AND cloture='False' AND Fiches_ligregie.type='E' AND Fiches_regie.code=coderegie AND suspendu=&3 GROUP BY coderegie", Format($dteinf, "yyyymmdd"), Format($dtesup, "yyyymmdd"), suspendu.Value)
+  res = Utils.db.Exec("SELECT SUM(volume) as volume, SUM(volumeap) as volumeap,coderegie FROM Fiches_ligregie,Fiches_regie WHERE dtmouv BETWEEN &1 AND &2 AND cloture=&4 AND Fiches_ligregie.type='E' AND Fiches_regie.code=coderegie AND suspendu=&3 GROUP BY coderegie", Format($dteinf, "yyyymmdd"), Format($dtesup, "yyyymmdd"), suspendu.Value, clt)
   If res.Available Then
     res.MoveFirst
     Repeat
@@ -201,10 +236,10 @@ Public Sub Edition_Click()
   Endif
   'volume sortie
   If calcregie.Value Then            'calcul des droits au taux indiqué dans le fichier regie
-    res = Utils.db.Exec("SELECT * FROM Fiches_ligregie, Fiches_regie WHERE dtmouv BETWEEN &1 AND &2 AND cloture='False' AND Fiches_ligregie.type='S' AND Fiches_regie.code=coderegie AND suspendu=&3", Format($dteinf, "yyyymmdd"), Format($dtesup, "yyyymmdd"), suspendu.Value)
+    res = Utils.db.Exec("SELECT * FROM Fiches_ligregie, Fiches_regie WHERE dtmouv BETWEEN &1 AND &2 AND cloture=&4 AND Fiches_ligregie.type='S' AND Fiches_regie.code=coderegie AND suspendu=&3", Format($dteinf, "yyyymmdd"), Format($dtesup, "yyyymmdd"), suspendu.Value, clt)
     If res.Available Then
       Repeat
-        cdroit = New Calculdroit(res!coderegie, res!volume / res!qte, res!degres, res!qte)
+        cdroit = New Calculdroit(res!coderegie, (res!volume / res!qte) * 100, res!degres, res!qte)
         If tabl.Exist(res!coderegie) Then
           dcl = tabl[res!coderegie]
           dcl.totvol.vae.vso += cdroit.vol
@@ -220,13 +255,12 @@ Public Sub Edition_Click()
           dcl.droit = cdroit.droit
           dcl.secu = cdroit.secu
           dcl.volumess = cdroit.volumess
-          dcl.totdr = cdroit.droit
           tabl.Add(dcl, res!coderegie)
         Endif
       Until res.MoveNext()
     Endif
   Else                                                  'calcul des droits avec les montants déjà calculés dans le fichier ligregie
-    res = Utils.db.Exec("SELECT SUM(volume) as volume, SUM(volumeap) as volumeap,SUM(montdr) as droit, SUM(montss) as secu, SUM(volumess) as volumess, coderegie FROM Fiches_ligregie, Fiches_regie WHERE dtmouv BETWEEN &1 AND &2 AND cloture='False' AND Fiches_ligregie.type='S' AND Fiches_regie.code=coderegie AND suspendu=&3 GROUP BY coderegie", Format($dteinf, "yyyymmdd"), Format($dtesup, "yyyymmdd"), suspendu.Value)
+    res = Utils.db.Exec("SELECT SUM(volume) as volume, SUM(volumeap) as volumeap,SUM(montdr) as droit, SUM(montss) as secu, SUM(volumess) as volumess, coderegie FROM Fiches_ligregie, Fiches_regie WHERE dtmouv BETWEEN &1 AND &2 AND cloture=&4 AND Fiches_ligregie.type='S' AND Fiches_regie.code=coderegie AND suspendu=&3 GROUP BY coderegie", Format($dteinf, "yyyymmdd"), Format($dtesup, "yyyymmdd"), suspendu.Value, clt)
     If res.Available Then
       res.MoveFirst
       Repeat
@@ -236,6 +270,7 @@ Public Sub Edition_Click()
           dcl.totvol.vap.vso = res!volumeap
           dcl.droit = res!droit
           dcl.secu = res!secu
+          dcl.volumess = res!volumess
           tabl[res!coderegie] = dcl
         Else
           dcl = decldcl()
@@ -243,6 +278,7 @@ Public Sub Edition_Click()
           dcl.totvol.vap.vso = res!volumeap
           dcl.droit = res!droit
           dcl.secu = res!secu
+          dcl.volumess = res!volumess
           tabl.Add(dcl, res!coderegie)
         Endif
       Until res.MoveNext()
@@ -254,7 +290,7 @@ Public Sub Edition_Click()
     dcl.totvol.vap.vfp = dcl.totvol.vap.vdp + dcl.totvol.vap.ven - dcl.totvol.vap.vso
     If dcl.totvol.vap.vso <> 0 Then
       dcl.qteimp = dcl.totvol.vap.vso
-      If dcl.totvol.vap.vso <> 0 Then dcl.tarifdr = dcl.droit / dcl.totvol.vap.vso Else dcl.tarifdr = 0
+      dcl.tarifdr = dcl.droit / dcl.totvol.vap.vso 
     Else
       dcl.qteimp = dcl.totvol.vae.vso
       If dcl.totvol.vae.vso <> 0 Then dcl.tarifdr = dcl.droit / dcl.totvol.vae.vso
@@ -290,6 +326,8 @@ Public Sub Edition_Click()
     ed.Preview
   Endif
   Application.Busy = 0
+  Return tabl
+  
 End
 
 Private Function decim(value As Float, op As String) As Float
@@ -319,3 +357,9 @@ Private Function decldcl() As Declaration
   Return dcl
 End
 
+
+Public Sub Quitter_Click()
+
+  Me.Close
+
+End
