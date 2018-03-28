@@ -165,10 +165,10 @@ Public Sub Edition_Click()
   tabl = Edit(False)
   If cloture.Value Then
     'validation des lignes 
-    Utils.db.Exec("UPDATE Fiches_ligregie,Fiches_regie SET cloture='True' WHERE coderegie=Fiches_regie.code AND dtmouv BETWEEN &1 AND &2 AND cloture='False' AND (Fiches_ligregie.type='S' OR Fiches_ligregie.type='E') AND suspendu=&3", Format($dteinf, "yyyymmdd"), Format($dtesup, "yyyymmdd"), suspendu.Value)
+    Utils.db.Exec("UPDATE Fiches_ligregie,Fiches_regie SET cloture=True WHERE coderegie=Fiches_regie.code AND dtmouv BETWEEN &1 AND &2 AND cloture=False AND (Fiches_ligregie.type='S' OR Fiches_ligregie.type='E' OR Fiches_ligregie.type='C') AND suspendu=&3", Format($dteinf, "yyyymmdd"), Format($dtesup, "yyyymmdd"), suspendu.Value)
     'ecriture du stock début de période prochaine
+    Utils.db.Begin
     For Each dcl In tabl
-      Utils.db.Begin
       res = Utils.db.Create("Fiches_ligregie")
       res!dtmouv = DateAdd($dteinf, gb.Month, 1)
       res!type = "M"
@@ -176,9 +176,10 @@ Public Sub Edition_Click()
       res!volume = dcl.totvol.vae.vfp
       res!volumeap = dcl.totvol.vap.vfp
       res!volumess = dcl.volumess
+      res!cloture = True
       res.Update
-      Utils.db.Commit
     Next
+    Utils.db.Commit
   Endif
 End
 
@@ -195,17 +196,17 @@ Private Function Edit(clt As Boolean) As Collection
   Dim dcl As New Declaration
   Dim res, resreg As Result
   Dim cdroit As Calculdroit
-  Dim ed As Ecomptamat
+  Dim ed As Object
   Dim nbd As Integer
   
   'creation du tableau à passer au report (Ecomptamat)
   Application.Busy = 1
   'stock debut de periode
   'on prend d'abord l'inventaire début année
-  res = Utils.db.Exec("SELECT * FROM Fiches_ligregie, Fiches_regie WHERE dtmouv BETWEEN &1 AND &2 AND Fiches_ligregie.type='M' AND Fiches_regie.code=coderegie AND suspendu=&3 ", Format($dteinf, "yyyymmdd"), Format($dtesup, "yyyymmdd"), suspendu.Value)
+  res = Utils.db.Exec("SELECT * FROM Fiches_ligregie, Fiches_regie WHERE dtmouv BETWEEN &1 AND &2 AND Fiches_ligregie.type='I' AND Fiches_regie.code=coderegie AND suspendu=&3 ", Format($dteinf, "yyyymmdd"), Format($dtesup, "yyyymmdd"), suspendu.Value)
   If Not res.Available Then
     'si début d'année n'existe pas => stock début de période
-    res = Utils.db.Exec("SELECT * FROM Fiches_ligregie, Fiches_regie WHERE  dtmouv BETWEEN &1 AND &2 AND Fiches_ligregie.type='I' AND Fiches_regie.code=coderegie AND suspendu=&3 ", Format($dteinf, "yyyymmdd"), Format($dtesup, "yyyymmdd"), suspendu.Value)
+    res = Utils.db.Exec("SELECT * FROM Fiches_ligregie, Fiches_regie WHERE  dtmouv BETWEEN &1 AND &2 AND Fiches_ligregie.type='M' AND Fiches_regie.code=coderegie AND suspendu=&3 ", Format($dteinf, "yyyymmdd"), Format($dtesup, "yyyymmdd"), suspendu.Value)
   Endif
   If res.Available Then
     res.MoveFirst
@@ -236,7 +237,7 @@ Private Function Edit(clt As Boolean) As Collection
   Endif
   'volume sortie
   If calcregie.Value Then            'calcul des droits au taux indiqué dans le fichier regie
-    res = Utils.db.Exec("SELECT * FROM Fiches_ligregie, Fiches_regie WHERE dtmouv BETWEEN &1 AND &2 AND cloture=&4 AND Fiches_ligregie.type='S' AND Fiches_regie.code=coderegie AND suspendu=&3", Format($dteinf, "yyyymmdd"), Format($dtesup, "yyyymmdd"), suspendu.Value, clt)
+    res = Utils.db.Exec("SELECT * FROM Fiches_ligregie, Fiches_regie WHERE dtmouv BETWEEN &1 AND &2 AND cloture=&4 AND (Fiches_ligregie.type='S' OR Fiches_ligregie.type='C') AND Fiches_regie.code=coderegie AND suspendu=&3", Format($dteinf, "yyyymmdd"), Format($dtesup, "yyyymmdd"), suspendu.Value, clt)
     If res.Available Then
       Repeat
         cdroit = New Calculdroit(res!coderegie, (res!volume / res!qte) * 100, res!degres, res!qte)
@@ -260,7 +261,7 @@ Private Function Edit(clt As Boolean) As Collection
       Until res.MoveNext()
     Endif
   Else                                                  'calcul des droits avec les montants déjà calculés dans le fichier ligregie
-    res = Utils.db.Exec("SELECT SUM(volume) as volume, SUM(volumeap) as volumeap,SUM(montdr) as droit, SUM(montss) as secu, SUM(volumess) as volumess, coderegie FROM Fiches_ligregie, Fiches_regie WHERE dtmouv BETWEEN &1 AND &2 AND cloture=&4 AND Fiches_ligregie.type='S' AND Fiches_regie.code=coderegie AND suspendu=&3 GROUP BY coderegie", Format($dteinf, "yyyymmdd"), Format($dtesup, "yyyymmdd"), suspendu.Value, clt)
+    res = Utils.db.Exec("SELECT SUM(volume) as volume, SUM(volumeap) as volumeap,SUM(montdr) as droit, SUM(montss) as secu, SUM(volumess) as volumess, coderegie FROM Fiches_ligregie, Fiches_regie WHERE dtmouv BETWEEN &1 AND &2 AND cloture=&4 AND (Fiches_ligregie.type='S' OR Fiches_ligregie.type='C') AND Fiches_regie.code=coderegie AND suspendu=&3 GROUP BY coderegie", Format($dteinf, "yyyymmdd"), Format($dtesup, "yyyymmdd"), suspendu.Value, clt)
     If res.Available Then
       res.MoveFirst
       Repeat
@@ -322,8 +323,13 @@ Private Function Edit(clt As Boolean) As Collection
   Next
 
   If tabl.Count > 0 Then
-    ed = New Ecomptamat(tabl, nbdec.Text, "M", Textmois.Text, Textanne.Text, False)
-    ed.Preview
+    If suspendu.Value Then
+      ed = New Ecomptamat(tabl, Textmois.Text, Textanne.Text, False)
+      ed.Preview
+    Else
+      ed = New Einvmat(tabl, Textmois.Text, Textanne.Text, False)
+      ed.Preview
+    Endif
   Endif
   Application.Busy = 0
   Return tabl

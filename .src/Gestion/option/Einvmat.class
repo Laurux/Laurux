@@ -1,105 +1,400 @@
 ' Gambas class file
 
-Private $fstot As Float[]
-Private $resinv As Result
-Private $resdra As Result
+' Gambas class file
 
-Public Sub _new()
+Private $resreg As Result
+Private $snumed As String[]
+Private $tabl As Collection
 
-  Dim ccdstk, ccdsai As Calculdroit
-  Dim i, j As Integer
-  Dim res As Result
-  Dim pnl As ReportPanel
-  Dim lbl As ReportLabel
-  Dim obj As Object
+Public Sub _new(tabl As Collection, mois As String, anne As String, edit As Boolean)
+
+  Dim ressoc, respar, res As Result
+  Dim i As Integer
+  Dim dte1, dte2 As Date
   
-  $fstot = New Float[8]
-  res = utils.db.Exec("SELECT * FROM Fiches_Inv LIMIT 1")
-  If res.Available Then Reportdate.text = Format(res!inv_date, "dd.mm.yyyy")
-  $resdra = Utils.db.Exec("SELECT * FROM Fiches_regie")
-  If $resdra.Available Then
-    $resdra.MoveFirst
-    
-    Repeat
-      $resinv = Utils.db.Exec("SELECT * FROM Fiches_Art,Fiches_Inv WHERE inv_code=art_code and art_dra=&1", $resdra!code) 
-      If $resinv.Available Then
-        $resinv.MoveFirst
-        pnl = New ReportPanel(ReportPanel4)
-        pnl.Autoresize = True
-        pnl.Arrangement = Arrange.Horizontal
-        lbl = New ReportLabel(pnl)
-        lbl.Font = font["Serif,+1"]
-        lbl.Text = "Code régie : "
-        lbl = New ReportLabel(pnl)
-        lbl.Text = "    " & $resinv!art_dra
-        lbl = New ReportLabel(pnl)
-        lbl.Text = "    " & $resdra!nom
-        Repeat
-          ccdstk = New Calculdroit($resinv!art_dra, $resinv!art_volm, $resinv!art_deg, $resinv!inv_qtestock)
-          ccdsai = New Calculdroit($resinv!art_dra, $resinv!art_volm, $resinv!art_deg, $resinv!inv_qtecomptee)
-          Reportdetail = New ReportPanel(ReportPanel4)
-          Reportdetail.Arrangement = Arrange.Horizontal
-          Reportdetail.Autoresize = True 
-          nart = atrlab(nart, $resinv!inv_code)
-          libart = atrlab(libart, $resinv!inv_design)
-          regie = atrlab(regie, $resinv!art_dra)
-          libreg = atrlab(libreg, $resdra!nom)
-          qtest = atrlab(qtest, $resinv!inv_qtestock)
-          volst = atrlab(volst, Format(ccdstk.vol, "0.00"))
-          apst = atrlab(apst, Format(ccdstk.volap, "0.00"))
-          qtesa = atrlab(qtesa, $resinv!inv_qtecomptee)
-          volsa = atrlab(volsa, Format(ccdsai.vol, "0.00"))
-          apsa = atrlab(apsa, Format(ccdsai.volap, "0.00"))
-          qteec = atrlab(qteec, Format($resinv!inv_qtecomptee - $resinv!inv_qtestock, "0.00"))
-          volec = atrlab(volec, Format(ccdsai.vol - ccdstk.vol, "0.00"))
-          apec = atrlab(apec, Format(ccdsai.volap - ccdstk.volap, "0.00"))
-  '        Print Me.PageCount
-          obj = Reportdetail.Children
-          For j = 4 To 11
-            $fstot[j - 4] = utils.totobs([Str($fstot[j - 4]), obj[j].text])
-          Next
-
-        Until $resinv.MoveNext()
-        pnl = New ReportPanel(ReportPanel4)
-        pnl.Autoresize = True
-        pnl.Arrangement = Arrange.Horizontal
-        lbl = New ReportLabel(pnl)
-        lbl.Font = font["Serif,+1"]
-        lbl.Text = "Total : "
-        lbl.Width = "115mm"
-        lbl.Alignment = Align.Center
-        For j = 0 To 7
-          lbl = New ReportLabel(pnl)
-          lbl.Width = "20mm"
-          lbl.Height = "6mm"
-          lbl.Font = Font["Serif,-1"]
-          lbl.Border = ReportBorder["Top:0.5mm #000000;Bottom:0.5mm #000000;Left:0.5mm #000000;Right:0.5mm #000000"]
-          lbl.Alignment = Align.Right
-          lbl.Text = Format($fstot[j], "0.00")
-        Next
-        lbl.Expand = True
-      Endif
-    Until $resdra.MoveNext()
-    
-'    Reportfin.Text = Me.DataCount
+  $tabl = tabl
+  $snumed = New String[]
+  For Each Caleditcmat.ddcl In tabl
+    $snumed.Add(tabl.Key)
+  Next
+  ReportHlig.DataCount = $snumed.Count
+  datej.Text = Format(Now, "dd/mm/yyyy")
+  datj1.Text = Format(Now, "dd/mm/yyyy")
+  pg1.Text = "Page : " & Me.PageCount
+  ressoc = Utils.db.Exec("SELECT * FROM Fiches_Societes")
+  rs.Text = ressoc!type_sc & " " & ressoc!int_sc
+  
+  respar = Utils.db.Exec("SELECT * FROM Fiches_Parametres")
+  If respar!arrete Then
+    dtedeb.Text = respar!arrete
+    dte1 = Date(Right(respar!arrete, 4), Val(Left(respar!arrete, 2)), 1)
+    dte1 = DateAdd(dte1, gb.Month, 1)
+    dte2 = DateAdd(dte1, gb.Month, 11)
+    Reportnom.Text = ressoc!type_sc & " " & ressoc!int_sc & " " & "Exercice du : " & Format(Month(dte1), "00") & "/" & Format(Year(dte1), "0000") & " au : " & Format(Month(dte2), "00") & "/" & Format(Year(dte2), "0000")
   Endif
+  ni.Text = ressoc!ident
+  lieu.Text = ressoc!burdis_sc
+  adr1.Text = ressoc!adr1_sc
+  adr2.Text = ressoc!adr2_sc
+  cpvil.Text = ressoc!cp_sc & " " & ressoc!burdis_sc 
+  dte1 = Date(anne, Val(mois), 1)
+  dte2 = Date(anne, Val(mois), Utils.lastday(dte1))
+  dtedecl.Text = Format(dte1, "mmmm yyyy")
+  periode.Text = mois & "/" & anne
+
+  Application.Busy = 0
+
+
+End
+
+Public Sub lib_Data(Index As Integer)
+
+  Dim res As Result
+  
+  res = Utils.db.Exec("SELECT * FROM Fiches_regie WHERE code=&1", $snumed[Index])
+  lib.Font = font["-4"]
+  lib.Data = res!nom
+
+End
+
+'vae debut de péridode
+Public Sub vaehldp_Data(Index As Integer)
+
+  Caleditcmat.ddcl = $tabl[$snumed[Index]]
+  vaehldp.Font = font["-4"]
+  vaehldp.Data = convers(Caleditcmat.ddcl.totvol.vae.vdp, "h")
   
 End
 
-Public Function atrlab(rplab As ReportLabel, txt As String) As ReportLabel
+Public Sub vaeldp_Data(Index As Integer)
 
-  Dim nouvrep As ReportLabel
-  
-  nouvrep = New ReportLabel(Reportdetail)
-  nouvrep.Height = rplab.Height
-  nouvrep.Width = rplab.Width
-  nouvrep.Text = txt
-  nouvrep.Alignment = rplab.Alignment
-  nouvrep.Expand = rplab.Expand
-  nouvrep.Font = Font["Serif,-1"]
-  nouvrep.Border = rplab.Border
-  
-  Return nouvrep
+  Caleditcmat.ddcl = $tabl[$snumed[Index]]
+  vaeldp.Font = font["-4"]
+  vaeldp.Data = convers(Caleditcmat.ddcl.totvol.vae.vdp, "l")
 
+End
+
+Public Sub vaecldp_Data(Index As Integer)
+
+  Caleditcmat.ddcl = $tabl[$snumed[Index]]
+  vaecldp.Font = font["-4"]
+  vaecldp.Data = convers(Caleditcmat.ddcl.totvol.vae.vdp, "c")
+
+End
+
+'vae entrée
+Public Sub vaehle_Data(Index As Integer)
+
+  Caleditcmat.ddcl = $tabl[$snumed[Index]]
+  vaehle.Font = font["-4"]
+  vaehle.Data = convers(Caleditcmat.ddcl.totvol.vae.ven, "h")
+  
+End
+
+Public Sub vaele_Data(Index As Integer)
+
+  Caleditcmat.ddcl = $tabl[$snumed[Index]]
+  vaele.Font = font["-4"]
+  vaele.Data = convers(Caleditcmat.ddcl.totvol.vae.ven, "l")
+
+End
+
+Public Sub vaecle_Data(Index As Integer)
+
+  Caleditcmat.ddcl = $tabl[$snumed[Index]]
+  vaecle.Font = font["-4"]
+  vaecle.Data = convers(Caleditcmat.ddcl.totvol.vae.ven, "c")
+
+End
+
+'vae sortie
+Public Sub vaehls_Data(Index As Integer)
+
+  Caleditcmat.ddcl = $tabl[$snumed[Index]]
+  vaehls.Font = font["-4"]
+  vaehls.Data = convers(Caleditcmat.ddcl.totvol.vae.vso, "h")
+  
+End
+
+Public Sub vaels_Data(Index As Integer)
+
+  Caleditcmat.ddcl = $tabl[$snumed[Index]]
+  vaels.Font = font["-4"]
+  vaels.Data = convers(Caleditcmat.ddcl.totvol.vae.vso, "l")
+
+End
+
+Public Sub vaecls_Data(Index As Integer)
+
+  Caleditcmat.ddcl = $tabl[$snumed[Index]]
+  vaecls.Font = font["-4"]
+  vaecls.Data = convers(Caleditcmat.ddcl.totvol.vae.vso, "c")
+
+End
+
+'vae fin de période
+Public Sub vaehlfp_Data(Index As Integer)
+
+  Caleditcmat.ddcl = $tabl[$snumed[Index]]
+  vaehlfp.Font = font["-4"]
+  vaehlfp.Data = convers(Caleditcmat.ddcl.totvol.vae.vfp, "h")
+  
+End
+
+Public Sub vaelfp_Data(Index As Integer)
+
+  Caleditcmat.ddcl = $tabl[$snumed[Index]]
+  vaelfp.Font = font["-4"]
+  vaelfp.Data = convers(Caleditcmat.ddcl.totvol.vae.vfp, "l")
+
+End
+
+Public Sub vaeclfp_Data(Index As Integer)
+
+  Caleditcmat.ddcl = $tabl[$snumed[Index]]
+  vaeclfp.Font = font["-4"]
+  vaeclfp.Data = convers(Caleditcmat.ddcl.totvol.vae.vfp, "c")
+
+End
+
+'vap debut période
+Public Sub vaphldp_Data(Index As Integer)
+
+  Caleditcmat.ddcl = $tabl[$snumed[Index]]
+  vaphldp.Font = font["-4"]
+  vaphldp.Data = convers(Caleditcmat.ddcl.totvol.vap.vdp, "h")
+  
+End
+
+Public Sub vapldp_Data(Index As Integer)
+
+  Caleditcmat.ddcl = $tabl[$snumed[Index]]
+  vapldp.Font = font["-4"]
+  vapldp.Data = convers(Caleditcmat.ddcl.totvol.vap.vdp, "l")
+
+End
+
+Public Sub vapcldp_Data(Index As Integer)
+
+  Caleditcmat.ddcl = $tabl[$snumed[Index]]
+  vapcldp.Font = font["-4"]
+  vapcldp.Data = convers(Caleditcmat.ddcl.totvol.vap.vdp, "c")
+
+End
+
+'vap entrée
+Public Sub vaphle_Data(Index As Integer)
+
+  Caleditcmat.ddcl = $tabl[$snumed[Index]]
+  vaphle.Font = font["-4"]
+  vaphle.Data = convers(Caleditcmat.ddcl.totvol.vap.ven, "h")
+  
+End
+
+Public Sub vaple_Data(Index As Integer)
+
+  Caleditcmat.ddcl = $tabl[$snumed[Index]]
+  vaple.Font = font["-4"]
+  vaple.Data = convers(Caleditcmat.ddcl.totvol.vap.ven, "l")
+
+End
+
+Public Sub vapcle_Data(Index As Integer)
+
+  Caleditcmat.ddcl = $tabl[$snumed[Index]]
+  vapcle.Font = font["-4"]
+  vapcle.Data = convers(Caleditcmat.ddcl.totvol.vap.ven, "c")
+
+End
+
+'vap sortie
+Public Sub vaphls_Data(Index As Integer)
+
+  Caleditcmat.ddcl = $tabl[$snumed[Index]]
+  vaphls.Font = font["-4"]
+  vaphls.Data = convers(Caleditcmat.ddcl.totvol.vap.vso, "h")
+  
+End
+
+Public Sub vapls_Data(Index As Integer)
+
+  Caleditcmat.ddcl = $tabl[$snumed[Index]]
+  vapls.Font = font["-4"]
+  vapls.Data = convers(Caleditcmat.ddcl.totvol.vap.vso, "l")
+
+End
+
+Public Sub vapcls_Data(Index As Integer)
+
+  Caleditcmat.ddcl = $tabl[$snumed[Index]]
+  vapcls.Font = font["-4"]
+  vapcls.Data = convers(Caleditcmat.ddcl.totvol.vap.vso, "c")
+
+End
+
+'vap fin de période
+Public Sub vaphlfp_Data(Index As Integer)
+
+  Caleditcmat.ddcl = $tabl[$snumed[Index]]
+  vaphlfp.Font = font["-4"]
+  vaphlfp.Data = convers(Caleditcmat.ddcl.totvol.vap.vfp, "h")
+  
+End
+
+Public Sub vaplfp_Data(Index As Integer)
+
+  Caleditcmat.ddcl = $tabl[$snumed[Index]]
+  vaplfp.Font = font["-4"]
+  vaplfp.Data = convers(Caleditcmat.ddcl.totvol.vap.vfp, "l")
+
+End
+
+Public Sub vapclfp_Data(Index As Integer)
+
+  Caleditcmat.ddcl = $tabl[$snumed[Index]]
+  vapclfp.Font = font["-4"]
+  vapclfp.Data = convers(Caleditcmat.ddcl.totvol.vap.vfp, "c")
+
+End
+
+Public Sub vaehldp2_Data(Index As Integer)
+
+  Dim tot As Float
+  
+  For Each Caleditcmat.ddcl In $tabl
+    tot += Caleditcmat.ddcl.totvol.vae.vdp
+  Next
+
+  vaehldp2.Data = convers(tot, "h")
+  vaeldp2.Text = convers(tot, "l")
+  vaecldp2.Text = convers(tot, "c")
+  
+End
+
+Public Sub vaehle2_Data(Index As Integer)
+
+  Dim tot As Float
+
+  For Each Caleditcmat.ddcl In $tabl
+    tot += Caleditcmat.ddcl.totvol.vae.ven
+  Next
+
+  vaehle2.Data = convers(tot, "h")
+  vaele2.Text = convers(tot, "l")
+  vaecle2.Text = convers(tot, "c")
+  
+End
+
+Public Sub vaehls2_Data(Index As Integer)
+
+  Dim tot As Float
+
+  For Each Caleditcmat.ddcl In $tabl
+    tot += Caleditcmat.ddcl.totvol.vae.vso
+  Next
+
+  vaehls2.Data = convers(tot, "h")
+  vaels2.Text = convers(tot, "l")
+  vaecls2.Text = convers(tot, "c")
+  
+End
+
+Public Sub vaehlfp2_Data(Index As Integer)
+
+  Dim tot As Float
+
+  For Each Caleditcmat.ddcl In $tabl
+    tot += Caleditcmat.ddcl.totvol.vae.vfp
+  Next
+
+  vaehlfp2.Data = convers(tot, "h")
+  vaelfp2.Text = convers(tot, "l")
+  vaeclfp2.Text = convers(tot, "c")
+  
+End
+
+Public Sub vaphldp2_Data(Index As Integer)
+
+  Dim tot As Float
+  
+  For Each Caleditcmat.ddcl In $tabl
+    tot += Caleditcmat.ddcl.totvol.vap.vdp
+  Next
+
+  vaphldp2.Data = convers(tot, "h")
+  vapldp2.Text = convers(tot, "l")
+  vapcldp2.Text = convers(tot, "c")
+  
+End
+
+Public Sub vaphle2_Data(Index As Integer)
+
+  Dim tot As Float
+  
+  For Each Caleditcmat.ddcl In $tabl
+    tot += Caleditcmat.ddcl.totvol.vap.ven
+  Next
+
+  vaphle2.Data = convers(tot, "h")
+  vaple2.Text = convers(tot, "l")
+  vapcle2.Text = convers(tot, "c")
+  
+End
+
+Public Sub vaphls2_Data(Index As Integer)
+
+  Dim tot As Float
+  
+  For Each Caleditcmat.ddcl In $tabl
+    tot += Caleditcmat.ddcl.totvol.vap.vso
+  Next
+
+  vaphls2.Data = convers(tot, "h")
+  vapls2.Text = convers(tot, "l")
+  vapcls2.Text = convers(tot, "c")
+  
+End
+
+Public Sub vaphlfp2_Data(Index As Integer)
+
+  Dim tot As Float
+  
+  For Each Caleditcmat.ddcl In $tabl
+    tot += Caleditcmat.ddcl.totvol.vap.vfp
+  Next
+
+  vaphlfp2.Data = convers(tot, "h")
+  vaplfp2.Text = convers(tot, "l")
+  vapclfp2.Text = convers(tot, "c")
+  
+End
+
+Private Function convers(vol As Float, choix As String) As String
+  
+  Dim f As Float
+  
+  Select Case choix
+    Case "h"
+      vol = vol / 100
+      vol = Fix(vol)
+    Case "l"
+      If Abs(vol) < 100 Then
+        vol = Fix(vol)
+      Else
+        f = Abs(vol / 100)
+        f = Round(Fix(f) * 100)
+        f = Abs(vol) - f
+        vol = Fix(f)
+      Endif
+    Case "c"
+      vol = Round(vol, -2)
+      vol = Frac(vol)
+      vol = Round(vol * 100)
+  End Select
+  If vol = 0 Then
+    Return "  "
+  Else
+    Return Str(vol)
+  Endif
 End
 
