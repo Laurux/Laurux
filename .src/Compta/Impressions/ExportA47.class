@@ -414,12 +414,12 @@ Public Sub Button2_Click()
   Dim i As Integer
   Dim ColResult As Result
   Dim intitule, libellejo, libelle, type As String
-  Dim Intitcol As String
+  'Dim Intitcol As String
   Dim copt As String
   Dim pl As Integer
   Dim Tab, Tab2, Tab3, Tab4 As String
   Dim siren As String
-  Dim Ccoll As String
+  'Dim Ccoll As String
   Dim debitcol As String
   Dim creditcol As String
   Dim TotSldHP, montand, montanc As Float
@@ -427,6 +427,10 @@ Public Sub Button2_Click()
   Dim Filetxt, dateecr, datec, dtepc, Doc As String
   Dim bqual As Boolean = False
   Dim Entete As String = "JournalCode|Journallib|EcritureNum|EcritureDate|CompteNum|CompteLib|CompAuxNum|CompAuxLib|PieceRef|PieceDate|EcritureLib|Debit|credit|EcritureLet|DateLet|ValidDate|MontantDevise|Idevise|"
+  Dim report_err_once As String = ""
+  Dim report_err As Boolean
+  Dim report_err_max As Boolean = False
+  Dim PB As ProgBar
 
   With utils
     totsldhp = 0.00
@@ -457,30 +461,33 @@ Public Sub Button2_Click()
       "crd_cent FLOAT," &
       "njournal Char(2)," &
       "PRIMARY KEY (cd_cent))" & "ENGINE = MYISAM")
-    filetxt = Chmexport.Text & "/" & Siren & "FEC" & Right$(dteN0.text, 4) & Mid$(dteN0.text, 4, 2) & Left$(dteN0.text, 2) & "-" & Right$(dteN1.text, 4) & Mid$(dteN1.text, 4, 2) & Left$(dteN1.text, 2)
+    filetxt = Chmexport.Text & "/" & Siren & "FEC" & Right$(dteN1.text, 4) & Mid$(dteN1.text, 4, 2) & Left$(dteN1.text, 2) & "-" & Right$(dteN0.text, 4) & Mid$(dteN0.text, 4, 2) & Left$(dteN0.text, 2) 
     If Exist(filetxt) Then Kill filetxt
     hFile = Open filetxt For Write Create
     rResult = Utils.db.Exec("SELECT * FROM " & Tab0 & " a inner join " & Cbase.Table("TabJour") & " i on i.code_jo = a.jour WHERE a.validee = &1 And a.dte >= &2 And a.dte <= &3 order by a.dte, a.numero, a.compte ", 1, .Cdate_Dbase(DteN0.Text), .Cdate_Dbase(DteN1.Text))
     If rResult.count <> 0 Then
       i = 0
+      PB = New ProgBar("Export A47 FEC", rResult.Count)
+      PB.Show()
       Print #hFile, Entete & gb.Cr
       While i < rResult.count
-        Ccoll = ""
-        Intitcol = ""
+        report_err = False
+        'Ccoll = ""
+        'Intitcol = ""
         Try Bcol = rResult!collectif
         If Error Then Bcol = False
-        If Left$(rResult!compte, 3) = "401" And Not Bcol Or If Left$(rResult!compte, 3) = "411" And Not Bcol Then
+        'If (Left$(rResult!compte, 3) = "401" And Not Bcol) Or If (Left$(rResult!compte, 3) = "411" And Not Bcol) Then
+        '  ColResult = Utils.db.Exec("SELECT * FROM " & Tab4 & " WHERE compte_cc = &1", rResult!compte)
+          'Ccoll = ColResult!coll_cc
+        '  Type = ColResult!type_cc
+          'If Not IsNull(Ccoll) Then
+          '  ColResult = Utils.db.Exec("SELECT * FROM " & Tab4 & " WHERE compte_cc = &1", Ccoll)
+          '  Intitcol = ColResult!intitule_cc
+          'Endif
+        'Else
           ColResult = Utils.db.Exec("SELECT * FROM " & Tab4 & " WHERE compte_cc = &1", rResult!compte)
-          Ccoll = ColResult!coll_cc
           Type = ColResult!type_cc
-          If Not IsNull(Ccoll) Then
-            ColResult = Utils.db.Exec("SELECT * FROM " & Tab4 & " WHERE compte_cc = &1", Ccoll)
-            Intitcol = ColResult!intitule_cc
-          Endif
-        Else
-          ColResult = Utils.db.Exec("SELECT * FROM " & Tab4 & " WHERE compte_cc = &1", rResult!compte)
-          Type = ColResult!type_cc
-        Endif
+        'Endif
         montand = rResult!montantd
         montanc = rResult!montantc
         If montand > montanc Then
@@ -497,8 +504,8 @@ Public Sub Button2_Click()
         Endif
         debitcol = Format$(montand, "0.00")
         creditcol = Format$(montanc, "0.00")
-        If Val(debitcol) = 0 Then debitcol = ""
-        If Val(creditcol) = 0 Then creditcol = ""
+        'If Val(debitcol) = 0 Then debitcol = "0.00"
+        'If Val(creditcol) = 0 Then creditcol = "0.00"
         If Not bqual Then
           copt = rResult!numero
         Else
@@ -510,27 +517,57 @@ Public Sub Button2_Click()
         Datec = Right$(datec, 4) & Mid$(datec, 4, 2) & Left$(datec, 2)
         Dateecr = Utils.Cdate_aff(rResult!dte)
         Dateecr = Right$(dateecr, 4) & Mid$(dateecr, 4, 2) & Left$(dateecr, 2) 
-        intitule = .Accent(rResult!intitule)
-        libellejo = .Accent(Left$(rResult!libelle_jo, 15))
-        libelle = .Accent(Left$(rResult!libelle, 30))
+        intitule = Trim(.Accent(rResult!intitule))
+        If IsNull(intitule)
+          intitule = "Err intitule compte: " & rResult!compte
+          report_err = True
+        Endif
+        libellejo = Trim(.Accent(Left$(rResult!libelle_jo, 15)))
+        If IsNull(libellejo)
+          libellejo = "Err jrnl: " & rResult!code_jo
+          report_err = True
+        Endif
+        libelle = Trim(.Accent(Left$(rResult!libelle, 30)))
+        If IsNull(libelle)
+          libelle = "Err libelle ecriture: " & rResult!numero
+          report_err = True
+        Endif
+        
+        If report_err = True Then
+          If Len(report_err_once) < 20 Then
+            report_err_once &= rResult!numero & ","
+          Else If Not report_err_max Then
+            report_err_once &= rResult!numero & "..."
+            report_err_max = True
+          Endif
+        Endif
+        
         Doc = rResult!numdoc & String$(10 - Len(rResult!numdoc), " ")
         If IsNull(doc) Or If Doc = String$(10, " ") Then doc = CStr(rResult!numero & String$(10 - Len(Str(rResult!numero)), " "))
-        If Not IsNull(debitcol) Or If Not IsNull(creditcol) Then
-          If debitcol <> creditcol Then
-            If Type = "F" Or If type = "C" Then
-              Donnees3(CStr(rResult!jour & String$(2 - Len(rResult!jour), " ")), CStr(libellejo & String$(15 - Len(libellejo), " ")), CStr(copt & String$(11 - Len(Str(copt)), " ")), CStr(dateecr), CStr(Ccoll & String$(8 - Len(Ccoll), " ")), CStr(intitcol & String$(40 - Len(intitcol), " ")), CStr(rResult!compte & String$(8 - Len(rResult!compte), " ")), CStr(intitule & String$(40 - Len(intitule), " ")), CStr(doc), CStr(datec), CStr(libelle & String$(30 - Len(libelle), " ")), CStr(String$(15 - Len(debitcol), " ") & debitcol), CStr(String$(15 - Len(creditcol), " ") & creditcol), CStr(""), CStr(""), CStr(datec), CStr(""), CStr(""))
-            Else
-              Donnees3(CStr(rResult!jour & String$(2 - Len(rResult!jour), " ")), CStr(libellejo & String$(15 - Len(libellejo), " ")), CStr(copt & String$(11 - Len(Str(copt)), " ")), CStr(dateecr), CStr(rResult!compte & String$(8 - Len(rResult!compte), " ")), CStr(intitule & String$(40 - Len(intitule), " ")), CStr(String$(8, " ")), CStr(String$(40, " ")), CStr(doc), CStr(datec), CStr(libelle & String$(30 - Len(libelle), " ")), CStr(String$(15 - Len(debitcol), " ") & debitcol), CStr(String$(15 - Len(creditcol), " ") & creditcol), CStr(""), CStr(""), CStr(datec), CStr(""), CStr("")) 
+        If Not Bcol 'on skip les comptes collectifs car sinon la balance est != 0
+          If Not IsNull(debitcol) Or If Not IsNull(creditcol) Then
+            If debitcol <> creditcol Then
+              'If Type = "F" Or If type = "C" Then
+              '  Donnees3(CStr(rResult!jour & String$(2 - Len(rResult!jour), " ")), CStr(libellejo & String$(15 - Len(libellejo), " ")), CStr(copt & String$(11 - Len(Str(copt)), " ")), CStr(dateecr), CStr(Ccoll & String$(8 - Len(Ccoll), " ")), CStr(intitcol & String$(40 - Len(intitcol), " ")), CStr(rResult!compte & String$(8 - Len(rResult!compte), " ")), CStr(intitule & String$(40 - Len(intitule), " ")), CStr(doc), CStr(datec), CStr(libelle & String$(30 - Len(libelle), " ")), CStr(String$(15 - Len(debitcol), " ") & debitcol), CStr(String$(15 - Len(creditcol), " ") & creditcol), CStr(""), CStr(""), CStr(datec), CStr(""), CStr(""))
+              'Else
+                Donnees3(CStr(rResult!jour & String$(2 - Len(rResult!jour), " ")), CStr(libellejo & String$(15 - Len(libellejo), " ")), CStr(copt & String$(11 - Len(Str(copt)), " ")), CStr(dateecr), CStr(rResult!compte & String$(8 - Len(rResult!compte), " ")), CStr(intitule & String$(40 - Len(intitule), " ")), CStr(String$(8, " ")), CStr(String$(40, " ")), CStr(doc), CStr(datec), CStr(libelle & String$(30 - Len(libelle), " ")), CStr(String$(15 - Len(debitcol), " ") & debitcol), CStr(String$(15 - Len(creditcol), " ") & creditcol), CStr(""), CStr(""), CStr(datec), CStr(""), CStr("")) 
+              'Endif
             Endif
           Endif
         Endif
+        If PB.Avancement("Ecriture " & rResult!numero, 500) = True Then Break
         i = i + 1
         rResult.MoveNext
       Wend
+      PB.Close()
       Close #hFile
       Me.Mouse = Mouse.Default
-      If message.question("Le fichier " & Filetxt & " a été correctement copié sous votre répertoire \n Voulez-vous l'ouvrir ?", "Oui", "Non") = 1 Then
-        Editeur.Prog_Editeur(Filetxt)
+      If Not IsNull(report_err_once) Then
+        message.Error("Le fichier\n" & Filetxt & "\ncontient une ou plusieurs erreurs lié à l'absence d'information\nrèglementaires (libellé, intitulé compte, ...) dans l'écriture " & report_err_once & ". Veuillez corriger l'écriture correspondante !")
+      Else
+        If message.question("Le fichier " & Filetxt & " a été correctement copié sous votre répertoire \n Voulez-vous l'ouvrir ?", "Oui", "Non") = 1 Then
+          Editeur.Prog_Editeur(Filetxt)
+        Endif
       Endif
     Else
       Me.Mouse = Mouse.Default
