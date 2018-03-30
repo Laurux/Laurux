@@ -9490,6 +9490,11 @@ Public Sub Bl_Edit()
       Rglt.ReadOnly = False
       Regmt.Enabled = True
     Else
+      If Blent!type <> "F" Then
+        Ignore_Remise.Enabled = True
+      Else
+        Ignore_Remise.Enabled = False
+      Endif
       Rglt.Text = Blent!mtreg
       Try Rglt2.Text = Blent!mtreg2
       HBox6.Visible = True
@@ -9511,6 +9516,8 @@ Public Sub Bl_Edit()
     Try Impstock.Value = Start.LocalSettings["/Soc" & Start.Societe & "/Impstocke"]
     Try ImpPDF.Value = Start.LocalSettings["/Soc" & Start.Societe & "/ImpPDF"]
     Try Imptotbl.value = Start.LocalSettings["/Soc" & Start.Societe & "/ImpTotbl"]
+    'Ignore Remise est une option volatile pour l'instant (pas stocké dans les paramètres, par défault off)
+    Ignore_Remise_Click() 'permet de masquer Imptotbl incompatible avec Ignore Remise
     Try Recap.Value = Start.LocalSettings["/Soc" & Start.Societe & "/Recap"]
     Try Cond.Value = Start.LocalSettings["/Soc" & Start.Societe & "/Cond"]
     If Start.LocalSettings["/Soc" & Start.Societe & "/Sms"] Then
@@ -10291,8 +10298,8 @@ Public Sub Impression(Org As String)
             Txt_ttc = " HT"
           Endif
           If Start.LocalSettings["/Soc" & Start.Societe & "/AutoEnt"] Or If Start.LocalSettings["/Soc" & Start.Societe & "/Franchise"] Then Txt_ttc = ""
-          P = 31
-          If Recap.Value = False And Pied.Value = False Then p = 34
+          P = 27
+          If Recap.Value = False And Pied.Value = False Then p = 29
           If borientation Then
             Cptlig += ccd.nbdecons + 1
             p = 15
@@ -10503,6 +10510,21 @@ Public Sub Impression(Org As String)
                   If Prxdec Then Try Totalht = Round(Val(Totalht))
                   typeL = Coldetail.current[9 + i]
                   Totttc = .CPoint(Coldetail.current[8 + i])
+                  
+                  If Ignore_Remise.Value And typeL <> "C" And typeL <> "T" And typeL <> "E" And TypeL <> "P" And TypeL <> "R" And TypeL <> "O" And typeL <> "D" Then
+                    Rem = "0"
+                    Totalht = Brutht
+                    If Not IsNull(Txtva)
+                      Tvarslt = Utils.db.Exec("select * from " & Tab8 & " where code_tva = &1", Txtva)
+                      If Tvarslt.Available Then
+                        Ttva = Tvarslt!taux_tva
+                      Endif
+                    Else
+                      Ttva = 0
+                    Endif
+                    Totttc = Format$((Val(.CPoint(Totalht)) * (1.0 + (Ttva / 100.0))), "0.00")
+                  Endif
+                  
                   If Prxdec Then Try Totttc = Round(Val(Totttc))
                   If Remmo = "" Then Remmo = "0"
                   If Remart = "" Then Remart = "0"
@@ -10518,7 +10540,7 @@ Public Sub Impression(Org As String)
                     Pu = ""
                     Brutht = ""
                   Endif
-                  If Val(.cpoint(Rem)) = 0 Then Rem = ""
+                  If Val(.cpoint(Rem)) = 0 Then Rem = "0"
                   If typeL <> "C" And typeL <> "T" And typeL <> "E" And TypeL <> "P" And TypeL <> "R" And TypeL <> "O" And typeL <> "D" Then
                     If Impttc.Value = True Then
                       If typeL = "A" Then
@@ -10540,11 +10562,11 @@ Public Sub Impression(Org As String)
                           ar$ = Nbdec
                         Endif
                         Impdetail = ArtRslt!art_impdetail
-                        'Txtva = ArtRslt!art_tva
-                        Tvarslt = Utils.db.Exec("select * from " & Tab8 & " where code_tva = &1", Txtva)
-                        If Tvarslt.Available Then
-                          Ttva = Tvarslt!taux_tva
-                        Endif
+                        
+                        'TEST SANS REMISE
+                        Rem = "0"
+                        Totalht = Brutht
+                        
                         If Ttva = 0 Or If exo.Value = True Then
                           Puttc = pu
                         Else
@@ -10746,7 +10768,7 @@ Public Sub Impression(Org As String)
                       PosY += 4
                     Endif
                     Me.Mouse = mouse.Default
-                    Maj_Totalisation()
+                    Maj_Totalisation(Ignore_Remise.Value)
                     If Cptvente = False Then
                       Cptvente = True
                       Me.mouse = Mouse.Default
@@ -11170,7 +11192,7 @@ Public Sub Impression(Org As String)
           Endif
           If Blch.Value = True And Not impdclient Then
             If Impttc.Value Then
-              If Val(Trem) <> 0 Then
+              If Val(Trem) <> 0 And Not Ignore_Remise.Value Then
                 Trem = "Total remise : " & Trem & Txt_ttc
               Else
                 Trem = ""
@@ -11190,7 +11212,7 @@ Public Sub Impression(Org As String)
                 Tmo = ""
               Endif
             Else
-              If Val(Totrem.text) <> 0 Then
+              If Val(Totrem.text) <> 0 And Not Ignore_Remise.Value Then
                 If Prxdec Then
                   Try Trem = Round(Val(Totrem.text))
                   Try Trem = Format$(Val(Trem), "0")
@@ -11221,12 +11243,12 @@ Public Sub Impression(Org As String)
               Endif
             Endif
             If BlA5.value And Not Bfac.value Then
-              posy = 144
+              posy = 124
             Else
-              posy = 241
+              posy = 221
             Endif
             If borientation Then posy = 155
-            If Imptotbl.value And Not Cdivers And Not impdclient Then
+            If Imptotbl.Enabled And Imptotbl.value And Not Cdivers And Not impdclient Then
               posy -= 4
               sRecap = Sbl(ftotal, ftotalttc)
               sRecap = "Total BL a facturer : " & sRecap
@@ -11281,9 +11303,9 @@ Public Sub Impression(Org As String)
             Endif
           Endif
           If BlA5.value And Not Bfac.value Then
-            posy = 160
+            posy = 140
           Else
-            posy = 255
+            posy = 235
           Endif
           If borientation Then
             posy = 171
@@ -11460,7 +11482,7 @@ Public Function Sbl(ftotal As String, ftotalttc As String) As String
 
   ftotal = 0
   ftotalttc = 0
-  Client = Utils.db.Exec("SELECT * FROM  " & tab1 & " where type = &1 and totalht <> &3 and cdclibl = &4 or type = &2 and totalht <> &3 and cdclibl = &4 order by cdclibl, numbl", "B", "F", 0, Code3.text)
+  Client = Utils.db.Exec("SELECT * FROM  " & tab1 & " where type = &1 and totalht <> &2 and cdclibl = &3 order by numbl", "B", 0, Code3.text)
   If Client.Available Then
     Repeat
       fTotal = Format$(Val(Utils.cpoint(ftotal)) + Val(Utils.cpoint(Client!totalht)), "0.00")
@@ -11584,8 +11606,10 @@ End
 '*                   Maj Totalisation                     *
 '**********************************************************
 
-Public Sub Maj_Totalisation()
+Public Sub Maj_Totalisation(Optional Ignore_Remise As Boolean = False)
 
+  Dim Mht As String
+  Dim Mttc As String
   Dim Mtva As String
   Dim Totht As String
   Dim Tottva As String
@@ -11648,8 +11672,18 @@ Public Sub Maj_Totalisation()
     If rResult.Available Then
       IntitTva = rResult!intitule_cc
     Endif
+   
+    'On prend le brut si on ignore les remise
+    If Ignore_Remise Then
+      Mht = Coldetail.current[5]
+      Mttc = Format$((Val(.CPoint(Mht)) * (1.0 + (Ttva / 100.0))), "0.00")
+    Else
+      Mht = Coldetail.current[7 + i]
+      Mttc = Coldetail.current[8 + i]
+    Endif
+    
     'On calcule le montant de la TVA
-    Mtva = Format$(Val(.CPoint(Coldetail.current[8 + i])) - (Val(.CPoint(Coldetail.current[7 + i]))), "0.000")
+    Mtva = Format$(Val(.CPoint(Mttc)) - (Val(.CPoint(Mht))), "0.000")
     If IsNull(Mtva) Then Mtva = "0.000"
     'Si ce n'est pas un compte TVA regarde si le compte existe deja dans la table temporaire
     If Left$(Cpt, 4) <> "4457" Then
@@ -11661,7 +11695,7 @@ Public Sub Maj_Totalisation()
     'Si le compte existe dans la table temporaire
     If hresult.Available Then
       'Si ce n'est pas un client on calcule le HT et le montant de la TVA
-      Totht = Format$(Val(Utils.CPoint(hresult!totalht)) + Val(Utils.CPoint(Coldetail.current[7 + i])), "0.000")
+      Totht = Format$(Val(Utils.CPoint(hresult!totalht)) + Val(Utils.CPoint(Mht)), "0.000")
       TotTva = Format$(Val(.CPoint(hresult!totaltva)) + Val(.CPoint(Mtva)), "0.000")
       If Prxdec Then
         Totht = Round(Val(Totht))
@@ -11677,7 +11711,7 @@ Public Sub Maj_Totalisation()
       'ENDIF
     Else
       'Si le compte n'existe pas dans la table temporaire
-      Totht = Format$(Val(.CPoint(Coldetail.current[7 + i])), "0.000")
+      Totht = Format$(Val(.CPoint(Mht)), "0.000")
       If Prxdec Then Totht = Round(Val(Totht))
       'Si ce n'est pas un compte TVA on crée avec un code TVA a zéro
       If Left$(Cpt, 4) <> "4457" Then
@@ -11691,7 +11725,7 @@ Public Sub Maj_Totalisation()
       hresult = Utils.db.Exec("SELECT * FROM " & Tab5 & " Where compte = &1 and codetva = &2", Cpttva, Ctva)
       If hresult.Available Then
         TotTva = Format$(Val(.CPoint(hresult!totaltva)) + Val(.CPoint(Mtva)), "0.000")
-        Totht = Format$(Val(.CPoint(hresult!totalht)) + Val(.CPoint(Coldetail.current[7 + i])), "0.000")
+        Totht = Format$(Val(.CPoint(hresult!totalht)) + Val(.CPoint(Mht)), "0.000")
         If Prxdec Then
           TotTva = Round(Val(TotTva))
           Totht = Round(Val(Totht))
@@ -12137,6 +12171,11 @@ Public Sub Calc_tva(Org As String)
   Dim CResult As Result
   Dim Cptrst As Result
   Dim TotEuros As String
+  'On recalcul les totaux pour permettre l'affichage sans remise
+  Dim GTotht As String = "0,00"
+  Dim GTotva As String = "0,00"
+  Dim GTotttc As String = "0,00"
+  
   Dim $ht As String
   Dim $tva As String
   Dim rg, rg2 As Float = 0
@@ -12144,58 +12183,62 @@ Public Sub Calc_tva(Org As String)
   Tab = "Fiches_Tvaav"
   Tab2 = "Totalisation"
   With Utils
-    Cptrst = Utils.db.Exec("SELECT * FROM " & Tab & "")
-    If Cptrst.Available Then
+    Cresult = Utils.db.Exec("SELECT * FROM " & Tab2 & "")
+    If Cresult.Available Then
       Repeat
-        Try Ttx = Format$(Cptrst!taux_tva, ",0.00")
-        Ctx = Cptrst!code_tva
-        Cresult = Utils.db.Exec("SELECT * FROM " & Tab2 & " Where codetva = &1", Ctx)
-        If Cresult.Available Then
-          Repeat
+        If Left$(CResult!compte, 3) = "445" Then
+          Ctx = CResult!codetva
+          Cptrst = Utils.db.Exec("SELECT * FROM " & Tab & " Where code_tva = &1", Ctx)
+          If Cptrst.Available Then
             Cpt = CResult!compte
-            If Left$(Cpt, 3) = "445" Then
-              Mtva2 = Format$(Val(CResult!totaltva), ",0.00")
-              If IsNull(Mtva2) Then Mtva2 = "0,00"
-              Mht = Format$(Val(CResult!totalht), ",0.00")
-              If IsNull(Mht) Then Mht = "0,00"
-              If Prxdec Then
-                Mtva2 = Round(Val(Mtva2))
-                Mtva2 = Format$(Val(Mtva2), ",0")
-                Mht = Round(Val(Mht))
-                Mht = Format$(Val(Mht), ",0")
-              Endif
-              If Val(Mtva2) <> 0 Then
-                Mtva = Mtva2
-                If ImpAuto = False And If Franchise = False And If Not exo.value Then
-                  If Blch.Value = True And Not impdclient Then
-                    If BlA5.Value And Not Bfac.value Then
-                      pdf2.Level9F(Ctx, Mht, Ttx, Mtva, Mttc, PosY)
-                      PosY = PosY + 3
-                    Else
-                      pdf.Level9F(Ctx, Mht, Ttx, Mtva, Mttc, PosY)
-                      PosY = PosY + 3
-                    Endif
-                  Endif
+            Try Ttx = Format$(Cptrst!taux_tva, ",0.00")
+            Mtva2 = Format$(Val(CResult!totaltva), ",0.00")
+            If IsNull(Mtva2) Then Mtva2 = "0,00"
+            Mht = Format$(Val(CResult!totalht), ",0.00")
+            If IsNull(Mht) Then Mht = "0,00"
+            If Prxdec Then
+              Mtva2 = Round(Val(Mtva2))
+              Mtva2 = Format$(Val(Mtva2), ",0")
+              Mht = Round(Val(Mht))
+              Mht = Format$(Val(Mht), ",0")
+            Endif
+            Mtva = Mtva2
+            If ImpAuto = False And If Franchise = False And If Not exo.value Then
+              If Blch.Value = True And Not impdclient Then
+                If BlA5.Value And Not Bfac.value Then
+                  pdf2.Level9F(Ctx, Mht, Ttx, Mtva, Mttc, PosY)
+                  PosY = PosY + 3
+                Else
+                  pdf.Level9F(Ctx, Mht, Ttx, Mtva, Mttc, PosY)
+                  PosY = PosY + 3
                 Endif
               Endif
             Endif
-          Until Cresult.MoveNext()
-        Else
-          Mtva = "0,00"
+            GTotva = Format(Val(.cpoint(Mtva2)) + Val(.cpoint(GTotva)), "0.00")
+          Endif
+        Else If Left$(CResult!compte, 3) <> "411" Then 'Si ce n'est pas le compte client
+          Mht = Format$(Val(CResult!totalht), ",0.00")
+          If IsNull(Mht) Then Mht = "0,00"
+          If Prxdec Then
+            Mht = Round(Val(Mht))
+            Mht = Format$(Val(Mht), ",0")
+          Endif
+          GTotht = Format(Val(.cpoint(Mht)) + Val(.cpoint(GTotht)), "0.00")
         Endif
-      Until Cptrst.MoveNext()
+      Until CResult.MoveNext()
     Endif
     PosY = 274
     If BlA5.Value Then PosY = 179
     If $soption = "B" Or $soption = "T" Then
       If $opt.consigne Or $opt.regie Then PosY = 190
     Endif
+    GTotttc = Format(Val(.cpoint(GTotht)) + Val(.cpoint(GTotva)), "0.00")
     If Reserve.Value = False And Org <> "Mail" Then Txtleg2 = ""
     If Prxdec Then
-      Toteuros = Round(Val(Tottc1.text))
+      Toteuros = Round(Val(GTotttc))
       Toteuros = Format$(Val(Toteuros), ",0") & " " & devises
     Else
-      Toteuros = Format$(Val(Tottc1.Text), ",0.00") & " " & devises
+      Toteuros = Format$(Val(GTotttc), ",0.00") & " " & devises
     Endif
     If Blch.Value = True And Not impdclient Then
       Try rg = Val(Rglt.text)
@@ -12204,15 +12247,15 @@ Public Sub Calc_tva(Org As String)
       If Error Then rg2 = 0
       If Not bacquitte Then
         If rg = Val(Utils.cpoint(Totalttc)) And If Rgmt.value And If Not IsNull(Regmt.Text) Then bacquitte = True
-        If rg + rg2 = Val(Tottc.Text) And If Rgmt.value Then
+        If rg + rg2 = Val(GTotttc) And If Rgmt.value Then
           If Not IsNull(Regmt2.Text) Then bacquitte = True
         Endif
       Endif
       If Visudoc And If imp = "0" Then bacquitte = False
       If Prxdec Then
-        $ht = Round(Val(Totht1.text))
+        $ht = Round(Val(GTotht))
         $ht = Format$(Val($ht), ",0")
-        $tva = Round(Val(Totva1.text))
+        $tva = Round(Val(GTotva))
         $tva = Format$(Val($tva), ",0")
         If BlA5.Value And Not Bfac.value Then
           pdf2.Level10F($ht, $tva, Toteuros, Txtleg, PosY - 6, ImpAuto, Exo.value, Franchise)
@@ -12223,10 +12266,10 @@ Public Sub Calc_tva(Org As String)
         Endif
       Else
         If BlA5.Value And Not Bfac.value Then
-          pdf2.Level10F(Format$(Val(Totht1.Text), ",0.00"), Totva1.Text, Toteuros, Txtleg, PosY - 6, ImpAuto, Exo.value, Franchise)
+          pdf2.Level10F(Format$(Val(GTotht), ",0.00"), GTotva, Toteuros, Txtleg, PosY - 6, ImpAuto, Exo.value, Franchise)
           If Not IsNull(txtleg1) Then pdf2.Level10F2(Txtleg1, PosY - 4, ImpAuto, Exo.value, Franchise)
         Else
-          pdf.Level10F(Format$(Val(Totht1.Text), ",0.00"), Totva1.Text, Toteuros, Txtleg, PosY - 6, ImpAuto, Exo.value, Franchise)
+          pdf.Level10F(Format$(Val(GTotht), ",0.00"), GTotva, Toteuros, Txtleg, PosY - 6, ImpAuto, Exo.value, Franchise)
           If Not IsNull(txtleg1) Then pdf.Level10F2(Txtleg1, PosY - 4, ImpAuto, Exo.value, Franchise)
         Endif
         If bacquitte Then
@@ -15238,5 +15281,15 @@ Public Sub option_recalcul()
 
   calculfindoc
   button4_click
+
+End
+
+Public Sub Ignore_Remise_Click()
+
+  If Ignore_Remise.Value Then
+    Imptotbl.Enabled = False
+  Else
+    Imptotbl.Enabled = True
+  Endif
 
 End
