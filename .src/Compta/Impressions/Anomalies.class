@@ -1,5 +1,19 @@
 ' Gambas class file
 
+Private Tab As String
+Private dte1 As String
+Private dte2 As String
+
+
+Public Sub Form_Open()
+  
+  dteN1.Text = Format(Exercice_End(0), "dd.mm.yyyy")
+  dteN0.Text = Format(Exercice_Begin(0), "dd.mm.yyyy")
+  Tab = "Fiches_Mvt"
+End
+
+
+
 Public Sub Button2_Click()
 
   Dim rResult As Result
@@ -23,7 +37,11 @@ Public Sub Button2_Click()
   dte = Format$(Now, "dd.mm.yyyy")
   pdf.Level1A2()
   PosY = 32
-  rResult = Utils.db.Exec("SELECT * FROM  Fiches_Mvt Order by numero asc, lind desc")
+  Try rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where dte >= &1 and dte <= &2 Order by numero asc, lind desc", Utils.Cdate_Dbase(dten0.Text), Utils.Cdate_Dbase(dten1.Text))
+  If Error Then
+    Message.Error("La base ne contient pas de somme de control (exercice avant 2017-2018)")
+    Return
+  Endif
   If rResult.Available Then
     PB = New ProgBar("Recherche des anomalies", rResult.Count)
     PB.Enable_Detail()
@@ -31,8 +49,8 @@ Public Sub Button2_Click()
     PB.Show()
     Me.Mouse = Mouse.wait
     Repeat
-      If PB.Avancement("Ecriture " & rResult!numero, 10) = True Then Break
-      If Not Sha1Calc.CalcSha1_Verify("Fiches_Mvt", rResult!numero, rResult!lind) Then
+      If PB.Avancement("Ecriture " & rResult!numero, 50) = True Then Break
+      If Not Sha1Calc.CalcSha1_Verify(Tab, rResult!numero, rResult!lind) Then
         pdf.Level2A2(rResult!numero, rResult!compte, rResult!intitule, Format$(rResult!dte, "dd.mm.yyyy"), rResult!control, Sha1Calc.CalcSha1("Fiches_Mvt", rResult!numero, rResult!lind, False), posy)
         PosY += 5
         Inc i
@@ -67,4 +85,53 @@ Public Sub Button1_Click()
 
   Me.Close()
 
+End
+
+
+Public Sub Exercice_Begin(Optional Annee As Integer = 0) As Date
+  
+  Return DateAdd(DateAdd(Exercice_End(Annee), gb.Year, -1), gb.Day, 1)
+  
+End
+
+
+
+Public Sub Exercice_End(Optional Annee As Integer = 0) As Date
+
+  Dim rResult As Result
+  Dim context As New Collection
+  Dim dt As Date
+  
+  With utils
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabParam") & "")
+    Select Case Annee
+      Case 1
+        dt = rResult!dteclec1
+      Case 2
+        dt = rResult!dteclec2
+      Case 3
+        dt = rResult!dteclec3
+      Case 4
+        dt = rResult!dteclec4
+      Case 5
+        dt = rResult!dteclec5
+      Case Else
+        dt = rResult!dteclec
+    End Select
+  End With
+  
+  Return dt
+
+End
+
+Public Sub N_Click()
+  
+  dteN1.Text = Format(Exercice_End(Last.tag), "dd.mm.yyyy")
+  dteN0.Text = Format(Exercice_Begin(Last.tag), "dd.mm.yyyy")
+  If Last.Tag = 0 Then
+    tab = "Fiches_Mvt"
+  Else
+    tab = "Fiches_Mvt" & Last.tag
+  Endif
+  
 End

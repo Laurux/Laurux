@@ -99,6 +99,7 @@ Public Sub Button1_Click()
   Dim dtex As String
   Dim numecr As Integer
   Dim $cle As String
+  Dim PB As ProgBar
 
   Tab = "Fiches_Mvt"
   Tab2 = "Fiches_Parametres"
@@ -116,12 +117,15 @@ Public Sub Button1_Click()
         If rResult.Available Then
           num = rResult!numero
           numecr = numecr + 1
+          PB = New ProgBar("Cloture des Ecritures", rResult.Count)
+          PB.Show()
           Repeat
             If rResult!numero <> num And IsNull(rResult!numerodef) Or If rResult!numero <> num And rResult!numerodef = 0 Then numecr = numecr + 1
             num = rResult!numero
             cpt = rResult!compte
-            If Not Sha1Calc.CalcSha1_verify(Tab, rResult!numero) Then
-              Message.Error("Clôture impossible ! Une clé calculée ne correspond pas à celle mémorisée dans la table.")
+            If Not Sha1Calc.CalcSha1_verify(Tab, rResult!numero, rResult!lind) Then
+              PB.Close()
+              Message.Error("Clôture impossible ! La clé calculée de l'ecriture " & rResult!numero & " ne correspond pas à celle mémorisée dans la table.")
               Me.mouse = mouse.Default
               FCloture.Close()
               Return
@@ -132,10 +136,10 @@ Public Sub Button1_Click()
             Else
               Utils.db.Exec("UPdate  " & Tab & "  SET cloturee =  &1, dteval =&5 where numero = &2 and compte = &4", 1, num, numecr, cpt, Format$(Now, "yyyymmdd"))
             Endif
-            'Une fois cloturee on recalcul le control
-            Sha1Calc.CalcSha1("Fiches_Mvt", Numecr)
+            If PB.Avancement("Ecriture " & rResult!numero, 30) = True Then Break
           Until rResult.MoveNext()
         Endif
+        PB.Close()
         dtepc = Format$(Val(dtepc), "00")
         ' Determine le dernier jour du mois
         Dppc = Date(Right$(dpc, 4), dtepc, 01)

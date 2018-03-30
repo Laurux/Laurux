@@ -119,6 +119,7 @@ Public Sub Maj_Archives()
   Dim Ligbonl As Result
   Dim Parmt As Result
   Dim Tvarslt As Result
+  Dim HFac As Result
   Dim Entf As String
   Dim HisEntM As String
   Dim Ligf As String
@@ -127,6 +128,7 @@ Public Sub Maj_Archives()
   Dim Parm As String
   Dim Dppc As String
   Dim TauxTva As String
+  Dim PB As ProgBar
 
   Entf = "Fiches_HistoFac"
   HisentM = "Fiches_Hisentmat"
@@ -138,17 +140,24 @@ Public Sub Maj_Archives()
   With Utils
     Entbonl = Utils.db.Exec("SELECT * FROM " & Entbon & " where imp = &1 and type = &2 and dtefac <= &3 ", 1, "F", Right(dtpc, 4) & Mid(dtpc, 4, 2) & 31)
     If EntBonl.Available Then
+      PB = New ProgBar("Cloture mensuelle de facturation", EntBonl.Count)
+      PB.Show()
       Repeat
         If Right(.Cdate_Aff(Entbonl!dtefac), 4) & Mid(.Cdate_Aff(Entbonl!dtefac), 4, 2) Then
           Tot_Remises()
           Nfac = Entbonl!numfac
-          Try Utils.db.Exec("INSERT INTO " & Entf & "(numfac,datefac,cdclifac, nmclifac, rmofac, rartfac, pnmclifac, adr1fac, adr2fac, cpfac, villefac, exofac, cvclifac, remmofac, remartfac, totfac, reg, ech, numerobl, acpt, mreg, marge_art, marge_mo, totfacttc, cdep,gestfac) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24},&{25}, &{26})", Nfac, Entbonl!dtefac, Entbonl!cdclibl, Entbonl!nmclibl, Entbonl!rmobl, Entbonl!rartbl, Entbonl!pnmclibl, Entbonl!adr1bl, Entbonl!adr2bl, Entbonl!cpbl, Entbonl!villebl, Entbonl!exobl, Entbonl!cvclibl, .PointBase(Remmo), .PointBase(Remart), Entbonl!totalht, Entbonl!reg, Entbonl!ech, Entbonl!numbl, Entbonl!acpt, Entbonl!mreg, Entbonl!marge_art, Entbonl!marge_mo, Entbonl!totalttc, Entbonl!cdep, Entbonl!gestbl)
-          If Error Then 
-            Parametres()
+          HFac = Utils.db.Exec("Select * From " & Entf & " where numfac = &1", Nfac)
+          If HFac.Available Then
+            Nfac = Right(.Cdate_Aff(Entbonl!dtefac), 4) & "-" & Left(Base64$(Digest["sha1"](Entbonl!dtefac & Entbonl!nmclibl & Entbonl!pnmclibl & Entbonl!villebl & Entbonl!totalht & Entbonl!numbl)), 5)
             Message.Error("Attention problème d'archivage" & "\nLa facture  " & Entbonl!numfac & " a été renommée en  " & Nfac & "\nNotez ce changement et validez pour continuer")
-            Nfac = Left$(Entbonl!numfac, 4) & Nfac
-            Utils.db.Exec("INSERT INTO " & Entf & "(numfac,datefac,cdclifac, nmclifac, rmofac, rartfac, pnmclifac, adr1fac, adr2fac, cpfac, villefac, exofac, cvclifac, remmofac, remartfac, totfac, reg, ech, numerobl, acpt, mreg, marge_art, marge_mo, totfacttc, cdep,gestfac) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24},&{25}, &{26})", Nfac, Entbonl!dtefac, Entbonl!cdclibl, Entbonl!nmclibl, Entbonl!rmobl, Entbonl!rartbl, Entbonl!pnmclibl, Entbonl!adr1bl, Entbonl!adr2bl, Entbonl!cpbl, Entbonl!villebl, Entbonl!exobl, Entbonl!cvclibl, .PointBase(Remmo), .PointBase(Remart), Entbonl!totalht, Entbonl!reg, Entbonl!ech, Entbonl!numbl, Entbonl!acpt, Entbonl!mreg, Entbonl!marge_art, Entbonl!marge_mo, Entbonl!totalttc, Entbonl!cdep, Entbonl!gestbl)
+            HFac = Utils.db.Exec("Select * From " & Entf & " where numfac = &1", Nfac)
+            If HFac.Available Then
+              'cas peu probable sauf si reelle duplication, alors on recree
+              Utils.db.Exec("Delete from " & Entf & " where numfac = &1", Nfac)
+              Utils.db.Exec("Delete from " & Ligf & " where num_ligfac = &1", Nfac)
+            Endif
           Endif
+          Utils.db.Exec("INSERT INTO " & Entf & "(numfac,datefac,cdclifac, nmclifac, rmofac, rartfac, pnmclifac, adr1fac, adr2fac, cpfac, villefac, exofac, cvclifac, remmofac, remartfac, totfac, reg, ech, numerobl, acpt, mreg, marge_art, marge_mo, totfacttc, cdep,gestfac) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24},&{25}, &{26})", Nfac, Entbonl!dtefac, Entbonl!cdclibl, Entbonl!nmclibl, Entbonl!rmobl, Entbonl!rartbl, Entbonl!pnmclibl, Entbonl!adr1bl, Entbonl!adr2bl, Entbonl!cpbl, Entbonl!villebl, Entbonl!exobl, Entbonl!cvclibl, Left(.PointBase(Remmo), 10), Left(.PointBase(Remart), 10), Entbonl!totalht, Entbonl!reg, Entbonl!ech, Entbonl!numbl, Entbonl!acpt, Entbonl!mreg, Entbonl!marge_art, Entbonl!marge_mo, Entbonl!totalttc, Entbonl!cdep, Entbonl!gestbl)
           Ligbonl = Utils.db.Exec("SELECT * FROM " & Ligbon & " where num_ligbl = &1", Entbonl!numbl)
           If Ligbonl.Available Then
             Repeat
@@ -178,7 +187,9 @@ Public Sub Maj_Archives()
           Utils.db.Exec("DELETE FROM " & Entbon & " where numbl = &1", EntBonl!numbl)
           Utils.db.Exec("DELETE FROM " & Ligbon & " where num_ligbl = &1", EntBonl!numbl)
         Endif
+        If PB.Avancement("Facture " & NFac, 50) = True Then Break
       Until Entbonl.MoveNext()
+      PB.Close()
     Endif
     Entf = "Fiches_HistoFacM"
     HisEntM = "Fiches_Hisentmat"
@@ -187,19 +198,33 @@ Public Sub Maj_Archives()
     Ligbon = "Fiches_LigblM"
     Entbonl = Utils.db.Exec("SELECT * FROM " & Entbon & " where imp = &1 and type = &2  and dtefac < &3  ", 1, "F", Right(dtpc, 4) & Mid(dtpc, 4, 2) & 31)
     If EntBonl.Available Then
+      PB = New ProgBar("Cloture mensuelle de facturation matériel", EntBonl.Count)
+      PB.Show()
       Repeat
         If Right(.Cdate_Aff(Entbonl!dtefac), 4) & Mid(.Cdate_Aff(Entbonl!dtefac), 4, 2) Then
           Tot_Remises()
-          Utils.db.Exec("INSERT INTO " & Entf & "(numfac,datefac,cdclifac, nmclifac, rmofac, rartfac, pnmclifac, adr1fac, adr2fac, cpfac, villefac, exofac, cvclifac, remmofac, remartfac, totfac, reg, ech, numerobl, acpt, mreg, marge_art, marge_mo, totfacttc) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13},&{14},&{15},&{16},&{17},&{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24})", Entbonl!numfac, Entbonl!dtefac, Entbonl!cdclibl, Entbonl!nmclibl, Entbonl!rmobl, Entbonl!rartbl, Entbonl!pnmclibl, Entbonl!adr1bl, Entbonl!adr2bl, Entbonl!cpbl, Entbonl!villebl, Entbonl!exobl, Entbonl!cvclibl, .PointBase(Remmo), .PointBase(Remart), Entbonl!totalht, Entbonl!reg, Entbonl!ech, Entbonl!numbl, Entbonl!acpt, Entbonl!mreg, Entbonl!marge_art, Entbonl!marge_mo, Entbonl!totalttc)
+          Nfac = Entbonl!numfac
+          HFac = Utils.db.Exec("Select * From " & Entf & " where numfac = &1", Nfac)
+          If HFac.Available Then
+            Nfac = Right(.Cdate_Aff(Entbonl!dtefac), 4) & "-" & Left(Base64$(Digest["sha1"](Entbonl!dtefac & Entbonl!nmclibl & Entbonl!pnmclibl & Entbonl!villebl & Entbonl!totalht & Entbonl!numbl)), 5)
+            Message.Error("Attention problème d'archivage" & "\nLa facture  " & Entbonl!numfac & " a été renommée en  " & Nfac & "\nNotez ce changement et validez pour continuer")
+            HFac = Utils.db.Exec("Select * From " & Entf & " where numfac = &1", Nfac)
+            If HFac.Available Then
+              'cas peu probable sauf si reelle duplication, alors on recree
+              Utils.db.Exec("Delete from " & Entf & " where numfac = &1", Nfac)
+              Utils.db.Exec("Delete from " & Ligf & " where num_ligfac = &1", Nfac)
+            Endif
+          Endif
+          Utils.db.Exec("INSERT INTO " & Entf & "(numfac,datefac,cdclifac, nmclifac, rmofac, rartfac, pnmclifac, adr1fac, adr2fac, cpfac, villefac, exofac, cvclifac, remmofac, remartfac, totfac, reg, ech, numerobl, acpt, mreg, marge_art, marge_mo, totfacttc) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13},&{14},&{15},&{16},&{17},&{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24})", Nfac, Entbonl!dtefac, Entbonl!cdclibl, Entbonl!nmclibl, Entbonl!rmobl, Entbonl!rartbl, Entbonl!pnmclibl, Entbonl!adr1bl, Entbonl!adr2bl, Entbonl!cpbl, Entbonl!villebl, Entbonl!exobl, Entbonl!cvclibl, Left(.PointBase(Remmo), 10), Left(.PointBase(Remart), 10), Entbonl!totalht, Entbonl!reg, Entbonl!ech, Entbonl!numbl, Entbonl!acpt, Entbonl!mreg, Entbonl!marge_art, Entbonl!marge_mo, Entbonl!totalttc)
           Ligbonl = Utils.db.Exec("SELECT * FROM " & Ligbon & " where num_ligbl = &1", Entbonl!numbl)
           If Ligbonl.Available Then
             Repeat
               If Ligbonl!typel_ligbl <> "C" And If Ligbonl!typel_ligbl <> "R" Then
                 Try Tvarslt = Utils.db.Exec("select * from " & Cbase.Table("TabTvav") & " where code_tva = &1", Ligbonl!tx_ligbl)
                 If Tvarslt.available Then TauxTva = Tvarslt!taux_tva
-                Utils.db.Exec("INSERT INTO " & Ligf & "(num_ligfac, numlig_ligfac, code_ligfac,  libel_ligfac, Fam_Ligfac, Pu_Ligfac, qte_ligfac, brut_ligfac, rem_ligfac, netht_ligfac, tx_ligfac, nettc_ligfac, typel_ligfac, tm_ligfac, bloc, mtx_ligfac) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Entbonl!numfac, Ligbonl!numlig_ligbl, Ligbonl!code_ligbl, Ligbonl!libel_ligbl, Ligbonl!fam_ligbl, Ligbonl!pu_ligbl, Ligbonl!qte_ligbl, Ligbonl!brut_ligbl, Ligbonl!rem_ligbl, Ligbonl!netht_ligbl, Ligbonl!tx_ligbl, Ligbonl!nettc_ligbl, Ligbonl!typel_ligbl, Ligbonl!tm_ligbl, Ligbonl!com_ligbl, Ligbonl!block_ligbl, TauxTva)
+                Utils.db.Exec("INSERT INTO " & Ligf & "(num_ligfac, numlig_ligfac, code_ligfac, libel_ligfac, Fam_Ligfac, Pu_Ligfac, qte_ligfac, brut_ligfac, rem_ligfac, netht_ligfac, tx_ligfac, nettc_ligfac ,com_ligfac, typel_ligfac, tm_ligfac, bloc, mtx_ligfac) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Nfac, Ligbonl!numlig_ligbl, Ligbonl!code_ligbl, Ligbonl!libel_ligbl, Ligbonl!fam_ligbl, Ligbonl!pu_ligbl, Ligbonl!qte_ligbl, Ligbonl!brut_ligbl, Ligbonl!rem_ligbl, Ligbonl!netht_ligbl, Ligbonl!tx_ligbl, Ligbonl!nettc_ligbl, Ligbonl!com_ligbl, Ligbonl!typel_ligbl, Ligbonl!tm_ligbl, Ligbonl!block_ligbl, TauxTva)
               Else
-                Utils.db.Exec("INSERT INTO " & Ligf & "(num_ligfac, numlig_ligfac, code_ligfac, com_ligfac, typel_ligfac, bloc)VALUES (&1, &2, &3, &4, &5, &6)", Entbonl!numfac, Ligbonl!numlig_ligbl, Ligbonl!code_ligbl, Ligbonl!com_ligbl, Ligbonl!typel_ligbl, Ligbonl!block_ligbl)
+                Utils.db.Exec("INSERT INTO " & Ligf & "(num_ligfac, numlig_ligfac, code_ligfac, com_ligfac, typel_ligfac, bloc)VALUES (&1, &2, &3, &4, &5, &6)", Nfac, Ligbonl!numlig_ligbl, Ligbonl!code_ligbl, Ligbonl!com_ligbl, Ligbonl!typel_ligbl, Ligbonl!block_ligbl)
               Endif
             Until Ligbonl.MoveNext()
           Endif
@@ -207,7 +232,9 @@ Public Sub Maj_Archives()
           Utils.db.Exec("DELETE FROM " & Entbon & " where numbl = &1", EntBonl!numbl)
           Utils.db.Exec("DELETE FROM " & Ligbon & " where num_ligbl = &1", EntBonl!numbl)
         Endif
+        If PB.Avancement("Facture " & NFac, 50) = True Then Break
       Until Entbonl.MoveNext()
+      PB.Close()
     Endif
     Dtepp = Dtpc
     ' On incrémente la période en cours
@@ -258,6 +285,7 @@ Public Sub Calc_solde()
   Dim Tab2 As String
   Dim Intit As String
   Dim p1 As Integer
+  Dim PB As ProgBar
 
   totsldhp = 0.00
   Tab = "Fiches_Mvt"
@@ -266,6 +294,8 @@ Public Sub Calc_solde()
   With Utils
     rrResult = Utils.db.Exec("SELECT compte_cc, intitule_cc  FROM " & Tab2 & " order by cast(compte_cc AS char)")
     If rrResult.Available Then
+      PB = New ProgBar("Calcul des soldes", rrResult.Count)
+      PB.Show()
       Repeat
         compt = rrResult!compte_cc
         Intit = rrResult!intitule_cc
@@ -289,7 +319,9 @@ Public Sub Calc_solde()
         totdeb = 0
         totcred = 0
         totsld = 0
+        If PB.Avancement("Compte " & compt, 200) = True Then Break
       Until rrResult.MoveNext()
+      PB.Close()
     Endif
   End With
   If Start.son Then
