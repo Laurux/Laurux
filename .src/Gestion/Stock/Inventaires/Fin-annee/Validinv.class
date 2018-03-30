@@ -231,10 +231,23 @@ Public Sub button4_Click()
   Dim ccd As Calculdroit
   Dim vol, volap As Float
 
-  respar = Utils.db.Exec("SELECT dtepec FROM Fiches_Parametres")
-  dte = Date(Right(respar!dtepec, 4), Val(Left(respar!dtepec, 2)), 1)
-  dte = DateAdd(dte, gb.Month, 1)
-  If Message.Question("La nouvelle date de début sera : " & Format(dte, "dd.mm.yyyy") & " étes vous d'accord ?", "Oui", "Non") = 2 Then Return
+  'PATRICKMAG a verifier merge v3.69 utilisation option bois decoché non pris en compte!
+  'si le bouton ne peux pas etre cliqué en mode non matière c'est ok
+  'tu peux supprimer le Else
+  If Start.LocalSettings["/Soc" & Start.Societe & "/bois"] = True Then
+    respar = Utils.db.Exec("SELECT arrete FROM Fiches_Parametres")
+    dte = Date(Right(respar!arrete, 4), Val(Left(respar!arrete, 2)), 1)
+    dte = DateAdd(dte, gb.Month, 13)
+    If res.Available Then
+      Message.Warning("Il y a déjà une cloture à la date du " & Format(dte, "dd.mm.yyyy"))
+      Return
+    Endif
+  Else
+    respar = Utils.db.Exec("SELECT dtepec FROM Fiches_Parametres")
+    dte = Date(Right(respar!dtepec, 4), Val(Left(respar!dtepec, 2)), 1)
+    dte = DateAdd(dte, gb.Month, 1)  
+  Endif
+  If Message.Question("La nouvelle date de début sera : " & Format(dte, "dd.mm.yyyy") & " êtes vous d'accord ?", "Oui", "Non") = 2 Then Return
   Utils.db.Begin
   resregie = Utils.db.Exec("SELECT * FROM Fiches_regie")
   If resregie.Available Then
