@@ -1368,9 +1368,6 @@ Public Sub Button4_Click()
           Utils.db.Exec("INSERT INTO " & tabf & " (fo_code,fo_col,fo_rs_soc,fo_nom,fo_pnm,fo_adr1,fo_adr2,fo_cd_ptl,fo_ville,fo_email,fo_tel_std,fo_tel_bur,fo_tel_post,fo_pble,fo_fx1,fo_fx2,fo_obs,fo_cd_bq,fo_cd_gch,fo_num_cpt,fo_cle_rib,fo_dom,fo_id_tva,fo_cd_cli,fo_collectif, fo_site, fo_cdech, fo_pays, fo_franco, fo_centrale, fo_ccentrale, fo_copie, fo_mincom, fo_iban, fo_bic, fo_exo, fo_fport, fo_cb) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13},&{14},&{15},&{16},&{17},&{18},&{19},&{20},&{21},&{22},&{23},&{24},&{25}, &{26}, &{27}, &{28}, &{29}, &{30}, &{31}, &{32}, &{33}, &{34}, &{35}, &{36}, &{37}, &{38})", Cd.text, type, CV.text, Nm.text, Pnm.text, Adresse1.text, Adresse2.text, cp.text, Burdist.text, Email.text, Telstd.text, TelBur.text, Poste.text, Portable.text, Fax1.text, Fax2.text, Divers.text, codebanque.text, codeguichet.text, numcompte.text, Cle.text, dom.text, Idtva.text, Ntcdclient.text, collectif.text, site.text, Cdech.text, Pays.Text, Val(.cpoint(Franco.text)), .convBool(CheckBox1.value), Centrale.Text, Copie.value, Val(.cpoint(MinCom.text)), Iban.text, Bic.text, Exo.value, Val(.cpoint(Fport.text)), cb.Text)
           Utils.db.Exec("insert into " & tabc & " (compte_cc,intitule_cc,type_cc,coll,coll_cc, solde,cent_cc,comptr_cc, gen_tv, gen_ta, lettrable) values ( &1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11})", Cd.Text, Nm.Text, type, 0, collectif.Text, 0, 0, 0, 0, 0, Lettrable.value)
           Enrgcp.Ecp(Cp.Text, Burdist.Text)
-          If Cd.Text <> "" Then
-            Utils.db.Exec("Update " & Tabp & " set dnf = &1", Cd.Text)
-          Endif
           If Variables.Sprix And Variables.Sexport And Variables.SMajFour Then Serveur.Pass("Four", "C", Cd.Text, "")
           Button16_Click()
           CleanChampsCt()
@@ -1576,27 +1573,40 @@ Public Sub Button2_Click()
 
   Dim tab As String
   Dim tab2 As String
+  Dim tabfo As String
   Dim Colcpt As String
   Dim rResult As Result
 
   Tab = "Fiches_Parametres"
+  Tabfo = "Fiches_Four"
   Tab2 = "Fiches_Comptes"
   Button4.Text = "Valider"
   cleanChamps()
+  Utils.db.Exec("LOCK TABLES " & Tab & " WRITE, " & Tabfo & " READ")
   rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
   If IsNull(rResult!dnf) Or If rResult!dnf < 401000 Then
     Message.Error("Il y a un problème pour la création des comptes fournisseurs \n Veuillez contrôler les paramètres SVP !")
   Else
     Cd.Text = rResult!dnf
-    If Val(Cd.Text) <= 401000 Then
-      Cd.Text = "401001"
+    'TODO la gestion de l'increment devrait etre plus générique
+    If Val(Cd.Text) = 401999 Then
+      Cd.Text = 4011000
     Else
-      If Val(Cd.Text) = 401999 Then
-        Cd.Text = 4011000
+      If Val(Cd.Text) = 4019999 Then
+        Cd.Text = 40110000
       Else
         Cd.Text = Val(Cd.Text) + 1
+        rResult = Utils.db.Exec("SELECT fo_code FROM " & Tabfo & " where fo_code = &1", Cd.Text)
+        If rResult.Available Then
+          Message.Warning("Attribution Impossible, le compte " & Cd.Text & " existe déjà, retour à la fin de la liste")
+          rResult = Utils.db.Exec("SELECT fo_code FROM " & Tabfo & " order by fo_code desc limit 1", Cd.Text)
+          'Il y a forcement un résultat
+          Cd.Text = rResult!fo_code + 1
+        Endif
       Endif
     Endif
+    Utils.db.Exec("Update " & Tab & " set dnf = &1", "401" & Right$(cd.Text, Len(cd.Text) - 3))
+    Utils.db.Exec("UNLOCK TABLES")
     Try Copie.Value = Start.LocalSettings["/Soc" & Start.Societe & "/Pdf2"]
     rResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " where coll = &1 order by cast(compte_cc AS char)", 1)
     If rResult.Available Then

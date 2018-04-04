@@ -1582,21 +1582,24 @@ End
 Public Sub Button2_Click()
 
   Dim tab As String
+  Dim tabcl As String
   Dim Tab2 As String
   Dim rResult As Result
  
 
   Tab = "Fiches_Parametres"
   Tab2 = "Fiches_Comptes"
+  Tabcl = "Fiches_Cli"
   Button4.Text = "Va&lider"
   cleanChamps()
-  Utils.db.Exec("LOCK TABLES " & Tab & " WRITE")
+  Utils.db.Exec("LOCK TABLES " & Tab & " WRITE , " & Tabcl & " READ")
   rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
   If IsNull(rResult!dnc) Or If rResult!dnc < 411000 Then
     Message.Error("Il y a un problème pour la création des comptes clients \n Veuillez contrôler les paramètres SVP !")
   Else
     Cd.Text = rResult!dnc
     Textfrais.Text = Format(rResult!frais, "0.00")
+    'TODO la gestion de l'increment devrait etre plus générique
     If Val(Cd.Text) = 411999 Then
       Cd.Text = 4111000
     Else
@@ -1604,6 +1607,13 @@ Public Sub Button2_Click()
         Cd.Text = 41110000
       Else
         Cd.Text = Val(Cd.Text) + 1
+        rResult = Utils.db.Exec("SELECT cli_code FROM " & Tabcl & " where cli_code = &1", Cd.Text)
+        If rResult.Available Then
+          Message.Warning("Attribution Impossible, le compte " & Cd.Text & " existe déjà, retour à la fin de la liste")
+          rResult = Utils.db.Exec("SELECT cli_code FROM " & Tabcl & " order by cli_code desc limit 1")
+          'Il y a forcement un résultat
+          Cd.Text = rResult!cli_code + 1
+        Endif
       Endif
     Endif
     GenRum()
