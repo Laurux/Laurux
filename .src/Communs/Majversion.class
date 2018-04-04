@@ -29,7 +29,7 @@ Public Sub Form_Open()
   hDoc = New HtmlDocument As "hDoc"
   hClient.URL = wwwpath
   hClient.Async = False
-  hClient.Timeout = 60
+  hClient.Timeout = 5
   hClient.Get
 
   'Print "Begin"
@@ -70,7 +70,7 @@ Public Sub Update_Type(wwwlpath As String, Type As String, Optional Ver As Strin
   hDoc = New HtmlDocument As "hDoc"
   hClient.URL = wwwlpath & Type
   hClient.Async = False
-  hClient.Timeout = 60
+  hClient.Timeout = 5
   hClient.Get
 
   If hClient.Status < 0 Then
@@ -103,17 +103,22 @@ Public Sub Update_Type(wwwlpath As String, Type As String, Optional Ver As Strin
     i = i + 1
   Wend
   
-  wwwlpath = wwwlpath & Type & ListVersion.Current.Text
+  If ListVersion.Count > 0 Then
+
+    wwwlpath = wwwlpath & Type & ListVersion.Current.Text
   
-  RecupVersion()
-  VerAct.Text = "Version Actuelle: " & Version & " (" & Application.Version & ")"
+    RecupVersion()
+    VerAct.Text = "Version Actuelle: " & Version & " (" & Application.Version & ")"
   
-  VersionWebArr = Verif_Maj(wwwlpath, False)
-  If (VersionWebArr.Length >= 2) Then
-    If VersionWebArr.Length = 2 Then VersionWebArr.Add("?") 'backward compat
-    VerWeb.Text = "Version Web: " & VersionWebArr[0] & "." & VersionWebArr[1] & " (" & VersionWebArr[0] & "." & VersionWebArr[1] & "." & VersionWebArr[2] & ")"
+    VersionWebArr = Verif_Maj(wwwlpath, False)
+    If (VersionWebArr.Length >= 2) Then
+      If VersionWebArr.Length = 2 Then VersionWebArr.Add("?") 'backward compat
+      VerWeb.Text = "Version Web: " & VersionWebArr[0] & "." & VersionWebArr[1] & " (" & VersionWebArr[0] & "." & VersionWebArr[1] & "." & VersionWebArr[2] & ")"
+    Else
+      VerWeb.Text = "Version Web: Not found"
+    Endif
   Else
-    VerWeb.Text = "Version Web: Not found"
+    VerWeb.Text = "Aucune version disponible"
   Endif
   
   Return wwwlpath
@@ -186,22 +191,24 @@ Public Sub Verif_Maj(Optional wwwlpath As String = wwwpath, Optional Update As B
       VersionWeb = VersionWebArr[0] & "." & VersionWebArr[1]
       If update Then
         If Val(VersionWebArr[1]) > Val(VersionAppArr[1]) Then
-          Maj(VersionWebFull, wwwlpath)
+          If Message.Question("Une mise à jour de version est disponible, Voulez-vous mettre a jour?", "OK", "Annuler") = 1 Then
+            Maj(VersionWebFull, wwwlpath)
+          Endif
         Else
           If Val(VersionWebArr[1]) = Val(VersionAppArr[1]) Then
             If Not IsNull(VersionWebArr[2]) And Not IsNull(VersionAppArr[2]) Then
               If Val(VersionWebArr[2]) > Val(VersionAppArr[2]) Then
-                If Message.Question("Une mise à jour de patch est disponible, Voulez-vous mettre a jour?", "OK", "Annuler") = 1 Then
+                If Message.Question("Une mise à jour de correctif est disponible, Voulez-vous mettre a jour?", "OK", "Annuler") = 1 Then
                   Maj(VersionWebFull, wwwlpath)
                 Endif
               Else
-                If Message.Question("Aucune mise à jour patch n'est a faire!", "OK", "Forcer") = 2 Then
+                If Message.Question("Aucune mise à jour de correctif n'est a faire!", "OK", "Forcer") = 2 Then
                   Maj(VersionWebFull, wwwlpath)
                 Endif
               Endif
             Endif
           Else
-            If Message.Question("Aucune mise à jour majeure n'est a faire!", "OK", "Forcer") = 2 Then
+            If Message.Question("Aucune mise à jour n'est a faire!", "OK", "Forcer") = 2 Then
               Maj(VersionWebFull, wwwlpath)
             Endif
           Endif
