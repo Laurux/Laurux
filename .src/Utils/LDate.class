@@ -1,0 +1,294 @@
+' Gambas class file
+
+Export
+Create Static
+Private Dte As Date
+
+Property L As String 'Laurux Date String Propery
+Property G As Date  'Gambas Date Object Propery
+Property D As String 'Database Date String Propery
+Property DT As String 'Database DateTime String Propery
+
+Property Read EDeb As LDate 'Date Debut Exercice comprenant dte
+Property Read EFin As LDate 'Date Fin Exercice comprenant dte
+Property Read EInd As Integer 'Index de l'Exercice de 0 -> N(=5) comprenant dte
+
+Property Read PDeb As LDate 'Date Debut Periode comprenant dte (actuellement 1 mois)
+Property Read PFin As LDate 'Date Fin Periode comprenant dte (actuellement 1 mois)
+
+
+'****************
+'METHODE SPECIALE
+'****************
+
+Public Sub _New(Optional DateOrYear As Variant, Optional Month As Integer = 1, Optional Day As Integer = 1, Optional Hour As Integer, Optional Minute As Integer, Optional Second As Integer, Optional Millisecond As Integer)
+  
+  If Not DateOrYear Then
+    Dte = Now
+  Else
+    If TypeOf(DateOrYear) = gb.Date Then
+      Dte = DateOrYear
+    Else If TypeOf(DateOrYear) = gb.String
+      If Param.Count = 0
+        Dte = Parse(DateOrYear)
+      Else
+        Dte = Date(DateOrYear, Month, Day, Hour, Minute, Second, Millisecond)
+      Endif
+    Else If TypeOf(DateOrYear) = gb.Integer
+      Dte = Date(DateOrYear, Month, Day, Hour, Minute, Second, Millisecond)
+    Else 'Probably an objet
+      Dte = Date(DateOrYear)
+    Endif
+  Endif
+  
+  'Print DateOrYear
+  
+End
+
+Public Sub _Call(Optional DateOrYear As Variant, Optional Month As Integer = 1, Optional Day As Integer = 1, Optional Hour As Integer, Optional Minute As Integer, Optional Second As Integer, Optional Millisecond As Integer) As LDate
+
+  Dim CLDate As LDate
+  
+  CLdate = New LDate(DateOrYear, Month, Day, Hour, Minute, Second, Millisecond)
+  Return CLdate
+
+End
+
+
+'**************
+'METHODE PRIVEE
+'**************
+
+Private Function Parse(Sdate As String) As Date
+
+  Dim cvdate As String[]
+  Dim time As String
+  Dim dte As String = Left$(Sdate, 10)
+  Dim hour As Integer
+  Dim min As Integer
+  Dim sec As Integer
+  Dim reg As RegExp
+  Dim reg2 As RegExp
+  
+  reg = New RegExp
+  reg.Compile("([0-9]+)[/.-]+([0-9]+)[/.-]+([0-9]+)")
+  reg.Exec(Sdate)
+  reg2 = New RegExp
+  reg2.Compile(" ([0-9]+)[:]([0-9]+)[:]([0-9]+)")
+  reg2.Exec(Sdate)
+  If reg2.Count = 3 Then
+    hour = Val(reg2[1].Text)
+    min = Val(reg2[2].Text)
+    sec = Val(reg2[3].Text)
+  Else
+    reg2.Compile(" ([0-9]+)[:]([0-9]+)")
+    reg2.Exec(Sdate)
+    sec = 0
+    If reg2.Count = 2 Then
+      hour = Val(reg2[1].Text)
+      min = Val(reg2[2].Text)
+    Else
+      hour = 0
+      min = 0
+    Endif
+  Endif
+  
+  
+  If reg.Count = 3 Then
+    If Len(reg[1].Text) = 4 Then
+      Return Date(Val(reg[1].Text), Val(reg[2].Text), Val(reg[3].Text), hour, min, sec)
+    Else
+      Return Date(Val(reg[3].Text), Val(reg[2].Text), Val(reg[1].Text), hour, min, sec)
+    Endif
+  Endif
+  
+Catch
+  Message.Error("Erreur, impossible d'interpréter la date " & Sdate)
+  Return Null
+  
+End
+
+
+'********
+'PROPERTY
+'********
+
+Sub L_Read() As String
+
+  Return Format(Dte, "dd.mm.yyyy")
+
+End
+
+Sub L_Write(ldate As String)
+
+  Dte = Me.Parse(ldate)
+
+End
+
+Sub D_Read() As String
+
+  Return Format(Dte, "yyyy-mm-dd")
+  
+End
+
+Sub D_Write(ddate As String)
+
+  Dte = Me.Parse(ddate)
+
+End
+
+Sub DT_Read() As String
+
+  'Les base de donnée supporte les deux format
+  Return Format(Dte, "yyyy-mm-dd hh:nn:ss")
+  
+End
+
+Sub DT_Write(ddate As String)
+
+  Dte = Me.Parse(ddate)
+
+End
+
+Sub G_Read() As Date
+
+  Return Dte
+
+End
+
+Sub G_Write(gdate As Date)
+
+  Dte = gdate
+
+End
+
+Sub EDeb_Read() As LDate
+
+  Return Exercice_Debut(Me)
+
+End
+
+Sub EFin_Read() As LDate
+
+  Return Exercice_Fin(Me)
+
+End
+
+Sub EInd_Read() As Integer
+
+  Return Exercice_Index(Me)
+
+End
+
+Sub PDeb_Read() As LDate
+
+  Return Periode_Debut(Me)
+
+End
+
+Sub PFin_Read() As LDate
+
+  Return Periode_Fin(Me)
+
+End
+
+'****************
+'METHODE PUBLIQUE
+'****************
+
+Public Sub Exercice_Debut(Optional Annee As LDate = LDate(Now)) As LDate
+  
+  Return LDate(DateAdd(DateAdd(Exercice_Fin(Annee).G, gb.Year, -1), gb.Millisecond, 1))
+  
+End
+
+
+Public Sub Exercice_Fin(Optional Annee As LDate = LDate(Now)) As LDate
+
+  Dim rResult As Result
+  Dim edate As Date
+  
+  With utils
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabParam") & "")
+    If Annee.G <= Date(Year(rResult!dteclec5), Month(rResult!dteclec5), Day(rResult!dteclec5), 23, 59, 59, 999) Then
+      edate = rResult!dteclec5
+    Else If Annee.G <= Date(Year(rResult!dteclec4), Month(rResult!dteclec4), Day(rResult!dteclec4), 23, 59, 59, 999) Then
+      edate = rResult!dteclec4
+    Else If Annee.G <= Date(Year(rResult!dteclec3), Month(rResult!dteclec3), Day(rResult!dteclec3), 23, 59, 59, 999) Then
+      edate = rResult!dteclec3
+    Else If Annee.G <= Date(Year(rResult!dteclec2), Month(rResult!dteclec2), Day(rResult!dteclec2), 23, 59, 59, 999) Then
+      edate = rResult!dteclec2
+    Else If Annee.G <= Date(Year(rResult!dteclec1), Month(rResult!dteclec1), Day(rResult!dteclec1), 23, 59, 59, 999) Then
+      edate = rResult!dteclec1
+    Else
+      edate = rResult!dteclec
+    Endif
+  End With
+
+  Return LDate(Year(edate), Month(edate), Day(edate), 23, 59, 59, 999)
+
+End
+
+Public Sub Exercice_Index(Optional Annee As LDate = LDate(Now)) As Integer
+
+  Dim rResult As Result
+  Dim edate As Date
+  
+  With utils
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabParam") & "")
+    
+    If Annee.G <= Date(Year(rResult!dteclec5), Month(rResult!dteclec5), Day(rResult!dteclec5), 23, 59, 59, 999) Then
+      Return 5
+    Else If Annee.G <= Date(Year(rResult!dteclec4), Month(rResult!dteclec4), Day(rResult!dteclec4), 23, 59, 59, 999) Then
+      Return 4
+    Else If Annee.G <= Date(Year(rResult!dteclec3), Month(rResult!dteclec3), Day(rResult!dteclec3), 23, 59, 59, 999) Then
+      Return 3
+    Else If Annee.G <= Date(Year(rResult!dteclec2), Month(rResult!dteclec2), Day(rResult!dteclec2), 23, 59, 59, 999) Then
+      Return 2
+    Else If Annee.G <= Date(Year(rResult!dteclec1), Month(rResult!dteclec1), Day(rResult!dteclec1), 23, 59, 59, 999) Then
+      Return 1
+    Else
+      Return 0
+    Endif
+  End With
+
+End
+
+Public Sub Exercice_Cloture(Optional Index As Integer = 0) As LDate
+
+  Dim rResult As Result
+  Dim edate As Date
+  
+  With utils
+    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabParam") & "")
+    If Index >= 5 Then
+      edate = rResult!dteclec5
+    Else If Index = 4 Then
+      edate = rResult!dteclec4
+    Else If Index = 3 Then
+      edate = rResult!dteclec3
+    Else If Index = 2 Then
+      edate = rResult!dteclec2
+    Else If Index = 1 Then
+      edate = rResult!dteclec1
+    Else
+      edate = rResult!dteclec
+    Endif
+  End With
+
+  Return LDate(Year(edate), Month(edate), Day(edate), 23, 59, 59, 999)
+
+End
+
+Public Sub Periode_Debut(Optional Mois As LDate = LDate(Now)) As LDate
+
+  Return LDate(Year(Mois.G), Month(Mois.G), 1, 0, 0, 0, 0)  
+
+End
+
+
+Public Sub Periode_Fin(Optional Mois As LDate = LDate(Now)) As LDate
+
+  Return LDate(DateAdd(DateAdd(Mois.PDeb.G, gb.Month, 1), gb.Millisecond, -1))
+
+End
