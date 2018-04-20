@@ -17,7 +17,7 @@ Public Sub _new(TabStrip1 As TabStrip, type As String)        'dessin du gridvie
   Dim sdte As String[]
   Dim i, j As Integer
   Dim pan As Panel
-  'Dim but As Button
+  Dim but As Button
 
   $stype = Type
 
@@ -39,12 +39,12 @@ Public Sub _new(TabStrip1 As TabStrip, type As String)        'dessin du gridvie
   $lab.Expand = True
   $lab.Background = &HDFBFFF
 
-  'but = New Button(pan) As "bouton"
-  'but.Height = 24
-  'but.Text = "Calcul"
-  'but.AutoResize = True
-  'but.Expand = True
-  'but.Picture = Picture["Icones/find.png"]
+  but = New Button(pan) As "bouton"
+  but.Height = 24
+  but.Text = "Calcul"
+  but.AutoResize = True
+'  but.Expand = True
+  but.Picture = Picture["Icones/find.png"]
 
   $grdv = New GridView(TabStrip1) As "grdv"
   $grdv.Height = TabStrip1.Height - 30 - 24
@@ -84,7 +84,7 @@ End
 Public Sub bouton_Click()         'lit et affiche les stat
 
   Dim respar As Result
-  Dim i, j As Integer
+  Dim i, j, k As Integer
   Dim smoiscour, smoisprec As String
   Dim dte As String[]
   Dim fsomme As Float
@@ -127,49 +127,53 @@ Public Sub bouton_Click()         'lit et affiche les stat
       '      datesup = sanne & "-" & smois & "-" & Str(utils.lastday(CDate(01 & "/" & smois & "/" & sanne)))
       tab = "Fiches_HistoLigfac"
       tab1 = "Fiches_HistoFac"
-      Select $stype
-        Case "F"
-          req = "mrgart_ligfac AS marge,mrgmo_ligfac AS margem,netht_ligfac AS ht,qte_ligfac AS qte,typel_ligfac AS type"
-          cond = "fam_ligfac=&1 AND numfac=num_ligfac AND (typel_ligfac='A' OR typel_ligfac='E') AND datefac BETWEEN &2 AND &3"
-        Case "A"
-          req = "mrgart_ligfac AS marge,netht_ligfac AS ht,qte_ligfac AS qte,typel_ligfac AS type"
-          cond = "code_ligfac=&1 AND numfac=num_ligfac AND (typel_ligfac='A' OR typel_ligfac='E') AND datefac BETWEEN &2 AND &3"
-        Case "M"
-          req = "mrgmo_ligfac AS margem,netht_ligfac AS ht,qte_ligfac AS qte,typel_ligfac AS type"
-          cond = "code_ligfac=&1 and numfac=num_ligfac AND (typel_ligfac='A' OR typel_ligfac='E') AND datefac BETWEEN &2 AND &3"
-        Case "C"
-          req = "mrgart_ligfac AS marge,mrgmo_ligfac AS margem,netht_ligfac AS ht,qte_ligfac AS qte,typel_ligfac AS type"
-          cond = "cdclifac=&1 AND numfac=num_ligfac AND (typel_ligfac='A' OR typel_ligfac='E') AND datefac BETWEEN &2 AND &3"
+      For k = 0 To 1
+        Select $stype
+          Case "F"
+            req = "mrgart_ligfac AS marge,mrgmo_ligfac AS margem,netht_ligfac AS ht,qte_ligfac AS qte,typel_ligfac AS type"
+            cond = "fam_ligfac=&1 AND numfac=num_ligfac AND typel_ligfac IN('A','M') AND datefac BETWEEN &2 AND &3"
+          Case "A"
+            req = "mrgart_ligfac AS marge,netht_ligfac AS ht,qte_ligfac AS qte,typel_ligfac AS type"
+            cond = "code_ligfac=&1 AND numfac=num_ligfac AND typel_ligfac='A' AND datefac BETWEEN &2 AND &3"
+          Case "M"
+            req = "mrgmo_ligfac AS margem,netht_ligfac AS ht,qte_ligfac AS qte,typel_ligfac AS type"
+            cond = "code_ligfac=&1 and numfac=num_ligfac AND typel_ligfac='M' AND datefac BETWEEN &2 AND &3"
+          Case "C"
+            req = "mrgart_ligfac AS marge,mrgmo_ligfac AS margem,netht_ligfac AS ht,qte_ligfac AS qte,typel_ligfac AS type"
+            cond = "cdclifac=&1 AND numfac=num_ligfac AND typel_ligfac IN('A','M') AND datefac BETWEEN &2 AND &3"
 
-      End Select
-
-      $grdv[j, i].Text = "0.00"
-      $grdv[j, i + 1].Text = $sdec
-      $grdv[j, i + 2].Text = "0.00"
-      requete(tab, tab1, req, cond, dateinf, datesup, i, j)
-
+        End Select
+        If IsNull($grdv[j, i].Text) Then
+          $grdv[j, i].Text = "0.00"
+          $grdv[j, i + 1].Text = $sdec
+          $grdv[j, i + 2].Text = "0.00"
+        Endif
+        requete(tab, tab1, req, cond, dateinf, datesup, i, j)
+        tab = "Fiches_HistoLigfacM"
+        tab1 = "Fiches_HistoFacM"
+      Next
       '                                                   lit et additionne les mois en cours dans le fichier bl
-      If scle = smoiscour Or scle = smoisprec Then
-        tab = "Fiches_Ligbl"
-        tab1 = "Fiches_Bl"
-
+      tab = "Fiches_Ligbl"
+      tab1 = "Fiches_Bl"
+      For k = 0 To 1
         Select $stype
           Case "F"
             req = "mrgart_ligbl AS marge,mrgmo_ligbl AS margem,netht_ligbl AS ht,qte_ligbl AS qte,typel_ligbl AS type"
-            cond = "fam_ligbl=&1 and numbl=num_ligbl AND (typel_ligbl='A' OR typel_ligbl='E') AND (type='A' OR type='B' Or type='F') AND datebl BETWEEN &2 AND &3"
+            cond = "fam_ligbl=&1 and numbl=num_ligbl AND typel_ligbl IN('A','M') AND (type='A' OR type='B' Or type='F') AND datebl BETWEEN &2 AND &3"
           Case "A"
             req = "mrgart_ligbl AS marge,netht_ligbl AS ht,qte_ligbl AS qte"
-            cond = "code_ligbl=&1 and numbl=num_ligbl AND (typel_ligbl='A' OR typel_ligbl='E') AND (type='A' OR type='B' Or type='F') AND datebl BETWEEN &2 AND &3"
+            cond = "code_ligbl=&1 and numbl=num_ligbl AND typel_ligbl IN('A','M') AND (type='A' OR type='B' Or type='F') AND datebl BETWEEN &2 AND &3"
           Case "M"
             req = "mrgmo_ligbl AS marge,netht_ligbl AS ht,qte_ligbl AS qte"
-            cond = "code_ligbl=&1 and numbl=num_ligbl AND (typel_ligbl='A' OR typel_ligbl='E') AND (type='A' OR type='B' Or type='F') AND datebl BETWEEN &2 AND &3"
+            cond = "code_ligbl=&1 and numbl=num_ligbl AND typel_ligbl IN('A','M') AND (type='A' OR type='B' Or type='F') AND datebl BETWEEN &2 AND &3"
           Case "C"
             req = "mrgart_ligbl AS marge,mrgmo_ligbl AS margem,netht_ligbl AS ht,qte_ligbl AS qte,typel_ligbl AS type"
-            cond = "cdclibl=&1 and numbl=num_ligbl AND (typel_ligbl='A' OR typel_ligbl='E') AND (type='A' OR type='B' Or type='F') AND  datebl BETWEEN &2 AND &3"
+            cond = "cdclibl=&1 and numbl=num_ligbl AND typel_ligbl IN('A','M') AND (type='A' OR type='B' Or type='F') AND  datebl BETWEEN &2 AND &3"
         End Select
         requete(tab, tab1, req, cond, dateinf, datesup, i, j)
-
-      Endif
+        tab = "Fiches_LigblM"
+        tab1 = "Fiches_BlM"
+      Next
 
       smois = Format(Str(Val(smois) + 1), "00")
       If smois = "13" Then
@@ -222,7 +226,7 @@ Private Sub requete(tab As String, tab1 As String, req As String, cond As String
     $grdv[j, i + 1].Text = Format(fsomme, "######" & $sdec)
     fsomme = 0
     If $stype = "F" Or $stype = "C" Then
-      If resbl!type = "A" Or resbl!type = "E" Then
+      If resbl!type = "A" Then
         Try fsomme = CFloat(Replace($grdv[j, i + 2].Text, ",", ".")) + CFloat(resbl!marge)
       Else
         Try fsomme = CFloat(Replace($grdv[j, i + 2].Text, ",", ".")) + CFloat(resbl!margem)
@@ -298,7 +302,7 @@ Public Sub grdv_MouseUp()
 
   Dim win As Window
   Dim grdv1 As GridView
-  Dim res, restot As Result
+  Dim res, resart, restot As Result
   Dim sdte As String[]
   Dim dateinf, datesup As Date
   Dim d1, d2, d3, d4, d5, d6 As Date
@@ -370,7 +374,25 @@ Public Sub grdv_MouseUp()
   Select $stype
     Case "C"
       ' recupere les articles mouvementés pendant la période sélectionnée
-      res = utils.db.Exec("SELECT art_design,art_code FROM Fiches_HistoLigfac JOIN Fiches_HistoFac JOIN Fiches_Art ON numfac=num_ligfac WHERE art_code=code_ligfac AND cdclifac=&1 AND (typel_ligfac='A' OR typel_ligfac='E') AND (datefac BETWEEN &2 AND &3 OR datefac BETWEEN &4 AND &5 OR datefac BETWEEN &6 AND &7 OR datefac BETWEEN &8 AND &9) GROUP BY art_code, art_design UNION(SELECT art_design,art_code FROM Fiches_Bl JOIN Fiches_Ligbl JOIN Fiches_Art ON numbl=num_ligbl WHERE art_code=code_ligbl and cdclibl=&1 AND (typel_ligbl='A' OR typel_ligbl='E') AND (type='A' OR type='B' Or type='F') AND (datebl BETWEEN &2 AND &3 OR datebl BETWEEN &4 AND &5 OR datebl BETWEEN &6 AND &7 OR datebl BETWEEN &8 AND &9) GROUP BY art_code, art_design)", $scode, Format(dateinf, "yyyymmdd"), Format(d1, "yyyymmdd"), Format(d2, "yyyymmdd"), Format(d3, "yyyymmdd"), Format(d4, "yyyymmdd"), Format(d5, "yyyymmdd"), Format(d6, "yyyymmdd"), Format(datesup, "yyyymmdd"))
+      res = utils.db.Exec( 
+      "SELECT art_code FROM " &
+        "(SELECT code_ligfac AS art_code " &
+          "FROM Fiches_HistoLigfac JOIN Fiches_HistoFac On numfac = num_ligfac " &
+          "WHERE cdclifac = &1 And typel_ligfac IN( 'A','M') AND (datefac BETWEEN &2 AND &3 OR datefac BETWEEN &4 AND &5 OR datefac BETWEEN &6 AND &7 OR datefac BETWEEN &8 AND &9) " &
+          "GROUP BY art_code " &
+        "UNION SELECT code_ligfac AS art_code " &
+          "FROM Fiches_HistoLigfacM JOIN Fiches_HistoFacM On numfac = num_ligfac " &
+          "WHERE cdclifac = &1 And typel_ligfac IN( 'A','M') AND (datefac BETWEEN &2 AND &3 OR datefac BETWEEN &4 AND &5 OR datefac BETWEEN &6 AND &7 OR datefac BETWEEN &8 AND &9) " &
+          "GROUP BY art_code " &
+        "UNION SELECT code_ligbl AS art_code " &
+          "FROM Fiches_BlM JOIN Fiches_LigblM On numbl = num_ligbl " &
+          "WHERE cdclibl = &1 And typel_ligbl IN( 'A','M') AND (type='A' OR type='B' Or type='F') AND (datebl BETWEEN &2 AND &3 OR datebl BETWEEN &4 AND &5 OR datebl BETWEEN &6 AND &7 OR datebl BETWEEN &8 AND &9) " &
+          "GROUP BY art_code " &
+        "UNION SELECT code_ligbl AS art_code " &
+          "FROM Fiches_Bl JOIN Fiches_Ligbl On numbl = num_ligbl " &
+          "WHERE cdclibl = &1 And typel_ligbl IN( 'A','M') AND (type='A' OR type='B' Or type='F') AND (datebl BETWEEN &2 AND &3 OR datebl BETWEEN &4 AND &5 OR datebl BETWEEN &6 AND &7 OR datebl BETWEEN &8 AND &9) " &
+          "GROUP BY art_code) AS a " &
+      "GROUP BY art_code", $scode, Format(dateinf, "yyyymmdd"), Format(d1, "yyyymmdd"), Format(d2, "yyyymmdd"), Format(d3, "yyyymmdd"), Format(d4, "yyyymmdd"), Format(d5, "yyyymmdd"), Format(d6, "yyyymmdd"), Format(datesup, "yyyymmdd"))
 
   End Select
   'affiche les entetes du gridview
@@ -379,7 +401,14 @@ Public Sub grdv_MouseUp()
   If res.Available Then
     res.MoveFirst
     For i = 0 To res.Max
-      grdv1.Rows[i].Text = res!art_design
+      resart = utils.db.Exec("SELECT art_design AS design FROM Fiches_Art WHERE art_code=&1", res!art_code)
+      If resart.Available Then
+        grdv1.Rows[i].Text = resart!design
+      Else
+        resart = utils.db.Exec("SELECT mo_design AS design FROM Fiches_Mo WHERE mo_code=&1", res!art_code)
+        If resart.Available Then grdv1.Rows[i].Text = resart!design Else grdv1.Rows[i].Text = "INCONNU"
+      Endif
+      
       grdv1.rows[i].Height = 18
       res.MoveNext
     Next
@@ -387,16 +416,64 @@ Public Sub grdv_MouseUp()
     'affiche les données
     res.MoveFirst
     For i = 0 To res.Max
-      restot = Utils.db.Exec("SELECT mrgart_ligfac AS marge,mrgmo_ligfac AS margem,netht_ligfac AS ht,qte_ligfac AS qte,typel_ligfac AS type  FROM Fiches_HistoLigfac JOIN Fiches_HistoFac ON numfac=num_ligfac WHERE cdclifac=&1 AND code_ligfac=&2 AND (typel_ligfac='A' OR typel_ligfac='E') AND datefac BETWEEN &3 AND &4 UNION(SELECT  mrgart_ligbl As Marge, mrgmo_ligbl As Margem, netht_ligbl As Ht, qte_ligbl As Qte, typel_ligbl As Type FROM Fiches_Ligbl JOIN Fiches_Bl ON numbl=num_ligbl WHERE cdclibl=&1 AND code_ligbl=&2 AND (typel_ligbl='A' OR typel_ligbl='E') AND (type='A' OR type='B' Or type='F') AND datebl BETWEEN &3 AND &4)", $scode, res!art_code, Format(d6, "yyyymmdd"), Format(datesup, "yyyymmdd"))
+      restot = Utils.db.Exec(
+      "SELECT mrgart_ligfac AS marge,mrgmo_ligfac AS margem,netht_ligfac AS ht,qte_ligfac AS qte,typel_ligfac AS type " & 
+        "FROM Fiches_HistoLigfac JOIN Fiches_HistoFac ON numfac=num_ligfac " &
+        "WHERE cdclifac=&1 AND code_ligfac=&2 AND typel_ligfac IN('A','M') AND datefac BETWEEN &3 AND &4 " &
+      "UNION SELECT mrgart_ligfac AS marge,mrgmo_ligfac AS margem,netht_ligfac AS ht,qte_ligfac AS qte,typel_ligfac AS type " & 
+        "FROM Fiches_HistoLigfacM JOIN Fiches_HistoFacM ON numfac=num_ligfac " &
+        "WHERE cdclifac=&1 AND code_ligfac=&2 AND typel_ligfac IN('A','M') AND datefac BETWEEN &3 AND &4 " &
+      "UNION SELECT  mrgart_ligbl As Marge, mrgmo_ligbl As Margem, netht_ligbl As Ht, qte_ligbl As Qte, typel_ligbl As Type " &
+        "FROM Fiches_Ligbl JOIN Fiches_Bl ON numbl=num_ligbl " & 
+        "WHERE cdclibl = &1 And code_ligbl = &2 And typel_ligbl IN( 'A','M') AND (type='A' OR type='B' Or type='F') AND datebl BETWEEN &3 AND &4"
+      "UNION SELECT  mrgart_ligbl As Marge, mrgmo_ligbl As Margem, netht_ligbl As Ht, qte_ligbl As Qte, typel_ligbl As Type " &
+        "FROM Fiches_LigblM JOIN Fiches_BlM ON numbl=num_ligbl " & 
+        "WHERE cdclibl = &1 And code_ligbl = &2 And typel_ligbl IN( 'A','M') AND (type='A' OR type='B' Or type='F') AND datebl BETWEEN &3 AND &4", $scode, res!art_code, Format(d6, "yyyymmdd"), Format(datesup, "yyyymmdd"))
       affdon(grdv1, restot, i, 0)
 
-      restot = Utils.db.Exec("SELECT mrgart_ligfac AS marge,mrgmo_ligfac AS margem,netht_ligfac AS ht,qte_ligfac AS qte,typel_ligfac AS type  FROM Fiches_HistoLigfac JOIN Fiches_HistoFac ON numfac=num_ligfac WHERE cdclifac=&1 AND code_ligfac=&2 AND (typel_ligfac='A' OR typel_ligfac='E') AND datefac BETWEEN &3 AND &4 UNION(SELECT  mrgart_ligbl As Marge, mrgmo_ligbl As Margem, netht_ligbl As Ht, qte_ligbl As Qte, typel_ligbl As Type FROM Fiches_Ligbl JOIN Fiches_Bl ON numbl=num_ligbl WHERE cdclibl=&1 AND code_ligbl=&2 AND (typel_ligbl='A' OR typel_ligbl='E') AND (type='A' OR type='B' Or type='F') AND datebl BETWEEN &3 AND &4)", $scode, res!art_code, Format(d4, "yyyymmdd"), Format(d5, "yyyymmdd"))
+      restot = Utils.db.Exec(
+      "SELECT mrgart_ligfac AS marge,mrgmo_ligfac AS margem,netht_ligfac AS ht,qte_ligfac AS qte,typel_ligfac AS type " & 
+        "FROM Fiches_HistoLigfac JOIN Fiches_HistoFac ON numfac=num_ligfac " &
+        "WHERE cdclifac=&1 AND code_ligfac=&2 AND typel_ligfac IN('A','M') AND datefac BETWEEN &3 AND &4 " &
+      "UNION SELECT mrgart_ligfac AS marge,mrgmo_ligfac AS margem,netht_ligfac AS ht,qte_ligfac AS qte,typel_ligfac AS type " & 
+        "FROM Fiches_HistoLigfacM JOIN Fiches_HistoFacM ON numfac=num_ligfac " &
+        "WHERE cdclifac=&1 AND code_ligfac=&2 AND typel_ligfac IN('A','M') AND datefac BETWEEN &3 AND &4 " &
+      "UNION SELECT  mrgart_ligbl As Marge, mrgmo_ligbl As Margem, netht_ligbl As Ht, qte_ligbl As Qte, typel_ligbl As Type " &
+        "FROM Fiches_Ligbl JOIN Fiches_Bl ON numbl=num_ligbl " & 
+        "WHERE cdclibl = &1 And code_ligbl = &2 And typel_ligbl IN( 'A','M') AND (type='A' OR type='B' Or type='F') AND datebl BETWEEN &3 AND &4"
+      "UNION SELECT  mrgart_ligbl As Marge, mrgmo_ligbl As Margem, netht_ligbl As Ht, qte_ligbl As Qte, typel_ligbl As Type " &
+        "FROM Fiches_LigblM JOIN Fiches_BlM ON numbl=num_ligbl " & 
+        "WHERE cdclibl = &1 And code_ligbl = &2 And typel_ligbl IN( 'A','M') AND (type='A' OR type='B' Or type='F') AND datebl BETWEEN &3 AND &4", $scode, res!art_code, Format(d4, "yyyymmdd"), Format(d5, "yyyymmdd"))
       affdon(grdv1, restot, i, 3)
 
-      restot = Utils.db.Exec("SELECT mrgart_ligfac AS marge,mrgmo_ligfac AS margem,netht_ligfac AS ht,qte_ligfac AS qte,typel_ligfac AS type  FROM Fiches_HistoLigfac JOIN Fiches_HistoFac ON numfac=num_ligfac WHERE cdclifac=&1 AND code_ligfac=&2 AND (typel_ligfac='A' OR typel_ligfac='E') AND datefac BETWEEN &3 AND &4 UNION(SELECT  mrgart_ligbl As Marge, mrgmo_ligbl As Margem, netht_ligbl As Ht, qte_ligbl As Qte, typel_ligbl As Type FROM Fiches_Ligbl JOIN Fiches_Bl ON numbl=num_ligbl WHERE cdclibl=&1 AND code_ligbl=&2 AND (typel_ligbl='A' OR typel_ligbl='E') AND (type='A' OR type='B' Or type='F') AND datebl BETWEEN &3 AND &4)", $scode, res!art_code, Format(d2, "yyyymmdd"), Format(d3, "yyyymmdd"))
+      restot = Utils.db.Exec(
+      "SELECT mrgart_ligfac AS marge,mrgmo_ligfac AS margem,netht_ligfac AS ht,qte_ligfac AS qte,typel_ligfac AS type " & 
+        "FROM Fiches_HistoLigfac JOIN Fiches_HistoFac ON numfac=num_ligfac " &
+        "WHERE cdclifac=&1 AND code_ligfac=&2 AND typel_ligfac IN('A','M') AND datefac BETWEEN &3 AND &4 " &
+      "UNION SELECT mrgart_ligfac AS marge,mrgmo_ligfac AS margem,netht_ligfac AS ht,qte_ligfac AS qte,typel_ligfac AS type " & 
+        "FROM Fiches_HistoLigfacM JOIN Fiches_HistoFacM ON numfac=num_ligfac " &
+        "WHERE cdclifac=&1 AND code_ligfac=&2 AND typel_ligfac IN('A','M') AND datefac BETWEEN &3 AND &4 " &
+      "UNION SELECT  mrgart_ligbl As Marge, mrgmo_ligbl As Margem, netht_ligbl As Ht, qte_ligbl As Qte, typel_ligbl As Type " &
+        "FROM Fiches_Ligbl JOIN Fiches_Bl ON numbl=num_ligbl " & 
+        "WHERE cdclibl = &1 And code_ligbl = &2 And typel_ligbl IN( 'A','M') AND (type='A' OR type='B' Or type='F') AND datebl BETWEEN &3 AND &4"
+      "UNION SELECT  mrgart_ligbl As Marge, mrgmo_ligbl As Margem, netht_ligbl As Ht, qte_ligbl As Qte, typel_ligbl As Type " &
+        "FROM Fiches_LigblM JOIN Fiches_BlM ON numbl=num_ligbl " & 
+        "WHERE cdclibl = &1 And code_ligbl = &2 And typel_ligbl IN( 'A','M') AND (type='A' OR type='B' Or type='F') AND datebl BETWEEN &3 AND &4", $scode, res!art_code, Format(d2, "yyyymmdd"), Format(d3, "yyyymmdd"))
       affdon(grdv1, restot, i, 6)
 
-      restot = Utils.db.Exec("SELECT mrgart_ligfac AS marge,mrgmo_ligfac AS margem,netht_ligfac AS ht,qte_ligfac AS qte,typel_ligfac AS type  FROM Fiches_HistoLigfac JOIN Fiches_HistoFac ON numfac=num_ligfac WHERE cdclifac=&1 AND code_ligfac=&2 AND datefac BETWEEN &3 AND &4 UNION(SELECT  mrgart_ligbl As Marge, mrgmo_ligbl As Margem, netht_ligbl As Ht, qte_ligbl As Qte, typel_ligbl As Type FROM Fiches_Ligbl JOIN Fiches_Bl ON numbl=num_ligbl WHERE cdclibl=&1 AND code_ligbl=&2 AND (typel_ligbl='A' OR typel_ligbl='E') AND (type='A' OR type='B' Or type='F') AND datebl BETWEEN &3 AND &4)", $scode, res!art_code, Format(dateinf, "yyyymmdd"), Format(d1, "yyyymmdd"))
+      restot = Utils.db.Exec(
+      "SELECT mrgart_ligfac AS marge,mrgmo_ligfac AS margem,netht_ligfac AS ht,qte_ligfac AS qte,typel_ligfac AS type " & 
+        "FROM Fiches_HistoLigfac JOIN Fiches_HistoFac ON numfac=num_ligfac " &
+        "WHERE cdclifac=&1 AND code_ligfac=&2 AND typel_ligfac IN('A','M') AND datefac BETWEEN &3 AND &4 " &
+      "UNION SELECT mrgart_ligfac AS marge,mrgmo_ligfac AS margem,netht_ligfac AS ht,qte_ligfac AS qte,typel_ligfac AS type " & 
+        "FROM Fiches_HistoLigfacM JOIN Fiches_HistoFacM ON numfac=num_ligfac " &
+        "WHERE cdclifac=&1 AND code_ligfac=&2 AND typel_ligfac IN('A','M') AND datefac BETWEEN &3 AND &4 " &
+      "UNION SELECT  mrgart_ligbl As Marge, mrgmo_ligbl As Margem, netht_ligbl As Ht, qte_ligbl As Qte, typel_ligbl As Type " &
+        "FROM Fiches_Ligbl JOIN Fiches_Bl ON numbl=num_ligbl " & 
+        "WHERE cdclibl = &1 And code_ligbl = &2 And typel_ligbl IN( 'A','M') AND (type='A' OR type='B' Or type='F') AND datebl BETWEEN &3 AND &4"
+      "UNION SELECT  mrgart_ligbl As Marge, mrgmo_ligbl As Margem, netht_ligbl As Ht, qte_ligbl As Qte, typel_ligbl As Type " &
+        "FROM Fiches_LigblM JOIN Fiches_BlM ON numbl=num_ligbl " & 
+        "WHERE cdclibl = &1 And code_ligbl = &2 And typel_ligbl IN( 'A','M') AND (type='A' OR type='B' Or type='F') AND datebl BETWEEN &3 AND &4", $scode, res!art_code, Format(dateinf, "yyyymmdd"), Format(d1, "yyyymmdd"))
       affdon(grdv1, restot, i, 9)
 
       res.MoveNext
@@ -434,7 +511,7 @@ Private Sub affdon(grdv1 As GridView, resbl As Result, i As Integer, j As Intege
     grdv1[i, j + 1].Text = Format(fsomme, "######0.000")
     fsomme = 0
     If $stype = "F" Or $stype = "C" Then
-      If resbl!type = "A" Or resbl!type = "E" Then
+      If resbl!type = "A" Or resbl!type = "M" Then
         Try fsomme = CFloat(Replace(grdv1[i, j + 2].Text, ",", ".")) + CFloat(resbl!marge)
       Else
         Try fsomme = CFloat(Replace(grdv1[i, j + 2].Text, ",", ".")) + CFloat(resbl!margem)
