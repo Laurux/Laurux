@@ -12510,7 +12510,7 @@ Public Sub Lig_Archives()
   Dim TauxTva As String
   Dim i As Integer
 
-  If $soption = "B" Or $soption = "T" Then i = 2 Or i = 0
+  If $soption = "B" Or $soption = "T" Then i = 2 Else i = 0
   If bTypeFacture Then
     Tab = "Fiches_HistoLigfacM"
   Else
@@ -12543,7 +12543,10 @@ Public Sub Lig_Archives()
           'TauxTva = Format$(Val(Coldetail.current[8]) - Val(Coldetail.current[7]), "0.00")
           Try rMat = Utils.db.Exec("select * from " & Cbase.Table("TabTvav") & " where code_tva = &1", Coldetail.current[12 + i])
           If rMat.available Then TauxTva = rMat!taux_tva
-          Utils.db.Exec("INSERT INTO " & Tab & "(num_ligfac, numlig_ligfac, code_ligfac,  libel_ligfac, fam_ligfac, pu_ligfac, qte_ligfac, brut_ligfac, rem_ligfac, netht_ligfac, tx_ligfac, nettc_ligfac, typel_ligfac, tm_ligfac, bloc, mtx_ligfac) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", Numfac, Format$(Nbligne, "0000"), Coldetail.current[1], Coldetail.current[2], Coldetail.current[13 + i], Coldetail.current[3], Coldetail.current[4 + i], Coldetail.current[5 + i], Coldetail.current[6 + i], Coldetail.current[7 + i], Coldetail.current[12 + i], Coldetail.current[8 + i], Coldetail.current[9 + i], Coldetail.current[10 + i], Format$(Nbligne, "0000"), TauxTva)
+          Utils.db.Exec("INSERT INTO " & Tab & "(num_ligfac, numlig_ligfac, code_ligfac,  libel_ligfac, fam_ligfac, pu_ligfac, qte_ligfac, brut_ligfac, rem_ligfac, netht_ligfac, tx_ligfac, nettc_ligfac, typel_ligfac, tm_ligfac, bloc, mtx_ligfac, mrgart_ligfac, mrgmo_ligfac, tour_ligfac) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19})", Numfac, Format$(Nbligne, "0000"), Coldetail.current[1], Coldetail.current[2], Coldetail.current[13 + i], Coldetail.current[3], Coldetail.current[4 + i], Coldetail.current[5 + i], Coldetail.current[6 + i], Coldetail.current[7 + i], Coldetail.current[12 + i], Coldetail.current[8 + i], Coldetail.current[9 + i], Coldetail.current[10 + i], Format$(Nbligne, "0000"), TauxTva, Replace(Coldetail.current[18 + i], ",", "."), Replace(Coldetail.current[19 + i], ",", "."), Coldetail.current[22 + i])
+          If $soption = "P" Or $soption = "T" Then    'renseigne le n° de région pour la tipp
+            utils.db.Exec("UPDATE " & tab & " SET tipp_ligfac=&1 WHERE num_ligfac=&2 and numlig_ligfac=&3", Coldetail.item[24 + i], Numfac, Format$(Nbligne, "0000"))
+          Endif
         Else
           Repeat
             Coldetail.item.Selected = True
@@ -12573,6 +12576,9 @@ Public Sub Lig_Archives()
         Endif
         Inc Nbligne
       Until Coldetail.Movenext()
+      If $soption = "B" Or $soption = "T" Then    'remplace le n° bl par le n° facture dans le fichier consigne
+        utils.db.Exec("UPDATE Fiches_ligcons SET num=&1 WHERE num=&2 ", Numfac, num.Text)
+      Endif
     Endif
   End With
 
