@@ -23,6 +23,7 @@ Public RemotePort As String
 Public TunnelPid As String ' pid du tunnel ssh conservé afin de l'arrêter en quittant le programme
 
 Public ROArray As ReplayObserver[] = New ReplayObserver[]
+Private $dtcloture As Date
 
 Public Sub Base(tbv As Gridview, qry As String)
 
@@ -1227,13 +1228,90 @@ Public Function orientation(numrec As String, choix As String) As Boolean
       Case "B"
         resregie = Utils.db.Exec("SELECT * FROM Fiches_ligregie,Fiches_Bl WHERE numbl=&1 AND numfac=num LIMIT 1", num) 
     End Select
-    If Not resregie.Available Then
+    If Not resregie.Available And choix = "B" Then
       'si régie sur facture non éditée
       resregie = Utils.db.Exec("SELECT * FROM Fiches_Ligbl, Fiches_Art WHERE num_ligbl=&1 AND code_ligbl=art_code AND art_dra IS NOT NULL LIMIT 1", num)
     Endif
     If resregie.Available Then Return True      'regie trouvée
   Next
   Return False        'rien de trouvé fac normale
+End
+'************regarde si la saisie de l'article est autorisé par raport a la date de cloture CM **************************
+Public Function dtcloture() As Boolean
+'récupére la derniere date de cloture
+  Dim res As Result
+  Dim dte As Date
+  
+  'derniere date de cloture
+  res = utils.db.Exec("SELECT dtmouv FROM Fiches_ligregie WHERE type='I' or type='M' ORDER BY dtmouv DESC LIMIT 1")
+  If res.Available Then
+    $dtcloture = res!dtmouv
+  Else
+    res = utils.db.Exec("SELECT arrete FROM Fiches_Parametres")
+    If res.Available Then
+      If Not IsNull(res!arrete) Then
+        $dtcloture = Date(Right(res!arrete, 4), Val(Left(res!arrete, 2)), "01")
+        $dtcloture = DateAdd($dtcloture, gb.Month, 1)
+      Else
+        Message.Info("La date de clôture de la comptabilité matiére n'est pas renseignée dans les paramétres")
+        Return True
+      Endif
+    Else
+      Message.Info("Vous devez d'abord renseigner les paramétres")
+      Return True
+    Endif
+  Endif
+  
+  Return False
+
+End
+
+Public Function valart(dte As Date, Optional art As String, numbl As String) As Boolean
+  
+  Dim res As Result
+  Dim dte1 As Date
+  Dim champs, fichier, cond As String
+  
+  If Not IsNull(dte) And IsNull(art) Then
+    If Format(dte, "yyyymmdd") < Format($dtcloture, "yyyymmdd") Then Return True
+    Return False 
+  Endif
+  'swap entre fichier bl et facture
+  If numbl Then
+    If Len(numbl) = 10 Then
+      champs = " art_dra,dtligbl_ligfac as dte_ligbl"
+      fichier = " Fiches_Art,Fiches_regie,Fiches_Ligfac"
+      cond = "art_dra=code AND num_ligfac=&1"
+    Else
+      champs = " art_dra,dte_ligbl"
+      fichier = " Fiches_Art,Fiches_regie,Fiches_Ligbl"
+      cond = " art_dra=code AND num_ligbl=&1"
+    Endif
+  Endif
+  'pour 1 ligne de saisie
+  If art Then
+    res = utils.db.Exec("SELECT art_dra FROM Fiches_Art,Fiches_regie WHERE art_dra=code AND art_code=&1", art)
+    If res.Available Then
+      If Format(dte, "yyyymmdd") < Format($dtcloture, "yyyymmdd") Then Return True 
+    Endif
+    Return False
+  Endif
+  'pour toutes les lignes de bl
+  If numbl And IsNull(dte) Then  'cas ou on vérifie les dates de chaque ligne de bon
+    res = utils.db.Exec("SELECT" & champs & " FROM" & fichier & " WHERE" & cond, numbl)
+    If res.Available Then
+      If Format(res!dte_ligbl, "yyyymmdd") < Format($dtcloture, "yyyymmdd") Then Return True 
+    Endif
+    Return False
+  Endif
+  If numbl Then   'cas ou on vérifie 1 ligne => on veut affecter la date a tout les lignes du bon
+    res = utils.db.Exec("SELECT" & champs & " FROM" & fichier & " WHERE" & cond & " LIMIT 1", numbl)
+    If res.Available Then
+      If Format(dte, "yyyymmdd") < Format($dtcloture, "yyyymmdd") Then Return True 
+    Endif
+    Return False
+  Endif
+  
 End
 
 Public Sub fraisgestion(montant As Float)       'enregistrement des frais de gestion

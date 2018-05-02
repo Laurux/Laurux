@@ -392,6 +392,9 @@ Public Sub _New(bfacture As Boolean)
   If $soption = "B" Or $soption = "T" Then
     Coldetail.Columns.count = 23
     modifpanel5
+    If utils.dtcloture() Then
+     Quit
+    Endif
   Else
     Coldetail.Columns.count = 21
     TabStrip1[TabStrip1.Count - 1].Visible = False
@@ -2311,7 +2314,7 @@ Public Sub Recup_ligbl()
                   Coldetail.item[5 + i] = Rligbl!brut_ligbl
                 Endif
                 Coldetail.item[6 + i] = Rligbl!rem_ligbl
-                If Val(.cpoint(Coldetail.item[6])) <> 0 Then
+                If Val(.cpoint(Coldetail.item[6 + i])) <> 0 Then
                   Variables.bRemise = True
                 Endif
                 If Len(Rligbl!netht_ligbl) - InStr(Rligbl!netht_ligbl, ",") = 2 Then
@@ -3848,12 +3851,14 @@ End
 
 Public Sub Bbon_Click()
 
+
   If (Impfac <> 1) And (Numtk == Null) Then
     Atype = Tp
     Tp = "B"
     Button13.Visible = True
     Button24.visible = True
     If Atype = "D" Or Atype = "P" Or Atype = "C" Then
+      Bmajdte
       If Panel8.visible = False Then
         Maj_Quantite()
       Else
@@ -3928,6 +3933,7 @@ Public Sub Bfac_Click()
     Button13.Visible = True
     Button24.visible = True
     If Atype = "D" Or Atype = "P" Or Atype = "C" Then
+      Bmajdte
       If Panel8.visible = False Then
         Maj_Quantite()
       Else
@@ -3959,6 +3965,8 @@ Public Sub BfacA_Click()
       If Not IsNull(Dtab) And Not IsNull(Aban) Then
         If Impfac <> 1 Then
           If Atype = "D" Or Atype = "P" Or Atype = "C" Then
+            Bmajdte
+            If num.Text Then utils.db.Exec("UPDATE Fiches_Ligbl SET dte_ligbl=&1 WHERE num_ligbl=&2", Now, num.Text) 
             If Panel8.visible = False Then
               Maj_Quantite()
             Else
@@ -4002,6 +4010,26 @@ Public Sub BfacA_Click()
     Wrg(Numtk)
   Endif
 
+End
+
+Private Sub Bmajdte(Optional dtef As String)
+  
+  Dim tab As String
+  Dim dte As Date
+  
+  If Not bTypeFacture Then
+    Tab = "Fiches_Ligbl"
+  Else
+    Tab = "Fiches_LigblM"
+  Endif
+  If dtef Then
+    dte = utils.Cdate_calc(dtef)
+  Else
+    dte = Now
+  Endif
+  
+  If num.Text Then utils.db.Exec("UPDATE " & tab & " SET dte_ligbl=&1 WHERE num_ligbl=&2", dte, num.Text) 
+  
 End
 
 Public Sub Wrg(numtick As String)
@@ -6456,6 +6484,12 @@ Public Sub Button11_Click()
     b = 0
   Else
     If Cart.Text <> "" Then
+      If $soption = "B" Or $soption = "T" Then
+        If utils.valart(Now, cart.Text) Then
+          Message.Warning("La comptabilité matiére sur cette période est déjà clôturée")
+          Return
+        Endif
+      Endif
       If Val(Artpu.text) = 0 Then
         If start.son Then
           Music.Play
@@ -6563,7 +6597,7 @@ Public Sub Enrg_Art()
           PdxArt.text = Format$(Val(Utils.cpoint(Pdx)) * Val(Utils.cpoint(Artqte.Text)), "0.000")
         Endif
         Coldetail.current[4 + i] = Artqte.Text
-        If Not IsNull(hTxtb.Text) Then Coldetail.current[21] = hTxtb.Text
+        If Not IsNull(hTxtb.Text) Then Coldetail.current[21 + i] = hTxtb.Text
         If Len(Artnet.text) - InStr(Artnet.text, ",") = 2 Then Coldetail.current[7 + i] = Artnet.text & "  "
         Qteecot = Val(Utils.cpoint(Artqte.Text))
         If Left$(Cart.Text, 1) = "*" Then Cart.Text = Mid$(Cart.Text, 2, Len(Cart.Text))
@@ -8192,7 +8226,7 @@ Public Sub Coldetail_Activate()
         Coldetail.MoveFirst()
         Repeat
           Try Coldetail.item.Selected = True
-          If Coldetail.current[16] = Bloc Then
+          If Coldetail.current[16 + i] = Bloc Then
             If lg = 1 Then intitule.Insert("\n")
             intitule.Insert(Coldetail.current[2])
             lg = 1
@@ -8219,9 +8253,14 @@ Public Sub Coldetail_Activate()
 End
 
 Public Sub Coldetail_Click()
-Dim Pjointe As String
-Dim piece2 As String = Start.LocalSettings["/Soc" & Start.Societe & "/Bexpcheminpj"]
-  If Not IsNull(Coldetail.item[21]) And If Mouse.Right Then Message.Info("Référence longue = " & Coldetail.item[21])
+  Dim i As Integer
+  Dim piece2 As String = Start.LocalSettings["/Soc" & Start.Societe & "/Bexpcheminpj"]
+  
+  'PATRICKMAG a revoir /vérifier pour la gestion des options et les affichages Piece jointe rajouter par JACKY
+  'la maintenance des options va devenir de plus en plus difficile et les merges aussi
+  'il faut vraiment réfléchir à la manière de gérer ca dans le futur.
+  If $soption = "B" Or $soption = "T" Then i = 2 Else i = 0
+  If Not IsNull(Coldetail.item[21 + i]) And If Mouse.Right Then Message.Info("Référence longue = " & Coldetail.item[21 + i])
   If Coldetail.item[1] = "PJ" And If Mouse.right Then 
     Pjointe = piece2 & "/" & Coldetail.item[2] 
      Visualiseur.Prog_Editeur(Pjointe)
@@ -8335,13 +8374,13 @@ Public Sub Coldetail_Keypress()
           If start.son Then
             Music.Play
           Endif
-          If Coldetail.current[9] = "A"
+          If Coldetail.current[9 + i] = "A"
             If start.son Then
               Music.Play
             Endif
             Try Message.Warning(" La facture a été imprimée ou le bon règlé en caisse!\nSuppression d'une ligne d'article impossible.")
           Else
-            If Coldetail.current[9] = "M"
+            If Coldetail.current[9 + i] = "M"
               If start.son Then
                 Music.Play
               Endif
@@ -8676,10 +8715,10 @@ Public Sub Dupli3()
     If Bcomde.value Then Utils.db.Exec("INSERT INTO " & Tab & "(num_ligbl, numlig_ligbl, code_ligbl, com_ligbl, typel_ligbl, block_ligbl)VALUES (&1, &2, &3, &4, &5, &6)", num.Text, Format$(Nblignes, "0000"), "", "Pièces en reliquat sur la commande " & numbon, "C", Format$(Nblignes, "0000"))
     Repeat
       Coldetail.item.Selected = True
-      If $dupP And Left$(Coldetail.current[10]) = "*" Then
+      If $dupP And Left$(Coldetail.current[10 + i]) = "*" Then
         $dup = True
       Else
-        If $dupP And IsNull(Coldetail.current[10]) Then
+        If $dupP And IsNull(Coldetail.current[10 + i]) Then
           $dup = False
         Endif
       Endif
@@ -8880,9 +8919,9 @@ Public Sub Enrg_LigArt()
     If Cart.Text <> "" Or typeL = "E" Or typeL = "P" Or typeL = "D" Then
       rResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE num_ligbl = &1 and numlig_ligbl = &2", num.text, Nlgart.text)
       If rResult.Available Then
-        Utils.db.Exec("UPDATE  " & tab & "  SET  num_ligbl = &1 , numlig_ligbl = &2 , code_ligbl = &3, libel_ligbl = &4, fam_ligbl = &5, pu_ligbl = &6, qte_ligbl = &7, brut_ligbl = &8, rem_ligbl = &9, netht_ligbl = &{10}, tx_ligbl = &{11}, nettc_ligbl = &{12}, typel_ligbl = &{13}, dec_ligbl = &{14}, pdstotal_ligbl = &{15}, mrgart_ligbl = &{16}, four_ligbl = &{17}, refl_ligbl = &{18}, tour_ligbl = &{19} WHERE num_ligbl = &1 and numlig_ligbl = &2", num.Text, Nlgart.Text, Cart.Text, Artdsg.Text, ArtFam.Text, Artpu.Text, Artqte.Text, Artbrut.Text, rm, Artnet.Text, Arttx.Text, Arttc.Text, typeL, Dec.Text, Val(Pdxart.text), .PointBase(Marge.Text), ArtFour.Text, hTxtb.Text, Texttr1.Text)
+        Utils.db.Exec("UPDATE  " & tab & "  SET  num_ligbl = &1 , numlig_ligbl = &2 , code_ligbl = &3, libel_ligbl = &4, fam_ligbl = &5, pu_ligbl = &6, qte_ligbl = &7, brut_ligbl = &8, rem_ligbl = &9, netht_ligbl = &{10}, tx_ligbl = &{11}, nettc_ligbl = &{12}, typel_ligbl = &{13}, dec_ligbl = &{14}, pdstotal_ligbl = &{15}, mrgart_ligbl = &{16}, four_ligbl = &{17}, refl_ligbl = &{18}, tour_ligbl = &{19},dte_ligbl = &{20} WHERE num_ligbl = &1 and numlig_ligbl = &2", num.Text, Nlgart.Text, Cart.Text, Artdsg.Text, ArtFam.Text, Artpu.Text, Artqte.Text, Artbrut.Text, rm, Artnet.Text, Arttx.Text, Arttc.Text, typeL, Dec.Text, Val(Pdxart.text), .PointBase(Marge.Text), ArtFour.Text, hTxtb.Text, Texttr1.Text, Now)
       Else
-        Utils.db.Exec("INSERT INTO " & tab & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl, pdstotal_ligbl, mrgart_ligbl, four_ligbl, refl_ligbl,tour_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20})", num.Text, Nlgart.Text, Cart.Text, Artdsg.Text, ArtFam.Text, Artpu.Text, Artqte.Text, Artbrut.Text, rm, Artnet.Text, Arttx.Text, Arttc.Text, typeL, Dec.Text, Bloc, Val(Pdxart.text), .PointBase(Marge.Text), ArtFour.Text, hTxtb.Text, Textto1.Text)
+        Utils.db.Exec("INSERT INTO " & tab & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl, pdstotal_ligbl, mrgart_ligbl, four_ligbl, refl_ligbl,tour_ligbl,dte_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21})", num.Text, Nlgart.Text, Cart.Text, Artdsg.Text, ArtFam.Text, Artpu.Text, Artqte.Text, Artbrut.Text, rm, Artnet.Text, Arttx.Text, Arttc.Text, typeL, Dec.Text, Bloc, Val(Pdxart.text), .PointBase(Marge.Text), ArtFour.Text, hTxtb.Text, Textto1.Text, Now)
       Endif
     Endif
     If $soption = "T" Or $soption = "B" Then
@@ -9512,6 +9551,13 @@ Public Sub Bl_Edit()
   Else
     Edit.Visible = True
     Edit.Raise
+    Checkdte.Visible = False
+    Checkdte.Value = False
+    If imp <> 1 Then
+      If BFac.Value Or Bbon.Value Or BfacA.Value Then
+        Checkdte.Visible = True
+      Endif
+    Endif
     If Imp <> "1" And BFac.value Then
       If Start.LocalSettings["/dbase/Con-ssh"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Replique"] And If Start.LocalSettings["/Soc" & Start.Societe & "/Breplique"] Then
         Btunnel = Utils.ControlTunnel()
@@ -9988,6 +10034,30 @@ End
 
 Public Sub Button14_Click()
 
+  Dim dte As Date
+  Dim res As Result
+  
+  If Checkdte.Value Then
+    'on change la date des mouvements de stock
+    If $soption = "B" Or $soption = "T" Then    'on vérifie que la date soit dans la cm en cours si il y a un article conserné dans le bon
+      dte = utils.Cdate_calc(dtef.Text)
+      Coldetail.MoveFirst
+      Repeat
+        res = utils.db.Exec("SELECT art_dra FROM Fiches_Art,Fiches_regie WHERE art_code=&1 AND art_dra=code", Coldetail.Item[1])
+        If res.Available Then
+          If utils.valart(dte) Then
+            Message.Warning("Période CM déjà clôturée \n Veuillez changer la date du document")
+            datej.SetFocus
+            datej.Select
+            Return
+          Else 
+            Break
+          Endif
+        Endif
+      Until Coldetail.MoveNext()
+    Endif
+    utils.db.Exec("UPDATE Fiches_Ligbl SET dte_ligbl=&1", dte)
+  Endif
   If visudoc = False Then Button14.Enabled = False
   Visudoc = False
   QuitteDateEch()
@@ -12569,7 +12639,7 @@ Public Sub Lig_Archives()
       Endif
       Repeat
         Coldetail.item.Selected = True
-        Bloc = Coldetail.current[16]
+        Bloc = Coldetail.current[16 + i]
         l3 = Bloc
         Colitem0 = Coldetail.current[0]
         Colitem1 = Coldetail.current[1]
@@ -12579,7 +12649,7 @@ Public Sub Lig_Archives()
           'TauxTva = Format$(Val(Coldetail.current[8]) - Val(Coldetail.current[7]), "0.00")
           Try rMat = Utils.db.Exec("select * from " & Cbase.Table("TabTvav") & " where code_tva = &1", Coldetail.current[12 + i])
           If rMat.available Then TauxTva = rMat!taux_tva
-          Utils.db.Exec("INSERT INTO " & Tab & "(num_ligfac, numlig_ligfac, code_ligfac,  libel_ligfac, fam_ligfac, pu_ligfac, qte_ligfac, brut_ligfac, rem_ligfac, netht_ligfac, tx_ligfac, nettc_ligfac, typel_ligfac, tm_ligfac, bloc, mtx_ligfac, mrgart_ligfac, mrgmo_ligfac, tour_ligfac) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19})", Numfac, Format$(Nbligne, "0000"), Coldetail.current[1], Coldetail.current[2], Coldetail.current[13 + i], Coldetail.current[3], Coldetail.current[4 + i], Coldetail.current[5 + i], Coldetail.current[6 + i], Coldetail.current[7 + i], Coldetail.current[12 + i], Coldetail.current[8 + i], Coldetail.current[9 + i], Coldetail.current[10 + i], Format$(Nbligne, "0000"), TauxTva, Replace(Coldetail.current[18 + i], ",", "."), Replace(Coldetail.current[19 + i], ",", "."), Coldetail.current[22 + i])
+          Utils.db.Exec("INSERT INTO " & Tab & "(num_ligfac, numlig_ligfac, code_ligfac,  libel_ligfac, fam_ligfac, pu_ligfac, qte_ligfac, brut_ligfac, rem_ligfac, netht_ligfac, tx_ligfac, nettc_ligfac, typel_ligfac, tm_ligfac, bloc, mtx_ligfac, mrgart_ligfac, mrgmo_ligfac, tour_ligfac, dtligbl_ligfac, numbl_ligfac) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21})", Numfac, Format$(Nbligne, "0000"), Coldetail.current[1], Coldetail.current[2], Coldetail.current[13 + i], Coldetail.current[3], Coldetail.current[4 + i], Coldetail.current[5 + i], Coldetail.current[6 + i], Coldetail.current[7 + i], Coldetail.current[12 + i], Coldetail.current[8 + i], Coldetail.current[9 + i], Coldetail.current[10 + i], Format$(Nbligne, "0000"), TauxTva, Replace(Coldetail.current[18 + i], ",", "."), Replace(Coldetail.current[19 + i], ",", "."), Coldetail.current[22 + i], recdate(num.Text, Colitem0, "B"), num.Text)
           If $soption = "P" Or $soption = "T" Then    'renseigne le n° de région pour la tipp
             utils.db.Exec("UPDATE " & tab & " SET tipp_ligfac=&1 WHERE num_ligfac=&2 and numlig_ligfac=&3", Coldetail.item[24 + i], Numfac, Format$(Nbligne, "0000"))
           Endif
@@ -12613,7 +12683,7 @@ Public Sub Lig_Archives()
         Inc Nbligne
       Until Coldetail.Movenext()
       If $soption = "B" Or $soption = "T" Then    'remplace le n° bl par le n° facture dans le fichier consigne
-        utils.db.Exec("UPDATE Fiches_ligcons SET num=&1 WHERE num=&2 ", Numfac, num.Text)
+        utils.db.Exec("UPDATE Fiches_ligcons SET num=&1,type='F' And type='B' WHERE num=&2 ", Numfac, num.Text)
       Endif
     Endif
   End With
@@ -13045,6 +13115,7 @@ Public Sub Button20_Click()
   Dim TpLigne As String
   Dim $dup As Boolean = False
   Dim Lgbl As String
+  Dim dtcm As Boolean
 
   If bTypeFacture Then
     Lgbl = "Fiches_LigblM"
@@ -13060,6 +13131,18 @@ Public Sub Button20_Click()
   Totalttc = "0,00"
   With Utils
     If Coldetail3.Visible Then
+      If $soption = "B" Or $soption = "T" Then
+        Coldetail3.MoveFirst()
+        Repeat
+          If Coldetail3.item.Selected Or Seltot.Value Then
+            dtcm = utils.valart(recdate(variables.numeroFac, Coldetail3.item[0], "F"), Coldetail3.item[1], "")
+            If dtcm Then
+              Message.Info("Il y a des articles avec une CM clôturée \n La date de mouvement sera donc mise à la date du jour")
+              Break
+            Endif
+          Endif
+        Until Coldetail3.MoveNext()
+      Endif
       Coldetail3.MoveFirst()
       Repeat
         If Coldetail3.item.Selected Then
@@ -13082,7 +13165,7 @@ Public Sub Button20_Click()
           If Seltot.Value Or If Selpart.Value And Coldetail3.item.Selected Then
             If Coldetail3.item[8] <> "C" And If Coldetail3.item[8] <> "R" Then
               Importlig()
-              Majligbl()
+              Majligbl(dtcm)
             Else
               Importlig()
               Repeat
@@ -13157,10 +13240,11 @@ End
 '*****************************************************************
 '*     Calcul bas de facture et mise a jour table lignes de bl   *
 '*****************************************************************
-Public Sub Majligbl()
+Public Sub Majligbl(Optional dtcm As Boolean)
 
   Dim Lgbl As String
   Dim i As Integer
+  Dim dte As Date
 
   If $soption = "B" Or $soption = "T" Then i = 2 Else i = 0
   If bTypeFacture Then
@@ -13168,14 +13252,16 @@ Public Sub Majligbl()
   Else
     Lgbl = "Fiches_Ligbl"
   Endif
+  
+  If dtcm Then dte = Now Else dte = recdate(variables.numeroFac, Coldetail3.item[0], "F")
   With Utils
     If Coldetail3.item[8] = "M" Then
       Totalmo = Format$(Val(Totalmo) + Val(.CPoint(Coldetail.item[7 + i])), "0.00")
-      Utils.db.Exec("INSERT INTO " & Lgbl & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, tm_ligbl, block_ligbl, mrgmo_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", num.Text, Coldetail.item[0], Coldetail.item[1], Coldetail.item[2], Coldetail.item[13 + i], Coldetail.item[3], Coldetail.item[4 + i], Coldetail.item[5 + i], Coldetail.item[6 + i], Coldetail.item[7 + i], Coldetail.item[12 + i], Coldetail.item[8 + i], Coldetail3.item[8], Tm.Text, Coldetail.item[16 + i], Coldetail.item[19 + i])
+      Utils.db.Exec("INSERT INTO " & Lgbl & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, tm_ligbl, block_ligbl, mrgmo_ligbl,dte_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", num.Text, Coldetail.item[0], Coldetail.item[1], Coldetail.item[2], Coldetail.item[13 + i], Coldetail.item[3], Coldetail.item[4 + i], Coldetail.item[5 + i], Coldetail.item[6 + i], Coldetail.item[7 + i], Coldetail.item[12 + i], Coldetail.item[8 + i], Coldetail3.item[8], Tm.Text, Coldetail.item[16 + i], Coldetail.item[19 + i], dte)
     Endif
     If Coldetail3.item[8] = "A" Or If Coldetail3.item[8] = "E" Or If Coldetail3.item[8] = "P" Or If Coldetail3.item[8] = "D" Then
       Totalart = Format$(utils.totobs([Totalart, Coldetail.item[7 + i]]), "0.00")
-      Utils.db.Exec("INSERT INTO " & Lgbl & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl, mrgart_ligbl, four_ligbl, refl_ligbl, tour_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19})", num.Text, Coldetail.item[0], Coldetail.item[1], Coldetail.item[2], Coldetail.item[13 + i], Coldetail.item[3], Coldetail.item[4 + i], Coldetail.item[5 + i], Coldetail.item[6 + i], Coldetail.item[7 + i], Coldetail.item[12 + i], Coldetail.item[8 + i], Coldetail3.item[8], Dec.Text, Coldetail.item[16 + i], Coldetail.item[18 + i], Coldetail.Item[20 + i], Coldetail.Item[21 + i], Coldetail.item[22 + i])
+      Utils.db.Exec("INSERT INTO " & Lgbl & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl, mrgart_ligbl, four_ligbl, refl_ligbl, tour_ligbl, dte_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20})", num.Text, Coldetail.item[0], Coldetail.item[1], Coldetail.item[2], Coldetail.item[13 + i], Coldetail.item[3], Coldetail.item[4 + i], Coldetail.item[5 + i], Coldetail.item[6 + i], Coldetail.item[7 + i], Coldetail.item[12 + i], Coldetail.item[8 + i], Coldetail3.item[8], Dec.Text, Coldetail.item[16 + i], Coldetail.item[18 + i], Coldetail.Item[20 + i], Coldetail.Item[21 + i], Coldetail.item[22 + i], dte)
       If $soption = "P" Or $soption = "T" Then utils.db.Exec("UPDATE Fiches_Ligbl SET tipp_ligbl=&3 WHERE num_ligbl=&1 AND numlig_ligbl=&2", num.Text, Coldetail.item[0], Coldetail.item[24 + i])
     Endif
     If Coldetail3.item[8] = "O" Then
@@ -13255,7 +13341,7 @@ Public Sub Importlig()
         Coldetail.item[5 + i] = Format$(Val(.cpoint(Coldetail3.item[5])), "0.00")
       Endif
       Coldetail.item[6 + i] = Coldetail3.item[6]
-      If Coldetail3.item[7 + i] <> "" Then
+      If Coldetail3.item[7] <> "" Then
         Coldetail.item[7 + i] = Format$(Val(.cpoint(Coldetail3.item[7])), "0.00")
       Endif
       Coldetail.item[9 + i] = Coldetail3.item[8]
@@ -15189,6 +15275,19 @@ Public Sub textfrais_KeyPress()
   Endif
 
 End
+
+'recupére la date => ligne bl
+Private Function recdate(numbl As String, numlig As String, choix As String) As Date
+  
+  Dim res As Result
+  
+  If choix = "B" Then res = utils.db.Exec("SELECT dte_ligbl FROM Fiches_Ligbl WHERE num_ligbl=&1 AND numlig_ligbl=&2", numbl, numlig)
+  If choix = "F" Then res = utils.db.Exec("SELECT dtligbl_ligfac as dte_ligbl FROM Fiches_HistoLigfac WHERE num_ligfac=&1 AND numlig_ligfac=&2", numbl, numlig)
+  If res.Available Then Return res!dte_ligbl 
+  
+End
+
+
 '***********modifi l'affichage du panel5 pour saisie des articles boisson***************************************
 
 Private Sub modifpanel5()

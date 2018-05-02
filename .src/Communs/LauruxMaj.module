@@ -5096,6 +5096,9 @@ End
 
 Public Sub maj369()
 
+  Dim prg As ProgressBar
+  Dim win As Window
+  
   Tab1 = "Fiches_Caisses"
   rResult = Utils.db.Exec("SELECT * FROM " & Tab1 & " ")
   If rResult.Available Then
@@ -5109,6 +5112,19 @@ Public Sub maj369()
     Until rResult.MoveNext()
   Endif
   
+  'Fichier facture rajout date de saisie et n° bl
+  Try Utils.db.Exec("ALTER TABLE Fiches_HistoLigfac ADD dtligbl_ligfac date")
+  Try Utils.db.Exec("ALTER TABLE Fiches_HistoLigfacM ADD dtligbl_ligfac date")
+  Try Utils.db.Exec("ALTER TABLE Fiches_HistoLigfac ADD numbl_ligfac char(6)")
+  Try Utils.db.Exec("ALTER TABLE Fiches_HistoLigfacM ADD numbl_ligfac char(6)")
+  Utils.db.Exec("UPDATE Fiches_HistoLigfac,Fiches_HistoFac SET dtligbl_ligfac=datefac WHERE numfac=num_ligfac AND dtligbl_ligfac IS NULL")
+  Utils.db.Exec("UPDATE Fiches_HistoLigfacM,Fiches_HistoFacM SET dtligbl_ligfac=datefac WHERE numfac=num_ligfac AND dtligbl_ligfac IS NULL")
+  'Fichier BL rajout date de sasie
+  Try Utils.db.Exec("ALTER TABLE Fiches_Ligbl ADD dte_ligbl date")
+  Try Utils.db.Exec("ALTER TABLE Fiches_LigblM ADD dte_ligbl date")
+  Utils.db.Exec("UPDATE Fiches_Ligbl,Fiches_Bl SET dte_ligbl=datebl WHERE numbl=num_ligbl AND dte_ligbl IS NULL")
+  Utils.db.Exec("UPDATE Fiches_LigblM,Fiches_BlM SET dte_ligbl=datebl WHERE numbl=num_ligbl AND dte_ligbl IS NULL")
+  'maj des options
   If Start.LocalSettings["/Soc" & Start.Societe & "/pp"] = True Then
     Try Utils.db.Exec("ALTER TABLE Fiches_LigblM ADD tipp_ligbl char(2)")
     Try Utils.db.Exec("ALTER TABLE Fiches_HistoLigfacM ADD tipp_ligfac char(2)")

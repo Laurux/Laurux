@@ -19,6 +19,7 @@ Private $ftotap As Float
 Private $cdrt As New Calculdroit[]
 Private $schoix As String
 Private $slstnum As New String[]
+Private $clot As Date
 
 Property Read aimprimer As Collection
 Property Read consigne As String
@@ -31,6 +32,7 @@ Property Read nbdecons As Integer
 Property Read decons As Variant
 Property Read totvolume As String
 Property Read totap As String
+Property Read clotmat As Date
 
 
 Public Sub _new(num As String, choix As String)
@@ -41,6 +43,7 @@ Public Sub _new(num As String, choix As String)
   Dim vri As String[]
   Dim montht, montcons As Float
   Dim numfac, qst As String
+  
   
   $num = num                                              ' si $schoix=B num de bon =F num facture = FM num client =M num facture
   $schoix = choix                                       ' "B" ==> saisie factures "F" réedition des factures "FM" factures fin de mois "M" facture magasin
@@ -315,9 +318,9 @@ Public Sub comptmat(Optional numfac As String)    'enregistrement de la compta m
   'regarde dans le/les bons si un article est en droit suspendu ==> incremente le n° de vignette
   For Each num In $slstnum
     If $schoix = "M" Then 
-      resvig = Utils.db.Exec("SELECT suspendu FROM Fiches_HistoLigfac, Fiches_Art,Fiches_regie WHERE num_ligfac=&1 AND art_code=code_ligfac AND Fiches_regie.code=art_dra AND suspendu='TRUE' LIMIT 1 ", num)
+      resvig = Utils.db.Exec("SELECT suspendu FROM Fiches_HistoLigfac, Fiches_Art,Fiches_regie WHERE num_ligfac=&1 AND art_code=code_ligfac AND Fiches_regie.code=art_dra AND suspendu=True LIMIT 1 ", num)
     Else
-      resvig = Utils.db.Exec("SELECT suspendu FROM Fiches_Ligbl, Fiches_Art,Fiches_regie WHERE num_ligbl=&1 AND art_code=code_ligbl AND Fiches_regie.code=art_dra AND suspendu='TRUE' LIMIT 1 ", num)
+      resvig = Utils.db.Exec("SELECT suspendu FROM Fiches_Ligbl, Fiches_Art,Fiches_regie WHERE num_ligbl=&1 AND art_code=code_ligbl AND Fiches_regie.code=art_dra AND suspendu=True LIMIT 1 ", num)
     Endif
     If resvig.Available Then
       If resvig!suspendu Then
@@ -371,7 +374,7 @@ Public Sub comptmat(Optional numfac As String)    'enregistrement de la compta m
         For i = 0 To reslig.Max
           drt = New Calculdroit(reslig!art_dra, reslig!art_volm, reslig!art_deg, reslig!qte_ligbl)
           res = Utils.db.Create("Fiches_ligregie")
-          res!dtmouv = reslig!datebl
+          res!dtmouv = reslig!dte_ligbl
           res!num = numfac
           res!numlig = num & reslig!numlig_ligbl
           res!type = "C"    'permet de renuméroter les lignes pour qu'elles s'accordent avec Histoligfac
@@ -405,7 +408,7 @@ Public Sub comptmat(Optional numfac As String)    'enregistrement de la compta m
     For i = 0 To reslig.Max
       drt = New Calculdroit(reslig!art_dra, reslig!art_volm, reslig!art_deg, reslig!qte_ligbl)
       res = Utils.db.Create("Fiches_ligregie")
-      res!dtmouv = reslig!datebl
+      res!dtmouv = reslig!dte_ligbl
       If numfac Then res!num = numfac Else res!num = reslig!numfac
       res!numlig = $num & reslig!numlig_ligbl
       res!type = "S"
@@ -510,5 +513,11 @@ End
 Private Function totap_Read() As String
 
   Return Format($ftotap, "0.00")
+
+End
+
+Private Function clotmat_Read() As Date
+
+  
 
 End
