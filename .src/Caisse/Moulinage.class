@@ -386,7 +386,8 @@ Public Sub Moulinage()
   Dim bl_cli_credit As Float
   Dim bl_cli_debit As Float
   Dim Error_Verif_Tck As String[] = []
-
+  Dim rem As Float
+  
   RegroupBL = New Facturergbl
   Virements()
   numecr = "numecriture"
@@ -467,13 +468,15 @@ Public Sub Moulinage()
                 Endif
                 If Not IsNull(rTck!mttc) And Not rTck!suppr Then
                   If rTck!savoir = "1" Then
-                    Maj_Totalisation(Client, ivente, "-" & rTck!mttc)
+                    Maj_Totalisation(Client, ivente, "-" & rTck!mttc, 0)
                   Else
-                    Maj_Totalisation(Client, ivente, rTck!mttc)
+                    Maj_Totalisation(Client, ivente, rTck!mttc, 0)
                   Endif
                 Endif
                 rlTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigTck") & " where numero = &1 order by lInd", rTck!numero)
                 If rlTck.Available Then
+                  rem = remglob(rltck)
+                  rltck.MoveFirst
                   Repeat
                     If rlTck!type = "BL" Then
                       'rlTck!mrem est utilisé pour récupéré le numéro de Bl
@@ -508,7 +511,7 @@ Public Sub Moulinage()
                               Endif
                               montant = Val(.cpoint(lBl!netht_ligbl))
                               'on met a jour le HT
-                              Maj_Totalisation(vente, ivente, montant)
+                              Maj_Totalisation(vente, ivente, montant, rem)
 
                               tva = lBl!tx_ligbl
                               rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTvav") & " Where code_tva = &1", tva)
@@ -521,7 +524,7 @@ Public Sub Moulinage()
                               Endif
                               'on met a jour la TVA
                               montant = Val(.cpoint(lBl!nettc_ligbl)) - Val(.cpoint(lBl!netht_ligbl))
-                              Maj_Totalisation(Tva, iTva, montant)
+                              Maj_Totalisation(Tva, iTva, montant, rem)
                             Endif
                           Until lBl.MoveNext()
                         Endif
@@ -578,9 +581,9 @@ Public Sub Moulinage()
                           If Not rTck!suppr Then
                             If rTck!type = "0" Then
                               If rTck!savoir = "1" Then
-                                Maj_Totalisation(vente, ivente, "-" & montant)
+                                Maj_Totalisation(vente, ivente, "-" & montant, rem)
                               Else
-                                Maj_Totalisation(vente, ivente, montant)
+                                Maj_Totalisation(vente, ivente, montant, rem)
                               Endif
                             Endif
                           Endif
@@ -624,9 +627,9 @@ Public Sub Moulinage()
                       Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, rltck!numlig, code, $intit, rltck!montant, rltck!qte, rltck!type, Fam, rltck!mht, rltck!mrem, rltck!tva)
                       If Not rTck!suppr Then
                         If rTck!savoir = "1" Then
-                          If rlTck!type <> "L" And If rlTck!type <> "M" And If rlTck!type <> "C" Then Maj_Totalisation(Tva, iTva, "-" & montant)
+                          If rlTck!type <> "L" And If rlTck!type <> "M" And If rlTck!type <> "C" Then Maj_Totalisation(Tva, iTva, "-" & montant, rem)
                         Else
-                          If rlTck!type <> "L" And If rlTck!type <> "M" And If rlTck!type <> "C" Then Maj_Totalisation(Tva, iTva, montant)
+                          If rlTck!type <> "L" And If rlTck!type <> "M" And If rlTck!type <> "C" Then Maj_Totalisation(Tva, iTva, montant, rem)
                         Endif
                       Endif
                     Endif
@@ -1194,12 +1197,13 @@ End
 '**********************************************************
 '*                   Maj Totalisation                     *
 '**********************************************************
-Public Sub Maj_Totalisation(cpt As String, intit As String, montant As String)
+Public Sub Maj_Totalisation(cpt As String, intit As String, montant As String, rem As Float)
 
   Dim hResult As Result
   Dim Mtnt As String
 
   With utils
+    montant = Val(.cpoint(montant)) - (Val(.cpoint(montant)) * rem)
     hResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("Totalisation") & " Where compte = &1", Cpt)
     'Si le compte existe dans la table temporaire
     If hResult.Available Then
@@ -1670,7 +1674,7 @@ Private Sub genfac()
             resligfac!quantite = qte
             resligfac!montant = mht
             resligfac!fam = resligz!fam
-            If IsNull(resligz!marge) Then resligfac!marge = - mremise Else resligfac!marge = resligz!marge - mremise
+            If IsNull(resligz!marge) Then resligfac!marge = - mremise Else resligfac!marge = resligz!marge 
             'incremente la base de 1 pour voir si remise article ==> recalcul de la remise en 1 article puis globale
             Try resligz.MoveNext
             If resligz.Available Then
@@ -1682,7 +1686,7 @@ Private Sub genfac()
                 resligz.MoveNext
                 Inc J
               Endif
-              If resligz!type = "T" Then
+              If resligz!type = "T" And mremise = 0 Then
                 'calcul intermediaire des montants remisés
                 pxttc = CFloat(Trim(Replace(resligz!montant, ",", ".")))
                 mttc = pxttc
@@ -1814,12 +1818,12 @@ Private Function remglob(res As Result) As Float    'calcul de la remise global 
   rem = 0
   res.MoveFirst
   For I = 0 To res.Max
-    If InStr(res!intitule, "Remise sur total") <> 0 And res!type = "M" Then
+    If InStr(res!intitule, "Remise sur total") <> 0 And res!type = "MT" Then
       res.MovePrevious
       ftotbr = extraction(res!intitule)
       res.MoveNext
       res.MoveNext
-      res.MoveNext
+'      res.MoveNext
       Try ftotnet = extraction(res!intitule)
       If ftotnet <> 0 Then rem = 1 - (ftotnet / ftotbr)
       Break
