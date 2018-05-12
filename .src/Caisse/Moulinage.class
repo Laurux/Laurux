@@ -386,7 +386,7 @@ Public Sub Moulinage()
   Dim bl_cli_credit As Float
   Dim bl_cli_debit As Float
   Dim Error_Verif_Tck As String[] = []
-  Dim rem As Float
+  Dim mrg As Float
   
   RegroupBL = New Facturergbl
   Virements()
@@ -468,14 +468,13 @@ Public Sub Moulinage()
                 Endif
                 If Not IsNull(rTck!mttc) And Not rTck!suppr Then
                   If rTck!savoir = "1" Then
-                    Maj_Totalisation(Client, ivente, "-" & rTck!mttc, 0)
+                    Maj_Totalisation(Client, ivente, "-" & rTck!mttc)
                   Else
-                    Maj_Totalisation(Client, ivente, rTck!mttc, 0)
+                    Maj_Totalisation(Client, ivente, rTck!mttc)
                   Endif
                 Endif
                 rlTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigTck") & " where numero = &1 order by lInd", rTck!numero)
                 If rlTck.Available Then
-                  rem = remglob(rltck)
                   rltck.MoveFirst
                   Repeat
                     If rlTck!type = "BL" Then
@@ -511,7 +510,7 @@ Public Sub Moulinage()
                               Endif
                               montant = Val(.cpoint(lBl!netht_ligbl))
                               'on met a jour le HT
-                              Maj_Totalisation(vente, ivente, montant, rem)
+                              Maj_Totalisation(vente, ivente, montant)
 
                               tva = lBl!tx_ligbl
                               rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTvav") & " Where code_tva = &1", tva)
@@ -524,7 +523,7 @@ Public Sub Moulinage()
                               Endif
                               'on met a jour la TVA
                               montant = Val(.cpoint(lBl!nettc_ligbl)) - Val(.cpoint(lBl!netht_ligbl))
-                              Maj_Totalisation(Tva, iTva, montant, rem)
+                              Maj_Totalisation(Tva, iTva, montant)
                             Endif
                           Until lBl.MoveNext()
                         Endif
@@ -546,13 +545,13 @@ Public Sub Moulinage()
                       Endif
                       If IsNull(Fam) Then Fam = rlTck!fam
                       If Not IsNull(rTck!suppr) And rlTck!type = "A" Then $intit = rlTck!intitule
-                      If rlTck.index < rlTck.count - 1 Then
+                      If rlTck.Index < rlTck.count - 1 Then
                         $intit = rlTck!intitule
                         rlTck.MoveNext()
                         If rlTck!type = "O" Then
                           rlTck.MoveNext()
                         Endif
-                        If rlTck!type <> "S" And If rlTck!type <> "T" Then
+                        If rlTck!type <> "S" Then
                           rlTck.MovePrevious()
                           If rlTck!type = "O" Then
                             rlTck.MovePrevious()
@@ -581,9 +580,9 @@ Public Sub Moulinage()
                           If Not rTck!suppr Then
                             If rTck!type = "0" Then
                               If rTck!savoir = "1" Then
-                                Maj_Totalisation(vente, ivente, "-" & montant, rem)
+                                Maj_Totalisation(vente, ivente, "-" & montant)
                               Else
-                                Maj_Totalisation(vente, ivente, montant, rem)
+                                Maj_Totalisation(vente, ivente, montant)
                               Endif
                             Endif
                           Endif
@@ -609,28 +608,18 @@ Public Sub Moulinage()
                           Endif
                         Endif
                         If IsNull(montant) Then montant = 0
-                        If rlTck!type = "S" Then
-                          rlTck.MoveNext()
-                           If rltck.Index > 0 Then
-                          If rlTck!type <> "T" Then
-                            rlTck.MovePrevious()
-                            If rlTck!type = "O" Then
-                              rlTck.MovePrevious()
-                            Endif
-                            Endif
-                            Else
-                               rlTck.MoveLast()
-                          Endif
-                        Endif
                       Endif
                       'on garde l'historique du ticket tel quel
                       Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, rltck!numlig, code, $intit, rltck!montant, rltck!qte, rltck!type, Fam, rltck!mht, rltck!mrem, rltck!tva)
                       If Not rTck!suppr Then
                         If rTck!savoir = "1" Then
-                          If rlTck!type <> "L" And If rlTck!type <> "M" And If rlTck!type <> "C" Then Maj_Totalisation(Tva, iTva, "-" & montant, rem)
+                          If rlTck!type <> "L" And If rlTck!type <> "M" And If rlTck!type <> "C" Then Maj_Totalisation(Tva, iTva, "-" & montant)
                         Else
-                          If rlTck!type <> "L" And If rlTck!type <> "M" And If rlTck!type <> "C" Then Maj_Totalisation(Tva, iTva, montant, rem)
+                          If rlTck!type <> "L" And If rlTck!type <> "M" And If rlTck!type <> "C" Then Maj_Totalisation(Tva, iTva, montant)
                         Endif
+                      Endif
+                      If rlTck!type = "S" Or rlTck!type = "A" Then
+                        rlTck.MoveNext()
                       Endif
                     Endif
                   Until rlTck.MoveNext()
@@ -658,7 +647,7 @@ Public Sub Moulinage()
                     utils.db.Exec("UPDATE Fiches_Parametres set dnfac = &1", dnfac)
                     Utils.db.Exec("UPDATE " & Cbase.Table("TabBl") & " set type = \"F\", numtick = NULL, imp = 1, reg = \"Caisse\", mtreg = &2, numfac = &3, dtefac = &4, ech = &4 where numbl = &1", numbon, Blg!totalttc, snfac, Utils.Cdate2_Dbase(Left$(rtck!date, 10)))
                     'On genere les Mvt pour le clients
-                    If Blg!totalttc < 0 Then
+                    If Val(Replace(Blg!totalttc, ".", ",")) < 0 Then
                       bl_cli_credit = 0
                       bl_cli_debit = Abs(Blg!totalttc)
                     Else
@@ -728,6 +717,7 @@ Public Sub Moulinage()
                 Remart = "0.00"
                 totalht = 0
                 totalttc = 0
+                mrg = 0
                 'On met à jour le fichier des entetes de bl
                 Utils.db.Exec("INSERT INTO " & Cbase.Table("TabBl") & "(numbl,datebl,cdclibl, nmclibl, rmobl, rartbl, type, pnmclibl, adr1bl, adr2bl, cpbl, villebl, exobl, cvclibl, tvar, imp, acpt, mreg, totalht, totalttc, retro, marge_art, remmobl, remartbl, marge_mo) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13},&{14},&{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24}, &{25})", numbon, Utils.Cdate_Dbase(Datem), scli, nmclibl, rmobl, Artrm, "B", Pnmclibl, adr1bl, adr2bl, cpbl, villebl, Exo, Cvclibl, 0, 0, 0, "", .PointBase(totalht), .PointBase(totalttc), 0, 0, 0, 0, 0)
                 'On met à jour les lignes de bl
@@ -745,6 +735,12 @@ Public Sub Moulinage()
                       Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, nmlig, rlTck!code, rltck!intitule, rltck!montant, rltck!qte, rltck!type, rltck!fam, rltck!mht, rltck!mrem, rltck!tva)
                     Endif
                     If rlTck!type = "A" Then
+                      rlTck.MoveNext
+                      If rlTck!type = "O" Then rlTck.MoveNext
+                      If rlTck!type <> "S" Then
+                        rlTck.MovePrevious
+                        If rlTck!type = "O" Then rlTck.MovePrevious
+                      Endif
                       qte = rlTck!qte
                       Recup_Art(rlTck!code, qte, rlTck!mht, rlTck!montant, rlTck!tva)
                       Inc numlig
@@ -753,8 +749,13 @@ Public Sub Moulinage()
                       Remart = Val(.cpoint(Remart)) + Val(.cpoint(artbrut)) - Val(.cpoint(artnet))
                       totalht = totalht + Val(.cpoint(artnet))
                       totalttc = totalttc + Val(.cpoint(Arttc))
+                      mrg += rltck!marge
                       'on enregistre la ligne du Bl
-                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigbl") & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15})", numbon, nmlig, rlTck!code, artdsg, artfam, artpu, qte, artbrut, Artrm, artnet, Arttx, Arttc, "A", Nbd, Bloc)
+                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigbl") & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl, mrgart_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", numbon, nmlig, rlTck!code, artdsg, artfam, artpu, qte, artbrut, Artrm, artnet, Arttx, Arttc, "A", Nbd, Bloc, rlTck!marge)
+                      If rlTck!type = "S" Then
+                        rlTck.MovePrevious
+                        If rlTck!type = "O" Then rlTck.MovePrevious
+                      Endif
                     Endif
                     If rlTck!type = "O" Then
                       'Eco participation
@@ -767,7 +768,7 @@ Public Sub Moulinage()
                       Endif
                     Endif
                   Until rlTck.MoveNext()
-                  Utils.db.Exec("UPdate  " & Cbase.Table("TabBl") & "  SET marge_art = &2, remartbl = &3, totalht = &4, totalttc = &5 where numbl = &1", numbon, marge, Remart, totalht, totalttc)
+                  Utils.db.Exec("UPdate  " & Cbase.Table("TabBl") & "  SET marge_art = &2, remartbl = &3, totalht = &4, totalttc = &5 where numbl = &1", numbon, mrg, Remart, totalht, totalttc)
                 Endif
               Endif
             Endif
@@ -1197,13 +1198,12 @@ End
 '**********************************************************
 '*                   Maj Totalisation                     *
 '**********************************************************
-Public Sub Maj_Totalisation(cpt As String, intit As String, montant As String, rem As Float)
+Public Sub Maj_Totalisation(cpt As String, intit As String, montant As String)
 
   Dim hResult As Result
   Dim Mtnt As String
 
   With utils
-    montant = Val(.cpoint(montant)) - (Val(.cpoint(montant)) * rem)
     hResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("Totalisation") & " Where compte = &1", Cpt)
     'Si le compte existe dans la table temporaire
     If hResult.Available Then
@@ -1632,7 +1632,6 @@ Private Sub genfac()
   Dim snfac, snumlig, dnfac As String
 
   'recuperation et maj du n° facture
-'  respar = utils.db.Edit("Fiches_Parametres", "ind='0'")
   respar = utils.db.Exec("SELECT * FROM Fiches_Parametres")
   snfac = Str(Year(DateChooser1.Value)) & Format(Val(respar!dnfac) + 1, "000000")
   dnfac = Format(Val(respar!dnfac) + 1, "000000")
@@ -1646,87 +1645,33 @@ Private Sub genfac()
       'selection des lignes z
       resligz = utils.db.Exec("SELECT * FROM Fiches_LigTicketz WHERE numero=&1  ORDER BY lInd", resentz!numero)
       If resligz.Available Then
-
-        'calcul de la remise global en %
-        rem = remglob(resligz)
-
         'creation des lignes articles dans fichier temporaire
         resligz.MoveFirst
-        j = 0
         Repeat
           If resligz!type = "A" Then
             resligfac = utils.db.Create("Tmp_Caisse")
-            'calculs intermediaires
-            ttva = CFloat(Trim(resligz!tva)) / 100
-            pxttc = CFloat(Trim(Replace(resligz!montant, ",", ".")))
-            qte = Val(Utils.cpoint(resligz!qte))
-            'mttc = pxttc * qte
-            mttc = pxttc
-            'mht = mttc / (1 + ttva)
-            mht = CFloat(Trim(Replace(resligz!mht, ",", ".")))
-            pu = mht / CFloat(Trim(Replace(resligz!qte, ",", ".")))
-            mremise = mht * rem
-            'mtva = (mht - mremise) * ttva
-            mtva = CFloat(Trim(Replace(resligz!mtva, ",", ".")))
-            'affectation
-            resligfac!code = resligz!code
-            resligfac!pu = pu
-            resligfac!quantite = qte
-            resligfac!montant = mht
-            resligfac!fam = resligz!fam
-            If IsNull(resligz!marge) Then resligfac!marge = - mremise Else resligfac!marge = resligz!marge 
-            'incremente la base de 1 pour voir si remise article ==> recalcul de la remise en 1 article puis globale
-            Try resligz.MoveNext
-            If resligz.Available Then
-              If resligz!type = "O" Then
-                resligz.MoveNext
-                Inc J
-              Endif
-              If resligz!type = "S" Then
-                resligz.MoveNext
-                Inc J
-              Endif
-              If resligz!type = "T" And mremise = 0 Then
-                'calcul intermediaire des montants remisés
-                pxttc = CFloat(Trim(Replace(resligz!montant, ",", ".")))
-                mttc = pxttc
-                'qte = Val(Utils.cpoint(resligz!qte))
-                'mttc = pxttc * qte
-                'mttc = pxttc
-                'mht = mttc / (1 + ttva)
-                mht = CFloat(Trim(Replace(resligz!mht, ",", ".")))
-                'mremise = (resligfac!montant - mht) + (mht * rem)
-                Try mremise = CFloat(Trim(Replace(resligz!mrem, ",", ".")))
-                If Error Then mremise = 0
-                If IsNull(resligz!mtva) Then
-                  mtva = mht * ttva
-                Else
-                  mtva = CFloat(Trim(Replace(resligz!mtva, ",", ".")))
-                Endif
-                resligfac!montant = mht
-                Inc j
-              Else
-                resligz.MovePrevious
-                If resligz!type = "O" Then
-                  resligz.MovePrevious()
-                Endif
-              Endif
-              resligfac!remise = mremise
-              resligfac!montant = mht
-              '   If IsNull(resligz!marge) Then resligfac!marge = - mremise Else resligfac!marge = resligz!marge - mremise
-              resligfac!tva = mtva
-              resligfac.Update
+            'On regarde si la ligne suivante est une remise, si non on revient en arriere. "O"= ligne ecotaxe
+            resligz.MoveNext
+            If resligz!type = "O" Then resligz.MoveNext
+            If resligz!type <> "S" Then
+              resligz.MovePrevious
+              If resligz!type = "O" Then resligz.MovePrevious
             Endif
+            'calculs intermediaires
+            resligfac!code = resligz!code
+            resligfac!fam = resligz!fam
+            resligfac!pu = Val(Replace(resligz!montant, ".", ","))
+            resligfac!quantite = Val(Replace(resligz!qte, ".", ","))
+            resligfac!tva = Val(Replace(resligz!mtva, ".", ","))
+            resligfac!montant = Val(Replace(resligz!mht, ".", ","))
+            resligfac!marge = resligz!marge
+            resligfac.Update
           Endif
-          Try resligz.MoveNext
-          Inc j
-        Until j >= resligz.Count
-        resentz.MoveNext
+        Until resligz.MoveNext()
       Endif
+      resentz.MoveNext
     Next
-    Try resligfac.Update
-    If Not Error Then
-      utils.db.Commit
+    utils.db.Commit
 
       'mise a jour entete facture
       utils.db.Begin
@@ -1781,7 +1726,6 @@ Private Sub genfac()
           resligfac!code_ligfac = reslig!code
           If res.Available Then resligfac!pu_ligfac = Format(res!art_pvht, "0.00") Else resligfac!pu_ligfac = "0,00"
           resligfac!brut_ligfac = Format(Val(resligfac!pu_ligfac) * reslig!quantite, "0.00")
-          resligfac!rem_ligfac = Format(reslig!remise, "0.00")
           resligfac!netht_ligfac = Format(reslig!montant, "0.00")
           resligfac!nettc_ligfac = Format(reslig!montant + reslig!mtva, "0.00")
           resligfac!mrgart_ligfac = reslig!marge
@@ -1792,6 +1736,7 @@ Private Sub genfac()
             resligfac!fam_ligfac = res!art_fam
             resligfac!tx_ligfac = res!art_tva
             resligfac!qte_ligfac = Format(reslig!quantite, utils.Find_nbdec(res!art_dec))
+            resligfac!pu_ligfac = Format(reslig!montant / reslig!quantite, utils.Find_nbdec(res!art_nbd))
             res = utils.db.Exec("SELECT * FROM Fiches_Tvaav WHERE code_tva=&1", resligfac!tx_ligfac)
             If res.Available Then resligfac!mtx_ligfac = res!taux_tva
           Else
@@ -1804,50 +1749,10 @@ Private Sub genfac()
         Next
       Endif
       utils.db.Commit
-    Endif
   Endif
 
 End
 
-Private Function remglob(res As Result) As Float    'calcul de la remise global sur 1 ticket
-
-  Dim rem As Float
-  Dim i As Integer
-  Dim ftotbr, ftotnet As Float
-
-  rem = 0
-  res.MoveFirst
-  For I = 0 To res.Max
-    If InStr(res!intitule, "Remise sur total") <> 0 And res!type = "MT" Then
-      res.MovePrevious
-      ftotbr = extraction(res!intitule)
-      res.MoveNext
-      res.MoveNext
-'      res.MoveNext
-      Try ftotnet = extraction(res!intitule)
-      If ftotnet <> 0 Then rem = 1 - (ftotnet / ftotbr)
-      Break
-    Endif
-    res.MoveNext
-  Next
-  Return rem
-
-End
-
-Private Function extraction(intilule As String) As Float
-
-  Dim fmont As Float
-  Dim smont As String = ""
-
-  intilule = Trim(intilule)
-  While Right(intilule, 1) Like "[0-9]" Or Right(intilule, 1) Like "[,]"
-    smont = Right(intilule, 1) & smont
-    intilule = Left(intilule, Len(intilule) - 1)
-  Wend
-  Try fmont = CFloat(Replace(smont, ",", "."))
-  Return fmont
-
-End
 
 Private Sub creatmp()
 
@@ -1855,12 +1760,12 @@ Private Sub creatmp()
   Utils.db.EXEC("CREATE TABLE Tmp_Caisse" &
     "(lInd INT NOT NULL AUTO_INCREMENT," &
     "code Char(15)," &
-    "pu Decimal(8,2)," &
-    "montant Decimal(8,2)," &
-    "remise Decimal(8,2)," &
-    "quantite Decimal(9,3)," &
-    "tva Decimal(8,2)," &
-    "marge Decimal(8,2)," &
+    "pu Decimal(8,2) DEFAULT '0'," &
+    "montant Decimal(8,2) DEFAULT '0', " &
+    "remise Decimal(8,2) DEFAULT '0'," &
+    "quantite Decimal(9,3) DEFAULT '0'," &
+    "tva Decimal(8,2) DEFAULT '0'," &
+    "marge Decimal(8,2) DEFAULT '0'," &
     "fam Char(20)," &
     "PRIMARY KEY (lInd))")
 
