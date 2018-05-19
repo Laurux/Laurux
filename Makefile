@@ -3,6 +3,8 @@ APP:=Laurux
 GIT_SHA1:=$(shell git rev-list HEAD | head -n 1)
 GIT_BRANCH:=$(shell git branch | grep "*" | sed -e "s/^* //g")
 VERSION:=$(shell grep "Version=" .project | sed -e "s/Version=//g")
+CHANGELOG_GEN:=$(HOME)/github-changelog-generator/bin/github_changelog_generator
+GIT_TOKEN:=`cat $(HOME)/github_token`
 
 vecho = @echo
 ifeq ("$(V)","1")
@@ -45,6 +47,10 @@ clean:
 	$(Q)rm -f $(APP).desktop
 	$(Q)rm -rf $(O)
 	$(Q)rm -rf .gambas
+
+changelog:
+	$(vecho) "Generating Changelog $(PROJECT)"
+	$(Q)$(CHANGELOG_GEN) -u Laurux -p $(PROJECT) -t $(GIT_TOKEN)
 
 $(O)/$(VERSION)/$(PROJECT).tar.gz: $(APP) $(APP).desktop Icones/Larus.png
 	$(vecho) "Packaging $(PROJECT) v$(VERSION) ($(GIT_SHA1)) in path $(O)/$(VERSION)"
