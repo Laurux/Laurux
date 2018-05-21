@@ -1,5 +1,57 @@
 # Change Log
 
+## [v3.68.2](https://github.com/Laurux/Laurux/tree/v3.68.2) (2018-05-21)
+[Full Changelog](https://github.com/Laurux/Laurux/compare/v3.68.1...v3.68.2)
+
+**Implemented enhancements:**
+
+- Stats et Mo [\#113](https://github.com/Laurux/Laurux/issues/113)
+- generation clés [\#91](https://github.com/Laurux/Laurux/issues/91)
+- "Une mise à jour de patch est disponible" [\#80](https://github.com/Laurux/Laurux/issues/80)
+- Feature request : totaux en plus gros Laurux v3.68.1 \(1389baf branche: v3.68\) [\#75](https://github.com/Laurux/Laurux/issues/75)
+- Table des matériels - ergonomie difficile Laurux v3.68.1 \(1389baf branche: v3.68\) [\#73](https://github.com/Laurux/Laurux/issues/73)
+
+**Fixed bugs:**
+
+- Stats et Mo [\#113](https://github.com/Laurux/Laurux/issues/113)
+- Réception manuelle et taux de conversion [\#112](https://github.com/Laurux/Laurux/issues/112)
+- Controles dans la saise des familles [\#106](https://github.com/Laurux/Laurux/issues/106)
+- Bug stat clients [\#105](https://github.com/Laurux/Laurux/issues/105)
+- Facture : lignes bon [\#90](https://github.com/Laurux/Laurux/issues/90)
+- Erreurs mysql [\#79](https://github.com/Laurux/Laurux/issues/79)
+- Impossible de choisir un fond d'ecran pour la société [\#69](https://github.com/Laurux/Laurux/issues/69)
+- Dernier n°client s'incrémente à tort si pas de validation : Table clients V3.68.1\(1389baf V3.68\) [\#95](https://github.com/Laurux/Laurux/issues/95)
+- Verification des clefs [\#87](https://github.com/Laurux/Laurux/issues/87)
+- Gestion des clefs de control non fonctionnel [\#85](https://github.com/Laurux/Laurux/issues/85)
+- Bug / Amélioration : statistiques produits / client v3.68.1 \(1389baf branche v3.68\) [\#77](https://github.com/Laurux/Laurux/issues/77)
+
+**Closed issues:**
+
+- Bug sur lock lors de l'impression des factures [\#114](https://github.com/Laurux/Laurux/issues/114)
+- Bug sur création de facture lorsque la sélection de bl par le nom est vide [\#110](https://github.com/Laurux/Laurux/issues/110)
+- Unable to save settings: Settings.Save.200 Null object. [\#109](https://github.com/Laurux/Laurux/issues/109)
+- balance dans les fichiers FEC \(A47\) [\#108](https://github.com/Laurux/Laurux/issues/108)
+- Bug de calcul de Sha1 sur les clotures mensuelles [\#107](https://github.com/Laurux/Laurux/issues/107)
+- Amélioration : pouvoir imprimer les produits à stock négatif V3.68.1 \(1389baf V3.68\) [\#103](https://github.com/Laurux/Laurux/issues/103)
+- Amélioration : remise zone à blanc après restore V3.68.1 \(1389baf branche V3.68\) [\#101](https://github.com/Laurux/Laurux/issues/101)
+- Un composant pour plusieurs composés : V3.68.1 \(1389baf branche V3.68\) [\#98](https://github.com/Laurux/Laurux/issues/98)
+- Lettrage d'un Avoir Fournisseur en saisie trésorerie V3.68.1 \(1389baf branche V3.68\) [\#96](https://github.com/Laurux/Laurux/issues/96)
+- Manque touche Sortie réglement F7 dans Caisse V3.25.1 \(fe6f381 branche V3.25\) [\#94](https://github.com/Laurux/Laurux/issues/94)
+- Modification d'écriture [\#92](https://github.com/Laurux/Laurux/issues/92)
+- Recalcul des stocks [\#89](https://github.com/Laurux/Laurux/issues/89)
+- pb maj bases sur multisociété v3.68.1 \(1389baf branche v3.68\) [\#86](https://github.com/Laurux/Laurux/issues/86)
+- Enlever la saisie des règlements v3.68.1 \(6157158 branche master\) [\#83](https://github.com/Laurux/Laurux/issues/83)
+- Crash - commande et réception commande fournisseur v3.68.1 \(6157158 branche master\) [\#82](https://github.com/Laurux/Laurux/issues/82)
+- Recalcul des stocks défectueux v3.68.1 \(6157158 branche master\) [\#81](https://github.com/Laurux/Laurux/issues/81)
+- Fonds d'écran personnalisé - v3.68.1 \(1389baf branche v3.68\) [\#78](https://github.com/Laurux/Laurux/issues/78)
+- Facture qui n'apparaît pas en compta [\#76](https://github.com/Laurux/Laurux/issues/76)
+- Feature request - création de client avec tous les champs Laurux v3.68.1 \(1389baf branche: v3.68\) [\#74](https://github.com/Laurux/Laurux/issues/74)
+- Plantage en facturation Laurux v3.68.1 \(1389baf branche: v3.68\) [\#71](https://github.com/Laurux/Laurux/issues/71)
+- modification ligne de matériel DEVIS Laurux v3.68.1 \(1389baf branche: v3.68\) [\#70](https://github.com/Laurux/Laurux/issues/70)
+- Fichier FEC [\#59](https://github.com/Laurux/Laurux/issues/59)
+- Liste des documents en cours v3.68.0 \(0990d6b master\) [\#53](https://github.com/Laurux/Laurux/issues/53)
+- modification ligne de matériel v3.68.0 \(0990d6b branche master\) [\#51](https://github.com/Laurux/Laurux/issues/51)
+
 ## [v3.68.1](https://github.com/Laurux/Laurux/tree/v3.68.1) (2018-01-27)
 [Full Changelog](https://github.com/Laurux/Laurux/compare/v3.68.0...v3.68.1)
 
