@@ -22,7 +22,7 @@ Public Sub _New()
   lg = Int(Coltk.height / coltk.Rows.Height) - 1
   Me.Center
   Nm.Text = "Numéro"
-  Date.Text = "Date-Heure"
+  Date.Text = "Date Heure"
   Mtht.Text = "Montant ht"
   Mttva.Text = "TVA"
   Mt.Text = "Montant ttc"
@@ -87,15 +87,14 @@ End
 
 Public Sub Deb2()
 
-  TkResult = Utils.db.Exec("select * from " & Cbase.Table("TabHisEntTck") & " where " & Tri & " like  \"%" & sel & "%\" order by " & Tri & " Desc limit " & NbEnreg & ", " & lg & "")
-  'Utils.Base(Coltk, "select * from " & Cbase.Table("TabHisEntTck") & " where " & Tri & " like  \"" & sel & "%\" order by " & Tri & " limit " & NbEnreg & ", " & lg & "")
+  TkResult = Utils.db.Exec("select * from " & Cbase.Table("TabHisEntTck") & " Left join " & Cbase.Table("TabCli") & " on client = cli_code where " & Tri & " like  \"%" & sel & "%\" order by " & Tri & " Desc limit " & NbEnreg & ", " & lg & "")
   affiche()
 
 End
 
 Public Sub Deb3()
 
-  TkResult = Utils.db.Exec("select * from " & Cbase.Table("TabHisEntTck") & " where " & Tri & " like  \"%" & sel & "%\" order by " & Tri & "  limit " & NbEnreg & ", " & lg & "")
+  TkResult = Utils.db.Exec("select * from " & Cbase.Table("TabHisEntTck") & " Left join " & Cbase.Table("TabCli") & " on client = cli_code where " & Tri & " like  \"%" & sel & "%\" order by " & Tri & "  limit " & NbEnreg & ", " & lg & "")
   affiche()
 
 End
@@ -126,7 +125,11 @@ Public Sub affiche()
       If tkresult!savoir = "1" Then Coltk[i, 6].Text = "Avoir"
       If tkresult!sresto = "R" Then Coltk[i, 6].Text = "Chq entreprise"
       Coltk[i, 7].Text = Replace$(tkresult!vendeur, "\n", "")
-      Coltk[i, 8].Text = tkresult!nom
+      If Not IsNull(tkresult!nom) Then
+        Coltk[i, 8].Text = tkresult!nom
+      Else
+        Coltk[i, 8].Text = tkresult!cli_nom & " " & tkresult!cli_pnm
+      Endif
       If tkresult!suppr = True Then
         For n = 0 To 8
           Coltk[i, n].Font.Italic = True
@@ -212,7 +215,12 @@ End
 
 Public Sub Date_KeyPress()
 
-  If Key.code = Key.Return Or Key.code = Key.Enter Then dKeyPress()
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    Print Key.Text
+    dKeyPress()
+    Stop Event
+  Endif
 
 End
 
@@ -315,7 +323,7 @@ Public Sub Cli_GotFocus()
   init_Tk()
   Cli.Text = ""
   NbEnreg = 0
-  Tri = "nom"
+  Tri = "cli_nom"
   Deb2()
 
 End
@@ -326,7 +334,7 @@ Public Sub cli_Dblclick()
   init_Tk()
   Cli.Text = ""
   NbEnreg = 0
-  Tri = "nom"
+  Tri = "cli_nom"
   Dbclk()
 
 End
@@ -357,8 +365,19 @@ End
 
 Public Sub dKeyPress()
 
-  sel = Utils.Cdate2_Dbase(Date.text)
-  Deb2()
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      Date.text = Left$(Date.text, (Len(Date.text) - 1))
+    Else
+      Date.text = Date.text & key.Text
+    Endif
+    sel = LDate.DateFilterDB(Date.text, True)
+    Print Date.Text & " => " & sel
+    Date.Tooltip = "Saisir la date sous la forme jj.mm.aaaa HH:MM ou aaaa.mm.jj HH:MM (actif: " & sel & ")\nUn double clic sur la zone inverse l'ordre de tri."
+    Deb2()
+  Endif
+
 Catch
 
 End
@@ -366,7 +385,7 @@ End
 Public Sub init_Tk()
 
   Nm.text = "Numéro"
-  Date.Text = "Date"
+  Date.Text = "Date Heure"
   Mt.Text = "Montant"
   Ca.Text = "Caisse"
   Ve.text = "Vendeur"
@@ -493,7 +512,7 @@ Public Sub Coltk_Click()
     Detk.visible = True
     Button3.Visible = True
     Button4.Visible = True
-    LkResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisLigTck") & " where numero = &1 order by cast(numlig as unsigned)", ColTk[ColTk.row, 0].Text)
+    LkResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisLigTck") & " Left join " & Cbase.Table("TabCli") & " on client = cli_code where numero = &1 order by cast(numlig as unsigned)", ColTk[ColTk.row, 0].Text)
     If LkResult.Available Then
       Repeat
         detk.Add(LkResult!lInd & LkResult!code, LkResult!lInd & LkResult!code)

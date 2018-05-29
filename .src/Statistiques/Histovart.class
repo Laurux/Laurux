@@ -544,6 +544,7 @@ Public Sub Report(Org As String)
   Dim Bflag As Boolean = False
   Dim pdf As Chistoriques
   Dim Stocke, Stocka As Boolean = False
+  Dim Pb As ProgBar
 
   Nbpage = 1
   dte = Format$(Now, "dd.mm.yyyy")
@@ -605,7 +606,10 @@ Public Sub Report(Org As String)
         rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE art_code >= &1  and art_code <= &2 and art_fam >= &3 and art_fam <= &4  and art_four >= &5 and art_four <= &6 and art_stocke = &7 order by art_design", Art.Text, Art2.Text, Fam.Text, Fam2.Text, four.Text, four2.Text, stocke)
       Endif
       If rResult.Available Then
+        Pb = New ProgBar("Statistiques", rResult.Count, Null, True, "", True)
+        PB.Show()
         Repeat
+          If Pb.Avancement("Article " & rResult!art_code, 10) = True Then Break
           qte = 0
           Pvht = 0
           code = rResult!art_code
@@ -754,12 +758,16 @@ Public Sub Report(Org As String)
             Endif
           Endif
         Until rResult.MoveNext()
+        PB.Close()
       Endif
     Else
       HResult = Utils.db.Exec("SELECT * FROM " & Tab6 & " as e inner join " & Tab8 & " as a on a.num_ligbl = e.numbl WHERE type = &1 and typel_ligbl = &2 order by CAST(code_ligbl AS char)", "D", "A")
       If HResult.Available Then
+        Pb = New ProgBar("Statistiques Devis", HResult.Count, Null, True, "", True)
+        PB.Show()
         code = Hresult!code_ligbl
         Repeat
+          If Pb.Avancement("Article " & HResult!code_ligbl, 1) = True Then Break
           If Hresult!code_ligbl <> code Then
             If stocka = stocke And four3 >= four.Text And four3 <= four2.Text Then
               If Org = "Button2" Then
@@ -800,6 +808,7 @@ Public Sub Report(Org As String)
             Endif
           Endif
         Until HResult.MoveNext()
+        PB.Close()
       Endif
       If Org = "Button2" Then
         If Val(.cpoint(qte)) <> 0 Then

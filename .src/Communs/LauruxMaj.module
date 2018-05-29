@@ -1101,6 +1101,8 @@ Public Sub Verif_Version()
   If rResult!version = "3.68" Then
     If Start.LocalSettings["/dbase/Maj"] Then Maj369()
     Try Utils.db.Exec("update Fiches_Parametres set version = &1 ", "3.69")
+    'Laurux-Pos compatibility version
+    Try Utils.db.Exec("update Fiches_Parametres set version_pos = &1 ", "3.26")
   Endif
 
   If bMaj Then Shell "xdg-open 'http://www.laurux.fr/drupal/changelog'"
@@ -5024,24 +5026,6 @@ Public Sub Maj368()
       Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (prev_numero Char(7))")
     Until rResult.MoveNext()
   Endif
-  
-  '************************** A mettre dans la 3.69 ****************************
-'  Tab = "Fiches_HisEntTickets"
-'  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (date2 datetime)")
-'  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
-'  If rResult.Available Then
- '   Repeat
- '     If Left$(rResult!date, 3) = "201" Then
-'        Utils.db.Exec("UPdate   " & Tab & " SET date2 = &1 WHERE lInd = &2", Left$(rResult!date, 4) & "." & Mid$(rResult!date, 6, 2) & "." & Mid$(rResult!date, 9, 2) & " " & Mid$(rResult!date, 12, 2) & Mid$(rResult!date, 15, 2), rResult!lInd)
-'      Else
- '       If Mid$(rResult!date, 7, 3) = "201" Then
-'          Utils.db.Exec("UPdate   " & Tab & " SET date2 = &1 WHERE lInd = &2", Mid$(rResult!date, 7, 4) & "." & Mid$(rResult!date, 4, 2) & "." & Left$(rResult!date, 2) & " " & Mid$(rResult!date, 13, 2) & Mid$(rResult!date, 16, 2), rResult!lInd)
-'        Endif
-'      Endif
-'    Until rResult.MoveNext()
-'    Try Utils.db.Exec("ALTER TABLE " & Tab & " drop date")
-'    Try Utils.db.Exec("ALTER TABLE " & Tab & " change date2 date Datetime")
-'  Endif
 
   If Not Error Then bmaj = True
 
@@ -5049,13 +5033,15 @@ End
 
 Public Sub Maj369()
 
-  Dim prg As ProgressBar
-  Dim win As Window
+  Dim PB As ProgBar
   
+  'Changemement Date format en ticket (le moulinage est effectué avant MAJ)
   Tab1 = "Fiches_Caisses"
   rResult = Utils.db.Exec("SELECT * FROM " & Tab1 & " ")
   If rResult.Available Then
     Repeat
+      Tab = "Fiches_EntTickets" & rResult!code
+      Try Utils.db.Exec("ALTER TABLE " & Tab & " change date date datetime")  
       tab = "Fiches_LigTickets" & rResult!code
       Try Utils.db.Exec("ALTER TABLE " & tab & " MODIFY fam Char(20)")
       tab = "Fiches_Ticketx" & rResult!code
@@ -5064,19 +5050,38 @@ Public Sub Maj369()
       Try Utils.db.Exec("ALTER TABLE " & tab & " MODIFY fam char(20)")
     Until rResult.MoveNext()
   Endif
+  Tab = "Fiches_EntTicketz"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " change date date datetime")
+
   
   'Fichier facture rajout date de saisie et n° bl
-  Try Utils.db.Exec("ALTER TABLE Fiches_HistoLigfac ADD dtligbl_ligfac date")
-  Try Utils.db.Exec("ALTER TABLE Fiches_HistoLigfacM ADD dtligbl_ligfac date")
+  PB = New ProgBar("Conversion des dates facture", 4)
+  PB.Show()
+  PB.Avancement("Table Factures", 1)
+  Try Utils.db.Exec("ALTER TABLE Fiches_HistoLigfac change dtligbl_ligfac dtligbl_ligfac datetime")
+  Try Utils.db.Exec("ALTER TABLE Fiches_HistoLigfac ADD dtligbl_ligfac datetime")
   Try Utils.db.Exec("ALTER TABLE Fiches_HistoLigfac ADD numbl_ligfac char(6)")
+  PB.Avancement("Table Factures Matériels", 1)
+  Try Utils.db.Exec("ALTER TABLE Fiches_HistoLigfacM change dtligbl_ligfac dtligbl_ligfac datetime")
+  Try Utils.db.Exec("ALTER TABLE Fiches_HistoLigfacM ADD dtligbl_ligfac datetime")
   Try Utils.db.Exec("ALTER TABLE Fiches_HistoLigfacM ADD numbl_ligfac char(6)")
+  PB.Avancement("Lignes Factures", 1)
   Utils.db.Exec("UPDATE Fiches_HistoLigfac,Fiches_HistoFac SET dtligbl_ligfac=datefac WHERE numfac=num_ligfac AND dtligbl_ligfac IS NULL")
+  PB.Avancement("Lignes Factures Materiels", 1)
   Utils.db.Exec("UPDATE Fiches_HistoLigfacM,Fiches_HistoFacM SET dtligbl_ligfac=datefac WHERE numfac=num_ligfac AND dtligbl_ligfac IS NULL")
+  PB.Close()
   'Fichier BL rajout date de sasie
-  Try Utils.db.Exec("ALTER TABLE Fiches_Ligbl ADD dte_ligbl date")
-  Try Utils.db.Exec("ALTER TABLE Fiches_LigblM ADD dte_ligbl date")
+  PB = New ProgBar("Conversion des dates BL", 4)
+  PB.Show()
+  PB.Avancement("Table BL", 1)
+  Try Utils.db.Exec("ALTER TABLE Fiches_Ligbl ADD dte_ligbl datetime")
+  PB.Avancement("Table BL Matériels", 1)
+  Try Utils.db.Exec("ALTER TABLE Fiches_LigblM ADD dte_ligbl datetime")
+  PB.Avancement("Ligned BL", 1)
   Utils.db.Exec("UPDATE Fiches_Ligbl,Fiches_Bl SET dte_ligbl=datebl WHERE numbl=num_ligbl AND dte_ligbl IS NULL")
+  PB.Avancement("Ligned BL Matériels", 1)
   Utils.db.Exec("UPDATE Fiches_LigblM,Fiches_BlM SET dte_ligbl=datebl WHERE numbl=num_ligbl AND dte_ligbl IS NULL")
+  PB.Close()
   'maj des options
   If Start.LocalSettings["/Soc" & Start.Societe & "/pp"] = True Then
     Try Utils.db.Exec("ALTER TABLE Fiches_LigblM ADD tipp_ligbl char(2)")
@@ -5089,12 +5094,34 @@ Public Sub Maj369()
     Try Utils.db.Exec("ALTER TABLE Fiches_Parametres ADD arrete char(7)")
     Try Utils.db.Exec("ALTER TABLE Fiches_ligregie ADD volumess decimal(7,2)")
   Endif
+
+  'Changemement Date format en histo ticket
+  Tab = "Fiches_HisEntTickets"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (date2 datetime)")
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by numero")
+  PB = New ProgBar("Conversion des dates des tickets caisse archivés", rResult.Count)
+  PB.Show()
+  If rResult.Available Then
+    Repeat
+      PB.Avancement("Tickets " & rResult!numero, 300)
+      If TypeOf(rResult!date) = gb.String
+        'Utilisation de la classe LDate pour les conversions de date
+        Utils.db.Exec("UPdate   " & Tab & " SET date2 = &1 WHERE lInd = &2", LDate(rResult!date).DT, rResult!lInd)
+      Endif
+    Until rResult.MoveNext()
+    PB.Close()
+    Try Utils.db.Exec("ALTER TABLE " & Tab & " drop date")
+    Try Utils.db.Exec("ALTER TABLE " & Tab & " change date2 date datetime")
+  Endif
   
   'contrib asirbu2002
   Tab = "Fiches_Ligabon"
   Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (libelle VarChar(50))")
   Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (numDoc Char(10))")
   Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (numLot Char(10))")
+  
+  Sha1Calc.CalcSha1_all("Fiches_Mvt")
+  'Sha1Calc.CalcSha1_all("Fiches_Mvt1") 'A REMETTRE AVANT COMMIT : DO NOT PUSH
   
   If Not Error Then bmaj = True
   

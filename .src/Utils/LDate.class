@@ -54,6 +54,114 @@ Public Sub _Call(Optional DateOrYear As Variant, Optional Month As Integer = 1, 
 
 End
 
+Public Sub DateFilterDB(Sdate As String, Optional HasTime As Boolean = False) As String
+
+  Dim cvdate As String[]
+  Dim time As String
+  Dim yea As String
+  Dim mon As String
+  Dim jou As String
+  Dim hour As String
+  Dim min As String
+  Dim sec As String
+  Dim timestr As String = ""
+  Dim reg As RegExp
+  Dim reg2 As RegExp
+  
+  If IsNull(sdate) Then
+    Return "%" 'no filter
+  Endif
+  
+  reg = New RegExp
+  reg.Compile("([0-9%*]*)[/.-]*([0-9%*]*)[/.-]*([0-9%*]*)")
+  reg.Exec(Sdate)
+  If reg.Count <= 0 Then
+    Return "%"
+  Endif
+  
+  If HasTime Then
+    reg2 = New RegExp
+    reg2.Compile(" ([0-9%*]*)[:]*([0-9%*]*)[:]*([0-9%*]*)")
+    reg2.Exec(Sdate)
+    If reg2.Count > 0 Then
+      If Len(reg2[1].Text) > 0 And Len(reg2[2].Text) > 0 And Len(reg2[3].Text) > 0 Then
+        hour = Right(reg2[1].Text, 2)
+        hour = Replace(hour, "*", "%")
+        min = Right(reg2[2].Text, 2)
+        min = Replace(min, "*", "%")
+        sec = Right(reg2[3].Text, 2)
+        sec = Replace(sec, "*", "%")
+        timestr = " " & hour & ":" & min & ":" & sec
+      Else If Len(reg2[1].Text) > 0 And Len(reg2[2].Text) > 0 Then
+        hour = Right(reg2[1].Text, 2)
+        hour = Replace(hour, "*", "%")
+        min = Right(reg2[2].Text, 2)
+        min = Replace(min, "*", "%")
+        timestr = " " & hour & ":" & min & "%"
+      Else If Len(reg2[1].Text) > 0 
+        hour = Right(reg2[1].Text, 2)
+        hour = Replace(hour, "*", "%")
+        timestr = " " & hour & "%"
+      Else
+        timestr = " %" 
+      Endif
+    Else
+      timestr = "%"
+    Endif
+  Endif
+
+  If Len(reg[1].Text) > 0 And Len(reg[2].Text) > 0 And Len(reg[3].Text) > 0 Then
+    If Len(reg[1].Text) >= 4 Then
+      yea = Right(reg[1].Text, 4)
+      yea = Replace(yea, "*", "%")
+      mon = Right(reg[2].Text, 2)
+      mon = Replace(mon, "*", "%")
+      jou = Right(reg[3].Text, 2)
+      jou = Replace(jou, "*", "%")
+    Else
+      yea = Right(reg[3].Text, 4)
+      yea = Replace(yea, "*", "%")
+      mon = Right(reg[2].Text, 2)
+      mon = Replace(mon, "*", "%")
+      jou = Right(reg[1].Text, 2)
+      jou = Replace(jou, "*", "%")
+    Endif
+    Return yea & "-" & mon & "-" & jou & timestr
+  Else If Len(reg[1].Text) > 0 And Len(reg[2].Text) > 0 Then
+    If Len(reg[1].Text) >= 4 Then
+      yea = Right(reg[1].Text, 4)
+      yea = Replace(yea, "*", "%")
+      mon = Right(reg[2].Text, 2)
+      mon = Replace(mon, "*", "%")
+      jou = "%"
+    Else
+      yea = "%"
+      mon = Right(reg[2].Text, 2)
+      mon = Replace(mon, "*", "%")
+      jou = Right(reg[1].Text, 2)
+      jou = Replace(jou, "*", "%")
+    Endif
+  Else If Len(reg[1].Text) > 0 Then
+    If Len(reg[1].Text) >= 4 Then
+      yea = Right(reg[1].Text, 4)
+      yea = Replace(yea, "*", "%")
+      mon = "%"
+      jou = "%"
+    Else
+      yea = "%"
+      mon = "%"
+      jou = Right(reg[1].Text, 2)
+      jou = Replace(jou, "*", "%")
+    Endif
+  Else
+      Return "%" & timestr
+  Endif
+  
+  'Retour du format de filtrage pour les bases de données
+  Return yea & "-" & mon & "-" & jou & timestr
+
+End
+
 
 '**************
 'METHODE PRIVEE
@@ -63,13 +171,15 @@ Private Function Parse(Sdate As String) As Date
 
   Dim cvdate As String[]
   Dim time As String
-  Dim dte As String = Left$(Sdate, 10)
   Dim hour As Integer
   Dim min As Integer
   Dim sec As Integer
   Dim reg As RegExp
   Dim reg2 As RegExp
   
+  If Len(Sdate) = 14 'we expect only format yyyymmddHHMMSS
+    Return Date(Left(Sdate, 4), Mid(Sdate, 5, 2), Mid(Sdate, 7, 2), Mid(Sdate, 9, 2), Mid(Sdate, 11, 2), Right(Sdate, 2))
+  Endif
   reg = New RegExp
   reg.Compile("([0-9]+)[/.-]+([0-9]+)[/.-]+([0-9]+)")
   reg.Exec(Sdate)
@@ -99,6 +209,18 @@ Private Function Parse(Sdate As String) As Date
       Return Date(Val(reg[1].Text), Val(reg[2].Text), Val(reg[3].Text), hour, min, sec)
     Else
       Return Date(Val(reg[3].Text), Val(reg[2].Text), Val(reg[1].Text), hour, min, sec)
+    Endif
+  Else If reg.Count = 2 Then
+    If Len(reg[1].Text) = 4 Then
+      Return Date(Val(reg[1].Text), Val(reg[2].Text), Val(Day(Now)), hour, min, sec)
+    Else
+      Return Date(Val(Year(Now)), Val(reg[2].Text), Val(reg[1].Text), hour, min, sec)
+    Endif
+  Else If reg.Count = 1 Then
+    If Len(reg[1].Text) = 4 Then
+      Return Date(Val(reg[1].Text), Val(Month(Now)), Val(Day(Now)), hour, min, sec)
+    Else
+      Return Date(Val(Year(Now)), Val(Month(Now)), Val(reg[1].Text), hour, min, sec)
     Endif
   Endif
   
