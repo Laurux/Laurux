@@ -60,11 +60,13 @@ Public Sub Observer_MouseWheel()
   
   Dim Value As String = ""
   If Object.Class($hObserver.Object).Name = "GridView" Then
-    Value = Object.GetProperty($hObserver.Object, "Value")
-    Utils.db.GUI_Event($hObserver.Object, $hObserver.Tag, "MouseWheel", Value)
+    'Value = Object.GetProperty($hObserver.Object, "Value")
+    Utils.db.GUI_Event($hObserver.Object, $hObserver.Tag, "MouseWheel", "GridView unsupported")
   Else If Object.Class($hObserver.Object).Name = "TreeView" Then
-    Value = Object.GetProperty($hObserver.Object, "Value")
-    Utils.db.GUI_Event($hObserver.Object, $hObserver.Tag, "MouseWheel", Value)
+    'Value = Object.GetProperty($hObserver.Object, "Value")
+    Utils.db.GUI_Event($hObserver.Object, $hObserver.Tag, "MouseWheel", "TreeView unsupported")
+  Else
+    Utils.db.GUI_Event($hObserver.Object, $hObserver.Tag, "MouseWheel", Object.Class($hObserver.Object).Name & " unsupported")
   Endif
   
 End
@@ -268,8 +270,11 @@ Static Public Sub Replay_Event(hReplayTimer As Timer, Lastev As Date, Action As 
   Else
     If Application.ActiveWindow.Name <> win Then
       Print "Erreur window " & win & " n'est pas actuellement active (" & Application.ActiveWindow.Name & "), impossible de rejouer l'action " & eve & " = " & val & ":" & ctrl.Join(",")
-      Quit
-      'Return Null
+      If Lower(eve) <> "close" Then 'Close may appear several time for the same object (ex Tabstrip)
+        Quit
+      Else
+        Return Null
+      Endif
     Else
       ctx = Application.ActiveWindow
     Endif
@@ -277,7 +282,6 @@ Static Public Sub Replay_Event(hReplayTimer As Timer, Lastev As Date, Action As 
   
   If IsNull(ctx) Then
     Print "Window " & win & " introuvable, impossible de rejouer l'action " & eve & " = " & val & ":" & ctrl.Join(",")
-    Quit
   Else
     Print eve & " = " & val & ":" & ctx.Name & ":" & ctrl.Join(",")
   Endif

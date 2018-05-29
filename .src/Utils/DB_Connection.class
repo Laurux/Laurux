@@ -29,10 +29,10 @@ Public Sub _new()
   host_id = Left$(Trim$(host_name) & "(" & Trim$(host_id) & ")", 50)
   
   Filters = New Collection
-  'On ne loggue pas par default, pas besoin de clearer
+  'On ne loggue pas par default, on clear en cas de logging au boot pour eventuellement effacer fichier de log existant
   'On devrait activer le log automatique soit depuis les prefs
   'soit depuis les arguments de la ligne de commande
-  Start(Start.Arg_Log, False)
+  Start(Start.Arg_Log, Start.Arg_Log)
   
 End
 
@@ -40,16 +40,21 @@ End
 Public Sub Start(Optional Enabling As Boolean = False, Optional Clear As Boolean = False)
   
   Dim handler, handler_r As LogHandler
+  Dim logout As String = ""
   Dim remote_host As String
   Dim remote_port As Integer
   
+  If Start.Arg_Replay Then
+    logout = ".out"
+  Endif
   Filter_Error = ""
   Get_Filter()
   Refresh_Filter()
   If IsNull(Start.Arg_LogFile) Then
-    hFilePath = User.Home & "/" & Application.Name & Format(Start.StartDate, "_yyyymmdd_hhnnss") & ".log"
+    If Not Exist(User.home & "/tmp") Then Mkdir User.home & "/tmp"
+    hFilePath = User.Home & "/tmp/" & Application.Name & ".log" & logout
   Else
-    hFilePath = Start.Arg_LogFile
+    hFilePath = Start.Arg_LogFile & logout
   Endif
   If Clear = True Then
     Try Kill hFilePath
