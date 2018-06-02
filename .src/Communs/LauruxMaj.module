@@ -5037,22 +5037,62 @@ Public Sub Maj369()
   
   'Changemement Date format en ticket (le moulinage est effectué avant MAJ)
   Tab1 = "Fiches_Caisses"
+  Try Utils.db.Exec("ALTER TABLE " & Tab1 & " change dteov dteov datetime")
+  Try Utils.db.Exec("ALTER TABLE " & Tab1 & " change dtefm dtefm datetime")
+
   rResult = Utils.db.Exec("SELECT * FROM " & Tab1 & " ")
   If rResult.Available Then
     Repeat
       Tab = "Fiches_EntTickets" & rResult!code
       Try Utils.db.Exec("ALTER TABLE " & Tab & " change date date datetime")  
+      Tab = "Fiches_Reglts" & rResult!code
+      Try Utils.db.Exec("ALTER TABLE " & Tab & " change date date datetime")  
       tab = "Fiches_LigTickets" & rResult!code
       Try Utils.db.Exec("ALTER TABLE " & tab & " MODIFY fam Char(20)")
       tab = "Fiches_Ticketx" & rResult!code
       Try Utils.db.Exec("ALTER TABLE " & tab & " MODIFY fam char(20)")
+      Try Utils.db.Exec("ALTER TABLE " & tab & " change date date datetime")
+      Try Utils.db.Exec("ALTER TABLE " & Tab & " drop marge")
       tab = "Fiches_Ticketz" & rResult!code
-      Try Utils.db.Exec("ALTER TABLE " & tab & " MODIFY fam char(20)")
+      Try Utils.db.Exec("drop Table IF exists " & Tab & "")
     Until rResult.MoveNext()
   Endif
   Tab = "Fiches_EntTicketz"
   Try Utils.db.Exec("ALTER TABLE " & Tab & " change date date datetime")
+  Tab = "Fiches_Regltz"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " change date date datetime")
+  
+  Tab = "Fiches_Ticketz"
+  Try Utils.db.EXEC("CREATE TABLE " & Tab &
+    "(numero Char(7)," &
+    "fam Char(20)," &
+    "montant Char(12)," &
+    "qte Char(12)," &
+    "caisse Char(2)," &
+    "date datetime," &
+    Utils.db.AutoIncrement("lInd") & ")" & Utils.db.Engine())
 
+  
+  
+  'Date des fichiers d'avoir
+  Tab = "Fiches_Avoirs"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (dte2 datetime)")
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
+  If rResult.Available Then
+    PB = New ProgBar("Conversion des dates des avoirs", rResult.Count)
+    PB.Show()
+    Repeat
+      PB.Avancement("Conversion avoirs " & rResult!ntk, 10)
+      If TypeOf(rResult!dte) = gb.String
+        'Utilisation de la classe LDate pour les conversions de date
+        Utils.db.Exec("UPdate   " & Tab & " SET dte2 = &1 WHERE lind = &2", LDate(rResult!dte).DT, rResult!lind)
+      Endif
+    Until rResult.MoveNext()
+    PB.Close()
+  Endif
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " drop dte")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " change dte2 dte datetime")
+  
   
   'Fichier facture rajout date de saisie et n° bl
   PB = New ProgBar("Conversion des dates facture", 4)

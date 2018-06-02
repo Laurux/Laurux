@@ -3,9 +3,12 @@
 Export
 Create Static
 Private Dte As Date
+  
 
 Property L As String 'Laurux Date String Propery
+Property LT As String 'Laurux DateTime String Propery
 Property G As Date  'Gambas Date Object Propery
+Property GnT As Date  'Gambas Date (without Time) Object Propery
 Property D As String 'Database Date String Propery
 Property DT As String 'Database DateTime String Propery
 
@@ -15,6 +18,8 @@ Property Read EInd As Integer 'Index de l'Exercice de 0 -> N(=5) comprenant dte
 
 Property Read PDeb As LDate 'Date Debut Periode comprenant dte (actuellement 1 mois)
 Property Read PFin As LDate 'Date Fin Periode comprenant dte (actuellement 1 mois)
+
+'Property Read Select As LDate 'Affiche un Date selecteur modale et retourne la date
 
 
 '****************
@@ -30,7 +35,10 @@ Public Sub _New(Optional DateOrYear As Variant, Optional Month As Integer = 1, O
       Dte = DateOrYear
     Else If TypeOf(DateOrYear) = gb.String
       If Param.Count = 0
-        Dte = Parse(DateOrYear)
+        Dte = Parse(DateOrYear) 'on parse la date et le temps lors de la creation de l'objet il faut utiliser les attributs L ou D pour les supprimers
+        If IsNull(Dte) Then
+          Message.Error("Erreur, impossible d'interpréter la date " & DateOrYear)
+        Endif
       Else
         Dte = Date(DateOrYear, Month, Day, Hour, Minute, Second, Millisecond)
       Endif
@@ -81,7 +89,7 @@ Public Sub DateFilterDB(Sdate As String, Optional HasTime As Boolean = False) As
   
   If HasTime Then
     reg2 = New RegExp
-    reg2.Compile(" ([0-9%*]*)[:]*([0-9%*]*)[:]*([0-9%*]*)")
+    reg2.Compile(" ([0-9%*]*)[:-]*([0-9%*]*)[:-]*([0-9%*]*)")
     reg2.Exec(Sdate)
     If reg2.Count > 0 Then
       If Len(reg2[1].Text) > 0 And Len(reg2[2].Text) > 0 And Len(reg2[3].Text) > 0 Then
@@ -167,7 +175,7 @@ End
 'METHODE PRIVEE
 '**************
 
-Private Function Parse(Sdate As String) As Date
+Private Function Parse(Sdate As String, Optional ParseTime As Boolean = True) As Date
 
   Dim cvdate As String[]
   Dim time As String
@@ -177,32 +185,43 @@ Private Function Parse(Sdate As String) As Date
   Dim reg As RegExp
   Dim reg2 As RegExp
   
-  If Len(Sdate) = 14 'we expect only format yyyymmddHHMMSS
+  If Sdate = ".." 'special Laurux case
+    If ParseTime Then
+      Return Now
+    Else
+      Return Date(Now)
+    Endif
+  Else If Len(Sdate) = 14 'we expect only format yyyymmddHHMMSS if we have 14 caracters
     Return Date(Left(Sdate, 4), Mid(Sdate, 5, 2), Mid(Sdate, 7, 2), Mid(Sdate, 9, 2), Mid(Sdate, 11, 2), Right(Sdate, 2))
   Endif
   reg = New RegExp
   reg.Compile("([0-9]+)[/.-]+([0-9]+)[/.-]+([0-9]+)")
   reg.Exec(Sdate)
-  reg2 = New RegExp
-  reg2.Compile(" ([0-9]+)[:]([0-9]+)[:]([0-9]+)")
-  reg2.Exec(Sdate)
-  If reg2.Count = 3 Then
-    hour = Val(reg2[1].Text)
-    min = Val(reg2[2].Text)
-    sec = Val(reg2[3].Text)
-  Else
-    reg2.Compile(" ([0-9]+)[:]([0-9]+)")
+  If ParseTime Then
+    reg2 = New RegExp
+    reg2.Compile(" ([0-9]+)[:-]([0-9]+)[:-]([0-9]+)")
     reg2.Exec(Sdate)
-    sec = 0
-    If reg2.Count = 2 Then
+    If reg2.Count = 3 Then
       hour = Val(reg2[1].Text)
       min = Val(reg2[2].Text)
+      sec = Val(reg2[3].Text)
     Else
-      hour = 0
-      min = 0
+      reg2.Compile(" ([0-9]+)[:-]([0-9]+)")
+      reg2.Exec(Sdate)
+      sec = 0
+      If reg2.Count = 2 Then
+        hour = Val(reg2[1].Text)
+        min = Val(reg2[2].Text)
+      Else
+        hour = 0
+        min = 0
+      Endif
     Endif
+  Else
+    hour = 0
+    min = 0
+    sec = 0
   Endif
-  
   
   If reg.Count = 3 Then
     If Len(reg[1].Text) = 4 Then
@@ -222,10 +241,19 @@ Private Function Parse(Sdate As String) As Date
     Else
       Return Date(Val(Year(Now)), Val(Month(Now)), Val(reg[1].Text), hour, min, sec)
     Endif
+  Else
+    If ParseTime Then
+      Message.Error("Erreur, impossible d'interpréter la date " & Sdate & "!\nLa date suivante sera utilisé : " & LDate(Now).LT)
+      Return Now
+    Else
+      Message.Error("Erreur, impossible d'interpréter la date " & Sdate & "!\nLa date suivante sera utilisé : " & LDate(Now).L)
+      Return Date(Now)
+    Endif
   Endif
   
 Catch
-  Message.Error("Erreur, impossible d'interpréter la date " & Sdate)
+
+  Message.Error("Erreur grave lors de l'interprétation de la date " & Sdate)
   Return Null
   
 End
@@ -241,9 +269,21 @@ Sub L_Read() As String
 
 End
 
+Sub LT_Read() As String
+
+  Return Format(Dte, "dd.mm.yyyy hh:nn")
+
+End
+
 Sub L_Write(ldate As String)
 
-  Dte = Me.Parse(ldate)
+  Dte = Parse(ldate, False)
+
+End
+
+Sub LT_Write(ldate As String)
+
+  Dte = Parse(ldate)
 
 End
 
@@ -255,7 +295,7 @@ End
 
 Sub D_Write(ddate As String)
 
-  Dte = Me.Parse(ddate)
+  Dte = Parse(ddate, False)
 
 End
 
@@ -268,7 +308,7 @@ End
 
 Sub DT_Write(ddate As String)
 
-  Dte = Me.Parse(ddate)
+  Dte = Parse(ddate)
 
 End
 
@@ -281,6 +321,19 @@ End
 Sub G_Write(gdate As Date)
 
   Dte = gdate
+
+End
+
+Sub GnT_Read() As Date
+
+  Return Date(Year(Dte), Month(Dte), Day(Dte), 0, 0, 0)
+
+End
+
+
+Sub GnT_Write(gdate As Date)
+
+  Dte = Date(Year(gdate), Month(gdate), Day(gdate), 0, 0, 0)
 
 End
 
@@ -317,6 +370,27 @@ End
 '****************
 'METHODE PUBLIQUE
 '****************
+
+Public Sub Apres(compdate As LDate) As Boolean
+
+  If DateDiff(compdate.G, Dte, gb.Second) >= 0 Then
+    Return True
+  Else
+    Return False
+  Endif
+  
+End
+
+
+Public Sub Avant(compdate As LDate) As Boolean
+
+  If DateDiff(compdate.G, Dte, gb.Second) <= 0 Then
+    Return True
+  Else
+    Return False
+  Endif
+  
+End
 
 Public Sub Exercice_Debut(Optional Annee As LDate = LDate(Now)) As LDate
   
@@ -414,3 +488,4 @@ Public Sub Periode_Fin(Optional Mois As LDate = LDate(Now)) As LDate
   Return LDate(DateAdd(DateAdd(Mois.PDeb.G, gb.Month, 1), gb.Millisecond, -1))
 
 End
+

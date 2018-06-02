@@ -133,7 +133,7 @@ Public Sub Livre_caisse()
       Repeat
         Ncaisse = rCaisse!code
         sIntitule = "Livre de caisse du " & Format$(DateChooser1.Value, "dd-mm-yyyy") & " : Caisse N° " & Ncaisse
-        Tabz = "Fiches_Ticketz" & Ncaisse
+        Tabz = "Fiches_Ticketz"
         Tabr = "Fiches_Regltz"
         Tabe = "Fiches_EntTickets" & Ncaisse
         Tabl = "Fiches_LigTickets" & Ncaisse
@@ -145,7 +145,7 @@ Public Sub Livre_caisse()
         Else
           Enc = False
         Endif
-        rTkx = Utils.db.Exec(" select * from " & Cbase.Table("TabEntTck") & " where statut = &1 and caisse = &2 and left(date,10) = &3 and (suppr is null or suppr != 1)", 0, Ncaisse, Format$(DateChooser1.Value, "dd-mm-yyyy"))
+        rTkx = Utils.db.Exec(" select * from " & Cbase.Table("TabEntTck") & " where statut = &1 and caisse = &2 and DATE(date) = &3 and (suppr is null or suppr != 1)", 0, Ncaisse, LDate(DateChooser1.Value).D)
         If rTkx.Available Or If Enc = True Then
           pdf.newPage()
           Totnbtck = rTkx.count
@@ -167,7 +167,7 @@ Public Sub Livre_caisse()
           Posy += 8
           pdf.Lines2(Posy)
           Posy += 5
-          rTkhv = Utils.db.Exec(" select * from " & Tabr & " where caisse = &1 and left(date,10) = &2 order by type", Ncaisse, Format$(DateChooser1.Value, "dd-mm-yyyy"))
+          rTkhv = Utils.db.Exec(" select * from " & Tabr & " where caisse = &1 and DATE(date) = &2 order by type", Ncaisse, LDate(DateChooser1.Value).D)
           If rTkhv.Available Then
             'Posy += 5
             'Pdf.Level3(sIntitule, Posy)
@@ -202,7 +202,7 @@ Public Sub Livre_caisse()
             pdf.Lines2(Posy)
             Posy += 5
           Endif
-          rTkhv = Utils.db.Exec(" select * from " & Tabr & " where caisse = &1 and left(date,10) = &2 order by type", Ncaisse, Format$(DateChooser1.Value, "dd-mm-yyyy"))
+          rTkhv = Utils.db.Exec(" select * from " & Tabr & " where caisse = &1 and DATE(date) = &2 order by type", Ncaisse, LDate(DateChooser1.Value).D)
           If rTkhv.Available Then
             pdf.Level2("Mouvements ventes ", "", "", Posy)
             Posy += 5
@@ -253,7 +253,7 @@ Public Sub Livre_caisse()
           pdf.Lines2(Posy)
           Posy += 5
           'Recapitulatif TVA sur les ticket avec un encaissement
-          rttva = Utils.db.Exec("select * from  " & Cbase.Table("TabLigTck") & " as l inner join " & Cbase.Table("TabEntTck") & " as e on e.numero = l.numero WHERE left(intitule,3) = &1 and e.type = &2 and e.suppr = &3 and e.caisse = &4 and left(e.date,10) = &5 order by intitule", "TVA", 0, 0, Ncaisse, Format$(DateChooser1.Value, "dd-mm-yyyy"))
+          rttva = Utils.db.Exec("select * from  " & Cbase.Table("TabLigTck") & " as l inner join " & Cbase.Table("TabEntTck") & " as e on e.numero = l.numero WHERE left(intitule,3) = &1 and e.type = &2 and e.suppr = &3 and e.caisse = &4 and DATE(e.date) = &5 order by intitule", "TVA", 0, 0, Ncaisse, LDate(DateChooser1.Value).D)
           If rttva.Available Then
             pdf.Level2("Recapitulatif TVA (sur encaissement)", "", "", Posy)
             Posy += 5
@@ -284,7 +284,7 @@ Public Sub Livre_caisse()
           Posy += 5
           pdf.Lines2(Posy)
 
-          Try rTkx = Utils.db.Exec(" select * from " & Tabz & " order by fam")
+          Try rTkx = Utils.db.Exec(" select * from " & Tabz & " where caisse = &1 and date = &2 order by fam", Ncaisse, LDate(DateChooser1.Value).D)
           If Not Error Then
             sqte = "0,00"
             If rTkx.Available Then
@@ -328,7 +328,8 @@ Public Sub Livre_caisse()
         Posy = 0
       Until rCaisse.MoveNext()
       Dec Application.Busy
-      Utils.db.Exec("drop Table IF exists " & Tabz & "")
+      
+      Utils.db.Exec("delete FROM " & Tabz & " where caisse = &1 and date = &2", Ncaisse, LDate(DateChooser1.Value).D)
       pdf.Output(Filename, False)
       Visualiseur.Prog_Editeur(Filename)
     Else
@@ -371,7 +372,7 @@ Public Sub Moulinage()
   Dim bloc As String
   Dim Exo As String
   Dim Datec As Date
-  Dim Date_Bl As String
+  Dim Date_Bl As Date
   Dim sDate As String
   Dim origine As String
   Dim scli As String
@@ -413,14 +414,14 @@ Public Sub Moulinage()
     If rResult.Available Then numbon = rResult!dnbon
     Try rTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " order by date , numero")
     If rTck.Available Then
-      If Mid(rtck!date, 7, 4) & Mid(rtck!date, 4, 2) & Left(rtck!date, 2) < Format$(DateChooser1.Value, "yyyymmdd") Then
-        sDate = Left(rtck!date, 2) & "." & Mid(rtck!date, 4, 2) & "." & Mid(rtck!date, 7, 4)
+      If LDate(rtck!date).G < DateChooser1.Value Then
+        sDate = LDate(rtck!date).L 
         Message.Info("Il reste des tickets à la date du " & sdate & " !\nVeuillez faire un moulinage à cette date SVP.")
       Else
-        rTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where left(date,10) = &1 order by numero asc, date desc", Format$(DateChooser1.Value, "dd-mm-yyyy"))
+        rTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where DATE(date) = &1 order by numero asc, date desc", LDate(DateChooser1.Value).D)
         If rTck.Available Then
           Repeat
-          
+
             'On verifie la somme de controle des tiquets
             If rTck!control Then
               If Sha1Calc.CalcSha1T("Fiches_EntTicketz", rTck!caisse, rTck!numero, rTck!prev_numero, False) <> Trim(rTck!control) Then
@@ -445,13 +446,13 @@ Public Sub Moulinage()
         Endif
       
         lasttk = ""
-        rTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where left(date,10) = &1 order by numero asc, date desc", Format$(DateChooser1.Value, "dd-mm-yyyy"))
+        rTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where DATE(date) = &1 order by numero asc, date desc", LDate(DateChooser1.Value).D)
         If rTck.Available Then
           Repeat
           
             'On verifie si plusieur ticket partage le meme numero (bug possible lié à un crash lors de la saisie d'un ticket)
             If lasttk And (lasttk = rTck!numero) Then
-              Message.Warning("Un Ticket avec le numero " & rTck!numero & " a déjà été traité, celui-ci avec la date " & Rtck!date & " sera ignoré")
+              Message.Warning("Un Ticket avec le numero " & rTck!numero & " a déjà été traité, celui-ci avec la date " & LDate(Rtck!date).LT & " sera ignoré")
               Continue
             Else
               lasttk = rTck!numero
@@ -463,7 +464,7 @@ Public Sub Moulinage()
               resto = ""
             Endif
             bretro = rtck!retro
-            sDate = Mid(rtck!date, 7, 4) & Mid(rtck!date, 4, 2) & Left(rtck!date, 2) & Mid(rtck!date, 13, 2) & Mid(rtck!date, 16, 2) & "00"
+            'sDate = Mid(rtck!date, 7, 4) & Mid(rtck!date, 4, 2) & Left(rtck!date, 2) & Mid(rtck!date, 13, 2) & Mid(rtck!date, 16, 2) & "00"
             'TODO V3.69
             'Il faut rajouter le champ prev_numero, retro et type dans la table HisEntTck
             'si prev_numero est null prendre le dernier ticket de cette caisse si il existe
@@ -473,7 +474,7 @@ Public Sub Moulinage()
             If Jnl Then
               ' On gère d'abord les clients caisse
               If rTck!type = "0" Then
-                Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisEntTck") & " (caisse, numero, date, client, scheque, mcheque, scarte, mcarte, sespeces, mespeces, scredit, mcredit, mht, mtva, mttc, savoir, scavoir, mavoir, vendeur, carte, points, sresto, mresto, nom, suppr) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24}, &{25})", rtck!caisse, rtck!numero, sdate, client, rtck!scheque, rtck!mcheque, rtck!scarte, rtck!mcarte, rtck!sespeces, rtck!mespeces, rtck!scredit, rtck!mcredit, rtck!mht, rtck!mtva, rtck!mttc, rtck!savoir, rtck!scavoir, rtck!mavoir, rtck!vendeur, rtck!carte, rtck!points, resto, rtck!mresto, Null, rtck!suppr)
+                Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisEntTck") & " (caisse, numero, date, client, scheque, mcheque, scarte, mcarte, sespeces, mespeces, scredit, mcredit, mht, mtva, mttc, savoir, scavoir, mavoir, vendeur, carte, points, sresto, mresto, nom, suppr) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24}, &{25})", rtck!caisse, rtck!numero, rtck!date, client, rtck!scheque, rtck!mcheque, rtck!scarte, rtck!mcarte, rtck!sespeces, rtck!mespeces, rtck!scredit, rtck!mcredit, rtck!mht, rtck!mtva, rtck!mttc, rtck!savoir, rtck!scavoir, rtck!mavoir, rtck!vendeur, rtck!carte, rtck!points, resto, rtck!mresto, Null, rtck!suppr)
                 rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", client)
                 If rResult.Available Then
                   ivente = rResult!intitule_cc
@@ -657,7 +658,7 @@ Public Sub Moulinage()
                 'On regroupe les BL règlés dans ce ticket pour chaque client concerné afin de générer une facture
                 Bl = Utils.db.Exec(" select cdclibl from " & Cbase.Table("TabBl") & " where type = \"B\" and numtick = &1 group by cdclibl", rtck!numero)
                 'On utilise la date du ticket comme date du reglement du bl et de facturation.
-                Date_Bl = Left(rtck!date, 2) & "." & Mid(rtck!date, 4, 2) & "." & Mid(rtck!date, 7, 4)  
+                Date_Bl = LDate(rtck!date).G
                 If Bl.Available And Not rTck!suppr Then
                   'on regroupe tous les BLs du meme clients pour le meme numero de ticket pour la generation de facture
                   numbon = Val(numbon) + 1
@@ -674,7 +675,7 @@ Public Sub Moulinage()
                     Endif
                     dnfac = Format(Val(respar!dnfac) + 1, "000000")
                     utils.db.Exec("UPDATE Fiches_Parametres set dnfac = &1", dnfac)
-                    Utils.db.Exec("UPDATE " & Cbase.Table("TabBl") & " set type = \"F\", numtick = NULL, imp = 1, reg = \"Caisse\", mtreg = &2, numfac = &3, dtefac = &4, ech = &4 where numbl = &1", numbon, Blg!totalttc, snfac, Utils.Cdate2_Dbase(Left$(rtck!date, 10)))
+                    Utils.db.Exec("UPDATE " & Cbase.Table("TabBl") & " set type = \"F\", numtick = NULL, imp = 1, reg = \"Caisse\", mtreg = &2, numfac = &3, dtefac = &4, ech = &4 where numbl = &1", numbon, Blg!totalttc, snfac, LDate(Date_Bl).DT)
                     'On genere les Mvt pour le clients
                     If Blg!totalttc < 0 Then
                       bl_cli_credit = 0
@@ -707,7 +708,7 @@ Public Sub Moulinage()
               scli = rTck!client
               'On garde une trace du ticket meme supprimé
               If rTck!type = "1" Then
-                Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisEntTck") & " (caisse, numero, date, client, scheque, mcheque, scarte, mcarte, sespeces, mespeces, scredit, mcredit, mht, mtva, mttc, savoir, scavoir, mavoir, vendeur, carte, points, sresto, mresto, nom, suppr) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24}, &{25})", rtck!caisse, rtck!numero, sdate, rtck!client, Null, Null, Null, Null, Null, Null, Null, Null, rtck!mht, rtck!mtva, rtck!mttc, Null, Null, Null, rtck!vendeur, rtck!carte, rtck!points, Null, Null, rtck!nom, rtck!suppr)
+                Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisEntTck") & " (caisse, numero, date, client, scheque, mcheque, scarte, mcarte, sespeces, mespeces, scredit, mcredit, mht, mtva, mttc, savoir, scavoir, mavoir, vendeur, carte, points, sresto, mresto, nom, suppr) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24}, &{25})", rtck!caisse, rtck!numero, rtck!date, rtck!client, Null, Null, Null, Null, Null, Null, Null, Null, rtck!mht, rtck!mtva, rtck!mttc, Null, Null, Null, rtck!vendeur, rtck!carte, rtck!points, Null, Null, rtck!nom, rtck!suppr)
                 If rTck!suppr Then
                   numlig = 0
                   Inc numlig
@@ -748,13 +749,13 @@ Public Sub Moulinage()
                   totalttc = 0
                   mrg = 0
                   'On met à jour le fichier des entetes de bl
-                  Utils.db.Exec("INSERT INTO " & Cbase.Table("TabBl") & "(numbl,datebl,cdclibl, nmclibl, rmobl, rartbl, type, pnmclibl, adr1bl, adr2bl, cpbl, villebl, exobl, cvclibl, tvar, imp, acpt, mreg, totalht, totalttc, retro, marge_art, remmobl, remartbl, marge_mo) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13},&{14},&{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24}, &{25})", numbon, Utils.Cdate_Dbase(Datem), scli, nmclibl, rmobl, Artrm, "B", Pnmclibl, adr1bl, adr2bl, cpbl, villebl, Exo, Cvclibl, 0, 0, 0, "", .PointBase(totalht), .PointBase(totalttc), 0, 0, 0, 0, 0)
+                  Utils.db.Exec("INSERT INTO " & Cbase.Table("TabBl") & "(numbl,datebl,cdclibl, nmclibl, rmobl, rartbl, type, pnmclibl, adr1bl, adr2bl, cpbl, villebl, exobl, cvclibl, tvar, imp, acpt, mreg, totalht, totalttc, retro, marge_art, remmobl, remartbl, marge_mo) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13},&{14},&{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24}, &{25})", numbon, LDate(rTck!date).DT, scli, nmclibl, rmobl, Artrm, "B", Pnmclibl, adr1bl, adr2bl, cpbl, villebl, Exo, Cvclibl, 0, 0, 0, "", .PointBase(totalht), .PointBase(totalttc), 0, 0, 0, 0, 0)
                   'On met à jour les lignes de bl
                   Inc numlig
                   nmlig = Format$(Str(numlig), "0000")
                   Bloc = nmlig
-                  origine = "Ticket de caisse numéro " & rTck!numero & " du " & rTck!date
-                  Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigbl") & " (num_ligbl, numlig_ligbl, com_ligbl, typel_ligbl, block_ligbl) VALUES (&1, &2, &3, &4, &5)", numbon, nmlig, origine, "C", Bloc)
+                  origine = "Ticket de caisse numéro " & rTck!numero & " du " & LDate(rTck!date).LT
+                  Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigbl") & " (num_ligbl, numlig_ligbl, com_ligbl, typel_ligbl, block_ligbl, dte_ligbl) VALUES (&1, &2, &3, &4, &5, &6)", numbon, nmlig, origine, "C", Bloc, LDate(rTck!date).DT)
                   Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, intitule, type) VALUES (&1, &2, &3, &4)", rTck!numero, Right(nmlig, 3), "Ticket enregistré sur le BL: " & numbon, "C")
                   rlTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigTck") & " where numero = &1 order by lInd", rTck!numero)
                   If rlTck.Available Then
@@ -779,7 +780,7 @@ Public Sub Moulinage()
                         totalttc = totalttc + Val(.cpoint(Arttc))
                         mrg += rltck!marge
                         'on enregistre la ligne du Bl
-                        Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigbl") & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl, mrgart_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", numbon, nmlig, rlTck!code, artdsg, artfam, artpu, qte, artbrut, Artrm, artnet, Arttx, Arttc, "A", Nbd, Bloc, rlTck!marge)
+                        Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigbl") & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl, mrgart_ligbl, dte_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", numbon, nmlig, rlTck!code, artdsg, artfam, artpu, qte, artbrut, Artrm, artnet, Arttx, Arttc, "A", Nbd, Bloc, rlTck!marge, LDate(rTck!date).DT)
                         If rlTck!type = "S" Then
                           rlTck.MovePrevious
                           If rlTck!type = "O" Then rlTck.MovePrevious
@@ -824,14 +825,14 @@ next_ticket:
             'On imprime le livre de caisse
             Livre_caisse()
             'On efface les Tables
-            rTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where mid(date,7,4) = &1 and mid(date,4,2) = &2 and left(date,2) = &3", Format$(DateChooser1.Value, "yyyy"), Format$(DateChooser1.Value, "mm"), Format$(DateChooser1.Value, "dd"))
+            rTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where DATE(date) = &1", LDate(DateChooser1.Value).D)
             If rTck.Available Then
               Repeat
                 Utils.db.Exec("delete FROM " & Cbase.Table("TabEntTck") & " where numero = &1", rTck!numero)
                 Utils.db.Exec("delete FROM " & Cbase.Table("TabLigTck") & " where numero = &1", rTck!numero)
               Until rTck.MoveNext()
             Endif
-            Utils.db.Exec("delete from " & Cbase.Table("TabReglt") & " where date = &1", Format$(DateChooser1.Value, "dd-mm-yyyy"))
+            Utils.db.Exec("delete from " & Cbase.Table("TabReglt") & " where DATE(date) = &1", LDate(DateChooser1.Value).D)
             Me.mouse = Mouse.Default
             If start.son Then Music.Play
             Message.Info("Traitement terminé !")
@@ -1848,7 +1849,7 @@ Public Sub Maj_Tresorerie(Verif_Caisse As Float)
   hResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where sespeces = &1", "N")
   If hResult.Available Then
     Repeat
-      If Mid(hResult!date, 7, 4) & Mid(hResult!date, 4, 2) & Left(hResult!date, 2) = Format$(DateChooser1.Value, "yyyy") & Format$(DateChooser1.Value, "mm") & Format$(DateChooser1.Value, "dd") Then
+      If LDate(hResult!date).GnT = DateChooser1.Value Then
         Cptcli = hresult!client
         rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " where compte_cc = &1", hResult!client)
         Nom = rresult!intitule_cc
@@ -1870,7 +1871,7 @@ Public Sub Maj_Tresorerie(Verif_Caisse As Float)
     hResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where scheque = &1", "V")
     If hResult.Available Then
       Repeat
-        If Mid(hResult!date, 7, 4) & Mid(hResult!date, 4, 2) & Left(hResult!date, 2) = Format$(DateChooser1.Value, "yyyy") & Format$(DateChooser1.Value, "mm") & Format$(DateChooser1.Value, "dd") Then
+        If LDate(hResult!date).GnT = DateChooser1.Value Then
           Cptcli = hresult!client
           rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " where compte_cc = &1", hResult!client)
           Nom = rresult!intitule_cc
@@ -1891,7 +1892,7 @@ Public Sub Maj_Tresorerie(Verif_Caisse As Float)
     hResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where scheque = &1", "V")
     If hResult.Available Then
       Repeat
-        If Mid(hResult!date, 7, 4) & Mid(hResult!date, 4, 2) & Left(hResult!date, 2) = Format$(DateChooser1.Value, "yyyy") & Format$(DateChooser1.Value, "mm") & Format$(DateChooser1.Value, "dd") Then
+        If LDate(hResult!date).GnT = DateChooser1.Value Then
           Snom = ""
           nm = Split(hresult!nmcheque, " ")
           SldTot = SldTot - Val(utils.cpoint(hResult!mcheque))
@@ -1910,7 +1911,7 @@ Public Sub Maj_Tresorerie(Verif_Caisse As Float)
   hResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where scarte = &1", "U")
   If hResult.Available Then
     Repeat
-      If Mid(hResult!date, 7, 4) & Mid(hResult!date, 4, 2) & Left(hResult!date, 2) = Format$(DateChooser1.Value, "yyyy") & Format$(DateChooser1.Value, "mm") & Format$(DateChooser1.Value, "dd") Then
+      If LDate(hResult!date).GnT = DateChooser1.Value Then
         Cptcli = hresult!client
         rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " where compte_cc = &1", hResult!client)
         Nom = rresult!intitule_cc
@@ -2069,8 +2070,8 @@ Private Sub genfac()
   dnfac = Format(Val(respar!dnfac) + 1, "000000")
 
   'selection des entetes fichier z
-  'NE PAS UTILISER 'resentz = Utils.db.Exec("SELECT numero FROM " & Cbase.Table("TabEntTck") & " where left(date,10) = &1 and client = &2 and not suppr group by numero", Format$(DateChooser1.Value, "dd-mm-yyyy"), client) 'TODO A supprimer je l'ai garder pour le debug de la generation de Fac
-  resentz = Utils.db.Exec("SELECT numero FROM " & Cbase.Table("TabEntTck") & " where left(date,10) = &1 and type = &2 and not suppr group by numero", Format$(DateChooser1.Value, "dd-mm-yyyy"), "0")
+  'NE PAS UTILISER 'resentz = Utils.db.Exec("SELECT numero FROM " & Cbase.Table("TabEntTck") & " where DATE(date) = &1 and client = &2 and not suppr group by numero", LDate(DateChooser1.Value).D, client) 'TODO A supprimer je l'ai garder pour le debug de la generation de Fac
+  resentz = Utils.db.Exec("SELECT numero FROM " & Cbase.Table("TabEntTck") & " where DATE(date) = &1 and type = &2 and not suppr group by numero", LDate(DateChooser1.Value).D, "0")
   If resentz.Available Then
     utils.db.Begin
     resentz.MoveFirst
