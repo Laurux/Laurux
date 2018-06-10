@@ -5066,9 +5066,9 @@ Public Sub Maj369()
   Try Utils.db.Exec("ALTER TABLE Fiches_HistoLigfacM ADD dtligbl_ligfac datetime")
   Try Utils.db.Exec("ALTER TABLE Fiches_HistoLigfacM ADD numbl_ligfac char(6)")
   PB.Avancement("Lignes Factures", 1)
-  Utils.db.Exec("UPDATE Fiches_HistoLigfac,Fiches_HistoFac SET dtligbl_ligfac=datefac WHERE numfac=num_ligfac AND dtligbl_ligfac IS NULL")
+  Utils.db.Exec("UPDATE Fiches_HistoLigfac SET dtligbl_ligfac=(SELECT datefac FROM Fiches_HistoFac WHERE numfac=num_ligfac)  WHERE dtligbl_ligfac IS NULL")
   PB.Avancement("Lignes Factures Materiels", 1)
-  Utils.db.Exec("UPDATE Fiches_HistoLigfacM,Fiches_HistoFacM SET dtligbl_ligfac=datefac WHERE numfac=num_ligfac AND dtligbl_ligfac IS NULL")
+  Utils.db.Exec("UPDATE Fiches_HistoLigfacM SET dtligbl_ligfac=(SELECT datefac FROM Fiches_HistoFacM WHERE numfac=num_ligfac)  WHERE dtligbl_ligfac IS NULL")
   PB.Close()
   'Fichier BL rajout date de sasie
   PB = New ProgBar("Conversion des dates BL", 4)
@@ -5078,9 +5078,9 @@ Public Sub Maj369()
   PB.Avancement("Table BL Matériels", 1)
   Try Utils.db.Exec("ALTER TABLE Fiches_LigblM ADD dte_ligbl datetime")
   PB.Avancement("Ligned BL", 1)
-  Utils.db.Exec("UPDATE Fiches_Ligbl,Fiches_Bl SET dte_ligbl=datebl WHERE numbl=num_ligbl AND dte_ligbl IS NULL")
+  Utils.db.Exec("UPDATE Fiches_Ligbl SET dte_ligbl=(SELECT datebl FROM Fiches_Bl WHERE numbl=num_ligbl) WHERE dte_ligbl IS NULL")
   PB.Avancement("Ligned BL Matériels", 1)
-  Utils.db.Exec("UPDATE Fiches_LigblM,Fiches_BlM SET dte_ligbl=datebl WHERE numbl=num_ligbl AND dte_ligbl IS NULL")
+  Utils.db.Exec("UPDATE Fiches_LigblM SET dte_ligbl=(SELECT datebl FROM Fiches_Bl WHERE numbl=num_ligbl) WHERE dte_ligbl IS NULL")
   PB.Close()
   'maj des options
   If Start.LocalSettings["/Soc" & Start.Societe & "/pp"] = True Then
@@ -5100,8 +5100,8 @@ Public Sub Maj369()
   Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (date2 datetime)")
   rResult = Utils.db.Exec("SELECT * FROM " & Tab & " order by numero")
   PB = New ProgBar("Conversion des dates des tickets caisse archivés", rResult.Count)
-  PB.Show()
   If rResult.Available Then
+    PB.Show()
     Repeat
       PB.Avancement("Tickets " & rResult!numero, 300)
       If TypeOf(rResult!date) = gb.String

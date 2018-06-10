@@ -311,16 +311,24 @@ Public Sub Exec(Request As String, ...) As Result
   regex = New RegExp
   If Super.type = "sqlite3" Then
     'Disable locking mecanism in sqlite3
-    If UCase(Request) Match "LOCK" Then Return Null
-    If UCase(Request) Match "UNLOCK" Then Return Null
+    If UCase(Request) Match "LOCK TABLES" Then Return Null
+    If UCase(Request) Match "UNLOCK TABLES" Then Return Null
     ''Transforme la syntaxe mysql en sqlite
     'Les dates
-    If UCase(Request) Match "YEAR" Then Request = regex.Replace(Request, "YEAR *\\(([().a-zA-Z0-9_-]+)\\)", "strftime('%Y',&1) ", regex.Caseless)
-    If UCase(Request) Match "MONTH" Then Request = regex.Replace(Request, "MONTH *\\(([().a-zA-Z0-9_-]+)\\)", "strftime('%m',&1) ", regex.Caseless)
-    If UCase(Request) Match "DAY" Then Request = regex.Replace(Request, "DAY *\\(([().a-zA-Z0-9_-]+)\\)", "strftime('%d',&1) ", regex.Caseless)
+    If UCase(Request) Match "YEAR" Then Request = regex.Replace(Request, "YEAR *\\(([()'. a-zA-Z0-9_-]+)\\)", "strftime('%Y',&1) ", regex.Caseless)
+    If UCase(Request) Match "MONTH" Then Request = regex.Replace(Request, "MONTH *\\(([()'. a-zA-Z0-9_-]+)\\)", "strftime('%m',&1) ", regex.Caseless)
+    If UCase(Request) Match "DAY" Then Request = regex.Replace(Request, "DAY *\\(([()'. a-zA-Z0-9_-]+)\\)", "strftime('%d',&1) ", regex.Caseless)
     If UCase(Request) Match "NOW" Then Request = regex.Replace(Request, "NOW *\\(\\)", "strftime('%Y-%m-%d','now') ", regex.Caseless)
     'la concatenation à 2 arguments => est il possible de faire + ?
-    If UCase(Request) Match "CONCAT" Then Request = regex.Replace(Request, "concat *\\(([().a-zA-Z0-9_-]+) *, *([().a-zA-Z0-9_-]+)\\)", "&1 || &2 ", regex.Caseless)
+    If UCase(Request) Match "CONCAT" Then 
+      Request = regex.Replace(Request, "CONCAT\\(([()'. a-zA-Z0-9_éèàêâù%-]+) *, *([()'. a-zA-Z0-9_éèàêâù%-]+)\\)", "&1 || &2 ", regex.Caseless)
+    Endif 
+    'les chaines
+    If UCase(request) Match "LEFT" Then Request = regex.Replace(Request, "left\\(([().' a-zA-Z0-9_-]+) *, *([0-9-]+)\\)", "substr(&1,0,&2) ", regex.Caseless)
+    If UCase(request) Match "RIGHT" Then Request = regex.Replace(Request, "right\\(([()'. a-zA-Z0-9_-]+) *, *([0-9-]+)\\)", "substr(&1,-&2) ", regex.Caseless)
+    If UCase(request) Match "MID" Then Request = regex.Replace(Request, "mid\\(([().' a-zA-Z0-9_-]+) *, *([0-9-]+) *, *([0-9-]+)\\)", "substr(&1,&2,&3) ", regex.Caseless)
+    
+    If UCase(Request) Match "ISNULL" Then request = regex.Replace(Request, "isnull\\(([()' .a-zA-Z0-9_-]+)\\)", "&1 IS NULL", regex.Caseless)
     'lpad case
     '---------
     Try regex.Compile("lpad[(]([^,]+)[,]+([^,]+)[,]+([^,]+)[)]")
@@ -387,11 +395,11 @@ Public Sub Exec(Request As String, ...) As Result
   '<p colonne => retourne un numérique si colonne > 0 sinon retourne 0
   ' exemple : SELECT <s qte_ligbl as qte FROM Fiches_LigBl
   '           SELECT SUM(<i qte_ligbl ) as qtep, SUM(<p qte_ligbl ) as qtep  -- bien metre l'espace entre  qte_ligbl et )
-  patrn = " *([().a-zA-Z0-9_-]+) "
+  patrn = " *([(),.a-zA-Z0-9_-]+) "
   If UCase(Request) Match "<S" Then Request = regex.Replace(Request, "<s" & patrn, "SUM(<n &1 ) ", regex.Caseless)
   If UCase(Request) Match "<C" Then Request = regex.Replace(Request, "<c" & patrn, "REPLACE(&1,'.',',') ", regex.Caseless)
-  If UCase(Request) Match "I" Then Request = RegExp.Replace(Request, "<i" & patrn, "CASE WHEN REPLACE(&1,',','.') < '0' THEN REPLACE(&1,',','.') * -1 ELSE '0' END ", regex.Caseless)
-  If UCase(Request) Match "P" Then Request = RegExp.Replace(Request, "<p" & patrn, "CASE WHEN REPLACE(&1,',','.') > '0' THEN REPLACE(&1,',','.') ELSE '0' END ", regex.Caseless)
+  If UCase(Request) Match "<I" Then Request = RegExp.Replace(Request, "<i" & patrn, "CASE WHEN REPLACE(&1,',','.') < '0' THEN REPLACE(&1,',','.') * -1 ELSE '0' END ", regex.Caseless)
+  If UCase(Request) Match "<P" Then Request = RegExp.Replace(Request, "<p" & patrn, "CASE WHEN REPLACE(&1,',','.') > '0' THEN REPLACE(&1,',','.') ELSE '0' END ", regex.Caseless)
   If UCase(Request) Match "<N" Then Request = regex.Replace(Request, "<n" & patrn, "CASE WHEN &1 IS NULL THEN '0' ELSE REPLACE(&1,',','.') END ", regex.Caseless)
   
   'Une fois logger on execute la requete
