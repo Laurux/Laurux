@@ -420,7 +420,7 @@ Public Sub Button2_Click()
   Dim creditcol As String
   Dim TotSldHP, montand, montanc As Float
   Dim Bcol As Boolean = False
-  Dim Filetxt, dateecr, datec, dtepc, Doc As String
+  Dim Filetxt, dateecr, datec, datedoc, dtepc, Doc As String
   Dim bqual As Boolean = False
   Dim Entete As String = "JournalCode|Journallib|EcritureNum|EcritureDate|CompteNum|CompteLib|CompAuxNum|CompAuxLib|PieceRef|PieceDate|EcritureLib|Debit|credit|EcritureLet|DateLet|ValidDate|MontantDevise|Idevise|"
   Dim report_err_once As String = ""
@@ -441,7 +441,7 @@ Public Sub Button2_Click()
     rResult = Utils.db.Exec("SELECT * FROM " & Tab3 & "")
     dte1 = .Cdate_Dbase(rResult!dteclec1)
     dte2 = .Cdate_Dbase(rResult!dteclec)
-    dte2 = Left$(dte2, 4) & Right$(dte2, 2) & Mid$(dte2, 5, 2)
+    dte2 = Left$(dte2, 4) & Mid$(dte2, 5, 2) & Right$(dte2, 2)
     dtepc = rResult!dtepc
     dtepc = .Cdate_aff(dtepc)
     If Val(Right$(dteN1.text, 4) & Mid$(dteN1.text, 4, 2) & Left$(dteN1.text, 2)) > Val(Right$(dtepc, 4) & Mid$(dtepc, 4, 2) & Left$(dtepc, 2)) Then
@@ -502,17 +502,32 @@ Public Sub Button2_Click()
         creditcol = Format$(montanc, "0.00")
         'If Val(debitcol) = 0 Then debitcol = "0.00"
         'If Val(creditcol) = 0 Then creditcol = "0.00"
+        
+        'dteval date de validation de l'ecriture
+        'dte date du document comptable
+        'datee date de l'ecriture
+        If IsNull(rResult!dteval) Then
+          Datec = Format(rResult!dte, "yyyymmdd")
+        Else
+          Datec = Format(rResult!dteval, "yyyymmdd")
+        Endif
+        If IsNull(rResult!datee) Then
+          Dateecr = Format(rResult!dte, "yyyymmdd")
+        Else
+          Dateecr = Format(rResult!datee, "yyyymmdd")
+        Endif
+        Datedoc = Format(rResult!dte, "yyyymmdd")
+
         If Not bqual Then
           copt = rResult!numero
         Else
           copt = rResult!numerodef
+          If IsNull(copt) Then
+            report_err = True
+            copt = "Err:" & Right(CStr(rResult!numero), 7)
+          Endif
         Endif
-        Datec = rResult!dteval
-        Datec = Left$(Datec, 10)
-        If IsNull(Datec) Then Datec = Utils.Cdate_aff(dte)
-        Datec = Right$(datec, 4) & Mid$(datec, 4, 2) & Left$(datec, 2)
-        Dateecr = Utils.Cdate_aff(rResult!dte)
-        Dateecr = Right$(dateecr, 4) & Mid$(dateecr, 4, 2) & Left$(dateecr, 2) 
+
         intitule = Trim(.Accent(rResult!intitule))
         If IsNull(intitule)
           intitule = "Err intitule compte: " & rResult!compte
@@ -546,7 +561,7 @@ Public Sub Button2_Click()
               'If Type = "F" Or If type = "C" Then
               '  Donnees3(CStr(rResult!jour & String$(2 - Len(rResult!jour), " ")), CStr(libellejo & String$(15 - Len(libellejo), " ")), CStr(copt & String$(11 - Len(Str(copt)), " ")), CStr(dateecr), CStr(Ccoll & String$(8 - Len(Ccoll), " ")), CStr(intitcol & String$(40 - Len(intitcol), " ")), CStr(rResult!compte & String$(8 - Len(rResult!compte), " ")), CStr(intitule & String$(40 - Len(intitule), " ")), CStr(doc), CStr(datec), CStr(libelle & String$(30 - Len(libelle), " ")), CStr(String$(15 - Len(debitcol), " ") & debitcol), CStr(String$(15 - Len(creditcol), " ") & creditcol), CStr(""), CStr(""), CStr(datec), CStr(""), CStr(""))
               'Else
-                Donnees3(CStr(rResult!jour & String$(2 - Len(rResult!jour), " ")), CStr(libellejo & String$(15 - Len(libellejo), " ")), CStr(copt & String$(11 - Len(Str(copt)), " ")), CStr(dateecr), CStr(rResult!compte & String$(8 - Len(rResult!compte), " ")), CStr(intitule & String$(40 - Len(intitule), " ")), CStr(String$(8, " ")), CStr(String$(40, " ")), CStr(doc), CStr(datec), CStr(libelle & String$(30 - Len(libelle), " ")), CStr(String$(15 - Len(debitcol), " ") & debitcol), CStr(String$(15 - Len(creditcol), " ") & creditcol), CStr(""), CStr(""), CStr(datec), CStr(""), CStr("")) 
+                Donnees3(CStr(rResult!jour & String$(2 - Len(rResult!jour), " ")), CStr(libellejo & String$(15 - Len(libellejo), " ")), CStr(copt & String$(11 - Len(Str(copt)), " ")), CStr(Dateecr), CStr(rResult!compte & String$(8 - Len(rResult!compte), " ")), CStr(intitule & String$(40 - Len(intitule), " ")), CStr(String$(8, " ")), CStr(String$(40, " ")), CStr(doc), CStr(Datedoc), CStr(libelle & String$(30 - Len(libelle), " ")), CStr(String$(15 - Len(debitcol), " ") & debitcol), CStr(String$(15 - Len(creditcol), " ") & creditcol), CStr(""), CStr(""), CStr(datec), CStr(""), CStr("")) 
               'Endif
             Endif
           Endif
