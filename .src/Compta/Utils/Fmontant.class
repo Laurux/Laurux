@@ -81,11 +81,9 @@ End
 
 Public Sub Button2_Click()
 
-  Dim Tab As String
-  Dim Tab2, btype As String
-
-  Tab = "Fiches_Mvt"
-  Tab2 = "Fiches_Comptes"
+  Dim req As String
+  Dim chmp As String = "dte,compte,libelle,numdoc,numero,montantd,montantc,jour,tresorerie"
+  
   Somme.clear
   Me.Mouse = Mouse.Wait
    If Bclient.value Then btype = "C"
@@ -102,18 +100,14 @@ Public Sub Button2_Click()
       Mnt.Select
       libelle.Text = ""
     Else
+      If Btous.Value Then req = "" 
+      If Bclient.value Then req = " and validee = True  and coll= True and type_cc = 'C'"
+      If Bfournisseur.value Then req = " and validee = True  and coll= True and type_cc = 'F'"
+      If Bgestion.value Then req = " and validee = True  and coll= True and type_cc = 'G'"
+      If Bbilan.value Then req = " and validee = True  and coll= True and type_cc = 'B'"
       If Cb1.value And Mnt.Text And Not Cb2.value Then 'on recherche seulement un montant
         libelle.Text = ""
-          If Not IsNull(btype) Then
-           rResult = Utils.db.Exec("SELECT * FROM " & tab & " left join Fiches_Comptes on compte_cc = compte  where type_cc = &1  and montantd like '%" & Utils.PointBase(Mnt.Text) & "%' and validee = &2 and coll = &3 or type_cc = &1  and montantc like '" & Utils.PointBase(Mnt.Text) & "%' and validee = &2 and coll = &3", btype, 1, 0)
-          Else
-             rResult = Utils.db.Exec("SELECT * FROM " & tab & " left join Fiches_Comptes on compte_cc = compte  where coll = &1  and montantd like '%" & Utils.PointBase(Mnt.Text) & "%' and validee = &2 or  coll = &1  and montantc like '" & Utils.PointBase(Mnt.Text) & "%' and validee = &2", 0, 1)
-          Endif
-            If rResult.Available Then
-              Repeat
-                Affichage()
-              Until rResult.MoveNext()
-            Endif
+         rResult = Utils.db.Exec("SELECT " & chmp & " FROM Fiches_Comptes,Fiches_Mvt where compte = compte_cc and (montantd like '" & Utils.PointBase(Mnt.Text) & "%' or montantc like '" & Utils.PointBase(Mnt.Text) & "%') " & req)
       Endif
    Endif
     If Cb2.Value And Not libelle.Text And Not Cb1.Value Then ' On controle qu'un libelle soit saisit
@@ -124,16 +118,7 @@ Public Sub Button2_Click()
     Else
       If Cb2.Value And libelle.Text And Not Cb1.Value Then 'on recherche seulement les libelles
         Mnt.Text = ""
-       If Not IsNull(btype) Then
-           rResult = Utils.db.Exec("SELECT * FROM " & tab & " left join Fiches_Comptes on compte_cc = compte  where type_cc = &1  and libelle like '%" & libelle.Text & "%'  and validee = &2 and coll = &3", btype, 1, 0)
-      Else
-          rResult = Utils.db.Exec("SELECT * FROM " & tab & " left join Fiches_Comptes on compte_cc = compte  where coll = &1  and libelle like '%" & libelle.Text & "%'  and validee = &2", 0, 1)
-      Endif
-            If rResult.Available Then
-              Repeat
-                Affichage()
-              Until rResult.MoveNext()
-            Endif
+        rResult = Utils.db.Exec("SELECT " & chmp & " FROM Fiches_Comptes,Fiches_Mvt where compte = compte_cc and libelle like '" & libelle.Text & "%' " & req & "order by dte")
           Endif
         Endif
     If Cb1.Value And Cb2.Value And Not Mnt.Text Then 'on controle qu'un montant soit saisit
@@ -148,17 +133,15 @@ Public Sub Button2_Click()
       Endif
     Endif
     If Cb1.Value And Cb2.Value And Mnt.Text And libelle.Text Then 'on recherche un montant et un libelle
-      If Not IsNull(btype) Then
-         rResult = Utils.db.Exec("SELECT * FROM " & tab & "  left join Fiches_Comptes on compte_cc = compte  where type_cc = &1 and montantd like '%" & Utils.PointBase(Mnt.Text) & "%' and validee = &2 and libelle like '%" & libelle.Text & "%' or type_cc = &1 and montantc like '%" & Utils.PointBase(Mnt.Text) & "%' and validee = &2 and libelle like '%" & libelle.Text & "%' order by dte", btype, 1)
-     Else
-       rResult = Utils.db.Exec("SELECT * FROM " & tab & "  left join Fiches_Comptes on compte_cc = compte  where coll = &1 and montantd like '%" & Utils.PointBase(Mnt.Text) & "%' and validee = &2 and libelle like '%" & libelle.Text & "%' or coll = &1 and montantc like '%" & Utils.PointBase(Mnt.Text) & "%' and validee = &2 and libelle like '%" & libelle.Text & "%' order by dte", 0, 1)
-     Endif   
-          If rResult.Available Then
-            Repeat
-              Affichage()
-            Until rResult.MoveNext()
-          Endif
+      rResult = Utils.db.Exec("SELECT " & chmp & " FROM Fiches_Comptes,Fiches_Mvt where compte = compte_cc and (montantd like '" & Utils.PointBase(Mnt.Text) & "%' or montantc like '" & Utils.PointBase(Mnt.Text) & "%') and libelle like '" & libelle.Text & "%' " & req & " order by dte ")
     Endif
+    
+    If rResult.Available Then
+      Repeat
+        Affichage()
+      Until rResult.MoveNext()
+    Endif
+
   Endif
   Me.Mouse = Mouse.Pointing
   Necrit.Visible = False
