@@ -8281,6 +8281,7 @@ Public Sub Coldetail_Keypress()
             Cleanart()
             Coldetail.Clear
             N = 1
+            XX = ""
             Recup_Ligbl()
             Ren_Ligbl()
             Maj_Base()
@@ -14132,8 +14133,9 @@ Public Sub Envoi()
   Dim sText As String
   Dim sText2 As String
   Dim sCourriel As String
-  Dim Ty As String
+  Dim Ty, modele, immat, serie As String = ""
   Dim tMail, Pjointe As String[]
+  Dim sline As String
 
   Tmail = Split(Courriel.Text, "|")
   Try sCourriel = Replace$(Tmail[1], " ", "")
@@ -14144,6 +14146,11 @@ Public Sub Envoi()
     If Tp = "D" Then sText = "Devis"
     If Tp = "P" Then sText = "Proforma"
     If Tp = "F" Then sText = "Facture"
+    If impdclient Then 
+    stext &= " fournisseur "
+    Else
+      stext &= " client "
+    Endif
     If Bfac.value And Visudoc = False Then
       Ty = Nmfac
     Else
@@ -14157,6 +14164,15 @@ Public Sub Envoi()
           sText2 = Replace$(sText2, "§", sVendeur.Text)
         Else
           sText2 = Replace$(sText2, "§", "")
+        Endif
+        If IsNull(variables.sTexte) Then sText = sText & " No " & ty & " du " & Dtef.Text
+        If Not IsNull(XX) Then
+          For Each sline In Split(XX, "\n")
+            If InStr(sline, "IMMAT") = 1 Then immat = Mid$(sline, 17, Len(sline))
+            If InStr(sline, "MODELE") = 1 Then modele = Mid$(sline, 15, Len(sline))
+            If InStr(sline, "SERIE") = 1 Then serie = Mid$(sline, 18, Len(sline))
+          Next
+           stext &= " " & immat & " " & modele & " " & serie
         Endif
         If Not IsNull(XX) Then sText2 = Stext2 & "\n\n" & XX & "\n\n"
         If Not IsNull(XX) And Not impdclient Then sText2 = Stext2 & "\n\n" & XX & "\n\n"
@@ -14178,7 +14194,7 @@ Public Sub Envoi()
       Endif
       Message.Info("L'envoi d'un document de type Facture ne peut se faire\nque si l'impression a été effectuée !\nVeuillez imprimer votre facture avant de l'envoyer en pièce jointe.")
     Else
-      If IsNull(variables.sTexte) Then sText = "Votre " & sText & " No " & ty & " du " & Dtef.Text
+      If IsNull(variables.sTexte) Then sText &= Tp & ty
       If Not IsNull(sCourriel) Then
         Impression("Mail")
         Me.mouse = Mouse.Wait
@@ -14195,7 +14211,7 @@ Public Sub Envoi()
             Pjointe = Split(PJ, "\n")
           Endif
           If impdclient Then scourriel = ""
-          If Not impdclient And Not IsNull(variables.sTexte) Then sText = "Votre " & sText & " No " & ty & " du " & Dtef.Text
+          If Not impdclient And Not IsNull(variables.sTexte) Then sText = "Votre " & sText & " No " & ty
           If Not IsNull(PJ) Then
             EnvMail.Envoi2(scourriel, stext, sText2, spiece, "", Pjointe)
          Else
