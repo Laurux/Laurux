@@ -82,12 +82,17 @@ End
 Public Sub Button2_Click()
 
   Dim Tab As String
-  Dim Tab2 As String
+  Dim Tab2, btype As String
 
   Tab = "Fiches_Mvt"
   Tab2 = "Fiches_Comptes"
   Somme.clear
   Me.Mouse = Mouse.Wait
+   If Bclient.value Then btype = "C"
+   If Bfournisseur.value Then btype = "F"
+   If Bgestion.value Then btype = "G"
+   If Bbilan.value Then btype = "B"
+   If Btous.value Then btype = ""
   If Not Cb1.Value And Not Cb2.Value Then
     Message.Warning("Veuillez saisir un critère de recherche SVP", "Ok")
   Else
@@ -99,23 +104,19 @@ Public Sub Button2_Click()
     Else
       If Cb1.value And Mnt.Text And Not Cb2.value Then 'on recherche seulement un montant
         libelle.Text = ""
-        If Btous.Value Then Tcpt = Utils.db.Exec("SELECT * FROM " & tab2 & " where coll = &1", "0")
-        If Bclient.value Then Tcpt = Utils.db.Exec("SELECT * FROM " & tab2 & " where type_cc = &1", "C")
-        If Bfournisseur.value Then Tcpt = Utils.db.Exec("SELECT * FROM " & tab2 & " where type_cc = &1", "F")
-        If Bgestion.value Then Tcpt = Utils.db.Exec("SELECT * FROM " & tab2 & " where type_cc = &1", "G")
-        If Bbilan.value Then Tcpt = Utils.db.Exec("SELECT * FROM " & tab2 & " where type_cc = &1 and coll = &2", "B", "0")
-        If Tcpt.Available Then
-          Repeat
-            rResult = Utils.db.Exec("SELECT * FROM " & tab & " where compte = &1 and montantd like '" & Utils.PointBase(Mnt.Text) & "%' and validee = &2  or compte = &1 and montantc like '" & Utils.PointBase(Mnt.Text) & "%' and validee = &2", Tcpt!compte_cc, 1)
+          If Not IsNull(btype) Then
+           rResult = Utils.db.Exec("SELECT * FROM " & tab & " left join Fiches_Comptes on compte_cc = compte  where type_cc = &1  and montantd like '%" & Utils.PointBase(Mnt.Text) & "%' and validee = &2 and coll = &3 or type_cc = &1  and montantc like '" & Utils.PointBase(Mnt.Text) & "%' and validee = &2 and coll = &3", btype, 1, 0)
+          Else
+             rResult = Utils.db.Exec("SELECT * FROM " & tab & " left join Fiches_Comptes on compte_cc = compte  where coll = &1  and montantd like '%" & Utils.PointBase(Mnt.Text) & "%' and validee = &2 or  coll = &1  and montantc like '" & Utils.PointBase(Mnt.Text) & "%' and validee = &2", 0, 1)
+          Endif
             If rResult.Available Then
               Repeat
+                Print rResult!compte & rResult!numero
                 Affichage()
               Until rResult.MoveNext()
             Endif
-          Until Tcpt.Movenext()
-        Endif
       Endif
-    Endif
+   Endif
     If Cb2.Value And Not libelle.Text And Not Cb1.Value Then ' On controle qu'un libelle soit saisit
       Message.Warning("Veuillez saisir un libellé SVP", "Ok")
       Mnt.Text = ""
@@ -124,23 +125,18 @@ Public Sub Button2_Click()
     Else
       If Cb2.Value And libelle.Text And Not Cb1.Value Then 'on recherche seulement les libelles
         Mnt.Text = ""
-        If Btous.Value Then Tcpt = Utils.db.Exec("SELECT * FROM " & tab2 & " where coll = &1", "0")
-        If Bclient.value Then Tcpt = Utils.db.Exec("SELECT * FROM " & tab2 & " where type_cc = &1", "C")
-        If Bfournisseur.value Then Tcpt = Utils.db.Exec("SELECT * FROM " & tab2 & " where type_cc = &1", "F")
-        If Bgestion.value Then Tcpt = Utils.db.Exec("SELECT * FROM " & tab2 & " where type_cc = &1", "G")
-        If Bbilan.value Then Tcpt = Utils.db.Exec("SELECT * FROM " & tab2 & " where type_cc = &1 and coll = &2", "B", "0")
-        If Tcpt.Available Then
-          Repeat
-            rResult = Utils.db.Exec("SELECT * FROM " & tab & " where compte = &1 and libelle like '" & libelle.Text & "%' and validee = &2 ", Tcpt!compte_cc, 1)
+       If Not IsNull(btype) Then
+           rResult = Utils.db.Exec("SELECT * FROM " & tab & " left join Fiches_Comptes on compte_cc = compte  where type_cc = &1  and libelle like '%" & libelle.Text & "%'  and validee = &2 and coll = &3", btype, 1, 0)
+      Else
+          rResult = Utils.db.Exec("SELECT * FROM " & tab & " left join Fiches_Comptes on compte_cc = compte  where coll = &1  and libelle like '%" & libelle.Text & "%'  and validee = &2", 0, 1)
+      Endif
             If rResult.Available Then
               Repeat
                 Affichage()
               Until rResult.MoveNext()
             Endif
-          Until Tcpt.Movenext()
+          Endif
         Endif
-      Endif
-    Endif
     If Cb1.Value And Cb2.Value And Not Mnt.Text Then 'on controle qu'un montant soit saisit
       Message.Warning("Veuillez saisir un montant SVP", "Ok")
       Mnt.SetFocus
@@ -153,21 +149,16 @@ Public Sub Button2_Click()
       Endif
     Endif
     If Cb1.Value And Cb2.Value And Mnt.Text And libelle.Text Then 'on recherche un montant et un libelle
-      If Btous.Value Then Tcpt = Utils.db.Exec("SELECT * FROM " & tab2 & " where coll = &1", "0")
-      If Bclient.value Then Tcpt = Utils.db.Exec("SELECT * FROM " & tab2 & " where type_cc = &1", "C")
-      If Bfournisseur.value Then Tcpt = Utils.db.Exec("SELECT * FROM " & tab2 & " where type_cc = &1", "F")
-      If Bgestion.value Then Tcpt = Utils.db.Exec("SELECT * FROM " & tab2 & " where type_cc = &1", "G")
-      If Bbilan.value Then Tcpt = Utils.db.Exec("SELECT * FROM " & tab2 & " where type_cc = &1 and coll = &2", "B", "0")
-      If Tcpt.Available Then
-        Repeat
-          rResult = Utils.db.Exec("SELECT * FROM " & tab & " where compte = &1 and montantd like '" & Utils.PointBase(Mnt.Text) & "%' and validee = &2 and libelle like '" & libelle.Text & "%' or compte = &1 and montantc like '" & Utils.PointBase(Mnt.Text) & "%' and validee = &2 and libelle like '" & libelle.Text & "%' order by dte", Tcpt!compte_cc, 1)
+      If Not IsNull(btype) Then
+         rResult = Utils.db.Exec("SELECT * FROM " & tab & "  left join Fiches_Comptes on compte_cc = compte  where type_cc = &1 and montantd like '%" & Utils.PointBase(Mnt.Text) & "%' and validee = &2 and libelle like '%" & libelle.Text & "%' or type_cc = &1 and montantc like '%" & Utils.PointBase(Mnt.Text) & "%' and validee = &2 and libelle like '%" & libelle.Text & "%' order by dte", btype, 1)
+     Else
+       rResult = Utils.db.Exec("SELECT * FROM " & tab & "  left join Fiches_Comptes on compte_cc = compte  where coll = &1 and montantd like '%" & Utils.PointBase(Mnt.Text) & "%' and validee = &2 and libelle like '%" & libelle.Text & "%' or coll = &1 and montantc like '%" & Utils.PointBase(Mnt.Text) & "%' and validee = &2 and libelle like '%" & libelle.Text & "%' order by dte", 0, 1)
+     Endif   
           If rResult.Available Then
             Repeat
               Affichage()
             Until rResult.MoveNext()
           Endif
-        Until Tcpt.Movenext()
-      Endif
     Endif
   Endif
   Me.Mouse = Mouse.Pointing
