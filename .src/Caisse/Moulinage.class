@@ -682,14 +682,14 @@ Public Sub Moulinage()
               If rTck!type = "1" And rTck!suppr Then
                 numlig = 0
                 Inc numlig
-                nmlig = Format$(Str(numlig), "000")
+                nmlig = Format$(Str(numlig), "0000")
                 Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, intitule, type) VALUES (&1, &2, &3, &4)", rTck!numero, nmlig, "Ticket non enregistré sur BL car supprimé!", "C")
                 rlTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigTck") & " where numero = &1 order by lInd", rTck!numero)
                 If rlTck.Available Then
                   Repeat
                     ' On conserve l'historique du ticket client compte meme supprimé au meme format que les tickets caisse
                     Inc numlig
-                    nmlig = Format$(Str(numlig), "000")
+                    nmlig = Format$(Str(numlig), "0000")
                     If rlTck!type = "A" Or If rlTck!type = "M" Or If rlTck!type = "S" Or If rlTck!type = "T" Or If rlTck!type = "L" Or If rlTck!type = "C" Then
                       Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, nmlig, rlTck!code, rltck!intitule, rltck!montant, rlTck!qte, rltck!type, rltck!fam, rltck!mht, rltck!mrem, rltck!tva)
                     Endif
@@ -724,17 +724,17 @@ Public Sub Moulinage()
                 Utils.db.Exec("INSERT INTO " & Cbase.Table("TabBl") & "(numbl,datebl,cdclibl, nmclibl, rmobl, rartbl, type, pnmclibl, adr1bl, adr2bl, cpbl, villebl, exobl, cvclibl, tvar, imp, acpt, mreg, totalht, totalttc, retro, marge_art, remmobl, remartbl, marge_mo) VALUES (&1,&2,&3,&4,&5,&6,&7,&8,&9,&{10},&{11},&{12},&{13},&{14},&{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24}, &{25})", numbon, Utils.Cdate_Dbase(Datem), scli, nmclibl, rmobl, Artrm, "B", Pnmclibl, adr1bl, adr2bl, cpbl, villebl, Exo, Cvclibl, 0, 0, 0, "", .PointBase(totalht), .PointBase(totalttc), 0, 0, 0, 0, 0)
                 'On met à jour les lignes de bl
                 Inc numlig
-                nmlig = Format$(Str(numlig), "000")
+                nmlig = Format$(Str(numlig), "0000")
                 Bloc = nmlig
                 origine = "Ticket de caisse numéro " & rTck!numero & " du " & rTck!date
                 Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigbl") & " (num_ligbl, numlig_ligbl, com_ligbl, typel_ligbl, block_ligbl) VALUES (&1, &2, &3, &4, &5)", numbon, nmlig, origine, "C", Bloc)
-                Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, intitule, type) VALUES (&1, &2, &3, &4)", rTck!numero, nmlig, "Ticket enregistré sur le BL: " & numbon, "C")
+                Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, intitule, type) VALUES (&1, &2, &3, &4)", rTck!numero, Right(nmlig, 3), "Ticket enregistré sur le BL: " & numbon, "C")
                 rlTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigTck") & " where numero = &1 order by lInd", rTck!numero)
                 If rlTck.Available Then
                   Repeat
                     ' On conserve l'historique du ticket client compte au meme format que les tickets caisse
                     If rlTck!type = "A" Or If rlTck!type = "M" Or If rlTck!type = "S" Or If rlTck!type = "T" Or If rlTck!type = "L" Or If rlTck!type = "C" Then
-                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, nmlig, rlTck!code, rltck!intitule, rltck!montant, rltck!qte, rltck!type, rltck!fam, rltck!mht, rltck!mrem, rltck!tva)
+                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, Right(nmlig, 3), rlTck!code, rltck!intitule, rltck!montant, rltck!qte, rltck!type, rltck!fam, rltck!mht, rltck!mrem, rltck!tva)
                     Endif
                     If rlTck!type = "A" Then
                       rlTck.MoveNext
@@ -746,7 +746,7 @@ Public Sub Moulinage()
                       qte = rlTck!qte
                       Recup_Art(rlTck!code, qte, rlTck!mht, rlTck!montant, rlTck!tva)
                       Inc numlig
-                      nmlig = Format$(Str(numlig), "000")
+                      nmlig = Format$(Str(numlig), "0000")
                       Bloc = nmlig
                       Remart = Val(.cpoint(Remart)) + Val(.cpoint(artbrut)) - Val(.cpoint(artnet))
                       totalht = totalht + Val(.cpoint(artnet))
@@ -768,6 +768,12 @@ Public Sub Moulinage()
                         totalttc = totalttc + Val(.cpoint(rlTck!montant))
                         Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigbl") & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15})", numbon, nmlig, rlTck!code, rlTck!intitule, "", Format$(Val(rlTck!montant), "0.00"), "1", Format$(Val(rlTck!montant), "0.00"), 0, Format$(Val(rlTck!montant), "0.00"), Arttx, Format$(Val(rlTck!montant), "0.00"), "E", "0", Bloc)
                       Endif
+                    Endif
+                    If rlTck!type = "C" Then
+                      Inc numlig
+                      nmlig = Format$(Str(numlig), "0000")
+                      Bloc = nmlig
+                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigbl") & " (num_ligbl, numlig_ligbl, com_ligbl, typel_ligbl, block_ligbl) VALUES (&1, &2, &3, &4, &5)", numbon, nmlig, rlTck!intitule, "C", Bloc)
                     Endif
                   Until rlTck.MoveNext()
                   Utils.db.Exec("UPdate  " & Cbase.Table("TabBl") & "  SET marge_art = &2, remartbl = &3, totalht = &4, totalttc = &5 where numbl = &1", numbon, mrg, Remart, totalht, totalttc)
