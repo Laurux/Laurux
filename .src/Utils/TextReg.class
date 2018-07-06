@@ -1,0 +1,235 @@
+' Gambas class file
+
+Inherits ButtonBox
+Export
+Create Static
+'variables privées
+Private $prec As Object
+Private $suiv As Object
+Private $value As Float
+Private $text As String
+Private $textesc As String
+Private $nbdec As String
+Private $reg As String
+Private $regp As Boolean = False
+Private $numerique As Boolean = False
+Private $regex As New RegExp
+'constantes prédéfinies
+Public Const num As String = "-?[0-9]*[,.]?[0-9]*"       'saisie d'un numérique avec ,
+Public Const chaine As String = "[-0-9a-zA-Zéèà@,;:!§/.?<>êâ$+=ûù]*"       'saisie d'une chaine en excluant les caractéres spéciaux de recherche BD (a compléter et vérifier)
+Public Const mail As String = "[a-zA-Z0-9_.+-]+@?[a-zA-Z0-9.-]*"     'saisie d'une adresse mail peut certainement s'améliorer
+' a compléter si autre idées par ex : saisie des comptes client ...
+'comme les paterns sont parfois un peu difficiles à trouver et à mettre au point il serait peut être bien de les mettres en constantes ?
+' il ne faut pas mettre de caractéres obligatoires dans les paterns par ex dans mail @{1} ne fonctionne pas.
+'propriétés
+Property Value As Float
+Property numerique As Boolean
+Property nbdec As String
+Property reg As String
+Property prec As Object
+Property Suiv As Object
+
+
+Public Sub _new()
+
+  Dim obs As Observer
+  
+  obs = New Observer(Me) As "butb"
+  Me.Picture = Picture["icon:/16/clear"]
+  $reg = chaine
+  $regex.Compile($reg)
+
+End
+
+'gestion des évenements
+Public Sub butb_click()
+
+  $value = 0
+  Me.Clear
+
+End
+
+Public Sub butb_keypress()
+Print Key.Code
+  Select Case Key.Code
+    Case Key.Esc
+      $text = $textesc
+      Me.Text = $textesc
+      
+    Case Key.Up, Key.BackTab
+      If Not IsNull($prec) Then
+        Stop Event 
+        $prec.setfocus
+        Try $prec.Select
+      Endif
+    
+    Case Key.Down, Key.Enter, Key.Return, Key.Tab
+      If Not IsNull($suiv) Then
+        Stop Event
+        $suiv.setfocus
+        Try $suiv.Select
+      Endif
+      
+  End Select
+
+End
+
+Public Sub butb_change()
+
+  Dim x As Integer
+  
+  If IsNull(Me.Text) Then
+    $text = ""
+    $value = 0
+    Return
+  Endif
+  Try $regex.Exec(Me.Text)
+  If Error Then 
+    Me.Text = $text
+    Return
+  Endif
+  x = Me.Pos
+  Me.Text = $regex.Text
+  If Me.Text Match "." And $numerique Then Me.Text = Replace(Me.Text, ".", ",")
+  Me.pos = x
+  $text = Me.Text
+  
+End
+
+Public Sub butb_gotfocus()
+
+  Try Utils.ObsGotf(Last)
+
+End
+
+Public Sub butb_lostfocus()
+
+  $text = Me.Text
+  $textesc = Me.Text
+  If $numerique Then
+    If IsNull(Me.Text) Or Val($text) = Null Then
+      $text = "0"
+      Me.Text = "0"
+      $textesc = "0"
+      $value = 0
+    Else
+      $value = Val($text)
+      If Not IsNull($nbdec) Then
+        $text = Format($value, frm())
+        Me.Text = $text
+        $textesc = $text
+      Endif
+    Endif
+  Endif
+  Try Utils.ObsLstf(Last)
+
+End
+
+Private Function frm() As String
+  
+  Dim i As Integer
+  Dim ch As String
+  
+  If Val($nbdec) = 0 Then Return "0"
+  ch = "0."
+  For i = 1 To Val($nbdec)
+    ch &= "0"
+  Next
+  Return ch
+End
+
+Private Function Value_Read() As Float
+
+  If $numerique Then
+    Return $value
+  Else
+    Return 0
+  Endif
+
+End
+'proprietés
+Private Sub Value_Write(Value As Float)
+
+  If $numerique Then
+    $value = Value
+    If IsNull($nbdec) Then $text = Str($value) Else $text = Format($value, frm())
+    Me.Text = $text
+  Endif
+
+End
+
+Private Function numerique_Read() As Boolean
+
+  Return $numerique
+
+End
+
+Private Sub numerique_Write(Value As Boolean)
+
+  If $numerique <> Value And Not $regp Then
+    If value Then $reg = num Else $reg = chaine
+    $regex.Compile($reg)
+  Endif
+  $numerique = value
+  If $numerique And Val($text) <> Null Then
+    $value = Val($text)
+'  Else
+'    $value = 0
+  Endif
+
+End
+
+Private Function nbdec_Read() As String
+
+  Return $nbdec
+
+End
+
+Private Sub nbdec_Write(Value As String)
+
+  $nbdec = value
+  If $numerique And Val($text) <> Null Then
+    $value = Val($text)
+    If IsNull($nbdec) Then $text = Str($value) Else $text = Format($value, frm())
+    Me.Text = $text
+  Endif
+
+End
+
+Private Function prec_Read() As Object
+
+  Return $prec
+
+End
+
+Private Sub prec_Write(Value As Object)
+
+  $prec = value
+
+End
+
+Private Function Suiv_Read() As Object
+
+  Return $suiv
+
+End
+
+Private Sub Suiv_Write(Value As Object)
+
+  $suiv = value
+
+End
+
+Private Function reg_Read() As String
+
+  Return $reg
+
+End
+
+Private Sub reg_Write(Value As String)
+
+  $reg = value
+  $regp = True
+  $regex.Compile($reg)
+
+End
