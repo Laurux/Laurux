@@ -666,8 +666,14 @@ Public Sub Maj_Zones(Prod As String, Reaf As Integer)
         Desg.Text = Rart!art_design
         Desg2.Text = Rart!art_design2
         four.Text = Rart!art_four
-        Fam.Text = Rart!art_fam
-        Fam2()
+        If Not IsNull(Trim(Fam.text)) And Fam.text <> Rart!art_fam Then
+          Message.Warning("Attention la famille de l'article a été modifié, les parametres de la famille sont appliqué\nVerifiez les données avant de sauvegarder")
+          Fam.Text = Rart!art_fam
+          FamMan(True)
+        Else
+          Fam.Text = Rart!art_fam
+          FamMan(False)
+        Endif
         Cbarre.clear
         Rpl1.Clear
         Rpl2.clear
@@ -821,7 +827,7 @@ Public Sub Maj_Zones(Prod As String, Reaf As Integer)
         Try Depg.Value = Rart!art_depg
         Try Cnsg.Value = Rart!art_cnsg
         Marque.Text = Rart!art_marque
-        'Fam2()
+        'FamMan()
         Arr.Text = Rart!art_cdarr
         fourMan()
         'pbhtLF()
@@ -930,47 +936,6 @@ Public Sub Composants_Click()
 
 End
 
-'********************************************
-'* Saisie d'une famille manuellement        *
-'********************************************
-Public Sub Fam2()
-
-  Dim Rfams As Result
-  Dim Tvav As Result
-  Dim Tvavt As Result
-  Dim tvavn As String
-  Dim tvan As String
-
-  tvavn = "Fiches_Tvaav"
-  tvan = "Fiches_Comptes"
-  Rfams = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " WHERE code_fam = &1", fam.Text)
-  LibelFam.Text = Rfams!libell_fam
-  Coef.Text = Format$(Rfams!coef_fam, "0.0000")
-  Tva.Text = Rfams!cdtva_fam
-  Txtva.Text = CPrix.CTva(Tva.Text)
-  Txtva.Text = Format$(Val(Utils.cpoint(Txtva.Text)), "0.00")
-  Try Ecotaxe = Format$(Rfams!ect_fam, "0.00")
-  B = 0
-  Tvav = Utils.db.Exec("SELECT * FROM " & tvavn & " WHERE code_tva = &1", Rfams!cdtva_fam)
-  Tvavt = Utils.db.Exec("SELECT * FROM " & tvan & " WHERE compte_cc = &1", Tvav!cc_tva)
-  If Not Tvavt.Available Then
-    If start.son Then
-      Music.Play
-    Endif
-    Try Message.Warning("Le compte de tva associé à cette famille n'existe pas \n Veuillez créer ce compte SVP !", "OK")
-    b = 1
-    Tvavente = 1
-    Fam.SetFocus
-    Fam.Select
-  Endif
-Catch
-  B = 1
-  If Start.son Then
-    Music.Play
-  Endif
-  Try Message.Warning("Il y a un problème sur la tva de cette famille\n ou alors cette famille n'existe pas !", "OK")
-
-End
 
 Public Sub Refresh()
 
@@ -1396,16 +1361,6 @@ Public Sub Cmpt_KeyPress()
 
       Case 3
         FamLF()
-        FraisLF()
-        If b = 1 Then
-          Fam.SetFocus
-          Fam.Select
-        Else
-          Four.SetFocus
-          Four.Select
-          Chkfocus = False
-        Endif
-        b = 0
         Stop Event
 
       Case 4
@@ -2075,10 +2030,6 @@ Public Sub Cmpt_lostFocus()
           b = 1
         Else
           FamLF()
-          If b = 1 Then
-            Fam.SetFocus
-            Fam.Select
-          Endif
         Endif
         Stop Event
 
@@ -2394,11 +2345,22 @@ End
 
 Public Sub FamLF()
 
-  FamMan()
-  If b = 1 Then
-    Fam.SetFocus
-    Fam.select
-    b = 0
+  If Fam.text <> Fml Then
+    Try Message.Warning("Attention la famille de l'article a été modifié, les parametres de la famille sont appliqué\nVerifiez les données avant de sauvegarder")
+    FamMan(True)
+    If b = 1 Then
+      Fam.SetFocus
+      Fam.select
+      'b = 0
+      Chkfocus = True
+    Else
+      Four.SetFocus
+      Four.Select
+      Chkfocus = False
+    Endif
+  Else
+    Four.SetFocus
+    Four.Select
   Endif
 
 End
@@ -2568,7 +2530,7 @@ Public Sub PaUALF()
       b = 1
     Else
       PaUA.Text = Format$(Val(PaUA.Text), nbdec)
-      If Val(PaUA.Text) <> "0" Then
+      If Val(PaUA.Text) <> "0" Then 'cas particulier article generique pa = 0
         'FraisLF()
         paht.Text = Format$(Val(PaUA.Text) / Val(Txconv.Text), nbdec)
         Prvt.text = Format(Val(paht.Text) + Val(Frais.Text), nbdec)
@@ -2592,14 +2554,12 @@ Public Sub PaUALF()
         Endif
       Else
         pbht.Text = "0,00"
-        Tr.Text = "0,00"
         PaUA.Text = "0,00"
         paht.Text = "0,00"
         prvt.Text = "0,00"
         Pvht.Text = "0,00"
         PvTTc.Text = "0,00"
         Arr.Text = "0,01"
-        Txconv.Text = "1"
       Endif
     Endif
   End With
@@ -3748,7 +3708,7 @@ End
 '********************************************
 '* Saisie d'une famille manuellement        *
 '********************************************
-Public Sub FamMan()
+Public Sub FamMan(Optional Update_all_fields As Boolean = False)
 
   Dim Rfams As Result
   Dim Tvav As Result
@@ -3758,11 +3718,16 @@ Public Sub FamMan()
   tvan = "Fiches_Comptes"
   Rfams = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " WHERE code_fam = &1", Fam.Text)
   If Rfams.Available Then
+    Fam.text = Rfams!code_fam 'On utilse le code réellement stocké dans la base (pb d'une recherche case sensitive par exemple)
     LibelFam.Text = Rfams!libell_fam
-    Coef.Text = Format$(Rfams!coef_fam, "0.0000")
+    If Update_all_fields Then
+      Coef.Text = Format$(Rfams!coef_fam, "0.0000")
+      Tr.Text = Format$(Rfams!rem_fam, "0.00")
+      Try Ecotaxe = Format$(Rfams!ect_fam, "0.00")
+      TrC()
+    Endif
     Tva.Text = Rfams!cdtva_fam
     Txtva.Text = Format$(Rfams!txtva_fam, "0.00")
-    Try Ecotaxe = Format$(Rfams!ect_fam, "0.00")
     B = 0
     Tvav = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTvav") & " WHERE code_tva = &1", Rfams!cdtva_fam)
     Tvavt = Utils.db.Exec("SELECT * FROM " & tvan & " WHERE compte_cc = &1", Tvav!cc_tva)
@@ -3845,6 +3810,7 @@ Public Sub ToggleButton3_Click()
     Fam.SetFocus
   Else
     FamList.visible = True
+    Fml = Fam.Text
     FamList.Raise
     FamList.Columns.count = 2
     FamList.Columns[0].Width = 65
@@ -3880,16 +3846,13 @@ End
 Public Sub FamList_Click()
 
   Fam.text = FamList.Item[0]
-  LibelFam.text = FamList.Item[1]
-  Coef.Text = Format$(Famlist.Item[2], "00.0000")
-  Tva.Text = Famlist.Item[3]
-  TxTva.Text = Format$(Famlist.Item[4], "00.00")
-  Tr.Text = Format$(Famlist.Item[5], "00.00")
   FamList.clear
   FamList.visible = False
   four.SetFocus
-  Fam2()
-  FraisLF()
+  If Fam.text <> Fml Then
+    Message.Warning("Attention la famille de l'article a été modifié, les parametres de la famille sont appliqué\nVerifiez les données avant de sauvegarder")
+    FamMan(True)
+  Endif
 
 End
 
