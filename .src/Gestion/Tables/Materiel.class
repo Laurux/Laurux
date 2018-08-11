@@ -64,6 +64,10 @@ Private Epuises As String = Start.Epuises
 Private Stockes As String = Start.Stockes
 Private Org As Integer 'flag pour origine ouverture datechooser
 
+Public Codearticle As String
+Public Bsel As Boolean = False
+
+
 Public Sub _New(code As String)
 
   Dim Frmt As New String[]
@@ -330,104 +334,21 @@ End
 Public Sub ToggleButton2_Click()
 
   Dim rResult As Result
+  Dim MyForm As TriArticles
 
   Tab = "Fiches_Art"
-  ColArt.Clear
-  If ColArt.Visible Then
-    ColArt.Clear
-    ColArt.Visible = False
-  Else
-    ColArt.Visible = True
-    With ColArt
-      .Columns.count = 3
-      .Columns[0].Width = 120
-      .Columns[1].Width = 420
-      .Columns[2].Width = 160
-      .Columns[2].Alignment = 4
-      .Columns[0].Text = "Code"
-      .Columns[1].Text = "Intitulé"
-      .Columns[2].Text = "Ref fournisseur"
-    End With
-    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where art_mat = &1 order by CAST(art_code AS char)", 1)
-    If rResult.Available Then
-      Do
-        With utils
-          ColArt.Add(rResult!art_code, rResult!art_code)
-          ColArt.Item[0] = rResult!art_code
-          ColArt.Item[1] = rResult!art_design
-          ColArt.Item[2] = rResult!art_cfour
-          nbd.Text = rResult!art_nbd
-          nbdec = Utils.Find_nbdec(nbd.text)
-        End With
-      Loop Until rResult.MoveNext()
-    Else
-      If son Then
-        Music.Play
-      Endif
-      Message.Warning("Il n'existe aucun article stocké \n veuillez d'abord stocker vos références SVP ! ")
-      ColArt.Clear
-      ColArt.visible = False
-    Endif
-    If ColArt.Count Then
-      ColArt.MoveFirst
-      ColArt.SetFocus
-      ColArt.Item.Selected = True
-    Endif
-  Endif
-
-End
-
-'*******************************************
-'*  Saisie d'un article a la souris        *
-'*******************************************
-Public Sub Colart_Click()
-
-  Codep.Text = ColArt.Current[0]
-  ColArt.Clear
-  ColArt.visible = False
-  art_Man()
-  If b = 1 Then
-    Codep.SetFocus
-    codep.Select
-    b = 0
-  Else
-    Code.SetFocus
-    Code.Select
-  Endif
-
-End
-
-'*******************************************
-'* Saisie d'un article manuellement        *
-'*******************************************
-Public Sub Colart_KeyPress()
-
-  If Key.code = Key.Enter Or Key.code = Key.Return Then
-    Codep.Text = ColArt.Current[0]
-    ColArt.Clear
-    ColArt.visible = False
+  sel = ""
+  Tri = "art_code"
+  MyForm = New TriArticles(True, True, Tri, "Materiel", "", "", Null, Radiobutton2.Value, True)
+  MyForm.Showmodal()
+  
+  If Variables.Bsel Then
+    Codep.Text = Variables.ArtCode
     art_Man()
-    If b = 1 Then
-      Codep.SetFocus
-      codep.Select
-      b = 0
-    Else
-      Code.SetFocus
-      Code.Select
-    Endif
-  Endif
-
-  If key.code = key.F1 Then
-    Button7_Click()
-    Stop Event
-  Endif
-
-  If Key.code = Key.Escape Or Key.code = Key.F2 Or Key.Code = Key.F3 Then
-    ColArt.visible = False
-    ColArt.clear
   Endif
 
 End
+
 
 '*************************************************
 '* Saisie d'un code article manuellement         *
