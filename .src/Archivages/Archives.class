@@ -46,8 +46,6 @@ Private cp As String
 Private cpt As String
 Private Burd As String
 Private Intit As String
-Private cpttva As String
-Private IntitTva As String
 Private dateech As String
 Private reglt As String
 Private Ttva As Float
@@ -1715,7 +1713,7 @@ Public Sub Impression(Org As String)
         rem = Coldetail.Current[6]
         Totalht = Coldetail.Current[7]
         TypeL = Coldetail.Current[8]
-        Totttc = Coldetail.Item[11]
+        Totttc = Utils.cpoint(Coldetail.Item[11])
         Ctva = Coldetail.Current[12]
         If TypeL = "A" Or If TypeL = "M" Or If TypeL = "E" Or If TypeL = "P" Or If TypeL = "D" Then Try Txtva = Format$(Val(Totttc) / Val(Totalht), "0.000")
         If Error Then Txtva = "1"
@@ -2150,7 +2148,6 @@ End
 
 Public Sub Maj_Totalisation()
 
-  Dim Mtva As String
   Dim Rfam As Result
   Dim Rcompte As Result
   Dim Rtvaav As Result
@@ -2158,24 +2155,22 @@ Public Sub Maj_Totalisation()
   Dim Ttht As String
   Dim Tttva As String
 
-  TtTva = "O.OO"
+  TtTva = "0.00"
   With utils
     Rfam = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " Where code_fam = &1", Coldetail.Item[13])
     If Rfam.Available Then
       cpt = Rfam!compt_fam
     Endif
+    Rtvaav = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTvav") & " Where code_tva = &1", Ctva)
+    If Rtvaav.Available Then
+      'Si le cpt possède un compte tva on enregistre le Mht dans le cpt de TVA pour la totalisation
+      'On recupere ci-dessous l'intitule du compte de TVA.
+      cpt = Rtvaav!cc_tva
+      Ttva = Rtvaav!taux_tva
+    Endif
     Rcompte = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", cpt)
     If Rcompte.Available Then
       Intit = Rcompte!intitule_cc
-    Endif
-    Rtvaav = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTvav") & " Where code_tva = &1", Ctva)
-    If Rtvaav.Available Then
-      cpttva = Rtvaav!cc_tva
-      Ttva = Rtvaav!taux_tva
-    Endif
-    Rcompte = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", cpttva)
-    If Rcompte.Available Then
-      IntitTva = Rcompte!intitule_cc
     Endif
     Rtot = Utils.db.Exec("SELECT * FROM " & Cbase.Table("Totalisation") & " Where compte = &1", cpt)
     If Rtot.Available Then
@@ -2183,6 +2178,7 @@ Public Sub Maj_Totalisation()
         Ttht = Format$(Val(.cpoint(Tottc.Text)), "0.00")
       Else
         Ttht = Format$(Val(.cpoint(Rtot!totalht)) + Val(.cpoint(Coldetail.Item[7])), "0.00")
+        TtTva = Format$(Val(.cpoint(Rtot!totaltva)) + (Val(.cpoint(Coldetail.Item[11])) - (Val(.cpoint(Coldetail.Item[7])))), "0.00")
       Endif
       Utils.db.Exec("UPdate " & Cbase.Table("Totalisation") & " set compte = &1, intitule = &2, totalht = &3 , totaltva =&4 Where compte = &1 and codetva = &5", cpt, Intit, Ttht, TtTva, Ctva)
     Else
@@ -2190,18 +2186,10 @@ Public Sub Maj_Totalisation()
         Ttht = Format$(Val(.cpoint(Tottc.Text)), "0.00")
       Else
         Ttht = Format$(Val(.cpoint(Coldetail.Item[7])), "0.00")
+        TtTva = Format$(Val(.cpoint(Coldetail.Item[11])) - (Val(.cpoint(Coldetail.Item[7]))), "0.00")
       Endif
-      Try Utils.db.Exec("INSERT INTO " & Cbase.Table("Totalisation") & "(compte, intitule, totalht, codetva) VALUES (&1, &2, &3, &4)", cpt, Intit, Ttht, Ctva)
+      Try Utils.db.Exec("INSERT INTO " & Cbase.Table("Totalisation") & "(compte, intitule, totalht, totaltva, codetva) VALUES (&1, &2, &3, &4, &5)", cpt, Intit, Ttht, TtTva, Ctva)
     Endif
-    Mtva = Format$(Val(.cpoint(Coldetail.Item[11])) - (Val(.cpoint(Coldetail.Item[7]))), "0.00")
-    Rtot = Utils.db.Exec("SELECT * FROM " & Cbase.Table("Totalisation") & " Where compte = &1 and codetva = &2", cpttva, Ctva)
-    If Rtot.Available Then
-      TtTva = Format$(Val(.cpoint(Rtot!totaltva)) + Val(.cpoint(Mtva)), "0.00")
-      Try Utils.db.Exec("UPdate " & Cbase.Table("Totalisation") & " set compte = &1, intitule =&2, totaltva =&3, codetva = &4 Where compte = &1 and codeTva = &4", cpttva, Intittva, Tttva, Ctva)
-    Else
-      Try Utils.db.Exec("INSERT INTO " & Cbase.Table("Totalisation") & "(compte, intitule, totaltva, codetva) VALUES (&1, &2, &3, &4)", cpttva, Intittva, Mtva, Ctva)
-    Endif
-    Mtva = 0
   End With
 Catch
   If Start.son Then
@@ -2221,7 +2209,9 @@ Public Sub Calc_tva()
   Dim Mtva As String = "0"
   Dim Mtva2 As String = "0"
   Dim Mht As String = "0"
+  Dim Mht2 As String = "0"
   Dim Mttc As String = "0"
+  Dim Mttc2 As String = "0"
   Dim Ttx As String
   Dim Ctot As Result
   Dim cptrst As Result
@@ -2240,26 +2230,33 @@ Public Sub Calc_tva()
             cpt = Ctot!compte
             If Left$(Cpt, 3) = "445" Then
               Mtva2 = Format$(Val(Ctot!totaltva), "0.00")
+              Mht2 = Format$(Val(Ctot!totalht), "0.00")
+              Mttc2 = Format$(Val(Ctot!totalht) + Val(Ctot!totaltva), "0.00")
               If IsNull(Mtva2) Then Mtva2 = "0,00"
+              If IsNull(Mht2) Then Mht2 = "0,00"
+              If IsNull(Mttc2) Then Mttc2 = "0,00"
               If Prxdec Then
                 Mtva2 = Round(Val(Mtva2))
+                Mht2 = Round(Val(Mht2))
+                Mttc2 = Format$(Val(Mht2) + Val(Mtva2), "0")
+                Mht2 = Format$(Val(Mht2), "0")
                 Mtva2 = Format$(Val(Mtva2), "0")
-              Endif
-              If Val(Mtva2) <> 0 Then
+                Mtva = Format$(Val(Mtva) + Val(Mtva2), "0")
+                Mht = Format$(Val(Mht) + Val(Mht2), "0")
+                Mttc = Format$(Val(Mttc) + Val(Mttc2), "0")
+              Else
                 Mtva = Format$(Val(Mtva) + Val(Mtva2), "0.00")
-                If Prxdec Then
-                  Mht = Round(Val(Mht))
-                  Mttc = Round(Val(Mttc))
-                  Mtva2 = Round(Val(Mtva2))
-                Endif
-                If ImpAuto = False And If Franchise = False Then pdf.Level9F(Ctx, Mht, Ttx, Mtva2, Mttc, PosY)
+                Mht = Format$(Val(Mht) + Val(Mht2), "0.00")
+                Mttc = Format$(Val(Mttc) + Val(Mttc2), "0.00")
+              Endif
+              
+              If Val(Mtva2) <> 0 Then
+                If ImpAuto = False And If Franchise = False Then pdf.Level9F(Ctx, Mht2, Ttx, Mtva2, Mttc2, PosY)
                 PosY = PosY + 4
                 Inc Nbtx
               Endif
             Endif
           Loop Until Ctot.MoveNext()
-        Else
-          Mtva = "0,00"
         Endif
       Loop Until cptrst.MoveNext()
     Endif
