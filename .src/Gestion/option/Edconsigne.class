@@ -1,0 +1,312 @@
+' Gambas class file
+
+Private $obs As Observer
+Private $rep As Report
+Private $coul As Integer
+
+Public Sub _new()
+
+  Dim dte As LDate
+  
+  'definition des observateurs
+  $obs = New Observer(Dateinf) As "dte"
+  $obs = New Observer(Dateinf) As "saisie"
+  $obs = New Observer(Datesup) As "dte"
+  $obs = New Observer(Datesup) As "saisie"
+  $obs = New Observer(Textcinf) As "saisie"
+  $obs = New Observer(Textcsup) As "saisie"
+  $obs = New Observer(Textfinf) As "saisie"
+  $obs = New Observer(Textfsup) As "saisie"
+  $obs = New Observer(Textinf) As "saisie"
+  $obs = New Observer(Textsup) As "saisie"
+  'pour les lostfocus
+  Dateinf.Tag = Datesup
+  Datesup.Tag = Textcinf
+  Textcinf.Tag = Textcsup
+  Textcsup.Tag = Textfinf
+  Textfinf.Tag = Textfsup
+  Textfsup.Tag = Textinf
+  Textinf.Tag = Textsup
+  Textsup.Tag = Dateinf
+  
+  $coul = Val("&H" & Hex(Start.R) & Hex(Start.G) & Hex(Start.B))
+  
+  dte = New LDate(Now)
+  Dateinf.Value = dte.EDeb.G
+  Datesup.Value = Now
+  Dateinf.SetFocus
+
+End
+
+Public Sub saisie_keypress()
+
+  If Key.code = Key.Enter Or Key.code = Key.Return Or Key.code = Key.tab Then
+    Try Last.Tag.Select
+    Last.Tag.setfocus
+    Stop Event
+  Endif
+
+End
+
+Public Sub dte_lostfocus()
+
+  If IsNull(Last.Value) Then
+    Balloon.Delay = 3000
+    Balloon.Warning("Date invalide", Last)
+    Last.setfocus
+    Stop Event
+  Endif
+
+End
+
+Public Sub Butedit_Click()
+
+  Dim res As Result
+  Dim req, reqf, reqcb, reqcf, grp, grp1, col, col1 As String
+  Dim dteinf As LDate
+  Dim dtesup As LDate
+  Dim Filename As String
+  Dim prt As New Printer
+  
+  Filename = User.Home & "/tmp/consigne.pdf"
+  prt.OutputFile = Filename
+   
+  dteinf = New LDate(Dateinf.Value)
+  dtesup = New LDate(Datesup.Value)
+  If Radiocode.Value Then 
+    col = ""
+    col1 = ""
+  Endif
+  If Radiocli.Value Then
+    col = ",cdclibl "
+    col1 = ",cdclifac "
+  Endif
+  If Radiofour.Value Then
+    col = ",Fiches_Ligrecpt.four AS four "
+    col1 = ""
+  Endif
+  If Checkdet.Value Then          'detail des mouvements
+    grp = ""
+    grp1 = ""
+    reqf = "SELECT nb * -1 AS nb,Fiches_ligcons.montant * -1 AS montant, Fiches_ligcons.code AS code, Fiches_consigne.libelle AS libelle,daterecpt AS dte " & col &
+            "FROM Fiches_consigne, Fiches_ligcons, Fiches_Ligrecpt, Fiches_Entrecpt " &
+            "WHERE Fiches_consigne.code = Fiches_ligcons.code And Fiches_ligcons.num = Fiches_Ligrecpt.numrecpt And Fiches_Entrecpt.numrecpt = Fiches_Ligrecpt.numrecpt And Fiches_ligcons.type = 'E' AND ddate BETWEEN &1 AND &2 AND Fiches_consigne.code>= &3 AND Fiches_consigne.code<= &4 "
+    
+    reqcb = "SELECT nb * -1 AS nb,Fiches_ligcons.montant * -1 AS montant, Fiches_ligcons.code AS code, Fiches_consigne.libelle AS libelle, dte_ligbl AS dte " & col &
+            "FROM Fiches_consigne, Fiches_ligcons, Fiches_Bl, Fiches_Ligbl " &
+            "WHERE Fiches_consigne.code = Fiches_ligcons.code AND (Fiches_ligcons.num = num_ligbl Or Fiches_ligcons.num = numfac) AND Fiches_Bl.numbl = Fiches_Ligbl.num_ligbl AND Fiches_ligcons.type <> 'E' AND dte_ligbl BETWEEN &1 And &2 And Fiches_consigne.code >= &3 And Fiches_consigne.code <= &4 "
+          
+    reqcf = " UNION SELECT nb * -1 As Nb, Fiches_ligcons.montant * -1 As Montant, Fiches_ligcons.code As Code, Fiches_consigne.libelle As Libelle, dtligbl_ligfac As Dte " & col1 &
+              "FROM Fiches_consigne, Fiches_ligcons, Fiches_HistoLigfac, Fiches_HistoFac " &
+              "WHERE Fiches_consigne.code = Fiches_ligcons.code AND Fiches_ligcons.num = num_ligfac AND num_ligfac=numfac AND Fiches_ligcons.type <> 'E' AND dtligbl_ligfac BETWEEN &1 AND &2 AND Fiches_consigne.code >= &3 AND Fiches_consigne.code <= &4 "
+  Else                      'somme des mouvements
+    reqf = "SELECT SUM(nb) * -1 AS nb,SUM(Fiches_ligcons.montant) * -1 AS montant, Fiches_ligcons.code AS code, Fiches_consigne.libelle AS libelle " & col &
+            "FROM Fiches_consigne, Fiches_ligcons, Fiches_Ligrecpt, Fiches_Entrecpt " &
+            "WHERE Fiches_consigne.code = Fiches_ligcons.code And Fiches_ligcons.num = Fiches_Ligrecpt.numrecpt And Fiches_Entrecpt.numrecpt = Fiches_Ligrecpt.numrecpt And Fiches_ligcons.type = 'E' AND ddate BETWEEN &1 AND &2 AND Fiches_consigne.code>= &3 AND Fiches_consigne.code<= &4 "
+
+    reqcb = "SELECT SUM(nb) * -1 AS nb,SUM(Fiches_ligcons.montant) * -1 AS montant, Fiches_ligcons.code AS code, Fiches_consigne.libelle AS libelle " & col &
+              "FROM Fiches_consigne,Fiches_ligcons,Fiches_Bl,Fiches_Ligbl " &
+              "WHERE Fiches_consigne.code=Fiches_ligcons.code AND (Fiches_ligcons.num=num_ligbl OR Fiches_ligcons.num=numfac) AND Fiches_Bl.numbl=Fiches_Ligbl.num_ligbl AND dte_ligbl BETWEEN &1 AND &2 AND Fiches_consigne.code>= &3 AND Fiches_consigne.code<= &4 "
+
+    reqcf = " UNION SELECT SUM(nb) * -1 As Nb, SUM(Fiches_ligcons.montant) * -1 As Montant, Fiches_ligcons.code As Code, Fiches_consigne.libelle As Libelle " & col1 &
+              "FROM Fiches_consigne, Fiches_ligcons, Fiches_HistoLigfac, Fiches_HistoFac " &
+              "WHERE Fiches_consigne.code = Fiches_ligcons.code AND Fiches_ligcons.num = num_ligfac AND num_ligfac=numfac AND dtligbl_ligfac BETWEEN &1 AND &2 AND Fiches_consigne.code >= &3 AND Fiches_consigne.code <= &4 "
+  Endif
+  'edition par client/fournisseur/code
+  If Radiocode.Value Then
+    If Not Checkdet.Value Then grp = " GROUP BY code,libelle " 
+    req = reqf & grp & " UNION " & reqcb & grp & reqcf & grp
+  Endif 
+  If Radiocli.Value Then
+    If Not Checkdet.Value Then 
+      grp = " GROUP BY cdclibl,code,libelle"
+      grp1 = " GROUP BY cdclifac,code,libelle" 
+    Endif
+    req = reqcb & "AND cdclibl >= &5 AND cdclibl <= &6 " & grp & reqcf & " AND cdclifac>= &5 AND cdclifac <= &6" & grp1 
+  Endif
+  If Radiofour.Value Then
+    If Not Checkdet.Value Then grp = " GROUP BY four,code,libelle" 
+    req = reqf & "AND Fiches_Ligrecpt.four>= &7 AND Fiches_Ligrecpt.four<=&8" & grp
+  Endif
+  'requete
+  res = Utils.db.Exec(req, dteinf.DT, dtesup.DT, Textinf.Text, Textsup.Text, Textcinf.Text, Textcsup.Text, Textfinf.Text, Textfsup.Text)
+  If res.Available Then 
+    edition(res, dteinf, dtesup)
+    $rep.Print(prt)
+    Visualiseur.Prog_Editeur(Filename)
+  Endif
+  
+End
+'Edition de la selection
+Private Sub edition(res As Result, dteinf As LDate, dtesup As LDate)
+  
+  Dim lab As ReportLabel
+  Dim vb As ReportVBox
+  Dim hb As ReportHBox
+  Dim cde As String
+  
+  $rep = New Report
+  'entete
+  hb = New Reporthbox($rep)
+  hb.Fixed = True 
+  hb.Height = "4mm"
+  hb.Border = ReportBorder["Top:1pt #000000;Bottom:1pt #000000;Left:1pt #000000;Right:1pt #000000"]
+  
+  lab = New ReportLabel(hb)
+  lab.Text = "Edition du suivi des consignes pour la periode du : " & dteinf.L & " au : " & dtesup.L
+  If Radiocode.Value Then lab.Text &= " et du code : " & Textinf.Text & " au code " & Textsup.Text
+  If Radiocli.Value Then lab.Text &= " et du client : " & Textcinf.Text & " au client : " & Textcsup.Text
+  If Radiofour.Value Then lab.Text &= " et du fournisseur : " & Textfinf.Text & " au fournisseur : " & Textfsup.Text
+  lab.Expand = True
+  lab.Alignment = Align.Center
+  lab.Font = Font["Serif,Bold,Italic,-4"]
+  
+  lab = New ReportLabel(hb)
+  lab.Width = "20mm"
+  lab.Height = "4mm"
+  lab.Text = Format(Now, "dd.mm.yyyy")
+  lab.Alignment = Align.Center
+  lab.Font = Font["Serif,Bold,Italic,-4"]
+  
+  'colonnes
+  hb = New ReportHBox($rep)
+  hb.Height = "4mm"
+  hb.Fixed = True
+  hb.Border = ReportBorder["Top:1pt #000000;Bottom:1pt #000000;Left:1pt #000000;Right:1pt #000000"]
+  lab = New ReportLabel(hb)
+  lab.Text = "Code"
+  lab.Width = "20mm"
+  lab.Alignment = Align.Center
+  lab.Font = Font["Serif,-4"]
+  lab.Border = ReportBorder["Right:1pt #000000"]
+  
+  If Checkdet.Value Then
+    lab = New ReportLabel(hb)
+    lab.Text = "Date"
+    lab.Width = "25mm"
+    lab.Alignment = Align.Center
+    lab.Font = Font["Serif,-4"]
+    lab.Border = ReportBorder["Right:1pt #000000"]
+  Endif
+  
+  lab = New ReportLabel(hb)
+  lab.Text = "Libelle" 
+  lab.Expand = True
+  lab.Alignment = Align.Center
+  lab.Font = Font["Serif,-4"]
+  lab.Border = ReportBorder["Right:1pt #000000"]
+  
+  lab = New ReportLabel(hb)
+  lab.Text = "Consignes"
+  lab.Alignment = Align.Center
+  lab.Font = Font["Serif,-4"]
+  lab.Width = "30mm"
+  lab.Border = ReportBorder["Right:1pt #000000"]
+  
+  lab = New ReportLabel(hb)
+  lab.Text = "Déconsignes"
+  lab.Alignment = Align.Center
+  lab.Font = Font["Serif,-4"]
+  lab.Width = "30mm"
+  
+  If Checkval.Value Then
+    lab.Border = ReportBorder["Right:1pt #000000"]
+    lab = New ReportLabel(hb)
+    lab.Text = "Montant"
+    lab.Alignment = Align.Center
+    lab.Font = Font["Serif,-4"]
+    lab.Width = "30mm"
+  Endif
+  
+  res.MoveFirst
+  
+  Repeat
+    'edition client/fournisseur si demandé dans les choix
+    If Radiocli.Value Then
+      If cde <> res!cdclibl Then
+        cde = res!cdclibl
+        lab = New ReportLabel($rep)
+        lab.Height = "3mm"
+        lab.Font = font["Serif,Italic,-5"]
+        lab.text = "   " & tcli(cde)
+      Endif
+    Endif
+    If Radiofour.Value Then
+      If cde <> res!four Then
+        cde = res!four
+        lab = New ReportLabel($rep)
+        lab.Height = "3mm"
+        lab.Font = font["Serif,Italic,-5"]
+        lab.text = "   " & tfou(cde)
+      Endif
+    Endif
+    'edition de la ligne
+    hb = New ReporthBox($rep)
+    hb.Height = "3mm"
+    lab = New ReportLabel(hb)
+    lab.Text = res!code
+    lab.Width = "20mm"
+    lab.Alignment = Align.Left
+    lab.Font = Font["Serif,-6"]
+    
+    If Checkdet.Value Then
+      lab = New ReportLabel(hb)
+      lab.Text = Format(res!dte, "dd.mm.yyyy")
+      lab.Width = "25mm"
+      lab.Alignment = Align.Center
+      lab.Font = Font["Serif,-4"]
+    Endif
+  
+    lab = New ReportLabel(hb)
+    lab.Text = res!libelle 
+    lab.Expand = True
+    lab.Alignment = Align.Left
+    lab.Font = Font["Serif,-6"]
+  
+    lab = New ReportLabel(hb)
+    If Val(res!nb) > 0 Then lab.Text = Format(res!nb, "0.00") Else lab.Text = " "
+    lab.Alignment = Align.Right
+    lab.Font = Font["Serif,-6"]
+    lab.Width = "30mm"
+  
+    lab = New ReportLabel(hb)
+    If Val(res!nb) < 0 Then lab.Text = Format(res!nb * -1, "0.00")
+    lab.Alignment = Align.Right
+    lab.Font = Font["Serif,-6"]
+    lab.Width = "30mm"
+  
+    If Checkval.Value Then
+      lab = New ReportLabel(hb)
+      lab.Text = Format(res!montant, "0.00")
+      lab.Alignment = Align.Right
+      lab.Font = Font["Serif,-6"]
+      lab.Width = "30mm"
+    Endif
+  Until res.MoveNext()
+End
+
+Private Function tcli(cde As String) As String
+  
+  Dim res As Result
+  
+  res = Utils.db.Exec("SELECT cli_nom from Fiches_Cli WHERE cli_code=&1", cde)
+   If res.Available Then
+     Return cde & "  " & res!cli_nom
+    Else
+      Return cde & "  Client inconnu"
+   Endif
+  
+End
+
+Private Function tfou(cde As String) As String
+  
+  Dim res As Result
+  
+  res = Utils.db.Exec("SELECT fo_nom from Fiches_Four WHERE fo_code=&1", cde)
+   If res.Available Then
+     Return cde & "  " & res!fo_nom
+    Else
+      Return cde & "  Fournisseur inconnu"
+   Endif
+  
+End
