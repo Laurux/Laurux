@@ -5072,7 +5072,28 @@ Public Sub Maj369()
     "date datetime," &
     Utils.db.AutoIncrement("lInd") & ")" & Utils.db.Engine())
 
-  
+   'Date des articles (date d'achat et de création)
+  Tab = "Fiches_Art"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_ddate2 datetime)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_cdate datetime)") 'date de creation de l'article
+  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
+  If rResult.Available Then
+    PB = New ProgBar("Conversion des dates des articles", rResult.Count)
+    PB.Show()
+    Repeat
+      PB.Avancement("Conversion articles " & rResult!art_design, 10)
+      If TypeOf(rResult!art_ddate) = gb.String
+        'Utilisation de la classe LDate pour les conversions de date on utilise la dernière date d'achat comme création
+        Utils.db.Exec("UPdate   " & Tab & " SET art_ddate2 = &1, art_cdate = &1 WHERE art_code = &2", LDate(rResult!art_ddate).DT, rResult!art_code)
+      Else If TypeOf(rResult!art_ddate) = gb.Null
+        'Si aucune date possible de création on prend la date de l'exercice en cours
+        Utils.db.Exec("UPdate   " & Tab & " SET art_cdate = &1 WHERE art_code = &2", LDate(Now).EDeb.DT, rResult!art_code)
+      Endif
+    Until rResult.MoveNext()
+    PB.Close()
+  Endif
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " drop art_ddate")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " change art_ddate2 art_ddate datetime")
   
   'Date des fichiers d'avoir
   Tab = "Fiches_Avoirs"
