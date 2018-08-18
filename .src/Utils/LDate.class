@@ -11,6 +11,7 @@ Property G As Date  'Gambas Date Object Propery
 Property GnT As Date  'Gambas Date (without Time) Object Propery
 Property D As String 'Database Date String Propery
 Property DT As String 'Database DateTime String Propery
+Property Read FinMois As LDate 'retourne le dernier jour du mois
 
 Property Read EDeb As LDate 'Date Debut Exercice comprenant dte
 Property Read EFin As LDate 'Date Fin Exercice comprenant dte
@@ -367,29 +368,65 @@ Sub PFin_Read() As LDate
 
 End
 
+Sub FinMois_Read() As LDate
+  
+  Return Fin_Mois()
+  
+End
+
 '****************
 'METHODE PUBLIQUE
 '****************
 
-Public Sub Apres(compdate As LDate) As Boolean
+Public Sub Apres(compdate As LDate, Optional strict As Boolean) As Boolean
 
-  If DateDiff(compdate.G, Dte, gb.Second) >= 0 Then
-    Return True
-  Else
-    Return False
-  Endif
+  Select Case strict
+    Case True
+      If DateDiff(compdate.G, Dte, gb.Second) > 0 Then
+        Return True
+      Else
+        Return False
+      Endif
+      
+    Case Else
+      If DateDiff(compdate.G, Dte, gb.Second) >= 0 Then
+        Return True
+      Else
+        Return False
+    Endif
+  End Select
   
 End
 
 
-Public Sub Avant(compdate As LDate) As Boolean
+Public Sub Avant(compdate As LDate, Optional strict As Boolean = False) As Boolean
 
-  If DateDiff(compdate.G, Dte, gb.Second) <= 0 Then
-    Return True
-  Else
-    Return False
-  Endif
+  Select Case strict
+    Case True
+      If DateDiff(compdate.G, Dte, gb.Second) < 0 Then
+        Return True
+      Else
+        Return False
+      Endif
+      
+    Case Else
+      If DateDiff(compdate.G, Dte, gb.Second) <= 0 Then
+        Return True
+      Else
+        Return False
+      Endif
+    End Select
   
+End
+
+Public Function Fin_Mois() As LDate
+
+  Dim dt As Date
+  
+  dt = Date(Year(dte), Month(DateAdd(dte, gb.Month, 1)), 1)
+  dt = DateAdd(dt, gb.Day, -1)
+  Return LDate(dt)
+
 End
 
 Public Sub Exercice_Debut(Optional Annee As LDate = LDate(Now)) As LDate
@@ -488,4 +525,3 @@ Public Sub Periode_Fin(Optional Mois As LDate = LDate(Now)) As LDate
   Return LDate(DateAdd(DateAdd(Mois.PDeb.G, gb.Month, 1), gb.Millisecond, -1))
 
 End
-

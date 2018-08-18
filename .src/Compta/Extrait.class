@@ -39,9 +39,9 @@ Private montantd As Float
 Private montantc As Float
 Private Mnt As Float
 Private Mnt1 As Float
-Private dte As String
-Private dte1 As String
-Private dte2 As String
+Private dte As New LDate
+Private dte1 As New LDate
+Private dte2 As New LDate
 Private Txt As String
 Private Tab0 As String
 Private Tab1 As String
@@ -51,8 +51,8 @@ Private rrResult As Result
 Private Cresult As Result
 Private Compt As String
 Private Centr As Boolean
-Private jour As String
-Private Datj As String
+Private jour As New LDate
+Private Datj As LDate
 Private intitule As String
 Private son As Integer = Start.Son
 Private b As Integer
@@ -83,6 +83,13 @@ Public Sub _New(scode As String, sintitule As String, stype As String, Org As St
   Dim s As String
   ' [GB2:ARRD] Dim spl As String[9]
   Dim spl As New String[9]
+  Dim ch As Chainage
+  Dim obs As Observer
+  
+  ch = New Chainage([DteN0, dten1, cpt])
+  obs = New Observer(dteN0) As "cmpt"
+  obs = New Observer(dten1) As "cmpt"
+  obs = New Observer(cpt) As "cmpt"
 
   sTri = "dte asc"
   Try WidthCol = Start.LocalSettings["/Soc" & Start.Societe & "/Col/LcolE"]
@@ -164,12 +171,13 @@ Public Sub _New(scode As String, sintitule As String, stype As String, Org As St
   Tlettree.Width = colcli.Columns[9].Width
   type = "C"
   compt = "0"
-  jour = Format$(Now, "dd.mm.yyyy")
+'  jour = Format$(Now, "dd.mm.yyyy")
   Ex1()
-  If Right$(jour, 4) & Mid$(jour, 4, 2) & Left$(jour, 2) > Right$(dteN1.Text, 4) & Mid$(dteN1.Text, 4, 2) & Left$(dteN1.Text, 2) Then
+  If jour.Apres(dte2, True) Then
+'  If Right$(jour, 4) & Mid$(jour, 4, 2) & Left$(jour, 2) > Right$(dteN1.Text, 4) & Mid$(dteN1.Text, 4, 2) & Left$(dteN1.Text, 2) Then
     Ex1()
     dteN0.Text = dteN1.Text
-    dteN1.Text = jour
+    dteN1.Text = jour.FinMois.l
   Else
     exo()
   Endif
@@ -218,21 +226,23 @@ Public Sub Ex1()
   Tab2 = "Fiches_Comptes"
   With utils
     rResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
-    dte = rResult!dteclec ' On recupere la date de fin d'exercice
-    dteN0.Text = .Calc_mois(dte)
-    jour = Format$(Now, "dd.mm.yyyy")
-    If Right$(jour, 4) & Mid$(jour, 4, 2) & Left$(jour, 2) < Right$(dteN0.Text, 4) & Mid$(dteN0.Text, 4, 2) & Left$(dteN0.Text, 2) Then
+    dte.G = DateAdd(rResult!dteclec, gb.Day, 1) ' On recupere la date de fin d'exercice
+    dteN0.Text = dte.L
+'    jour = Format$(Now, "dd.mm.yyyy")
+'    If Right$(jour, 4) & Mid$(jour, 4, 2) & Left$(jour, 2) < Right$(dteN0.Text, 4) & Mid$(dteN0.Text, 4, 2) & Left$(dteN0.Text, 2) Then
+    If jour.Avant(dte, True) Then
       Exo()
     Else
-      dteN1.Text = jour
+      dteN1.Text = jour.FinMois.L
       Tab = "Fiches_Mvt"
       clear()
       rrResult = Utils.db.Exec("SELECT compte_cc, intitule_cc, cent_cc FROM " & Tab2 & " WHERE type_cc = &1 order by cast(compte_cc AS char)", type)
       If rrResult.Available Then affichage()
-      dte1 = dteN0.Text
-      dte2 = dteN1.Text
+      dte1.L = dteN0.Text
+      dte2.L = dteN1.Text
     Endif
   End With
+  detail.Value = False
 
 End
 
@@ -246,132 +256,39 @@ Public Sub Exo()
 
   Tab2 = "Fiches_Comptes"
   Tab = "Fiches_Parametres"
-  With utils
+ 
     rResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
-    dte = rResult!dteclec1
-    dteN0.Text = .Calc_mois(dte)
-    dteN1.Text = .Cdate_aff(rResult!dteclec)
+    dte2.G = rResult!dteclec
+    dteN1.Text = dte2.L
+    dte1.G = DateAdd(DateAdd(rResult!dteclec, gb.Month, -12), gb.Day, 1)
+    dteN0.Text = dte1.L
     Tab = "Fiches_Mvt"
     clear()
     rrResult = Utils.db.Exec("SELECT compte_cc, intitule_cc, cent_cc  FROM " & Tab2 & " WHERE type_cc = &1 order by cast(compte_cc AS char)", type)
     If rrResult.Available Then affichage()
-    dte1 = dteN0.Text
-    dte2 = dteN1.Text
-  End With
+ 
+  detail.Value = False
 
 End
 
+
 '***************************************
-'* On travaille avec l'excercice N -1  *
+'* On travaille avec l'excercice N -x  *
 '***************************************
-Public Sub Exo1()
+Public Sub nmoins_click()
 
   Dim rResult As Result
   Dim Tab As String
 
   Tab = "Fiches_Parametres"
-  With utils
     rResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
-    dte = rResult!dteclec2
-    dteN0.Text = .Calc_mois(dte)
-    dteN1.Text = .Cdate_aff(rResult!dteclec1)
+    dte1.G = DateAdd(rResult[Last.tag], gb.Month, -12)
+    dteN0.Text = dte1.L
+    dte2.G = rResult[Last.tag]
+    dteN1.Text = dte2.L
     clear()
     affichage()
-    dte1 = dteN0.Text
-    dte2 = dteN1.Text
-  End With
-
-End
-
-'***************************************
-'* On travaille avec l'excercice N -2  *
-'***************************************
-Public Sub Exo2()
-
-  Dim rResult As Result
-  Dim Tab As String
-
-  Tab = "Fiches_Parametres"
-  With utils
-    rResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
-    dte = rResult!dteclec3
-    dteN0.Text = .Calc_mois(dte)
-    dteN1.Text = .Cdate_aff(rResult!dteclec2)
-    clear()
-    affichage()
-    dte1 = dteN0.Text
-    dte2 = dteN1.Text
-  End With
-
-End
-
-'***************************************
-'* On travaille avec l'excercice N -3 *
-'***************************************
-Public Sub Exo3()
-
-  Dim rResult As Result
-  Dim Tab As String
-
-  Tab = "Fiches_Parametres"
-  With Utils
-    rResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
-    dte = rResult!dteclec4
-    dteN0.Text = .Calc_mois(dte)
-    dteN1.Text = .Cdate_aff(rResult!dteclec3)
-    clear()
-    affichage()
-    dte1 = dteN0.Text
-    dte2 = dteN1.Text
-  End With
-
-End
-
-'***************************************
-'* On travaille avec l'excercice N -4  *
-'***************************************
-Public Sub Exo4()
-
-  Dim rResult As Result
-  Dim Tab As String
-
-  Tab = "Fiches_Parametres"
-  With utils
-    rResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
-    dte = rResult!dteclec5
-    dteN0.Text = .Calc_mois(dte)
-    dteN1.Text = .Cdate_aff(rResult!dteclec4)
-    clear()
-    affichage()
-    dte1 = dteN0.Text
-    dte2 = dteN1.Text
-  End With
-
-End
-
-'***************************************
-'* On travaille avec l'excercice N -5  *
-'***************************************
-Public Sub Exo5()
-
-  Dim rResult As Result
-  Dim Tab As String
-  Dim $Mois As Integer
-
-  Tab = "Fiches_Parametres"
-  With utils
-    rResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
-    dte = rResult!dteclec5
-    dte = Left$(dte, 10)
-    $Mois = Val(Right$(dte, 4))
-    dte = Left$(dte, 6) & ($Mois - 1)
-    dteN0.Text = .Calc_mois(dte)
-    dteN1.Text = .Cdate_aff(rResult!dteclec5)
-    clear()
-    affichage()
-    dte1 = dteN0.Text
-    dte2 = dteN1.Text
-  End With
+  detail.Value = False
 
 End
 
@@ -395,40 +312,9 @@ End
 '***********************
 '* On gere nos touches *
 '***********************
-Public Sub Cmpt_KeyPress()
+Public Sub cmpt_keypress()
 
   Dim hForm As Lettrage
-
-  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
-    Select Case Last.tag
-
-      Case 1
-        dteN0_LF()
-        dteN1.SetFocus
-        dteN1.Select
-        Stop Event
-
-      Case 2
-        dteN1_LF()
-        cpt.SetFocus
-        cpt.Select
-        Stop Event
-
-      Case 3
-        cpt_LF()
-        If b = 0 Then compteman()
-        If b = 0 Then
-          dteN0.SetFocus
-          dteN0.Select
-        Else
-          cpt.SetFocus
-          cpt.Select
-          b = 0
-        Endif
-        Stop Event
-
-    End Select
-  Endif
 
   If key.code = key.F1 Then
     Button5_Click()
@@ -452,7 +338,20 @@ Public Sub Cmpt_KeyPress()
         Stop Event
     End Select
   Endif
+  
+End
 
+Public Sub cpt_LostFocus()
+
+  cpt_LF()
+  If b = 0 Then compteman()
+  If b <> 0 Then
+    cpt.SetFocus
+    cpt.Select
+    b = 0
+   Endif
+   Stop Event
+        
 End
 
 '****************************************************
@@ -469,28 +368,31 @@ End
 Public Sub cpt_LF()
 
   clear()
+  If dte2.Avant(dte1, True) Then
+    If son Then
+      Music.Play
+    Endif
+    If Message.Warning("Attention ! Votre selection n'est pas possible.", "Ok") = 1 Then
+      exo()
+      DteN0.SetFocus
+      dten0.Select
+      Return
+    Endif
+  Endif
   If Bclient.Value And Left$(cpt.Text, 3) <> "411" Then
-    Message.Warning("Le compte saisit n'est un compte client !")
-    Cpt.SetFocus
-    cpt.Select
+    Message.Warning("Le compte saisit n'est pas un compte client !")
     b = 1
   Else
     If Bfournisseur.Value And Left$(cpt.Text, 3) <> "401" Then
       Message.Warning("Le compte saisit n'est pas un compte fournisseur !")
-      Cpt.SetFocus
-      cpt.Select
       b = 1
     Else
       If Bgestion.Value And Left$(cpt.Text, 1) <> "6" And Bgestion.Value And Left$(cpt.Text, 1) <> "7" Then
         Message.Warning("Le compte saisit n'est pas un compte gestion !")
-        Cpt.SetFocus
-        cpt.Select
         b = 1
       Else
         If Bbilan.Value And Left$(cpt.Text, 1) <> "1" And Bbilan.Value And Left$(cpt.Text, 1) <> "2" And Bbilan.Value And Left$(cpt.Text, 1) <> "3" And Bbilan.Value And Left$(cpt.Text, 1) <> "4" And Bbilan.Value And Left$(cpt.Text, 1) <> "5" And Bbilan.Value And Left$(cpt.Text, 1) <> "8" And Bbilan.Value And Left$(cpt.Text, 1) <> "9" Then
           Message.Warning("Le compte saisit n'est pas un compte bilan !")
-          Cpt.SetFocus
-          cpt.Select
           b = 1
         Endif
       Endif
@@ -500,58 +402,17 @@ Public Sub cpt_LF()
 
 End
 
-Public Sub dteN0_LF()
+Public Sub dteN0_LostFocus()
 
-  With utils
-    dteN0.text = .Cdate_calc(dteN0.text)
-    dteN0.Text = .Cdate_aff(dteN0.Text)
-    If dteN0.Text = "00.00.0:00" Then dteN0.Text = Format$(Now, "dd.mm.yyyy")
-  End With
-'  If Val(Right$(dteN0.text, 4) & Mid$(dteN0.text, 4, 2) & Left$(dteN0.text, 2)) < Val(Right$(dte1, 4) & Mid$(dte1, 4, 2) & Left$(dte1, 2)) Then
- '   Txt = "Attention ! La date saisie est inférieure au début de la période selectionnée."
-  '  Compdate()
-'  Else
- '   If Val(Right$(dteN0.text, 4) & Mid$(dteN0.text, 4, 2) & Left$(dteN0.text, 2)) > Val(Right$(dte2, 4) & Mid$(dte2, 4, 2) & Left$(dte2, 2)) Then
-  '    Txt = "Attention ! La date saisie est supérieure à la fin de la période selectionnée."
-   '   Compdate()
-  '  Endif
-  'Endif
-  dteN1.setfocus
-  dteN1.Select
-Catch
-  dteN0.setfocus
-  dteN0.Select
+  dte1.L = dten0.Text
+  dteN0.text = dte1.L
 
 End
 
-Public Sub dteN1_LF()
+Public Sub dteN1_LostFocus()
 
-  With utils
-    dteN1.text = .Cdate_calc(dteN1.text)
-    dteN1.Text = .Cdate_aff(dteN1.Text)
-    If dteN1.Text = "00.00.0:00" Then dteN1.Text = Format$(Now, "dd.mm.yyyy")
-  End With
-'  If Val(Right$(dteN1.text, 4) & Mid$(dteN1.text, 4, 2) & Left$(dteN1.text, 2)) < Val(Right$(dte1, 4) & Mid$(dte1, 4, 2) & Left$(dte1, 2)) Then
- '   Txt = "Attention ! La date saisie est inférieure au début de la période selectionnée."
-  '  Compdate2()
-'  Else
- '   If Val(Right$(dteN1.text, 4) & Mid$(dteN1.text, 4, 2) & Left$(dteN1.text, 2)) > Val(Right$(dte2, 4) & Mid$(dte2, 4, 2) & Left$(dte2, 2)) Then
-  '    Txt = "Attention ! La date saisie est supérieure à la fin de la période selectionnée."
-   '   Compdate2()
- '   Endif
-  'Endif
-
-  If Val(Right$(dteN1.text, 4) & Mid$(dteN1.text, 4, 2) & Left$(dteN1.text, 2)) < Val(Right$(dteN0.text, 4) & Mid$(dteN0.text, 4, 2) & Left$(dteN0.text, 2)) Then
-    If son Then
-      Music.Play
-    Endif
-    If Message.Warning("Attention ! Votre selection n'est pas possible.", "Ok") = 1 Then
-      exo()
-    Endif
-  Endif
-Catch
-  dteN1.setfocus
-  dteN1.Select
+  dte2.L = dteN1.Text
+  dteN1.text = dte2.L
 
 End
 
@@ -561,7 +422,8 @@ Public Sub Compdate()
     Music.Play
   Endif
   If Message.Warning(Txt, "Ok") = 1 Then
-    If Right$(jour, 4) & Mid$(jour, 4, 2) & Left$(jour, 2) > Right$(dteN0.Text, 4) & Mid$(dteN0.Text, 4, 2) & Left$(dteN0.Text, 2) Then
+    If jour.Apres(dte1) Then 
+'    If Right$(jour, 4) & Mid$(jour, 4, 2) & Left$(jour, 2) > Right$(dteN0.Text, 4) & Mid$(dteN0.Text, 4, 2) & Left$(dteN0.Text, 2) Then
       Ex1()
     Else
       exo()
@@ -576,7 +438,8 @@ Public Sub compdate2()
     Music.Play
   Endif
   If Message.Warning(Txt, "Ok") = 1 Then
-    If Right$(jour, 4) & Mid$(jour, 4, 2) & Left$(jour, 2) < Right$(dteN1.Text, 4) & Mid$(dteN1.Text, 4, 2) & Left$(dteN1.Text, 2) Then
+    If jour.Avant(dte2, True)
+'    If Right$(jour, 4) & Mid$(jour, 4, 2) & Left$(jour, 2) < Right$(dteN1.Text, 4) & Mid$(dteN1.Text, 4, 2) & Left$(dteN1.Text, 2) Then
       Ex1()
     Else
       exo()
@@ -757,17 +620,7 @@ Public Sub affichage()
       Endif
     Endif
     rResult = $lstex.resext
-    Utils.db.Exec("drop Table IF exists " & Tab1 & "")
-    Utils.db.Exec("CREATE TABLE " & Tab1 &
-      "(compte Char(8) NOT NULL," &
-      "intitule Char(30)," &
-      "jour Char(2)," &
-      "mois Char(6) NOT NULL," &
-      "libelle Char(30) ," &
-      "dte Integer ," &
-      "montantd Decimal(12,2)," &
-      "montantc Decimal(12,2)," &
-      "PRIMARY KEY (compte, mois))" & Utils.db.Engine())
+
     If rResult.Available Then
       Repeat
         If Ctrl.Value = False Or detail.Value = True Then
@@ -1036,11 +889,8 @@ End
 '******************************************************
 Public Sub E0_Click()
 
-  Tab0 = "Fiches_Mvt"
-  'Compt = "0"
   Ex1()
   detail.Value = False
-  'Button4_Click()
 
 End
 
@@ -1049,80 +899,13 @@ End
 '*********************************************
 Public Sub E1_Click()
 
-  Tab0 = "Fiches_Mvt"
-  'Compt = "0"
   Exo()
-  'Button4_Click()
 
 End
 
 '****************************************
-'* On veut les écritures de l'exo N -1  *
-'****************************************
-Public Sub N1_Click()
-
-  Tab0 = "Fiches_Mvt1"
-  'Compt = "0"
-  Exo1()
-  detail.Value = False
-  'Button4_Click()
-
-End
-
-'****************************************
-'* On veut les écritures de l'exo N -2  *
-'****************************************
-Public Sub N2_Click()
-
-  Tab0 = "Fiches_Mvt2"
-  'Compt = "0"
-  Exo2()
-  detail.Value = False
-  'Button4_Click()
-
-End
-
-'****************************************
-'* On veutles écritures de l'exo N -3   *
-'****************************************
-Public Sub N3_Click()
-
-  Tab0 = "Fiches_Mvt3"
-  'Compt = "0"
-  Exo3()
-  detail.Value = False
-  'Button4_Click()
-
-End
-
-'****************************************
-'* On veut les écritures de l'exo N -4  *
-'****************************************
-Public Sub N4_Click()
-
-  Tab0 = "Fiches_Mvt4"
-  'Compt = "0"
-  Exo4()
-  'Button4_Click()
-
-End
-
-'****************************************
-'* On veut les écritures de l'exo N -5  *
-'****************************************
-Public Sub N5_Click()
-
-  Tab0 = "Fiches_Mvt5"
-  'Compt = "0"
-  Exo5()
-  detail.Value = False
-  'Button4_Click()
-
-End
-
-'****************************************
-'*     On revient au premier compte     *
-'****************************************
+ '*     On revient au premier compte     *
+ '****************************************
 Public Sub Button4_Click()
 
   clear()
@@ -1132,7 +915,7 @@ Public Sub Button4_Click()
   detail.Value = False
 
 End
-
+ 
 '****************************************
 '*     On revient au compte précédent    *
 '****************************************
