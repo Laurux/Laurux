@@ -282,7 +282,7 @@ Public Sub nmoins_click()
 
   Tab = "Fiches_Parametres"
     rResult = Utils.db.Exec("SELECT * FROM " & Tab & "")
-    dte1.G = DateAdd(rResult[Last.tag], gb.Month, -12)
+    dte1.G = DateAdd(DateAdd(rResult[Last.tag], gb.Month, -12), gb.Day, 1)
     dteN0.Text = dte1.L
     dte2.G = rResult[Last.tag]
     dteN1.Text = dte2.L
@@ -510,7 +510,7 @@ Public Sub affichage()
   Dim rResult, presult As Result
   Dim tot As Float
   Dim Tabp As String = "Docs_Compta"
-  
+  Dim dt As LDate
 
   Tab1 = "Ctrln"
   With Utils
@@ -622,17 +622,20 @@ Public Sub affichage()
     rResult = $lstex.resext
 
     If rResult.Available Then
+      rResult.MoveFirst
       Repeat
+        dt = New LDate(rResult!dte)
         If Ctrl.Value = False Or detail.Value = True Then
-          If .Cdate_Comp(rResult!dte) >= .Cdate_dbase(dten0.Text) And .Cdate_Comp(rResult!dte) <= .Cdate_dbase(dten1.Text) Then
+ '         If dt.Apres(dte2) and Then
+'          If .Cdate_Comp(rResult!dte) >= .Cdate_dbase(dten0.Text) And .Cdate_Comp(rResult!dte) <= .Cdate_dbase(dten1.Text) Then
             pResult = Utils.db.Exec("SELECT * FROM " & Tabp & " WHERE code = &1", rResult!numero)
             Colcli.Add(rResult.Index, rResult.Index)
             If presult.Available Then
               Colcli.Item[0] = "* " & rResult!compte
             Else
-              Colcli.Item[0] = "   " & rResult!compte
+              Colcli.Item[0] = "  " & rResult!compte
             Endif
-            Colcli.Item[1] = .Cdate_Aff(rResult!dte)
+            Colcli.Item[1] = dt.L
             Colcli.Item[2] = rResult!libelle
             Colcli.Item[3] = rResult!numdoc
             Colcli.Item[4] = Format$(rResult!montantd, "0.00")
@@ -650,16 +653,17 @@ Public Sub affichage()
             Colcli.Item[10] = rResult!tresorerie
             DebP = DebP + rResult!montantd
             CredP = CredP + rResult!montantc
-          Else
-            If .Cdate_Comp(rResult!dte) <= .Cdate_dbase(dten0.Text) Then
-              DebHP = DebHP + rResult!montantd
-              CredHP = CredHP + rResult!montantc
-            Endif
-          Endif
+'          Else
+'            If .Cdate_Comp(rResult!dte) <= .Cdate_dbase(dten0.Text) Then
+'              DebHP = DebHP + rResult!montantd
+ '             CredHP = CredHP + rResult!montantc
+  '          Endif
+'          Endif
         Else
-          If .Cdate_Comp(rResult!dte) >= .Cdate_dbase(dten0.Text) And .Cdate_Comp(rResult!dte) <= .Cdate_dbase(dten1.Text) Then
+          If dt.Apres(dte1) And dt.Avant(dte2) Then
+ '         If .Cdate_Comp(rResult!dte) >= .Cdate_dbase(dten0.Text) And .Cdate_Comp(rResult!dte) <= .Cdate_dbase(dten1.Text) Then
             jour = rResult!jour
-            Datj = .Cdate_Aff(rResult!dte)
+            Datj = dt.L
             montantd = rResult!montantd
             montantc = rResult!montantc
             centralisation()
@@ -1409,7 +1413,7 @@ Private Sub ajoulign(sld As Float)
   lab.Width = "30mm"
   lab.Height = "4mm"
   lab.Font = font["Serif,-2"]
-  lab.Text = Format($lstex.resext!dte, "dd.mm.yyyy")
+  lab.Text = LDate($lstex!dte).L
   lab.Alignment = Align.Left
   lab.Border = ReportBorder["Right:1pt #000000"]
   
