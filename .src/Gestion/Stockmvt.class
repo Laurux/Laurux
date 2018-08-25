@@ -14,6 +14,8 @@ Private $soption As String
 Public Sub _new()
 
   Dim res As Result
+  Dim dte As LDate
+  Dim chn As Chainage
   
   Utils.Observers(Me)
   Music.Load(Start.Musique)
@@ -23,8 +25,14 @@ Public Sub _new()
   ca.Width = 130
   marge.Width = 120
   
-  Textdtsup.Text = Format(Now, "dd.mm.yyyy")
-  Textdtinf.Text = Format(Now, "01.mm.yyyy")
+  chn = New Chainage([textmarque, Textcentach, textart, Textclient, Textfour, Textdtinf, Textdtsup])
+  textmarque.SetFocus
+  Textclient.reg = "4{1}1*1*[0-9]{0,5}"
+  Textfour.reg = "4{1}0*1*[0-9]{0,5}"
+  
+  dte = New LDate(Now)
+  Textdtsup.Text = dte.L
+  Textdtinf.Text = dte.EDeb.L
   
   $familles = New Trifam("1")
   TriArticles($familles.enfant)
@@ -51,63 +59,141 @@ End
 Public Sub Buttrait_Click()
 
   'construction de la requete
-  Dim requbl, champbl, fichierbl, condbl, groupbl As String
-  Dim requfa, champfa, fichierfa, condfa, groupfa As String
-  Dim reqfo, champfo, fichierfo, condfo, groupfo As String
-  Dim reqex, champex, fichierex, condex, groupex As String
-  Dim dtinf, dtsup As Date
-  Dim ord As String = " ORDER BY dte"
+  Dim reqstkd, champstkd, fichierstkd, constkd, libstkd As String     'stock de départ
+  Dim reqstth, champstth, fichierstth, constth, libstth As String   'stock théorique
+  Dim requbl, champbl, fichierbl, condbl, libbl As String   'bl
+  Dim requblm, champblm, fichierblm, condblm, libblm As String    'blm
+  Dim requfa, champfa, fichierfa, condfa, libfa As String   'facture
+  Dim requfam, champfam, fichierfam, condfam, libfam As String    'facturem
+  Dim reqfo, champfo, fichierfo, condfo, libfo As String    'entrées
+  Dim reqex, champex, fichierex, condex, libex As String  'mvt exeptionnels
+  Dim reqprd, champrd, fichierprd, conprd, libprd As String    'produits composés
+  Dim reqtck, champtck, fichiertck, contck, libtck As String 'tickets de caisse
+  Dim dtinf, dtsup As LDate
+  Dim ord As String = " ORDER BY dte,code"
+  Dim groupage As String
+  Dim selc As Boolean
+  Dim pgb As ProgBar
 
   'base commune
-  dtinf = Utils.Cdate_calc(Textdtinf.Text)
-  dtsup = Utils.Cdate_calc(Textdtsup.Text)
+  dtinf = New LDate(Textdtinf.Text)
+  dtsup = New LDate(Textdtsup.Text)
+  
+'  reqstkd = Utils.db.Subst("SELECT art_code as code,CONCAT(art_design,&1) as libelle,<i art_stkdep as qtem, <p art_stkdep as qtep, CAST(&2 as DATE) as dte, '0' as ca, '0' as mrgart, '0' as mrgmo FROM Fiches_Art", " stock de départ", dtinv())
+  champstkd = "SELECT "
+  fichierstkd = " FROM Fiches_Art "
+  
+  champstth = "SELECT "
+  fichierstth = " FROM Fiches_Art"
   
   fichierbl = " FROM Fiches_Bl,Fiches_Ligbl"
-  condbl = Utils.db.Subst(" WHERE num_ligbl=numbl  AND (datebl BETWEEN &1 AND &2) AND Fiches_Bl.type IN('A','B','F') AND typel_ligbl = 'A'", Format(dtinf, "yyyymmdd"), Format(dtsup, "yyyymmdd"))
+  condbl = Utils.db.Subst(" WHERE num_ligbl=numbl  AND (dte_ligbl BETWEEN &1 AND &2) AND Fiches_Bl.type IN('A','B','F') AND typel_ligbl = 'A'", dtinf.D, dtsup.D)
   champbl = "SELECT "
   
-  champfa = " UNION ALL (SELECT "
+  fichierblm = " FROM Fiches_BlM,Fiches_LigblM"
+  condblm = Utils.db.Subst(" WHERE num_ligbl=numbl  AND (dte_ligbl BETWEEN &1 AND &2) AND Fiches_BlM.type IN('A','B','F') AND typel_ligbl = 'A'", dtinf.D, dtsup.D)
+  champblm = "SELECT "
+  
+  champfa = "SELECT "
   fichierfa = " FROM Fiches_HistoFac,Fiches_HistoLigfac"
-  condfa = Utils.db.Subst(" WHERE numfac=num_ligfac AND typel_ligfac='A' AND (datefac BETWEEN &1 AND &2)", Format(dtinf, "yyyymmdd"), Format(dtsup, "yyyymmdd"))
+  condfa = Utils.db.Subst(" WHERE numfac=num_ligfac AND typel_ligfac='A' AND (dtligbl_ligfac BETWEEN &1 AND &2)", dtinf.D, dtsup.D)
   
-  champfo = " UNION ALL (SELECT "
+  champfam = "SELECT "
+  fichierfam = " FROM Fiches_HistoFacM,Fiches_HistoLigfacM"
+  condfam = condfa
+  
+  champfo = "SELECT "
   fichierfo = " FROM Fiches_Entrecpt,Fiches_Ligrecpt"
-  condfo = Utils.db.Subst(" WHERE Fiches_Entrecpt.four=Fiches_Ligrecpt.four AND Fiches_Entrecpt.numrecpt=Fiches_Ligrecpt.numrecpt AND (ddate BETWEEN &1 AND &2)", Format(dtinf, "yyyymmdd"), Format(dtsup, "yyyymmdd"))
+  condfo = Utils.db.Subst(" WHERE Fiches_Entrecpt.four=Fiches_Ligrecpt.four AND Fiches_Entrecpt.numrecpt=Fiches_Ligrecpt.numrecpt AND (ddate BETWEEN &1 AND &2)", dtinf.D, dtsup.D)
   
-  champex = " UNION ALL (SELECT "
+  champex = "SELECT "
   fichierex = " FROM Fiches_Mvtexp,Fiches_Art"
-  condex = Utils.db.Subst(" WHERE art_code=code AND (daterecpt BETWEEN &1 AND &2)", Format(dtinf, "yyyymmdd"), Format(dtsup, "yyyymmdd"))
+  condex = Utils.db.Subst(" WHERE Fiches_Art.art_code=Fiches_Mvtexp.code AND (daterecpt BETWEEN &1 AND &2)", dtinf.D, dtsup.D)
   
+  champrd = "SELECT "
+  fichierprd = " FROM Fiches_Mvtexpdc,Fiches_Art"
+  conprd = Utils.db.Subst(" WHERE Fiches_Art.art_code=Fiches_Mvtexpdc.code AND (daterecpt BETWEEN &1 AND &2)", dtinf.D, dtsup.D)
+  
+  champtck = "SELECT "
+  fichiertck = " FROM Fiches_HisEntTickets,Fiches_HisLigTickets"
+  contck = Utils.db.Subst(" WHERE Fiches_HisEntTickets.numero=Fiches_HisLigTickets.numero AND Fiches_HisLigTickets.type='A' AND (date BETWEEN &1 AND &2)", dtinf.d, dtsup.d)
+  'libelle pour le détail des fichiers
+  If Radiodetail.Value Or Checkdetf.Value Then
+    libbl = " Factures en cours"
+    libblm = " Factures en cours entretien"
+    libex = " Mvt exceptionnels"
+    libfa = " Factures archives"
+    libfam = " Factures archives entretien"
+    libfo = " Entrées fournisseurs"
+    libprd = " Produits composés"
+    libtck = " Tickets de caisse"
+    libstkd = " stock de départ"
+    libstth = " stock théorique"
+  Else
+    libbl = " " 
+    libblm = " "
+    libex = " "
+    libfa = " "
+    libfam = " "
+    libfo = " "
+    libprd = " "
+    libtck = " "
+    libstkd = " "
+    libstth = " "
+  Endif
   'gestion marque et central d'achat
-  If Textmarque.Text Or Textcentach.Text Then
+  If textmarque.Text Or Textcentach.Text Then
     fichierbl &= ",Fiches_Art"
     fichierfa &= ",Fiches_Art"
+    fichierblm &= ",Fiches_Art"
+    fichierfam &= ",Fiches_Art"
     fichierfo &= ",Fiches_Art"
-    If fichierex Not Match "Fiches_Art" Then fichierex &= ",Fiches_Art"
+    fichiertck &= ",Fiches_Art"
+    
     condbl &= " AND art_code=code_ligbl" 
-    condfa &= " AND art_code=num_ligfac" 
-    condfo &= " AND art_code=code" 
-    condex &= " AND art_code=code" 
-    If Textmarque.Text Then
-      condbl &= Utils.db.Subst(" AND art_marque = &1", Textmarque.Text)
-      condfa &= Utils.db.Subst(" AND art_marque= &1", Textmarque.Text)
-      condfo &= Utils.db.Subst(" AND art_marque= &1", Textmarque.Text)
-      condex &= Utils.db.Subst(" AND art_marque = &1", Textmarque.Text)
+    condfa &= " AND art_code=num_ligfac"
+    condblm &= " AND art_code=code_ligbl" 
+    condfam &= " AND art_code=num_ligfac" 
+    condfo &= " AND art_code=code"
+    contck &= " AND art_code=code"
+    
+    If textmarque.Text Then
+      condbl &= Utils.db.Subst(" AND art_marque = &1", textmarque.Text)
+      condfa &= Utils.db.Subst(" AND art_marque= &1", textmarque.Text)
+      condblm &= Utils.db.Subst(" AND art_marque = &1", textmarque.Text)
+      condfam &= Utils.db.Subst(" AND art_marque= &1", textmarque.Text)
+      condfo &= Utils.db.Subst(" AND art_marque= &1", textmarque.Text)
+      condex &= Utils.db.Subst(" AND art_marque = &1", textmarque.Text)
+      conprd &= Utils.db.Subst(" AND art_marque = &1", textmarque.Text)
+      contck &= Utils.db.Subst(" AND art_marque = &1", textmarque.Text)
+      constkd = Utils.db.Subst(" WHERE art_marque = &1", textmarque.Text)
+      constth = Utils.db.Subst(" WHERE art_marque = &1", textmarque.Text)
     Endif
     If Textcentach.Text Then
       condbl &= Utils.db.Subst(" AND art_centrale= &1", Textcentach.Text)
       condfa &= Utils.db.Subst(" AND art_centrale=&1", Textcentach.Text)
+      condblm &= Utils.db.Subst(" AND art_centrale= &1", Textcentach.Text)
+      condfam &= Utils.db.Subst(" AND art_centrale=&1", Textcentach.Text)
       condfo &= Utils.db.Subst(" AND art_centrale= &1", Textcentach.Text)
       condex &= Utils.db.Subst(" AND art_centrale= &1", Textcentach.Text)
+      conprd &= Utils.db.Subst(" AND art_centrale= &1", Textcentach.Text)
+      contck &= Utils.db.Subst(" AND art_centrale= &1", Textcentach.Text)
+      If constkd Then constkd &= Utils.db.Subst(" AND art_centrale= &1", Textcentach.Text) Else constkd = Utils.db.Subst(" WHERE art_centrale= &1", Textcentach.Text)
+      If constth Then constth &= Utils.db.Subst(" AND art_centrale= &1", Textcentach.Text) Else constth = Utils.db.Subst(" WHERE art_centrale= &1", Textcentach.Text)
     Endif
   Endif
   'gestion client et fournisseur
   If Textclient.Text Then
     condbl &= Utils.db.Subst(" AND cdclibl=&1", Textclient.Text)
-    condfa &= Utils.db.Subst(" AND cdclifac=&1", Textclient.Text) 
+    condfa &= Utils.db.Subst(" AND cdclifac=&1", Textclient.Text)
+    condblm &= Utils.db.Subst(" AND cdclibl=&1", Textclient.Text)
+    condfam &= Utils.db.Subst(" AND cdclifac=&1", Textclient.Text)
+    contck &= Utils.db.Subst(" AND client=&1", Textclient.Text)
   Endif
   If Textfour.Text Then
-    condfo &= Utils.db.Subst(" AND Fiches_Entrecpt.four=&1", Textfour.Text) 
+    condfo &= Utils.db.Subst(" AND Fiches_Entrecpt.four=&1", Textfour.Text)
+    If constkd Then constkd &= Utils.db.Subst(" AND art_four=&1", Textfour.Text) Else constkd = Utils.db.Subst(" WHERE art_four=&1", Textfour.Text)
+    If constth Then constth &= Utils.db.Subst(" AND art_four=&1", Textfour.Text) Else constth = Utils.db.Subst(" WHERE art_four=&1", Textfour.Text)
   Endif
   'recherche par article
   If Radioart.Value Then
@@ -119,142 +205,285 @@ Public Sub Buttrait_Click()
     Endif
     condbl &= Utils.db.Subst(" AND code_ligbl= &1", textart.Text)
     condfa &= Utils.db.Subst(" AND code_ligfac= &1", textart.Text)
+    condblm &= Utils.db.Subst(" AND code_ligbl= &1", textart.Text)
+    condfam &= Utils.db.Subst(" AND code_ligfac= &1", textart.Text)
     condfo &= Utils.db.Subst(" AND code= &1", textart.Text)
     condex &= Utils.db.Subst(" AND art_code= &1", textart.Text)
-    champbl &= Utils.db.Subst("code_ligbl as code, CONCAT(libel_ligbl, &1) as libelle, datebl as dte", " Factures en cours")
-    champfa &= Utils.db.Subst("code_ligfac as code, CONCAT(libel_ligfac, &1) as libelle, datefac as dte", " Factures archives")
-    champfo &= Utils.db.Subst("Fiches_Ligrecpt.code as code, CONCAT(design, &1) as libelle, daterecpt as dte", " Entrées fournisseurs")
-    champex &= Utils.db.Subst("Fiches_Mvtexp.code as code, CONCAT(art_design, &1) as libelle, daterecpt as dte", " Mvt exceptionnels")
+    conprd &= Utils.db.Subst(" AND art_code= &1", textart.Text)
+    contck &= Utils.db.Subst(" AND Fiches_HisLigTickets.code= &1", textart.Text)
+    If constkd Then constkd &= Utils.db.Subst(" AND art_code= &1", textart.Text) Else constkd = Utils.db.Subst(" WHERE art_code= &1", textart.Text)
+    If constth Then constth &= Utils.db.Subst(" AND art_code= &1", textart.Text) Else constth = Utils.db.Subst(" WHERE art_code= &1", textart.Text)
+    
+    champbl &= Utils.db.Subst("code_ligbl as code, CONCAT(libel_ligbl, &1) as libelle, dte_ligbl as dte", libbl)
+    champfa &= Utils.db.Subst("code_ligfac as code, CONCAT(libel_ligfac, &1) as libelle, dtligbl_ligfac as dte", libfa)
+    champblm &= Utils.db.Subst("code_ligbl as code, CONCAT(libel_ligbl, &1) as libelle, dte_ligbl as dte", libblm)
+    champfam &= Utils.db.Subst("code_ligfac as code, CONCAT(libel_ligfac, &1) as libelle, dtligbl_ligfac as dte", libfam)
+    champfo &= Utils.db.Subst("Fiches_Ligrecpt.code as code, CONCAT(design, &1) as libelle, daterecpt as dte", libfo)
+    champex &= Utils.db.Subst("Fiches_Mvtexp.code as code, CONCAT(art_design, &1) as libelle, daterecpt as dte", libex)
+    champrd &= Utils.db.Subst("Fiches_Mvtexpdc.code as code, CONCAT(art_design, &1) as libelle, daterecpt as dte", libprd)
+    champtck &= Utils.db.Subst("Fiches_HisLigTickets.code as code,CONCAT(intitule,&1) as libelle,date as dte", libtck)
+    champstkd &= Utils.db.Subst(" art_code as code,CONCAT(art_design,&1) as libelle, CAST(&2 as DATE) as dte", libstkd, dtinv())
+    champstth &= Utils.db.Subst(" art_code as code,CONCAT(art_design,&1) as libelle, CAST(&2 as DATE) as dte", libstth, Now)
   Endif
   'que les entrées ou que les sorties
   If Radioentre.Value Then
     condbl &= " AND qte_ligbl < '0'"
     condfa &= " AND qte_ligfac < '0'"
+    condblm &= " AND qte_ligbl < '0'"
+    condfam &= " AND qte_ligfac < '0'"
     condfo &= " AND qte > '0'"
     condex &= " AND qtep > '0'"
+    conprd &= " AND qtep > '0'"
+    contck &= " AND qte < '0'"
+    If constkd Then constkd &= " AND art_stkdep > '0'" Else constkd = " WHERE art_stkdep > '0'"
+    If constth Then constth &= " AND art_qte > '0'" Else constth = " WHERE art_qte > '0'"
   Endif
   If Radiosortie.Value Then
     condbl &= " AND qte_ligbl > '0'"
     condfa &= " AND qte_ligfac > '0'"
+    condblm &= " AND qte_ligbl > '0'"
+    condfam &= " AND qte_ligfac > '0'"
     condfo &= " AND qte < '0'"
     condex &= " AND qtem > '0'"
+    conprd &= " AND qtem > '0'"
+    contck &= " AND qte > '0'"
+    If constkd Then constkd &= " AND art_stkdep < '0'" Else constkd = " WHERE art_stkdep < '0'"
+    If constth Then constth &= " AND art_qte < '0'" Else constth = " WHERE art_qte < '0'"
   Endif
   If Radiotouta.Value Then
     condbl &= " AND qte_ligbl <> '0'"
     condfa &= " AND qte_ligfac <> '0'"
+    condblm &= " AND qte_ligbl <> '0'"
+    condfam &= " AND qte_ligfac <> '0'"
     condfo &= " AND qte <> '0'"
     condex &= " AND (qtep <> '0' OR qtem<> '0')"
+    conprd &= " AND (qtep <> '0' OR qtem<> '0')"
+    contck &= " AND qte <> '0'"
+    If constkd Then constkd &= " AND art_stkdep <> '0'" Else constkd = " WHERE art_stkdep <> '0'"
+    If constth Then constth &= " AND art_qte <> '0'" Else constth = " WHERE art_qte <> '0'"
   Endif
   'recherche par famille
   If Radiofam.Value Then
     fichierbl &= ",Fiches_Fam"
     fichierfa &= ",Fiches_Fam"
+    fichierblm &= ",Fiches_Fam"
+    fichierfam &= ",Fiches_Fam"
     fichierfo &= ",Fiches_Fam"
     fichierex &= ",Fiches_Fam"
-    If Not Textmarque.Text And Not Textcentach.Text Then
+    fichierprd &= ",Fiches_Fam"
+    fichiertck &= ",Fiches_Fam"
+    fichierstkd &= ",Fiches_Fam"
+    fichierstth &= ",Fiches_Fam"
+    If Not textmarque.Text And Not Textcentach.Text Then
       fichierfo &= ",Fiches_Art"
       condfo &= " AND art_code=code" 
-      condex &= " AND art_code=code" 
+'      condex &= " AND art_code=code" 
     Endif
-    If Checksfam.Value Then
-      condbl &= Utils.db.Subst(" AND fam_ligbl=code_fam AND fam_ligbl LIKE &1", TreeView1.Current.Key & "%")
-      condfa &= Utils.db.Subst(" AND fam_ligfac=code_fam AND fam_ligfac LIKE &1", TreeView1.Current.Key & "%")
-      condfo &= Utils.db.Subst(" AND art_fam=code_fam AND art_fam LIKE &1", TreeView1.Current.Key & "%")
-      condex &= Utils.db.Subst(" AND art_fam=code_fam AND art_fam LIKE &1", TreeView1.Current.Key & "%")
-      
-    Else
-      condbl &= Utils.db.Subst(" AND fam_ligbl=code_fam AND fam_ligbl = &1", TreeView1.Current.Key)
-      condfa &= Utils.db.Subst(" AND fam_ligfac=code_fam AND fam_ligfac = &1", TreeView1.Current.Key)
-      condfo &= Utils.db.Subst(" AND art_fam=code_fam AND art_fam = &1", TreeView1.Current.Key)
-      condex &= Utils.db.Subst(" AND art_fam=code_fam AND art_fam = &1", TreeView1.Current.Key)
-    Endif
+    condbl &= " AND code_fam=fam_ligbl" & Utils.fam("fam_ligbl", TreeView1)
+    condfa &= " AND code_fam=fam_ligfac" & Utils.fam("fam_ligfac", TreeView1)
+    condblm &= " AND code_fam=fam_ligbl" & Utils.fam("fam_ligbl", TreeView1)
+    condfam &= " AND code_fam=fam_ligfac" & Utils.fam("fam_ligfac", TreeView1)
+    condfo &= " AND code_fam=art_fam" & Utils.fam("art_fam", TreeView1)
+    condex &= " AND code_fam=art_fam" & Utils.fam("art_fam", TreeView1)
+    conprd &= " AND code_fam=art_fam" & Utils.fam("art_fam", TreeView1)
+    contck &= " AND code_fam=fam" & Utils.fam("fam", TreeView1)
+    constkd &= " AND code_fam=art_fam" & Utils.fam("art_fam", TreeView1)
+    constth &= " AND code_fam=art_fam" & Utils.fam("art_fam", TreeView1)
+'     detail article
     If Checkart.Value Then
-      champbl &= Utils.db.Subst("code_ligbl as code, CONCAT(libel_ligbl, &1) as libelle, datebl as dte", " Factures en cours")
-      champfa &= Utils.db.Subst("code_ligfac as code, CONCAT(libel_ligfac, &1) as libelle, datefac as dte", " Factures archives")
-      champfo &= Utils.db.Subst("Fiches_Ligrecpt.code as code, CONCAT(design, &1) as libelle, daterecpt as dte", " Entrées fournisseurs")
-      champex &= Utils.db.Subst("Fiches_Mvtexp.code as code, CONCAT(art_design, &1) as libelle, daterecpt as dte", " Mvt exceptionnels")
+      champbl &= Utils.db.Subst("code_ligbl as code, CONCAT(libel_ligbl, &1) as libelle, datebl as dte", libbl)
+      champfa &= Utils.db.Subst("code_ligfac as code, CONCAT(libel_ligfac, &1) as libelle, datefac as dte", libfa)
+      champblm &= Utils.db.Subst("code_ligbl as code, CONCAT(libel_ligbl, &1) as libelle, datebl as dte", libblm)
+      champfam &= Utils.db.Subst("code_ligfac as code, CONCAT(libel_ligfac, &1) as libelle, datefac as dte", libfam)
+      champfo &= Utils.db.Subst("Fiches_Ligrecpt.code as code, CONCAT(design, &1) as libelle, daterecpt as dte", libfo)
+      champex &= Utils.db.Subst("Fiches_Mvtexp.code as code, CONCAT(art_design, &1) as libelle, daterecpt as dte", libex)
+      champrd &= Utils.db.Subst("Fiches_Mvtexpdc.code as code, CONCAT(art_design, &1) as libelle, daterecpt as dte", libprd)
+      champtck &= Utils.db.Subst("Fiches_HisLigTickets.code as code, CONCAT(intitule,&1) as libelle, date as dte", libtck)
+      champstkd &= Utils.db.Subst("art_code as code,CONCAT(art_design,&1) as libelle, CAST(&2 as DATE) as dte", libstkd, dtinv())
+      champstth &= Utils.db.Subst("art_code as code,CONCAT(art_design,&1) as libelle, CAST(&2 as DATE) as dte", libstth, Now)
     Else
-      champbl &= Utils.db.Subst("code_fam as code, CONCAT(libell_fam, &1) as libelle, datebl as dte", " Factures en cours")
-      champfa &= Utils.db.Subst("code_fam as code, CONCAT(libell_fam,&1) as libelle, datefac as dte", " Factures archives")
-      champfo &= Utils.db.Subst("code_fam as code, CONCAT(libell_fam,&1) as libelle, daterecpt as dte", " Entrées fournisseurs")
-      champex &= Utils.db.Subst("code_fam as code, CONCAT(libell_fam,&1) as libelle, daterecpt as dte", " Mvt exceptionnels")
+      champbl &= Utils.db.Subst("code_fam as code, CONCAT(libell_fam, &1) as libelle, datebl as dte", libbl)
+      champfa &= Utils.db.Subst("code_fam as code, CONCAT(libell_fam,&1) as libelle, datefac as dte", libfa)
+      champblm &= Utils.db.Subst("code_fam as code, CONCAT(libell_fam, &1) as libelle, datebl as dte", libblm)
+      champfam &= Utils.db.Subst("code_fam as code, CONCAT(libell_fam,&1) as libelle, datefac as dte", libfam)
+      champfo &= Utils.db.Subst("code_fam as code, CONCAT(libell_fam,&1) as libelle, daterecpt as dte", libfo)
+      champex &= Utils.db.Subst("code_fam as code, CONCAT(libell_fam,&1) as libelle, daterecpt as dte", libex)
+      champrd &= Utils.db.Subst("code_fam as code, CONCAT(libell_fam,&1) as libelle, daterecpt as dte", libprd)
+      champtck &= Utils.db.Subst("code_fam as code, CONCAT(libell_fam,&1) as libelle, date as dte", libtck)
+      champstkd &= Utils.db.Subst("code_fam as code, CONCAT(libell_fam,&1) as libelle, CAST(&2 as DATE) as dte", libstkd, dtinv())
+      champstth &= Utils.db.Subst("code_fam as code, CONCAT(libell_fam,&1) as libelle, CAST(&2 as DATE) as dte", libstth, Now)
     Endif
     
   Endif
   'recherche sans regroupement
   If Radiodetail.Value Then
-    champbl &= ",(<n qte_ligbl * -1) as qte, <n netht_ligbl as ca,mrgart_ligbl as mrgart,mrgmo_ligbl as mrgmo"
-    champfa &= ",(<n qte_ligfac * -1) as qte, <n netht_ligfac as ca,mrgart_ligfac as mrgart,mrgmo_ligfac as mrgmo"
-    champfo &= ",<n qte as qte, <n qte * <n paht as ca,'0'as mrgart,'0' as mrgmo"
-    champex &= ",<n qtep - <n qtem as qte, '0' as ca,'0'as mrgart,'0' as mrgmo"
+    champbl &= ",<p qte_ligbl as qtem, <i qte_ligbl as qtep, <n netht_ligbl as ca,mrgart_ligbl as mrgart,mrgmo_ligbl as mrgmo"
+    champfa &= ",<p qte_ligfac as qtem, <i qte_ligfac as qtep, <n netht_ligfac as ca,mrgart_ligfac as mrgart,mrgmo_ligfac as mrgmo"
+    champblm &= ",<p qte_ligbl as qtem, <i qte_ligbl as qtep, <n netht_ligbl as ca,mrgart_ligbl as mrgart,mrgmo_ligbl as mrgmo"
+    champfam &= ",<p qte_ligfac as qtem, <i qte_ligfac as qtep, <n netht_ligfac as ca,mrgart_ligfac as mrgart,mrgmo_ligfac as mrgmo"
+    champfo &= ",<i qte as qtem, <p qte as qtep, <n qte * <n paht as ca,'0'as mrgart,'0' as mrgmo"
+    champex &= ",<n qtem as qtem, <n qtep as qtep, '0' as ca,'0'as mrgart,'0' as mrgmo"
+    champrd &= ",<n qtem as qtem, <n qtep as qtep, '0' as ca,'0'as mrgart,'0' as mrgmo"
+    champtck &= ",<p qte as qtem, <i qte as qtep, <n Fiches_HisLigTickets.mht as ca,0 as mrgart,'0' as mrgmo"
+    If Radiodeptmp.Value Then
+      champstkd &= ",<i art_stkdep as qtem, <p art_stkdep as qtep, art_pmp * art_stkdep as ca,'0'as mrgart,'0' as mrgmo"
+    Else
+      champstkd &= ",<i art_stkdep as qtem, <p art_stkdep as qtep, art_paht * art_stkdep as ca,'0'as mrgart,'0' as mrgmo"
+    Endif
+    If Radiothepmp.Value Then
+      champstth &= ",<i art_qte as qtem, <p art_qte as qtep, art_pmp * art_qte as ca,'0'as mrgart,'0' as mrgmo"
+    Else
+      champstth &= ",<i art_qte as qtem, <p art_qte as qtep, art_paht * art_qte as ca,'0'as mrgart,'0' as mrgmo"
+    Endif
   Else
-    champbl &= ",<s qte_ligbl * -1 as qte, <s netht_ligbl as ca, SUM(mrgart_ligbl) as mrgart, (SUM(mrgmo_ligbl)) as mrgmo"
-    champfa &= ",<s qte_ligfac * -1 as qte, <s netht_ligfac as ca,SUM(mrgart_ligfac) as mrgart,SUM(mrgmo_ligfac) as mrgmo"
-    champfo &= ",<s qte as qte, SUM(<n qte * <n paht ) as ca,'0'as mrgart,'0' as mrgmo"
-    champex &= ",SUM(<n qtep - <n qtem ) as qte, '0' as ca,'0'as mrgart,'0' as mrgmo"
+    champbl &= ",SUM(<p qte_ligbl ) as qtem, SUM(<i qte_ligbl ) as qtep, <s netht_ligbl as ca, SUM(mrgart_ligbl) as mrgart, SUM(mrgmo_ligbl) as mrgmo"
+    champfa &= ",SUM(<p qte_ligfac ) as qtem,SUM(<i qte_ligfac ) as qtep, <s netht_ligfac as ca,SUM(mrgart_ligfac) as mrgart,SUM(mrgmo_ligfac) as mrgmo"
+    champblm &= ",SUM(<p qte_ligbl ) as qtem, SUM(<i qte_ligbl ) as qtep, <s netht_ligbl as ca, SUM(mrgart_ligbl) as mrgart, SUM(mrgmo_ligbl) as mrgmo"
+    champfam &= ",SUM(<p qte_ligfac ) as qtem,SUM(<i qte_ligfac ) as qtep, <s netht_ligfac as ca,SUM(mrgart_ligfac) as mrgart,SUM(mrgmo_ligfac) as mrgmo"
+    champfo &= ",SUM(<i qte ) as qtem, SUM(<p qte ) as qtep, SUM(<n qte * <n paht ) as ca,'0'as mrgart,'0' as mrgmo"
+    champex &= ",<s qtem as qtem , <s qtep as qtep, '0' as ca,'0'as mrgart,'0' as mrgmo"
+    champrd &= ",<s qtem as qtem , <s qtep as qtep, '0' as ca,'0'as mrgart,'0' as mrgmo"
+    champtck &= ",SUM(<p qte ) as qtem, SUM(<i qte ) as qtep, <s Fiches_HisLigTickets.mht as ca,'0' as mrgart,'0' as mrgmo"
+    If Radiodeptmp.Value Then
+      champstkd &= ",SUM(<i art_stkdep ) as qtem, SUM(<p art_stkdep ) as qtep, SUM( art_pmp * art_stkdep) as ca,'0'as mrgart,'0' as mrgmo"
+    Else
+      champstkd &= ",SUM(<i art_stkdep ) as qtem, SUM(<p art_stkdep ) as qtep, SUM( art_paht * art_stkdep) as ca,'0'as mrgart,'0' as mrgmo"
+    Endif
+    If Radiothepmp.Value Then
+      champstth &= ",SUM(<i art_qte ) as qtem, SUM(<p art_qte ) as qtep, SUM( art_pmp * art_qte) as ca,'0'as mrgart,'0' as mrgmo"
+    Else
+      champstth &= ",SUM(<i art_qte ) as qtem, SUM(<p art_qte ) as qtep, SUM( art_paht * art_qte) as ca,'0'as mrgart,'0' as mrgmo"
+    Endif
   Endif
   'regroupement par jour / moi / année
   If Radiojour.Value Then
-    groupbl &= "GROUP BY dte"
-    groupfa &= "GROUP BY dte"
-    groupfo &= "GROUP BY dte"
-    groupex &= "GROUP BY dte"
+    groupage &= " GROUP BY dte"
   Endif
   If Radiomens.Value Then
-    groupbl &= "GROUP BY CONCAT(MONTH(dte), YEAR(dte))"
-    groupfa &= "GROUP BY CONCAT(MONTH(dte), YEAR(dte))"
-    groupfo &= "GROUP BY CONCAT(MONTH(dte), YEAR(dte))"
-    groupex &= "GROUP BY CONCAT(MONTH(dte), YEAR(dte))"
+    groupage &= " GROUP BY CONCAT(MONTH(dte), YEAR(dte))"
   Endif
   If Radioanuel.Value Then
-    groupbl &= "GROUP BY YEAR(dte)"
-    groupfa &= "GROUP BY YEAR(dte)"
-    groupfo &= "GROUP BY YEAR(dte)"
-    groupex &= "GROUP BY YEAR(dte)"
+    groupage &= " GROUP BY YEAR(dte)"
   Endif
   If Not Radiodetail.Value Then
-    If Radioart.Value Then
-      groupbl &= ",code_ligbl"
-      groupfa &= ",code_ligfac"
-      groupfo &= ",Fiches_Ligrecpt.code"
-      groupex &= ",Fiches_Mvtexp.code"
-    Else
-      groupbl &= ", code_fam"
-      groupfa &= ", code_fam"
-      groupfo &= ", code_fam"
-      groupex &= ", code_fam"
-    Endif
+      groupage &= ",code,libelle"
   Endif
-  'et la requete ... enfin
-  requbl = champbl & fichierbl & condbl & groupbl
-  requfa = champfa & fichierfa & condfa & groupfa & ")"
-  reqfo = champfo & fichierfo & condfo & groupfo & ")"
-  If Not Checkmvte.Value Or Textfour.Text Or Textclient.Text Then
-    reqex = ""
+' Selection des fichiers à interroger
+  If Checksdp.Value Then
+    selc = True
+    reqstkd = champstkd & fichierstkd & constkd & groupage
   Else
-    reqex = champex & fichierex & condex & groupex & ")"
+    reqstkd = ""
+  Endif
+  If Checkstth.Value Then
+    If selc Then
+      champstth = " UNION ALL " & champstth
+    Else 
+      selc = True
+    Endif
+    reqstth = champstth & fichierstth & constth & groupage
+  Endif
+  If Checkbl.Value Then
+    If selc Then
+      champbl = " UNION ALL " & champbl
+    Else 
+      selc = True
+    Endif
+    requbl = champbl & fichierbl & condbl & groupage
+  Endif
+  If Checkblm.Value Then
+    If selc Then
+      champblm = " UNION ALL " & champblm
+    Else 
+      selc = True
+    Endif
+    requblm = champblm & fichierblm & condblm & groupage
+  Endif
+  If Checkfac.Value Then
+    If selc Then
+      champfa = " UNION ALL " & champfa
+    Else
+      selc = True
+    Endif
+    requfa = champfa & fichierfa & condfa & groupage
+  Endif
+  If Checkfacm.Value Then
+    If selc Then
+      champfam = " UNION ALL " & champfam
+    Else
+      selc = True
+    Endif
+    requfam = champfam & fichierfam & condfam & groupage
+  Endif
+  If Checkfo.Value Then
+    If selc Then
+      champfo = " UNION ALL " & champfo
+    Else
+      selc = True
+    Endif
+    reqfo = champfo & fichierfo & condfo & groupage
+  Endif
+  If Checkmvte.Value Then
+    If selc Then
+      champex = " UNION ALL " & champex
+    Else
+      selc = True
+    Endif
+    reqex = champex & fichierex & condex & groupage
+  Endif
+  If Checkprd.Value Then
+    If selc Then
+      champrd = " UNION ALL " & champrd
+    Else
+      selc = True
+    Endif
+    reqprd = champrd & fichierprd & conprd & groupage
+  Endif
+  If Checktck.Value Then
+    If selc Then
+      champtck = " UNION ALL " & champtck
+    Else
+      selc = True
+    Endif
+    reqtck = champtck & fichiertck & contck & groupage
+  Endif
+  
+  If (Not Checkmvte.Value And Not Checkprd.value) Or Textfour.Text Or Textclient.Text Then
+    reqex = ""
+    reqprd = ""
   Endif
   If Textclient.Text And Not Textfour.Text Then reqfo = ""
   If Textfour.Text And Not Textclient.Text Then 
     requbl = ""
     requfa = ""
+    requblm = ""
+    requfam = ""
+    reqtck = ""
     ord = ""
-    reqfo = Right(reqfo, -12)
-    reqfo = Left(reqfo, -1)
+    If reqfo Match "UNION ALL" Then reqfo = Right(reqfo, -11)
   Endif
   entre.Visible = False
   sortie.Visible = False
   ca.Visible = False
   marge.Visible = False
-  $res = Utils.db.Exec(requbl & requfa & reqfo & reqex & ord)
+    'et la requete ... enfin
+  If Not selc Then Return
+  pgb = New ProgBar("Création de la requête", 0)
+  pgb.Show
+  If Radiodetail.Value Or Checkdetf.Value Then
+    $res = Utils.db.Exec(reqstkd & reqstth & requbl & requblm & requfa & requfam & reqfo & reqex & reqprd & reqtck & ord)
+  Else
+    $res = Utils.db.Exec("SELECT code, libelle, dte, SUM(qtem) as qtem, SUM(qtep) as qtep, SUM(ca) as ca, SUM(mrgart) as mrgart, SUM(mrgmo) as mrgmo FROM (" & reqstkd & reqstth & requbl & requblm & requfa & requfam & reqfo & reqex & reqprd & reqtck & ord & ") as a " & groupage & " ORDER BY dte,code ")
+  Endif
   If $res.Available Then
     affiche
   Else
     GridView1.Rows.Count = 0
     Butedit.Enabled = False
+    Butexp.Enabled = False
     GridView1.Clear
   Endif
-  
+  pgb.Close
 End
 
 Public Sub aff_click()
@@ -304,14 +533,15 @@ Private Sub affiche()
     marge.Visible = True
   Endif
   Butedit.Enabled = True
+  Butexp.Enabled = True
   $entre = 0
   $sortie = 0
   $ca = 0
   $marge = 0
   $res.MoveFirst
   Repeat
-    If Utils.totobs([$res!qte]) < 0 Then $sortie += (Utils.totobs([$res!qte]) * -1)
-    If Utils.totobs([$res!qte]) > 0 Then $entre += Utils.totobs([$res!qte])
+    If Not IsNull($res!qtem) Then $sortie += Utils.totobs([$res!qtem])
+    If Not IsNull($res!qtep) Then $entre += Utils.totobs([$res!qtep])
     $ca += Utils.totobs([$res!ca])
     $marge += Utils.totobs([$res!mrgart, $res!mrgmo])
   Until $res.MoveNext()
@@ -328,14 +558,16 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer)
 
   Dim i As Byte
   Dim coul As Integer
+  Dim dt As LDate
   
   $res.MoveTo(Row)
   
   If Column = 0 Then
+    dt = New LDate($res!dte)
     If Even(row) Then coul = Color.White Else coul = Color.Background
-    If Radiojour.Value Or Radiodetail.Value Then GridView1[Row, 0].Text = Format($res!dte, "dd.mm.yyyy")
-    If Radiomens.Value Then GridView1[Row, 0].Text = Format($res!dte, "mm.yyyy")
-    If Radioanuel.Value Then GridView1[Row, 0].Text = Format($res!dte, "yyyy")
+    If Radiojour.Value Or Radiodetail.Value Then GridView1[Row, 0].Text = dt.L
+    If Radiomens.Value Then GridView1[Row, 0].Text = Format(dt.G, "mm.yyyy")
+    If Radioanuel.Value Then GridView1[Row, 0].Text = Format(dt.G, "yyyy")
     GridView1[row, 0].Background = coul
     GridView1[row, 1].Text = $res!code
     GridView1[row, 1].Alignment = Align.Left
@@ -348,8 +580,8 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer)
       Inc i
       GridView1[row, i].Alignment = Align.Right
       GridView1[row, i].Background = coul
-      If Utils.totobs([$res!qte]) < 0 Then
-        GridView1[row, i].Text = Format(Utils.totobs([$res!qte]) * -1, "0.000")
+      If Not IsNull($res!qtem) Then
+        GridView1[row, i].Text = Format(Utils.totobs([$res!qtem]), "0.000")
       Else
         GridView1[row, i].Text = Format(0, "0.000")
       Endif
@@ -359,8 +591,8 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer)
       Inc i
       GridView1[row, i].Alignment = Align.Right
       GridView1[row, i].Background = coul
-      If Utils.totobs([$res!qte]) > 0 Then
-        GridView1[row, i].Text = Format(Utils.totobs([$res!qte]), "0.000")
+      If Not IsNull($res!qtep) Then
+        GridView1[row, i].Text = Format(Utils.totobs([$res!qtep]), "0.000")
       Else
         GridView1[row, i].Text = Format(0, "0.000")
       Endif
@@ -379,6 +611,20 @@ Public Sub GridView1_Data(Row As Integer, Column As Integer)
     Endif
   Endif
 End
+
+Private Function dtinv() As Date
+  
+  Dim res As Result
+  
+  res = Utils.db.Exec("SELECT dteinv FROM Fiches_Parametres")
+  If res.Available Then
+    Return res!dteinv
+  Else
+    Return LDate(Now).EDeb.G
+  Endif
+  
+End
+
 '**********************************Edition du gridview***********************************
 Public Sub Butedit_Click()
 
@@ -390,7 +636,10 @@ Public Sub Butedit_Click()
   Dim tot As Float[]
   Dim Filename As String
   Dim prt As New Printer
+  Dim pgb As ProgBar
   
+  pgb = New ProgBar("Edition en cours", 0)
+  pgb.Show
   Filename = User.Home & "/tmp/stockmvt.pdf"
   prt.OutputFile = Filename
   
@@ -447,19 +696,19 @@ Public Sub Butedit_Click()
       Inc j
       lab = nlab(hb)
       lab.Alignment = Align.Right
-      If Utils.totobs([$res!qte]) < 0 Then
-        lab.Text = Format(Utils.totobs([$res!qte]) * -1, "0.000")
-        tot[j - 3] += (Utils.totobs([$res!qte]) * -1)
-      Endif
+'      If Utils.totobs([$res!qtep]) < 0 Then
+        lab.Text = Format(Utils.totobs([$res!qtem]), "0.000")
+        tot[j - 3] += (Utils.totobs([$res!qtem]))
+'      Endif
     Endif
     If Radioentre.Value Or Radiotouta.Value Then
       Inc j
       lab = nlab(hb)
       lab.Alignment = Align.Right
-      If Utils.totobs([$res!qte]) > 0 Then
-        lab.Text = Format(Utils.totobs([$res!qte]), "0.000")
-        tot[j - 3] += Utils.totobs([$res!qte])
-      Endif
+ '     If Utils.totobs([$res!qte]) > 0 Then
+        lab.Text = Format(Utils.totobs([$res!qtep]), "0.000")
+        tot[j - 3] += Utils.totobs([$res!qtep])
+'      Endif
     Endif
     If Checkca.Value Then
       Inc j
@@ -500,6 +749,7 @@ Public Sub Butedit_Click()
 
   $rpt.Print(prt)
   Visualiseur.Prog_Editeur(Filename)
+  pgb.Close
   
 End
 
@@ -549,7 +799,7 @@ End
 Public Sub ColumnView1_Activate()
 
   If ColumnView1.Tag = "marque" Then
-    Textmarque.Text = ColumnView1.Current.Text
+    textmarque.Text = ColumnView1.Current.Text
   Endif
   If ColumnView1.Tag = "central" Then
     Textcentach.Text = ColumnView1.Current.Text
@@ -638,6 +888,27 @@ Public Sub Butart_Click()
   If Variables.Bsel = True Then
     Textart.text = Variables.ArtCode
     Textart.SetFocus
+  Endif
+
+End
+
+Public Sub Butexp_Click()
+
+  Dim hFile As File
+  Dim Filename, lge As String
+  
+  Filename = User.Home & "/tmp/Stockmvt.csv"
+  If Exist(Filename) Then Kill Filename
+  hFile = Open Filename For Write Create
+  $res.MoveFirst
+  
+  Repeat
+    lge = $res!code & ";" & $res!libelle & ";" & LDate($res!dte).L & ";" & Replace(Str($res!qtem), ".", ",") & ";" & Replace(Str($res!qtep), ".", ",") & ";" & Replace(Str($res!ca), ".", ",") & ";" & Replace(Str($res!mrgart), ".", ",") & ";" & Replace(Str($res!mrgart), ".", ",")
+    Print #hFile, lge
+  Until $res.MoveNext()
+  Close #hFile
+  If Message.Question("Le fichier csv a été généré. Voulez-vous l'ouvrir ?", "Oui", "Non") = 1 Then
+    Editeur.Prog_Editeur(Filename)
   Endif
 
 End
