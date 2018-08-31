@@ -59,7 +59,7 @@ Public Sub _new(num As String, choix As String)
     $slstnum.Add($num)
   Endif
   If $schoix = "M" Then Return            'Voir pour les consignes + tard
- For Each numfac In $slstnum
+  For Each numfac In $slstnum
   vri = ["", "", "", "", "", "", "", ""]
   'Gestion des consignes
   rescons = Utils.db.Exec("SELECT numlig FROM Fiches_ligcons WHERE num=&1 AND numlig<>'D' AND type=&2 GROUP BY numlig", numfac, $schoix)
@@ -335,13 +335,13 @@ Public Sub comptmat(Optional numfac As String)    'enregistrement de la compta m
   
   'Facture magasin
   If $schoix = "M" Then
-    reslig = Utils.db.Exec("SELECT numlig_ligfac,qte_ligfac,art_code,art_dra,art_volm,art_deg,datefac FROM Fiches_HistoLigfac, Fiches_HistoFac, Fiches_Art WHERE num_ligfac=&1 AND numfac=&1 AND code_ligfac=art_code AND art_dra IS NOT NULL", $slstnum[0])
+    reslig = Utils.db.Exec("SELECT numlig_ligfac,qte_ligfac,art_code,art_dra,art_volm,art_deg,dtligbl_ligfac FROM Fiches_HistoLigfac, Fiches_Art WHERE num_ligfac=&1 AND code_ligfac=art_code AND art_dra IS NOT NULL", $slstnum[0])
     If reslig.Available Then
       reslig.MoveFirst
       For i = 0 To reslig.Max
         drt = New Calculdroit(reslig!art_dra, reslig!art_volm, reslig!art_deg, reslig!qte_ligfac)
         res = Utils.db.Create("Fiches_ligregie")
-        res!dtmouv = reslig!datefac
+        res!dtmouv = reslig!dtligbl_ligfac
         res!num = numfac
         res!numlig = Space(6) & reslig!numlig_ligfac
         res!type = "S"
@@ -368,7 +368,7 @@ Public Sub comptmat(Optional numfac As String)    'enregistrement de la compta m
   'Factures fin de mois
   If $schoix = "FM" Then
     For Each num In $slstnum
-      reslig = Utils.db.Exec("SELECT numlig_ligbl,qte_ligbl,art_code,art_dra,art_volm,art_deg,datebl FROM Fiches_Ligbl, Fiches_Bl, Fiches_Art WHERE num_ligbl=&1 AND numbl=&1 AND code_ligbl=art_code AND art_dra IS NOT NULL", num)
+      reslig = Utils.db.Exec("SELECT numlig_ligbl,qte_ligbl,art_code,art_dra,art_volm,art_deg,dte_ligbl FROM Fiches_Ligbl,  Fiches_Art WHERE num_ligbl=&1 AND code_ligbl=art_code AND art_dra IS NOT NULL", num)
       If reslig.Available Then
         reslig.MoveFirst
         For i = 0 To reslig.Max
@@ -401,7 +401,7 @@ Public Sub comptmat(Optional numfac As String)    'enregistrement de la compta m
   Endif
   
   'Facture issues de la saisie 
-  reslig = Utils.db.Exec("SELECT numlig_ligbl,qte_ligbl,art_code,art_dra,art_volm,art_deg,datebl,numfac FROM Fiches_Ligbl, Fiches_Bl, Fiches_Art WHERE num_ligbl=&1 AND numbl=&1 AND code_ligbl=art_code AND art_dra IS NOT NULL", $num)
+  reslig = Utils.db.Exec("SELECT numlig_ligbl,qte_ligbl,art_code,art_dra,art_volm,art_deg,dte_ligbl,numfac FROM Fiches_Ligbl, Fiches_Art WHERE num_ligbl=&1 AND code_ligbl=art_code AND art_dra IS NOT NULL", $num)
   
   If reslig.Available Then
     reslig.MoveFirst
