@@ -3,6 +3,8 @@
 Inherits ButtonBox
 Export
 Create Static
+'variables publics
+Public dte As New LDate
 'variables privées
 Private $value As Float
 Private $text As String
@@ -11,17 +13,20 @@ Private $nbdec As String
 Private $reg As String
 Private $regp As Boolean = False
 Private $numerique As Boolean = False
+Private $date As Boolean = False
 Private $regex As New RegExp
 'constantes prédéfinies
 Public Const num As String = "-?[0-9]*[,.]?[0-9]*"       'saisie d'un numérique avec ,
 Public Const chaine As String = "[^%^_]*"                 'saisie d'une chaine en excluant les caractéres spéciaux de recherche BD (a compléter et vérifier)
 Public Const mail As String = "[a-zA-Z0-9_.+-]+@?[a-zA-Z0-9.-]*"     'saisie d'une adresse mail peut certainement s'améliorer
+Public Const dts As String = "[0-9]{1,2}[ ./-]?[0-9]{0,2}[ ./-]?[0-9]{0,4}"
 ' a compléter si autre idées par ex : saisie des comptes client ...
 'comme les paterns sont parfois un peu difficiles à trouver et à mettre au point il serait peut être bien de les mettres en constantes ?
 ' il ne faut pas mettre de caractéres obligatoires dans les paterns par ex dans mail @{1} ne fonctionne pas.
 'propriétés
 Property Value As Float
 Property numerique As Boolean
+Property Dat As Boolean
 Property nbdec As String
 Property reg As String
 Property MaxLenght As Integer
@@ -53,9 +58,24 @@ Public Sub butb_keypress()
     Case Key.Esc
       $text = $textesc
       Me.Text = $textesc
+    
+    Case Key.F2
+      If $date Then
+        Me.Text = LDateC.Select(dte).L
+        $text = Me.Text
+      Endif
       
   End Select
 
+End
+
+Public Sub butb_DblClick()
+  
+  If $date Then
+    Me.Text = LDateC.Select(dte).L
+    $text = Me.Text
+  Endif
+  
 End
 
 Public Sub butb_change()
@@ -107,6 +127,14 @@ Public Sub butb_lostfocus()
       Endif
     Endif
   Endif
+  If $date Then
+    If Not IsNull(Me.Text) Then
+      dte.L = Me.Text
+      Me.Text = dte.L
+      $text = dte.L
+      $textesc = dte.L
+    Endif
+  Endif
 
 End
 
@@ -156,11 +184,34 @@ Private Sub numerique_Write(Value As Boolean)
     $regex.Compile($reg)
   Endif
   $numerique = value
+  If $numerique Then $date = False
   If $numerique And Val($text) <> Null Then
     $value = Val($text)
-
   Endif
 
+End
+
+Private Function Dat_Read() As Boolean
+
+  Return $date
+
+End
+
+Private Sub Dat_Write(Value As Boolean)
+
+  If $numerique And value Then $value = 0
+  If value Then $numerique = False
+  If $date <> value And Not $regp Then
+    If value Then $reg = dts Else $reg = chaine
+    $regex.Compile($reg)
+  Endif
+  If $date And $text Then 
+    dte.L = $text
+    Me.Text = dte.L
+    $text = dte.L
+  Endif
+  $date = value
+  
 End
 
 Private Function nbdec_Read() As String
@@ -224,4 +275,3 @@ Public Sub Unselect()
   Me.Editor.Unselect
 
 End
-
