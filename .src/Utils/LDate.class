@@ -54,7 +54,7 @@ Public Sub _New(Optional DateOrYear As Variant, Optional Month As Integer = 1, O
   
 End
 
-Public Sub _Call(Optional DateOrYear As Variant, Optional Month As Integer = 1, Optional Day As Integer = 1, Optional Hour As Integer, Optional Minute As Integer, Optional Second As Integer, Optional Millisecond As Integer) As LDate
+Public Sub _call(Optional DateOrYear As Variant, Optional Month As Integer = 1, Optional Day As Integer = 1, Optional Hour As Integer, Optional Minute As Integer, Optional Second As Integer, Optional Millisecond As Integer) As LDate
 
   Dim CLDate As LDate
   
@@ -185,6 +185,7 @@ Private Function Parse(Sdate As String, Optional ParseTime As Boolean = True) As
   Dim sec As Integer
   Dim reg As RegExp
   Dim reg2 As RegExp
+  Dim anne As String
   
   If Sdate = ".." 'special Laurux case
     If ParseTime Then
@@ -196,8 +197,16 @@ Private Function Parse(Sdate As String, Optional ParseTime As Boolean = True) As
     Return Date(Left(Sdate, 4), Mid(Sdate, 5, 2), Mid(Sdate, 7, 2), Mid(Sdate, 9, 2), Mid(Sdate, 11, 2), Right(Sdate, 2))
   Endif
   reg = New RegExp
-  reg.Compile("([0-9]+)[/.-]+([0-9]+)[/.-]+([0-9]+)")
+  reg.Compile("([0-9]+)[ /.-]+([0-9]+)[ /.-]+([0-9]+)")
   reg.Exec(Sdate)
+  If reg.Count = -1 Then
+    reg.Compile("([0-9]+)[ /.-]+([0-9]+)[ /.-]?")
+    reg.Exec(Sdate)
+    If reg.Count = -1 Then
+      reg.Compile("([0-9]+)[ /.-]?")
+      reg.Exec(Sdate)
+    Endif
+  Endif
   If ParseTime Then
     reg2 = New RegExp
     reg2.Compile(" ([0-9]+)[:-]([0-9]+)[:-]([0-9]+)")
@@ -228,19 +237,24 @@ Private Function Parse(Sdate As String, Optional ParseTime As Boolean = True) As
     If Len(reg[1].Text) = 4 Then
       Return Date(Val(reg[1].Text), Val(reg[2].Text), Val(reg[3].Text), hour, min, sec)
     Else
-      Return Date(Val(reg[3].Text), Val(reg[2].Text), Val(reg[1].Text), hour, min, sec)
+      If Len(reg[3].Text) = 4 Then
+        Return Date(Val(reg[3].Text), Val(reg[2].Text), Val(reg[1].Text), hour, min, sec)
+      Else
+        anne = Left(Str(Year(Now)), 4 - Len(reg[3].Text)) & reg[3].Text
+        Return Date(anne, Val(reg[2].Text), Val(reg[1].Text), hour, min, sec)
+      Endif
     Endif
   Else If reg.Count = 2 Then
     If Len(reg[1].Text) = 4 Then
       Return Date(Val(reg[1].Text), Val(reg[2].Text), Val(Day(Now)), hour, min, sec)
     Else
-      Return Date(Val(Year(Now)), Val(reg[2].Text), Val(reg[1].Text), hour, min, sec)
+      Return Date(Year(Now), Val(reg[2].Text), Val(reg[1].Text), hour, min, sec)
     Endif
   Else If reg.Count = 1 Then
     If Len(reg[1].Text) = 4 Then
       Return Date(Val(reg[1].Text), Val(Month(Now)), Val(Day(Now)), hour, min, sec)
     Else
-      Return Date(Val(Year(Now)), Val(Month(Now)), Val(reg[1].Text), hour, min, sec)
+      Return Date(Year(Now), Month(Now), Val(reg[1].Text), hour, min, sec)
     Endif
   Else
     If ParseTime Then
