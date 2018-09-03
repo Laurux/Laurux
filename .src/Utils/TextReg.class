@@ -30,6 +30,7 @@ Property Dat As Boolean
 Property nbdec As String
 Property reg As String
 Property MaxLenght As Integer
+Property Text As String
 
 
 
@@ -41,12 +42,14 @@ Public Sub _new()
   Me.Picture = Picture["icon:/16/clear"]
   $reg = chaine
   $regex.Compile($reg)
+  $textesc = Me.Editor.Text
 
 End
 
 'gestion des évenements
 Public Sub butb_click()
 
+  If Me.Enabled = False Or Me.ReadOnly Then Return
   $value = 0
   Me.Clear
 
@@ -57,12 +60,12 @@ Public Sub butb_keypress()
   Select Case Key.Code
     Case Key.Esc
       $text = $textesc
-      Me.Text = $textesc
+      Me.Editor.Text = $textesc
     
     Case Key.F2
-      If $date Then
-        Me.Text = LDateC.Select(dte).L
-        $text = Me.Text
+      If $date And Me.Enabled Or Not Me.ReadOnly Then
+        Me.Editor.Text = LDateC.Select(dte).L
+        $text = Me.Editor.Text
       Endif
       
   End Select
@@ -71,9 +74,9 @@ End
 
 Public Sub butb_DblClick()
   
-  If $date Then
-    Me.Text = LDateC.Select(dte).L
-    $text = Me.Text
+  If $date And Me.Enabled Or Not Me.ReadOnly Then
+    Me.Editor.Text = LDateC.Select(dte).L
+    $text = Me.Editor.Text
   Endif
   
 End
@@ -82,55 +85,55 @@ Public Sub butb_change()
 
   Dim x As Integer
   
-  If IsNull(Me.Text) Then
+  If IsNull(Me.Editor.Text) Then
     $text = ""
     $value = 0
     Return
   Endif
-  Try $regex.Exec(Me.Text)
+  Try $regex.Exec(Me.Editor.Text)
   If Error Then 
-    Me.Text = $text
+    Me.Editor.Text = $text
     Return
   Endif
   x = Me.Pos
-  Me.Text = $regex.Text
-  If Me.Text Match "." And $numerique Then Me.Text = Replace(Me.Text, ".", ",")
+  Me.Editor.Text = $regex.Text
+  If Me.Editor.Text Match "." And $numerique Then Me.Editor.Text = Replace(Me.Editor.Text, ".", ",")
   Me.pos = x
-  $text = Me.Text
+  $text = Me.Editor.Text
   
 End
 
 Public Sub butb_gotfocus()
 
   If $numerique And $value <> 0 Then
-    Me.Text = Str($value)
+    Me.Editor.Text = Str($value)
   Endif
-  $text = Me.Text
-  $textesc = Me.Text
+  $text = Me.Editor.Text
+  $textesc = Me.Editor.Text
 
 End
 
 Public Sub butb_lostfocus()
 
   If $numerique Then
-    If IsNull(Me.Text) Or Val($text) = Null Then
+    If IsNull(Me.Editor.Text) Or Val($text) = Null Then
       $text = "0"
-      Me.Text = "0"
+      Me.Editor.Text = "0"
       $textesc = "0"
       $value = 0
     Else
       $value = Val($text)
       If Not IsNull($nbdec) Then
         $text = Format($value, frm())
-        Me.Text = $text
+        Me.Editor.Text = $text
         $textesc = $text
       Endif
     Endif
   Endif
   If $date Then
-    If Not IsNull(Me.Text) Then
-      dte.L = Me.Text
-      Me.Text = dte.L
+    If Not IsNull(Me.Editor.Text) Then
+      dte.L = Me.Editor.Text
+      Me.Editor.Text = dte.L
       $text = dte.L
       $textesc = dte.L
     Endif
@@ -164,11 +167,40 @@ End
 Private Sub Value_Write(Value As Float)
 
   If $numerique Then
-    $value = Value
+    If IsNull(value) Then $value = 0 Else $value = Value
     If IsNull($nbdec) Then $text = Str($value) Else $text = Format($value, frm())
-    Me.Text = $text
+    Me.Editor.Text = $text
   Endif
 
+End
+
+Private Function Text_Read() As String
+
+  Return Me.Editor.Text
+
+End
+
+Private Sub Text_Write(Value As String)
+
+  If $numerique Then
+    If IsNumber(value) Then
+      $value = Val(value)
+    Else
+      $value = 0
+    Endif
+    If Not IsNull($nbdec) Then $text = Format($value, frm()) Else $text = value
+    Me.Editor.Text = $text
+    Return
+  Endif
+  If $date Then
+    $text = LDate(value).L
+    Me.Editor.Text = $text
+    $value = 0
+    Return
+  Endif
+  
+  Me.Editor.Text = value
+  
 End
 
 Private Function numerique_Read() As Boolean
@@ -187,6 +219,7 @@ Private Sub numerique_Write(Value As Boolean)
   If $numerique Then $date = False
   If $numerique And Val($text) <> Null Then
     $value = Val($text)
+    Me.Editor.Text = $text
   Endif
 
 End
@@ -207,7 +240,7 @@ Private Sub Dat_Write(Value As Boolean)
   Endif
   If $date And $text Then 
     dte.L = $text
-    Me.Text = dte.L
+    Me.Editor.Text = dte.L
     $text = dte.L
   Endif
   $date = value
@@ -226,7 +259,7 @@ Private Sub nbdec_Write(Value As String)
   If $numerique And Val($text) <> Null Then
     $value = Val($text)
     If IsNull($nbdec) Then $text = Str($value) Else $text = Format($value, frm())
-    Me.Text = $text
+    Me.Editor.Text = $text
   Endif
 
 End

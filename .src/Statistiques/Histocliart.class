@@ -39,49 +39,33 @@ Private $res As Result
 Private $ca As Float
 Private $marge As Float
 Private $srequete As String
-Private $obs As Observer
 
 Public Sub _New()
 
   Dim rResult As Result
   Dim Tab As String
   Dim Frmt As New String[]
+  Dim chn As Chainage
 
   Coulfond = Utils.Coulfd()
   Frmt = Utils.FColr(Start.LocalSettings["/Coul/Fnets"])
   Utils.Observers(Me)
   Music.Load(Start.Musique)
   
-  $obs = New Observer(dten0) As "saisie"
-  $obs = New Observer(dten1) As "saisie"
-  $obs = New Observer(cli) As "saisie"
-  $obs = New Observer(Cli2) As "saisie"
-  $obs = New Observer(Texttype) As "saisie"
-  $obs = New Observer(Textart) As "saisie"
-  $obs = New Observer(Textart1) As "saisie"
-  $obs = New Observer(Textfour) As "saisie"
-  $obs = New Observer(Textfour1) As "saisie"
-  $obs = New Observer(Textmarq) As "saisie"
-  $obs = New Observer(Textcentr) As "saisie"
+  chn = New Chainage([dten0, dten1, cli, cli2, Texttype, Textart, Textart1, Textfour, Textfour1, Textmarq, Textcentr])
+  dten0.Dat = True
+  dten1.Dat = True
+  Textfour1.reg = "4{1}0*1*[0-9]{0,5}"
+  Textfour.reg = "4{1}0*1*[0-9]{0,5}"
+  cli.reg = "4{1}1*1*[0-9]{0,5}"
+  cli2.reg = "4{1}1*1*[0-9]{0,5}"
   
-  dten0.Tag = dten1
-  dten1.Tag = cli
-  cli.tag = Cli2
-  Cli2.Tag = Texttype
-  Texttype.Tag = Textart
-  Textart.Tag = Textart1
-  Textart1.Tag = Textfour
-  Textfour.Tag = Textfour1
-  Textfour1.Tag = Textmarq
-  Textmarq.Tag = Textcentr
-  Textcentr.Tag = dten0
-  
-  Tab = "Fiches_Parametres"
+'  Tab = "Fiches_Parametres"
   Me.Center
-  rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
-  dteN0.Text = rResult!dteclec1
-  dteN0.Text = Utils.Calc_mois(dteN0.Text)
-  dteN1.Text = Format$(Now, "dd.mm.yyyy")
+ ' rResult = Utils.db.Exec("SELECT * FROM " & Tab & " ")
+  dteN0.Text = LDate(Now).EDeb.L 'rResult!dteclec1
+ ' dteN0.Text = Utils.Calc_mois(dteN0.Text)
+  dteN1.Text = LDate(Now).FinMois.L
   dten0.SetFocus
   dten0.Select
   rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCommerciaux") & " order by code")
@@ -113,40 +97,14 @@ Private Sub TriArticles(fam As Trifam)
   TreeView1[TreeView1.Item.Key].Selected = True
 End
 
-Public Sub saisie_KeyPress()
-
-  If Key.code = Key.enter Or Key.code = Key.Return Or Key.code = Key.Tab Then
-    Last.tag.SetFocus
-    Last.tag.Select
-    Stop Event
-  Endif
-
-End
-
-'****************************************************
-'*          Gestion de la premiere date             *
-'****************************************************
-Public Sub dteN0_LostFocus()
-
-  With utils
-    dteN0.text = .Cdate_calc(dteN0.text)
-    dteN0.Text = .Cdate_aff(dteN0.Text)
-    If dteN0.Text = "00.00.0:00" Or dten0.Text = ".." Then dteN0.Text = Format$(Now, "dd.mm.yyyy")
-  End With
- 
-End
 
 '****************************************************
 '*           Gestion de la seconde date             *
 '****************************************************
 Public Sub dteN1_LostFocus()
 
-  With utils
-    dteN1.text = .Cdate_calc(dteN1.text)
-    dteN1.Text = .Cdate_aff(dteN1.Text)
-    If dteN1.Text = "00.00.0:00" Or dten1.Text = ".." Then dteN1.Text = Format$(Now, "dd.mm.yyyy")
-  End With
-  If Val(Right$(dteN1.text, 4) & Mid$(dteN1.text, 4, 2) & Left$(dteN1.text, 2)) < Val(Right$(dteN0.text, 4) & Mid$(dteN0.text, 4, 2) & Left$(dteN0.text, 2)) Then
+  If dten1.dte.Avant(dten0.dte) Then
+'  If Val(Right$(dteN1.text, 4) & Mid$(dteN1.text, 4, 2) & Left$(dteN1.text, 2)) < Val(Right$(dteN0.text, 4) & Mid$(dteN0.text, 4, 2) & Left$(dteN0.text, 2)) Then
     If son Then
       Music.Play
     Endif
@@ -341,16 +299,6 @@ Public Sub ColumnView1_Activate()
 
 End
 
-'****************************************************
-'*      Gestion du focus. Routine de Charlie Reinl  *
-'****************************************************
-Public Sub saisie_GotFocus()
-
-  With Utils
-    .SetEditColor(Me, Last)
-  End With
-
-End
 
 Public Sub Butedit_Click()
 
@@ -375,8 +323,8 @@ Private Sub crearequ()
   Dim un As Boolean
   
   Me.Mouse = Mouse.Wait
-  dtinf = utils.Cdate_Dbase(dteN0.Text)
-  dtsup = utils.Cdate_Dbase(dteN1.Text)
+  dtinf = dteN0.dte.D
+  dtsup = dteN1.dte.D
   TextArea1.Clear
   'tri par client
   If Radiocli.Value Then

@@ -23,6 +23,7 @@ Event recalculpx()
 Public Sub _new(TabStrip1 As TabStrip, choix As String, frais As TextBox, PaUA As TextBox, Prvt As TextBox, TxTva As TextLabel, code As TextBox)
 
   Dim obs As Observer
+  Dim chn As Chainage
   
   TabStrip1.Current.Text = "Options"
   Frais.ReadOnly = True
@@ -39,6 +40,8 @@ Public Sub _new(TabStrip1 As TabStrip, choix As String, frais As TextBox, PaUA A
   $texttxtva = TxTva
   $code = code
   
+  Textpapp.Text = $TextPaUA.Text
+  
   'gestion des évenements des zones de saisie
   obs = New Observer(Texttrs) As "cmpt"
   obs = New Observer(Texttrspp) As "cmpt"
@@ -51,22 +54,62 @@ Public Sub _new(TabStrip1 As TabStrip, choix As String, frais As TextBox, PaUA A
   obs = New Observer(Textnbc) As "cmpt"
   obs = New Observer(Textcee) As "cmpt"
   obs = New Observer(Textdeg) As "cmpt"
-  ' tag avec gestion du focus et format d'affichage
-  Texttrs.Tag = [Texttrsa, "0.000"]
-  Texttrsa.Tag = [Texttrsr, "0.000"]
-  Texttrsr.Tag = [Texttsu, "0.000"]
-  Texttsu.Tag = [Textremv, "0.00"]
-  Textremv.Tag = [Textcdr, "0.00"]
-  Textcdr.Tag = Textvol
-  Textvol.Tag = [Textdeg, "0.00"]
-  Textdeg.Tag = [Textcp, "0.00"]
-  Textcp.Tag = Textncp
-  Textncp.Tag = [textcc, "0"]
-  textcc.Tag = Textnbc
-  Textnbc.Tag = [textcb, "0"]
-  textcb.tag = Texttrspp
-  Texttrspp.Tag = [Textcee, "0.000"] 
-  Textcee.Tag = [Texttrs, "0.000"]
+  Texttrs.numerique = True 
+  Texttrs.nbdec = "3"
+  
+  Texttrsa.numerique = True
+  Texttrsa.nbdec = "3"
+  
+  Texttrsr.numerique = True
+  texttrsr.nbdec = "3"
+  
+  Texttsu.numerique = True
+  Texttsu.nbdec = "2"
+  
+  Textremv.numerique = True
+  Textremv.nbdec = "2"
+  
+  Textvol.numerique = True
+  textvol.nbdec = "2"
+  
+  Textdeg.numerique = True
+  Textdeg.nbdec = "2"
+  
+  Textncp.numerique = True
+  Textncp.nbdec = "0"
+  
+  Textstot.numerique = True
+  
+  Textprxrpp.numerique = True
+  
+  Textnbc.numerique = True
+  Textnbc.nbdec = "0"
+  
+  Textdra.numerique = True
+  Textdra.nbdec = "3"
+  
+  Textvss.numerique = True
+  Textvss.nbdec = "3"
+  
+  Textmdr.numerique = True
+  Textmdr.nbdec = "3"
+  
+  Textmss.numerique = True
+  Textmss.nbdec = "3"
+  
+  Texttrspp.numerique = True
+  Texttrspp.nbdec = "3"
+  
+  Textcee.numerique = True
+  Textcee.nbdec = "3"
+  
+  Textprxr.numerique = True
+  Textpa.numerique = True
+  
+  chn = New Chainage([Texttrs, Texttrsa, texttrsr, Texttsu, Textremv, Textcdr, textvol, Textdeg, Textcp, Textncp, textcc, Textnbc, textcb])
+  If $schoix = "T" Then chn.add([Texttrspp, Textcee])
+  If $schoix = "P" Then chn = New Chainage([Texttrspp, Textcee])
+  
   'gridview pour affichage du tarif fioul
   Gridtarpp.Header = Gridtarpp.Horizontal
   Gridtarpp.Columns.Count = 5
@@ -81,42 +124,17 @@ Public Sub _new(TabStrip1 As TabStrip, choix As String, frais As TextBox, PaUA A
   Gridtarpp.Columns[3].text = "QS HT"
   Gridtarpp.Columns[4].text = "QS TTC"
 
-
-End
-'gestion focus sur les textbox numériques
-Public Sub cmpt_gotfocus()
-
-  Try Last.text = Replace(Last.text, ".", ",")
-  Try Utils.ObsGotf(Last)
-
 End
 
 Public Sub cmpt_lostfocus()
 
-  Try Last.text = Format(Replace(Last.text, ",", "."), Last.tag[1])
-  If Last.text And Not IsNumber(Last.text) Then
-    Balloon.Delay = 5000
-    Try Balloon.Warning("<FONT Color=#212121>" & "Cette zone doit être numérique", Last)
-    Last.text = Format(0, Last.Tag[1])
-    Last.SetFocus
-    Return
-  Endif
-  Try Utils.ObsLstf(Last)
   If Last = Texttrs Or Last = Texttrspp Then
     Texttrs.Text = Last.text
     Texttrspp.Text = Last.text
-  Endif 
+  Endif
   calculpxrev
 End
 
-Public Sub cmpt_keypress()
-
-  If Key.code = Key.Return Or Key.code = Key.Enter Or Key.code = Key.Tab Then
-  Last.tag[0].SetFocus
-  Stop Event
-  Endif
-
-End
 'recherche et gere le fichier regie
 Public Sub Butrechreg_Click()
 
@@ -156,22 +174,12 @@ End
 
 Public Sub Textcdr_LostFocus()
 
-  Try Utils.ObsLstf(Last)
   $resregie = Utils.db.Exec("SELECT *FROM Fiches_regie WHERE code=&1", Textcdr.Text)
   If $resregie.Available Then
     calculalcool()
     Textreg.Text = $resregie!nom
     affalcool
   Endif
-End
-
-Public Sub Textcdr_KeyPress()
-
-  If Key.code = Key.Return Or Key.code = Key.Enter Or Key.code = Key.Tab Then
-  Last.tag.SetFocus
-  Stop Event
-  Endif
-
 End
 
 
@@ -254,11 +262,6 @@ Public Sub grcode_lostfocus()
 
 End
 
-Public Sub grcode_keypress()
-
-  Textcdr_KeyPress()
-
-End
 Public Sub Listcons_Activate()
 
   Dim res As Result
@@ -289,15 +292,15 @@ Private Sub calculpxrev()
   
   Dim pxrev, frs As Float
   
-  frs = Val(Texttrs.Text) + Val(Texttrsa.Text) + Val(Texttrsr.Text) + Val(Texttsu.Text) - Val(Textremv.Text)
-  pxrev = Val(Textpa.Text) + frs 
-  Textstot.Text = Format(pxrev, "0.00")
-  frs += Val(Replace(Textdra.text, ".", ",")) + Val(Replace(Textvss.Text, ".", ","))
-  pxrev = Val(Textpa.Text) + frs
+  frs = Texttrs.Value + Texttrsa.Value + Texttrsr.Value + Texttsu.Value + Textcee.Value - Textremv.Value
+  pxrev = Textpa.Value + frs 
+  Textstot.Value = pxrev
+  frs += Textdra.Value + Textvss.Value
+  pxrev = Textpa.Value + frs
   $Textfrais.Text = Format(frs, "0.00")
-  Textprxr.Text = Format(pxrev, "0.00")
+  Textprxr.Value = pxrev
   $textPrvt.Text = Format(pxrev, "0.00")
-  Textprxrpp.text = Format(pxrev, "0.00")
+  Textprxrpp.Value = pxrev
   
   Raise recalculpx()
 End
@@ -307,15 +310,15 @@ Private Sub calculalcool()
   Dim clc As Calculdroit
   
   If Not $resregie Or Not $resregie.Available Then Return
-  clc = New Calculdroit(Textcdr.Text, Val(Textvol.Text), Val(Textdeg.Text), 1)
-  Textmdr.Text = Format(clc.droit, "0.000")
-  Textmss.Text = Format(clc.secu, "0.000")
+  clc = New Calculdroit(Textcdr.Text, Textvol.Value, Textdeg.Value, 1)
+  Textmdr.Value = clc.droit
+  Textmss.Value = clc.secu
   If $resregie!suspendu Or Checkdr.Value Then    
-    Textdra.Text = Format(clc.droit, "0.000")
-    Textvss.Text = Format(clc.secu, "0.000")
+    Textdra.Value = clc.droit
+    Textvss.Value = clc.secu
   Else
-    Textdra.Text = Format(0, "0.00")
-    Textvss.Text = Format(0, "0.00")
+    Textdra.Value = 0
+    Textvss.Value = 0
   Endif
   calculpxrev
   
@@ -357,33 +360,36 @@ Private Sub affiche()
   res = Utils.db.Exec("SELECT * FROM Fiches_Art WHERE art_code=&1", $numart)
   If res.Available Then           'affichage si boisson
     If $schoix = "T" Or $schoix = "B" Then
-      Try Texttrs.Text = Format(res!art_trsp, Texttrs.Tag[1])
-      Try Texttrsa.Text = Format(res!art_trspa, Texttrsa.Tag[1])
-      Try Texttrsr.Text = Format(res!art_trspr, Texttrsr.Tag[1])
-      Try Texttsu.Text = Format(res!art_tscuc, Texttsu.Tag[1])
-      Try Textremv.Text = Format(res!art_remv, Textremv.Tag[1])
-      Try Textcdr.Text = res!art_dra
-      Try Textvol.Text = Format(res!art_volm, Textvol.Tag[1])
-      Try Textdeg.Text = Format(res!art_deg, Textdeg.Tag[1])
+      textpa.nbdec = res!art_nbd 
+      Textstot.nbdec = res!art_nbd
+      Textprxr.nbdec = res!art_nbd
+      Texttrs.Value = res!art_trsp
+      Texttrsa.Value = res!art_trspa
+      Texttrsr.Value = res!art_trspr
+      Texttsu.Value = res!art_tsuc
+      Textremv.Value = res!art_remv
+      Textcdr.Text = res!art_dra
+      Textvol.Value = res!art_volm
+      Textdeg.Value = res!art_deg
       'affichage des consignes
       If res!art_consp Then
         Textcp.Text = res!art_consp
-        Textncp.Text = Format(res!art_nbcol, Textncp.Tag[1])
+        Textncp.Value = res!art_nbcol
         resc = Utils.db.Exec("SELECT * FROM Fiches_consigne WHERE code=&1", res!art_consp)
         If resc.Available Then Labelpal.Text = resc!libelle & " : " & Format(resc!prix, "0.00")
       Else
         Textcp.Clear
-        Textncp.Text = Format("0", Textncp.Tag[1])
+        Textncp.Value = 0
         Labelpal.Text = ""
       Endif
       If res!art_consc Then
         textcc.Text = res!art_consc
-        Textnbc.Text = Format(res!art_nbbou, Textnbc.Tag[1])
+        Textnbc.Value = res!art_nbbou
         resc = Utils.db.Exec("SELECT * FROM Fiches_consigne WHERE code=&1", res!art_consc)
         If resc.Available Then Labelcol.Text = resc!libelle & " : " & Format(resc!prix, "0.00")
       Else
         textcc.Clear
-        Textnbc.Text = Format("0", Textnbc.Tag[1])
+        Textnbc.Value = 0
         Labelcol.Text = ""
       Endif
       If res!art_consb Then
@@ -405,8 +411,8 @@ Private Sub affiche()
       calculpxrev
     Endif
     If $schoix = "T" Or $schoix = "P" Then              'affichage si pp
-      Try Texttrspp.Text = Format(res!art_trsp, Texttrspp.Tag[1])
-      Try Textcee.Text = Format(res!art_ecof, Textcee.Tag[1])
+      Try Texttrspp.Value = res!art_trsp
+      Try Textcee.Value = res!art_ecof
       calculpxrev
       afftarif(res!art_vol)
     Endif
@@ -415,34 +421,34 @@ End
 
 Public Sub affmab()
   
-  Texttrs.Text = Format(0, Texttrs.Tag[1])
-  Texttrsa.Text = Format(0, Texttrsa.Tag[1])
-  Texttrsr.Text = Format(0, Texttrsr.Tag[1])
-  Texttsu.Text = Format(0, Texttsu.Tag[1])
-  Textremv.Text = Format(0, Textremv.Tag[1])
+  Texttrs.Value = 0 
+  Texttrsa.Value = 0
+  Texttrsr.Value = 0
+  Texttsu.Value = 0 
+  Textremv.Value = 0
   Textcdr.Text = ""
-  textvol.Text = Format(0, Textvol.Tag[1])
-  Textdeg.Text = Format(0, Textdeg.Tag[1])
+  textvol.Value = 0  
+  Textdeg.Value = 0 
   Textcp.Clear
-  Textncp.Text = Format(0, Textncp.Tag[1])
+  Textncp.Value = 0 
   Labelpal.Text = ""
   textcc.Clear
-  Textnbc.Text = Format(0, Textnbc.Tag[1])
+  Textnbc.Value = 0 
   Labelcol.Text = ""
   textcb.Clear
   Labelbte.Text = ""
-  Texttrspp.Text = Format(0, Texttrspp.Tag[1])
-  Textcee.Text = Format(0, Textcee.Tag[1])
+  Texttrspp.Value = 0
+  Textcee.Value = 0 
   Texttype.Text = ""
   Checkdr.Value = False
   Labtxdeg.Text = ""
   Labvol.Text = ""
-  Textmdr.Text = Format(0, "0.000")
-  Textmss.Text = Format(0, "0.000")
-  Textdra.Text = Format(0, "0.00")
-  Textvss.Text = Format(0, "0.00")
+  Textmdr.Value = 0 
+  Textmss.Value = 0 
+  Textdra.Value = 0 
+  Textvss.Value = 0 
   Textreg.Clear
-  Textstot.Text = Format(0, "0.00")
+  Textstot.Value = 0 
   Gridtarpp.Clear
 End
 
@@ -499,33 +505,33 @@ Public Sub enregiste()
   If Not res.Available Then Return
   
   If $schoix = "T" Or $schoix = "B" Then
-    res!art_trsp = Val(Texttrs.Text)
-    res!art_trspa = Val(Texttrsa.Text)
-    res!art_trspr = Val(Texttrsr.Text)
-    res!art_tsuc = Val(Texttsu.Text)
-    res!art_remv = Val(Textremv.Text)
+    res!art_trsp = Texttrs.Value
+    res!art_trspa = Texttrsa.value
+    res!art_trspr = Texttrsr.value
+    res!art_tsuc = Texttsu.value
+    res!art_remv = Textremv.value
     If $resregie Then
      If $resregie.Available Then
       res!art_dra = Textcdr.Text
-      res!art_volm = Val(textvol.Text)
-      res!art_deg = Val(Textdeg.Text)
+      res!art_volm = textvol.value
+      res!art_deg = Textdeg.value
     Else
       res!art_dra = ""
       res!art_volm = 0
       res!art_deg = 0
     Endif
     Endif
-    res!art_montdr = Val(Textmdr.Text)
-    res!art_montss = Val(Textmss.Text)
+    res!art_montdr = Textmdr.value
+    res!art_montss = Textmss.value
     res!art_consp = Textcp.Text
-    res!art_nbcol = Val(Textncp.Text)
+    res!art_nbcol = Textncp.value
     res!art_consc = textcc.Text
-    res!art_nbbou = Val(Textnbc.Text)
+    res!art_nbbou = Textnbc.value
     res!art_consb = textcb.Text
   Endif
   If $schoix = "T" Or $schoix = "P" Then
-    res!art_trsp = Val(Texttrspp.Text)
-    res!art_ecof = Val(Textcee.Text)
+    res!art_trsp = Texttrspp.value
+    res!art_ecof = Textcee.value
   Endif
   res.Update
   Utils.db.Commit
