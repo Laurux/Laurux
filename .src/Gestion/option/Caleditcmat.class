@@ -1,8 +1,7 @@
 ' Gambas class file
 
-Private $dteinv As Date
-Private $dteinf As Date
-Private $dtesup As Date
+Private $dteinv As New LDate
+Private $dteinf As New LDate
 
 Public Struct volume
   vdp As Float
@@ -30,7 +29,16 @@ Public ddcl As Declaration
 
 Public Sub _new()
 
+  Dim ch As Chainage
+  
+  ch = New Chainage([Textmois, Textanne, nbdec])
+  nbdec.numerique = True
+  nbdec.reg = "[0-9]{0,1}"
+  Textmois.numerique = True
+  Textmois.reg = "[0-9]{0,2}"
   Textmois.Text = Format(Month(Now), "00")
+  Textanne.numerique = True
+  Textanne.reg = "[0-9]{0,4}"
   Textanne.Text = Format(Year(Now), "0000")
   Textmois.Select
   Textmois.SetFocus
@@ -51,23 +59,23 @@ Private Function ctrl() As Boolean
   Textcontrol.Clear
   If calcdate() Then Return True
   'véririe les entrée de marchandise
-  res = Utils.db.Exec("SELECT Fiches_Ligrecpt.four,Fiches_Ligrecpt.numrecpt,ddate,art_code,art_dra,art_design FROM Fiches_Entrecpt, Fiches_Ligrecpt,Fiches_Art WHERE NOT validee AND Fiches_Entrecpt.numrecpt=Fiches_Ligrecpt.numrecpt AND Fiches_Ligrecpt.code=art_code AND art_dra IS NOT NULL AND (ddate BETWEEN &1 AND &2) ORDER BY Fiches_Ligrecpt.numrecpt", Format($dteinf, "yyyymmdd"), Format($dtesup, "yyyymmdd"))
+  res = Utils.db.Exec("SELECT Fiches_Ligrecpt.four,Fiches_Ligrecpt.numrecpt,ddate,art_code,art_dra,art_design FROM Fiches_Entrecpt, Fiches_Ligrecpt,Fiches_Art WHERE NOT validee AND Fiches_Entrecpt.numrecpt=Fiches_Ligrecpt.numrecpt AND Fiches_Ligrecpt.code=art_code AND art_dra IS NOT NULL AND (ddate BETWEEN &1 AND &2) ORDER BY Fiches_Ligrecpt.numrecpt", $dteinf.D, $dteinf.FinMois.D)
   If res.Available Then
     Textcontrol.Text = Textcontrol.Text & "** ACHATS NON VALIDÉES / PÉRIODE EN COURS ** \n"
     err = ctrlachat(res)
   Endif
-  res = Utils.db.Exec("SELECT Fiches_Ligrecpt.four,Fiches_Ligrecpt.numrecpt,ddate,art_code,art_dra,art_design FROM Fiches_Entrecpt, Fiches_Ligrecpt,Fiches_Art WHERE NOT validee AND Fiches_Entrecpt.numrecpt=Fiches_Ligrecpt.numrecpt AND Fiches_Ligrecpt.code=art_code AND art_dra IS NOT NULL AND ddate < &1 ORDER BY Fiches_Ligrecpt.numrecpt", Format($dteinf, "yyyymmdd"))
+  res = Utils.db.Exec("SELECT Fiches_Ligrecpt.four,Fiches_Ligrecpt.numrecpt,ddate,art_code,art_dra,art_design FROM Fiches_Entrecpt, Fiches_Ligrecpt,Fiches_Art WHERE NOT validee AND Fiches_Entrecpt.numrecpt=Fiches_Ligrecpt.numrecpt AND Fiches_Ligrecpt.code=art_code AND art_dra IS NOT NULL AND ddate < &1 ORDER BY Fiches_Ligrecpt.numrecpt", $dteinf.D)
   If res.Available Then
     Textcontrol.Text = Textcontrol.Text & "** ACHATS NON VALIDÉES / PÉRIODES PRÉCEDANTES ** \n"
     If err Then ctrlachat(res) Else err = ctrlachat(res)
   Endif
   'vérifie les factures
-  res = Utils.db.Exec("SELECT cdclibl as four,numbl as numrecpt,datebl as ddate,art_code,art_dra,art_design FROM Fiches_Bl,Fiches_Ligbl,Fiches_Art WHERE num_ligbl=numbl AND Fiches_Bl.type='B' and art_code=code_ligbl AND art_dra IS NOT NULL AND (dte_ligbl BETWEEN &1 AND &2) ORDER BY numbl", Format($dteinf, "yyyymmdd"), Format($dtesup, "yyyymmdd"))
+  res = Utils.db.Exec("SELECT cdclibl as four,numbl as numrecpt,datebl as ddate,art_code,art_dra,art_design FROM Fiches_Bl,Fiches_Ligbl,Fiches_Art WHERE num_ligbl=numbl AND Fiches_Bl.type='B' and art_code=code_ligbl AND art_dra IS NOT NULL AND (dte_ligbl BETWEEN &1 AND &2) ORDER BY numbl", $dteinf.D, $dteinf.FinMois.D)
   If res.Available Then
     Textcontrol.Text = Textcontrol.Text & "** FACTURES NON VALIDÉES / PÉRIODE EN COURS ** \n"
     If err Then ctrlachat(res) Else err = ctrlachat(res)
   Endif
-  res = Utils.db.Exec("SELECT cdclibl as four,numbl as numrecpt,datebl as ddate,art_code,art_dra,art_design FROM Fiches_Bl,Fiches_Ligbl,Fiches_Art WHERE num_ligbl=numbl AND Fiches_Bl.type='B' and art_code=code_ligbl AND art_dra IS NOT NULL AND dte_ligbl < &1 ORDER BY numbl", Format($dteinf, "yyyymmdd"))
+  res = Utils.db.Exec("SELECT cdclibl as four,numbl as numrecpt,datebl as ddate,art_code,art_dra,art_design FROM Fiches_Bl,Fiches_Ligbl,Fiches_Art WHERE num_ligbl=numbl AND Fiches_Bl.type='B' and art_code=code_ligbl AND art_dra IS NOT NULL AND dte_ligbl < &1 ORDER BY numbl", $dteinf.D)
   If res.Available Then
     Textcontrol.Text = Textcontrol.Text & "** FACTURES NON VALIDÉES / PÉRIODES PRÉCEDANTES ** \n"
     If err Then ctrlachat(res) Else err = ctrlachat(res)
@@ -90,17 +98,17 @@ Private Function ctrlachat(res As Result) As Boolean
         Select Case resdr!suspendu
           Case True
             If suspendu.Value Then
-              Textcontrol.Text = Textcontrol.Text & res!four & " " & res!numrecpt & " " & Format(res!ddate, "dd.mm.yyyy") & " " & res!art_design & " " & "\n"
+              Textcontrol.Text = Textcontrol.Text & res!four & " " & res!numrecpt & " " & LDate(res!ddate).L & " " & res!art_design & " " & "\n"
               err = True
             Endif
           Case False
             If Not suspendu.Value Then
-              Textcontrol.Text = Textcontrol.Text & res!four & " " & res!numrecpt & " " & Format(res!ddate, "dd.mm.yyyy") & " " & res!art_design & " " & "\n"
+              Textcontrol.Text = Textcontrol.Text & res!four & " " & res!numrecpt & " " & LDate(res!ddate).L & " " & res!art_design & " " & "\n"
               err = True
             Endif
         End Select
       Else
-        Textcontrol.Text = Textcontrol.Text & " Probléme de regie " & res!art_dra & " \n" & res!four & " " & res!numrecpt & " " & Format(res!ddate, "dd.mm.yyyy") & " " & res!art_design & " " & "\n"
+        Textcontrol.Text = Textcontrol.Text & " Probléme de regie " & res!art_dra & " \n" & res!four & " " & res!numrecpt & " " & LDate(res!ddate).L & " " & res!art_design & " " & "\n"
         err = True
       Endif
     Until res.MoveNext()
@@ -114,14 +122,14 @@ Private Function calcdate() As Boolean
   Dim retour As Boolean
   Dim dte As Date
   
-  If Textmois.Text < "01" Or Textmois.Text > "12" Then
+  If Textmois.Value < 1 Or Textmois.Value > 12 Then
     Balloon.Delay = 3000
     Balloon.Warning("Mois invalide", Textmois)
     Textmois.SetFocus
     Textmois.Select
     retour = True
   Endif
-  If Textanne.Text < "2000" Or Textanne.Text > "2100" Then
+  If Textanne.Value < 2000 Or Textanne.Value > 2100 Then
     Balloon.Delay = 3000
     Balloon.Warning("Année invalide", Textanne)
     Textanne.SetFocus
@@ -130,10 +138,9 @@ Private Function calcdate() As Boolean
   Endif
   If retour Then Return retour
 
-  $dteinf = Date(Textanne.Text, Val(Textmois.Text), 1)
-  $dtesup = Date(Textanne.Text, Val(Textmois.Text), Utils.lastday($dteinf))
+  $dteinf.G = Date(Textanne.Text, Textmois.Value, 1)
   'control si mois déja cloturé
-  dte = DateAdd($dteinf, gb.Month, 1)
+  dte = DateAdd($dteinf.G, gb.Month, 1)
   res = Utils.db.Exec("SELECT * FROM Fiches_ligregie WHERE dtmouv=&1 AND (type='M' OR type='I')", dte)
   If res.Available Then
     Textcontrol.Text = "Période déjà cloturée \n"
@@ -143,8 +150,8 @@ Private Function calcdate() As Boolean
   res = Utils.db.Exec("SELECT * FROM Fiches_ligregie WHERE type='I' ORDER BY dtmouv")
   If res.Available Then
     res.MoveLast
-    $dteinv = res!dtmouv
-    If $dteinf > DateAdd($dteinv, gb.Month, 12) Then
+    $dteinv.g = res!dtmouv
+    If $dteinf.Apres(LDate(DateAdd($dteinv.G, gb.Month, 12)), True) Then
       Textcontrol.Text = Textcontrol.Text & "Le dernier arrêté annuel à plus de 12 mois \n"
       If cloture.Value Then Return True
     Endif
@@ -165,12 +172,12 @@ Public Sub Edition_Click()
   tabl = Edit(False)
   If cloture.Value Then
     'validation des lignes 
-    Utils.db.Exec("UPDATE Fiches_ligregie,Fiches_regie SET cloture=True WHERE coderegie=Fiches_regie.code AND dtmouv BETWEEN &1 AND &2 AND cloture=False AND (Fiches_ligregie.type='S' OR Fiches_ligregie.type='E' OR Fiches_ligregie.type='C') AND suspendu=&3", Format($dteinf, "yyyymmdd"), Format($dtesup, "yyyymmdd"), suspendu.Value)
+    Utils.db.Exec("UPDATE Fiches_ligregie,Fiches_regie SET cloture=True WHERE coderegie=Fiches_regie.code AND dtmouv BETWEEN &1 AND &2 AND cloture=False AND (Fiches_ligregie.type='S' OR Fiches_ligregie.type='E' OR Fiches_ligregie.type='C') AND suspendu=&3", $dteinf.D, $dteinf.FinMois.D, suspendu.Value)
     'ecriture du stock début de période prochaine
     Utils.db.Begin
     For Each dcl In tabl
       res = Utils.db.Create("Fiches_ligregie")
-      res!dtmouv = DateAdd($dteinf, gb.Month, 1)
+      res!dtmouv = DateAdd($dteinf.G, gb.Month, 1)
       res!type = "M"
       res!coderegie = tabl.Key
       res!volume = dcl.totvol.vae.vfp
@@ -198,15 +205,22 @@ Private Function Edit(clt As Boolean) As Collection
   Dim cdroit As Calculdroit
   Dim ed As Object
   Dim nbd As Integer
+  Dim Filename As String
+  Dim prt As New Printer
+  Dim pgb As ProgBar
   
+  pgb = New ProgBar("Edition en cours", 0)
+  pgb.Show
+  Filename = User.Home & "/tmp/cmtmat.pdf"
+  prt.OutputFile = Filename
   'creation du tableau à passer au report (Ecomptamat)
   Application.Busy = 1
   'stock debut de periode
   'on prend d'abord l'inventaire début année
-  res = Utils.db.Exec("SELECT * FROM Fiches_ligregie, Fiches_regie WHERE dtmouv BETWEEN &1 AND &2 AND Fiches_ligregie.type='I' AND Fiches_regie.code=coderegie AND suspendu=&3 ", Format($dteinf, "yyyymmdd"), Format($dtesup, "yyyymmdd"), suspendu.Value)
+  res = Utils.db.Exec("SELECT * FROM Fiches_ligregie, Fiches_regie WHERE dtmouv BETWEEN &1 AND &2 AND Fiches_ligregie.type='I' AND Fiches_regie.code=coderegie AND suspendu=&3 ", $dteinf.D, $dteinf.FinMois.D, suspendu.Value)
   If Not res.Available Then
     'si début d'année n'existe pas => stock début de période
-    res = Utils.db.Exec("SELECT * FROM Fiches_ligregie, Fiches_regie WHERE  dtmouv BETWEEN &1 AND &2 AND Fiches_ligregie.type='M' AND Fiches_regie.code=coderegie AND suspendu=&3 ", Format($dteinf, "yyyymmdd"), Format($dtesup, "yyyymmdd"), suspendu.Value)
+    res = Utils.db.Exec("SELECT * FROM Fiches_ligregie, Fiches_regie WHERE  dtmouv BETWEEN &1 AND &2 AND Fiches_ligregie.type='M' AND Fiches_regie.code=coderegie AND suspendu=&3 ", $dteinf.D, $dteinf.FinMois.D, suspendu.Value)
   Endif
   If res.Available Then
     res.MoveFirst
@@ -218,7 +232,7 @@ Private Function Edit(clt As Boolean) As Collection
     Until res.MoveNext()
   Endif
   'volume entrés
-  res = Utils.db.Exec("SELECT SUM(volume) as volume, SUM(volumeap) as volumeap,coderegie FROM Fiches_ligregie,Fiches_regie WHERE dtmouv BETWEEN &1 AND &2 AND cloture=&4 AND Fiches_ligregie.type='E' AND Fiches_regie.code=coderegie AND suspendu=&3 GROUP BY coderegie", Format($dteinf, "yyyymmdd"), Format($dtesup, "yyyymmdd"), suspendu.Value, clt)
+  res = Utils.db.Exec("SELECT SUM(volume) as volume, SUM(volumeap) as volumeap,coderegie FROM Fiches_ligregie,Fiches_regie WHERE dtmouv BETWEEN &1 AND &2 AND cloture=&4 AND Fiches_ligregie.type='E' AND Fiches_regie.code=coderegie AND suspendu=&3 GROUP BY coderegie", $dteinf.D, $dteinf.FinMois.D, suspendu.Value, clt)
   If res.Available Then
     res.MoveFirst
     Repeat
@@ -237,7 +251,7 @@ Private Function Edit(clt As Boolean) As Collection
   Endif
   'volume sortie
   If calcregie.Value Then            'calcul des droits au taux indiqué dans le fichier regie
-    res = Utils.db.Exec("SELECT * FROM Fiches_ligregie, Fiches_regie WHERE dtmouv BETWEEN &1 AND &2 AND cloture=&4 AND (Fiches_ligregie.type='S' OR Fiches_ligregie.type='C') AND Fiches_regie.code=coderegie AND suspendu=&3", Format($dteinf, "yyyymmdd"), Format($dtesup, "yyyymmdd"), suspendu.Value, clt)
+    res = Utils.db.Exec("SELECT * FROM Fiches_ligregie, Fiches_regie WHERE dtmouv BETWEEN &1 AND &2 AND cloture=&4 AND (Fiches_ligregie.type='S' OR Fiches_ligregie.type='C') AND Fiches_regie.code=coderegie AND suspendu=&3", $dteinf.D, $dteinf.FinMois.D, suspendu.Value, clt)
     If res.Available Then
       Repeat
         cdroit = New Calculdroit(res!coderegie, (res!volume / res!qte) * 100, res!degres, res!qte)
@@ -261,7 +275,7 @@ Private Function Edit(clt As Boolean) As Collection
       Until res.MoveNext()
     Endif
   Else                                                  'calcul des droits avec les montants déjà calculés dans le fichier ligregie
-    res = Utils.db.Exec("SELECT SUM(volume) as volume, SUM(volumeap) as volumeap,SUM(montdr) as droit, SUM(montss) as secu, SUM(volumess) as volumess, coderegie FROM Fiches_ligregie, Fiches_regie WHERE dtmouv BETWEEN &1 AND &2 AND cloture=&4 AND (Fiches_ligregie.type='S' OR Fiches_ligregie.type='C') AND Fiches_regie.code=coderegie AND suspendu=&3 GROUP BY coderegie", Format($dteinf, "yyyymmdd"), Format($dtesup, "yyyymmdd"), suspendu.Value, clt)
+    res = Utils.db.Exec("SELECT SUM(volume) as volume, SUM(volumeap) as volumeap,SUM(montdr) as droit, SUM(montss) as secu, SUM(volumess) as volumess, coderegie FROM Fiches_ligregie, Fiches_regie WHERE dtmouv BETWEEN &1 AND &2 AND cloture=&4 AND (Fiches_ligregie.type='S' OR Fiches_ligregie.type='C') AND Fiches_regie.code=coderegie AND suspendu=&3 GROUP BY coderegie", $dteinf.D, $dteinf.FinMois.D, suspendu.Value, clt)
     If res.Available Then
       res.MoveFirst
       Repeat
@@ -325,13 +339,16 @@ Private Function Edit(clt As Boolean) As Collection
   If tabl.Count > 0 Then
     If suspendu.Value Then
       ed = New Ecomptamat(tabl, Textmois.Text, Textanne.Text, False)
-      ed.Preview
+      ed.Print(prt)
+      Visualiseur.Prog_Editeur(Filename)
     Else
       ed = New Einvmat(tabl, Textmois.Text, Textanne.Text, False)
-      ed.Preview
+      ed.Print(prt)
+      Visualiseur.Prog_Editeur(Filename)
     Endif
   Endif
   Application.Busy = 0
+  Try pgb.Close
   Return tabl
   
 End
