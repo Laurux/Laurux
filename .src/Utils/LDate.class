@@ -197,10 +197,10 @@ Private Function Parse(Sdate As String, Optional ParseTime As Boolean = True) As
     Return Date(Left(Sdate, 4), Mid(Sdate, 5, 2), Mid(Sdate, 7, 2), Mid(Sdate, 9, 2), Mid(Sdate, 11, 2), Right(Sdate, 2))
   Endif
   reg = New RegExp
-  reg.Compile("([0-9]+)[ /.-]+([0-9]+)[ /.-]+([0-9]+)")
+  reg.Compile("([0-9]+)[/.-]+([0-9]+)[/.-]+([0-9]+)")
   reg.Exec(Sdate)
   If reg.Count = -1 Then
-    reg.Compile("([0-9]+)[ /.-]+([0-9]+)[ /.-]?")
+    reg.Compile("([0-9]+)[/.-]+([0-9]+)[/.-]?")
     reg.Exec(Sdate)
     If reg.Count = -1 Then
       reg.Compile("([0-9]+)[ /.-]?")
@@ -273,6 +273,12 @@ Catch
   
 End
 
+Private Function prd(compdate As LDate) As Integer
+  
+  If DateDiff(compdate.G, Dte, gb.Year) = 0 Then Return gb.Second
+  Return gb.Year
+  
+End
 
 '********
 'PROPERTY
@@ -394,34 +400,20 @@ End
 
 Public Sub Apres(compdate As LDate, Optional strict As Boolean) As Boolean
 
+  Dim p As Integer    'indique la période à comparer
+  
+  p = prd(compdate)
+  
   Select Case strict
     Case True
-      If DateDiff(compdate.G, Dte, gb.Second) > 0 Then
+      If DateDiff(compdate.G, Dte, p) > 0 Then
         Return True
       Else
         Return False
       Endif
       
     Case Else
-      If DateDiff(compdate.G, Dte, gb.Second) >= 0 Then
-        Return True
-      Else
-        Return False
-    Endif
-  End Select
-  
-  Catch
-    
-  Select Case strict         'si l'écart entre les dates comparées est top important le programme retourne une erreure (débordement)
-    Case True
-      If DateDiff(compdate.G, Dte, gb.Year) > 0 Then
-        Return True
-      Else
-        Return False
-      Endif
-      
-    Case Else
-      If DateDiff(compdate.G, Dte, gb.Year) >= 0 Then
+      If DateDiff(compdate.G, Dte, p) >= 0 Then
         Return True
       Else
         Return False
@@ -433,39 +425,26 @@ End
 
 Public Sub Avant(compdate As LDate, Optional strict As Boolean = False) As Boolean
 
+  Dim p As Integer    'indique la période à comparer
+  
+  p = prd(compdate)
+  
   Select Case strict
     Case True
-      If DateDiff(compdate.G, Dte, gb.Second) < 0 Then
+      If DateDiff(compdate.G, Dte, p) < 0 Then
         Return True
       Else
         Return False
       Endif
       
     Case Else
-      If DateDiff(compdate.G, Dte, gb.Second) <= 0 Then
+      If DateDiff(compdate.G, Dte, p) <= 0 Then
         Return True
       Else
         Return False
       Endif
     End Select
   
-  Catch         'si l'écart entre les dates comparées est top important le programme retourne une erreure (débordement)
-    Select Case strict
-      Case True
-        If DateDiff(compdate.G, Dte, gb.Year) < 0 Then
-        Return True
-      Else
-        Return False
-      Endif
-      
-    Case Else
-      If DateDiff(compdate.G, Dte, gb.Year) <= 0 Then
-        Return True
-      Else
-        Return False
-      Endif
-      
-    End Select
 End
 
 Public Function Fin_Mois() As LDate
