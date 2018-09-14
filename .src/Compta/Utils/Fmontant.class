@@ -29,6 +29,7 @@ Private son As Integer = Start.Son
 Private rResult As Result
 Private Tcpt As Result
 Private Cloturee As Integer
+Private libeldoc As String = "libelle"
 Private tresr As Boolean
 
 Public Sub _New()
@@ -83,64 +84,68 @@ Public Sub Button2_Click()
 
   Dim req As String
   Dim chmp As String = "dte,compte,libelle,numdoc,numero,montantd,montantc,jour,tresorerie"
+  Dim ccol As String = ""
   
   Somme.clear
   Me.Mouse = Mouse.Wait
-  If Not Cb1.Value And Not Cb2.Value Then
+  If Not Cb1.Value And Not Cb2.Value And Not Cb3.Value Then
     Message.Warning("Veuillez saisir un critère de recherche SVP", "Ok")
   Else
-    If Cb1.value And Not Mnt.Text And Not Cb2.value Then ' On controle qu'un montant soit saisit
+    If Cb1.value And Not Mnt.Text And Not Cb2.value And Not Cb3.Value Then ' On controle qu'un montant soit saisit
       Message.Warning("Veuillez saisir un montant SVP", "Ok")
       Mnt.SetFocus
       Mnt.Select
       libelle.Text = ""
     Else
+      If CompteCol.Value Then ccol = " and coll= True"
       If Btous.Value Then req = "" 
-      If Bclient.value Then req = " and validee = True  and coll= True and type_cc = 'C'"
-      If Bfournisseur.value Then req = " and validee = True  and coll= True and type_cc = 'F'"
-      If Bgestion.value Then req = " and validee = True  and coll= True and type_cc = 'G'"
-      If Bbilan.value Then req = " and validee = True  and coll= True and type_cc = 'B'"
-      If Cb1.value And Mnt.Text And Not Cb2.value Then 'on recherche seulement un montant
+      If Bclient.value Then req = " and validee = True" & ccol & " and type_cc = 'C'"
+      If Bfournisseur.value Then req = " and validee = True" & ccol & " and type_cc = 'F'"
+      If Bgestion.value Then req = " and validee = True" & ccol & " and type_cc = 'G'"
+      If Bbilan.value Then req = " and validee = True" & ccol & " and type_cc = 'B'"
+      If Cb1.value And Mnt.Text And Not Cb2.value And Not Cb3.Value Then 'on recherche seulement un montant
         libelle.Text = ""
          rResult = Utils.db.Exec("SELECT " & chmp & " FROM Fiches_Mvt LEFT JOIN Fiches_Comptes ON compte = compte_cc WHERE (montantd like '" & Utils.PointBase(Mnt.Text) & "%' or montantc like '" & Utils.PointBase(Mnt.Text) & "%') " & req)
       Endif
    Endif
-    If Cb2.Value And Not libelle.Text And Not Cb1.Value Then ' On controle qu'un libelle soit saisit
-      Message.Warning("Veuillez saisir un libellé SVP", "Ok")
+    If (Cb2.Value Or Cb3.Value) And Not libelle.Text And Not Cb1.Value Then ' On controle qu'un libelle soit saisit
+      Message.Warning("Veuillez saisir un libellé/document SVP", "Ok")
       Mnt.Text = ""
       libelle.SetFocus
       libelle.Select
     Else
-      If Cb2.Value And libelle.Text And Not Cb1.Value Then 'on recherche seulement les libelles
+      If (Cb2.Value Or Cb3.Value) And libelle.Text And Not Cb1.Value Then 'on recherche seulement les libelles
         Mnt.Text = ""
-        rResult = Utils.db.Exec("SELECT " & chmp & " FROM Fiches_Mvt LEFT JOIN Fiches_Comptes ON compte = compte_cc where libelle like '" & libelle.Text & "%' " & req & "order by dte")
-          Endif
-        Endif
-    If Cb1.Value And Cb2.Value And Not Mnt.Text Then 'on controle qu'un montant soit saisit
+        rResult = Utils.db.Exec("SELECT " & chmp & " FROM Fiches_Mvt LEFT JOIN Fiches_Comptes ON compte = compte_cc where " & libeldoc & " like '" & libelle.Text & "%' " & req & "order by dte")
+      Endif
+    Endif
+    If Cb1.Value And (Cb2.Value Or Cb3.Value) And Not Mnt.Text Then 'on controle qu'un montant soit saisit
       Message.Warning("Veuillez saisir un montant SVP", "Ok")
       Mnt.SetFocus
       Mnt.Select
     Else
-      If Cb1.Value And Cb2.Value And Not libelle.Text Then ' Idem pour le libelle
-        Message.Warning("Veuillez saisir un libellé SVP", "Ok")
+      If Cb1.Value And (Cb2.Value Or Cb3.Value) And Not libelle.Text Then ' Idem pour le libelle
+        Message.Warning("Veuillez saisir un libellé/document SVP", "Ok")
         libelle.SetFocus
         libelle.Select
       Endif
     Endif
-    If Cb1.Value And Cb2.Value And Mnt.Text And libelle.Text Then 'on recherche un montant et un libelle
-      rResult = Utils.db.Exec("SELECT " & chmp & " FROM Fiches_Mvt LEFT JOIN Fiches_Comptes ON  compte = compte_cc where (montantd like '" & Utils.PointBase(Mnt.Text) & "%' or montantc like '" & Utils.PointBase(Mnt.Text) & "%') and libelle like '" & libelle.Text & "%' " & req & " order by dte ")
+    If Cb1.Value And (Cb2.Value Or Cb3.Value) And Mnt.Text And libelle.Text Then 'on recherche un montant et un libelle
+      rResult = Utils.db.Exec("SELECT " & chmp & " FROM Fiches_Mvt LEFT JOIN Fiches_Comptes ON  compte = compte_cc where (montantd like '" & Utils.PointBase(Mnt.Text) & "%' or montantc like '" & Utils.PointBase(Mnt.Text) & "%') and " & libeldoc & " like '" & libelle.Text & "%' " & req & " order by dte ")
     Endif
     
-    If rResult.Available Then
-      Repeat
-        Affichage()
-      Until rResult.MoveNext()
+    If Not IsNull(rResult) Then
+      If rResult.Available Then
+        Repeat
+          Affichage()
+        Until rResult.MoveNext()
+      Endif
+      Message.Info("Traitement terminé !")
     Endif
 
   Endif
   Me.Mouse = Mouse.Pointing
   Necrit.Visible = False
-  Message.Info("Traitement terminé !")
 
 End
 
@@ -194,10 +199,10 @@ Public Sub Necrit_Click()
   If Cloturee = 0 Then
     If tresr = False Then
       hForm = New Saisecrit(Somme.Current[4], Me.Parent, True)
-      hForm.Showmodal()
+      If Object.IsValid(hForm) Then hForm.Showmodal()
     Else
       hForm2 = New Tresor(Somme.Current[4])
-      hForm2.Showmodal()
+      If Object.IsValid(hForm2) Then hForm2.Showmodal()
     Endif
     Me.Mouse = Mouse.Wait
     Csolde.Recalc_solde()
@@ -217,4 +222,30 @@ Public Sub Button3_Click()
 
   Doc.Open("Montant")
 
+End
+
+Public Sub Cb2_Click()
+
+  'If Cb2.Value Then
+  '  Cb2.Value = 0
+  'Else
+    Label3.Text = "Libellé à rechercher"
+    libeldoc = "libelle"
+    'If Cb3.Value Then
+    '  Cb3. = 0
+    'Endif
+  'Endif
+End
+
+Public Sub Cb3_Click()
+
+  'If Cb3.Value Then
+  '  Cb3.Value = 0
+  'Else
+    Label3.Text = "Document à rechercher"
+    libeldoc = "numdoc"
+  '  If Cb2.Value Then
+  '    Cb2.Value = 0
+  '  Endif
+  'Endif
 End
