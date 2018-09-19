@@ -2,43 +2,329 @@
 
 Private $hfile As File
 Private $fname As String
+Private $stp As Boolean
+Private $pgb As ProgBar
 
 Public Sub _new()
 
-  Dim ch As Chainage
   Dim s As String
   
-  
+  Utils.Observers(Me)
+  Utils.Ciel()
+  Textcrt.numerique = True
+  Textcrt.reg = "[1-5]{1}"
   FileChooser1.SetFocus
-  ch = New Chainage([TextReg1, TextReg2, TextReg3, TextReg4, TextReg5, TextReg6, TextReg7, TextReg8, TextReg9, TextReg10, TextReg11, TextReg12, TextReg13, TextReg14, TextReg15, TextReg16, TextReg17, TextReg18, TextReg19, TextReg20])
-  
 
 End
 
+Public Sub Form_Close()
 
-Public Sub Button1_Click()
-
- 
-  
-  If Not ctrl() Then Return
-
-End
-
-Private Function ctrl() As Boolean
-  
-  $hfile = Open FileChooser1.Value For Read
-  
+  If Buttonquit.Enabled = False Then
+    Stop Event
+  Endif
   
 End
 
-Public Sub FileChooser1_LostFocus()
+Public Sub Buttontra_Click()
+  
+  Dim nbtot As Integer
+  
+  Buttonstop.Visible = True
+  Buttontra.Enabled = False
+  Buttonquit.Enabled = False
+  Try nbtot = Stat(FileChooser1.SelectedPath).Size / 131
+  $pgb = New ProgBar("Controle fichier FEC", nbtot, Panelpgb)
+  Panelpgb.Visible = True
+  Panelpgb.Raise
+  $pgb.Show
+  Panelpgb.Width = $pgb.Width
+  Panelpgb.Height = $pgb.Height
+  Wait 0.001
+  If Not ctrl() Then
+    $pgb.Delete
+    Panelpgb.Visible = False
+    Buttontra.Enabled = True
+    Buttonquit.Enabled = True
+    Buttonstop.Visible = False
+    Return
+  Endif
+  $pgb.Delete
+  $pgb = New ProgBar("Import du fichier", nbtot, Panelpgb)
+  $pgb.Show
+  Buttonstop.Visible = False
+  trat()
+  $pgb.Delete
+  TextArea1.Text = "**** FICHIER IMPORTE AVEC SUCCES ****"
+  Calcsolde.ShowModal
+  Panelpgb.Visible = False
+  Buttontra.Enabled = True
+  Buttonquit.Enabled = True
+  Buttonstop.Visible = False
+  
+End
 
+Public Sub Buttonstop_Click()
+
+  $stp = True
+  Buttonstop.Visible = False
+
+End
+
+Public Sub Buttoncpt_Click()
+
+  Cielcorsp.ShowModal
+
+End
+
+Public Sub Buttonjo_Click()
+
+  Cielcorspj.ShowModal
+
+End
+
+Public Sub Buttonquit_Click()
+
+  Me.Close
+
+End
+
+Private Function ctrl() As Boolean      'control avant importation
+  
+  Dim strs As String[]
+  Dim ligne, sperar, jo As String
+  Dim err As Boolean = True
+  Dim i As Integer
+  Dim res As Result
+  
+  $stp = False
+  TextArea1.Text = "**** DEBUT DU CONTROL ****  \n"
+'  Me.Mouse = Mouse.Wait
   If Not FileChooser1.SelectedPath Then
-    Message.Info("Vous devez choisir un fichier")
+   TextArea1.Text = "Vous devez choisir un fichier"
     FileChooser1.SetFocus
+    Return False
   Endif
   If Not Exist(FileChooser1.SelectedPath) Then
-    Message.Info("Ce fichier n'existe pas")
+    TextArea1.Text = "Ce fichier n'existe pas"
     FileChooser1.SetFocus
+    Return False
   Endif
+  If Radioautre.Value And Not TextBox1.Text Then
+    TextArea1.Text = "Vous devez donner une valeur a Autre"
+    TextBox1.SetFocus
+    Return False
+  Endif
+ 
+  'definition du caractére de séparation
+  sperar = carsep()
+
+  'Lecture et controle du fichier
+  i = 0
+  $hfile = Open FileChooser1.Value For Read
+  $hfile.EndOfLine = gb.Windows
+  
+  While Not Eof($hfile)
+    Line Input #$hfile, ligne
+    If i = 0 Then   'saute la 1° ligne 
+      i = 1
+      Continue
+    Endif
+    $pgb.Avancement(, 25)
+    strs = Split(ligne, sperar)
+    If strs.Count > 19 Or strs.Count < 18 Then
+      Message.Info("Il y a un probléme soit sur le séparateur soit sur le fichier FEC")
+      Try TextArea1.Text &= strs[0]
+      Return False
+    Endif
+    'control des journax
+    strs[0] = Trim(strs[0])
+    res = Utils.db.Exec("SELECT * FROM Ciel_Lrx_Jo WHERE Cciel=&1", strs[0])
+    If Not res.Available Then
+      res = Utils.db.Exec("SELECT * FROM Fiches_Journaux WHERE code_jo=&1", strs[0])
+      If Not res.Available Then
+        TextArea1.Text &= "Journal " & strs[0] & " innexitant \n"
+        err = False
+      Endif
+    Endif
+    'control des num d'écriture
+    If Not Checkrnum.Value Then
+      strs[2] = Trim(strs[2])
+      res = Utils.db.Exec("SELECT * FROM Fiches_Mvt WHERE numero=&1", strs[2])
+      If res.Available Then
+        TextArea1.Text &= "Ecriture N° " & strs[2] & " existe déjà \n"
+        err = False
+      Endif
+    Endif
+    'controle des n° de compte
+    strs[6] = Trim(strs[6])
+    strs[4] = Trim(strs[4])
+    If strs[6] Then
+      If Len(strs[6]) <= Textcrt.Value And IsNumber(strs[6]) Then
+         If Len(strs[6]) = Textcrt.Value Then jo = strs[6] Else jo = String(Textcrt.Value - Len(strs[6]), "0") & strs[6]
+        jo = Left(strs[4], 3) & jo
+      Else
+        If Len(strs[6]) > Textcrt.Value Then
+          TextArea1.Text &= "Compte auxiliaire " & strs[6] & " trop long - non bloquant \n"
+          jo = strs[6]
+        Else
+          TextArea1.Text &= "Compte auxiliaire " & strs[6] & " non numérique - non bloquant \n"
+          jo = strs[6]
+        Endif
+      Endif
+    Else
+      jo = strs[4]
+    Endif
+    res = Utils.db.Exec("SELECT * FROM Ciel_Lrx where Cciel=&1", jo)
+    If Not res.Available Then
+      res = Utils.db.Exec("SELECT * FROM Fiches_Comptes WHERE compte_cc=&1", jo)
+      If Not res.Available Then
+        err = False
+        TextArea1.Text &= "Compte " & jo & " innexistant \n"
+      Endif
+    Endif
+    
+    If $stp Then Break
+
+  Wend
+  
+  TextArea1.Text &= "**** FIN DU CONTROLE ****"
+  Buttonstop.Visible = False
+  If $stp Then Return False
+  Return err
+  
+End
+'import des écritures
+Private Sub trat()
+  
+  Dim strs As String[]
+  Dim ligne, sperar, jo As String
+  Dim res, rescol, resrec, respar As Result
+  Dim i, num, numver As Integer
+  
+  TextArea1.Text = "**** DEBUT DE L'IMPORTATION ****  \n"
+  If Checkrnum.Value Then
+    Utils.db.Exec("LOCK TABLES Fiches_Mvt WRITE, Fiches_Comptes WRITE, Fiches_Parametres WRITE")
+  Else
+    Utils.db.Exec("LOCK TABLES Fiches_Mvt WRITE, Fiches_Comptes WRITE")
+  Endif
+  sperar = carsep()
+  $hfile = Open FileChooser1.Value For Read
+  $hfile.EndOfLine = gb.Windows
+  Utils.db.Begin
+  
+  While Not Eof($hfile)
+    Line Input #$hfile, ligne
+    If i = 0 Then   'saute la 1° ligne 
+      i = 1
+      Continue
+    Endif
+    $pgb.Avancement(, 50)
+    strs = Split(ligne, sperar)
+    res = Utils.db.Create("Fiches_Mvt")
+    strs[2] = Trim(strs[2])
+
+    If Not Checkrnum.Value Then     'on reprend les n° d'ecriture
+      If numver = 0 Then numver = Val(strs[2])
+      If numver <> Val(strs[2]) Then
+        Sha1Calc.CalcSha1("Fiches_Mvt", Str(numver))
+        numver = Val(strs[2])
+      Endif
+      res!numero = Val(strs[2])
+    Else                                              'ou on renumérote les écritures
+      If numver <> Val(strs[2]) Then
+        If numver <> 0 Then Sha1Calc.CalcSha1("Fiches_Mvt", Str(num))
+        numver = Val(strs[2])
+        respar = Utils.db.Exec("SELECT numecriture FROM Fiches_Parametres")
+        If IsNull(respar!numecriture) Then
+          num = 1
+        Else
+          num = respar!numecriture + 1
+          Utils.db.Exec("UPDATE Fiches_Parametres SET numecriture=&1", num)
+        Endif
+      Endif
+      res!numero = num
+    Endif
+    res!intitule = Trim(strs[5])
+    res!dte = Date(Left(strs[3], 4), Val(Mid(strs[3], 5, 2)), Val(Right(strs[3], 2)))
+    res!numdoc = Trim(strs[8])
+    If Trim(strs[13]) Then
+      res!numlot = Trim(strs[13])
+      res!lettree = True
+    Else
+      res!lettree = False
+    Endif
+    res!libelle = Trim(strs[10])
+    res!montantd = Val(Trim(Strs[11]))
+    res!montantc = Val(Trim(Strs[12]))
+    res!validee = True
+    res!provisoire = False
+    res!tresorerie = False
+    res!pointee = False
+    res!cloturee = False
+    res!relance = 0
+    'journaux
+    strs[0] = Trim(strs[0])
+    resrec = Utils.db.Exec("SELECT * FROM Ciel_Lrx_Jo WHERE Cciel=&1", strs[0])
+    If resrec.Available Then
+      res!jour = resrec!Clrx
+    Else
+      res!jour = strs[0]
+    Endif
+    'n° compte
+    strs[6] = Trim(strs[6])
+    strs[4] = Trim(strs[4])
+    If strs[6] Then
+      If Len(strs[6]) > Textcrt.Value Or Not IsNumber(strs[6]) Then
+        jo = strs[6]
+      Else
+        If Len(strs[6]) = Textcrt.Value Then jo = strs[6] Else jo = String(Textcrt.Value - Len(strs[6]), "0") & strs[6]
+        jo = Left(strs[4], 3) & jo
+      Endif
+    Else
+      jo = strs[4]
+    Endif
+    resrec = Utils.db.Exec("SELECT * FROM Ciel_Lrx WHERE Cciel=&1", jo)
+    If resrec.Available Then
+      res!compte = resrec!Clrx
+    Else
+      res!compte = jo
+    Endif
+    'on regarde si collectif => si oui on cree l'enregistrement
+    resrec = Utils.db.Exec("SELECT coll_cc FROM Fiches_Comptes WHERE compte_cc=&1", jo)
+    If resrec.Available Then
+      If resrec!coll_cc Then
+        rescol = Utils.db.Create("Fiches_Mvt")
+        rescol!compte = resrec!coll_cc
+        rescol!numero = res!numero
+        rescol!collectif = 1
+        rescol!intitule = Trim(strs[5])
+        rescol!dte = res!dte
+        rescol!numdoc = res!numdoc 
+        rescol!lettree = False
+        rescol!libelle = res!libelle
+        rescol!montantd = res!montantd 
+        rescol!montantc = res!montantc
+        rescol!validee = True
+        rescol!provisoire = False
+        rescol!tresorerie = False
+        rescol!pointee = False
+        rescol!cloturee = False
+        rescol!relance = 0
+        rescol.Update
+      Endif
+    Endif
+    res.Update
+  Wend
+  If Checkrnum.Value Then Sha1Calc.CalcSha1("Fiches_Mvt", Str(num)) Else Sha1Calc.CalcSha1("Fiches_Mvt", Str(numver))
+  Utils.db.Commit
+
+End
+
+Private Function carsep() As String
+  
+  If Radioautre.Value Then Return TextBox1.Text
+  If Radiopvirg.Value Then Return ";"
+  If Radiotab.Value Then Return Chr$(9)
+  If Radiovirg.Value Then Return ","
+  
 End
