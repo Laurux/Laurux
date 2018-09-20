@@ -63,6 +63,7 @@ Public Sub _new(cpt As String, dtei As String, dtes As String, ltr As String, vl
         der = i
       Endif
     Next
+    $dtei.L = dtei
     If Not cpt Then Return
     'creation de la requete
     If origin = "relance" Then
@@ -76,7 +77,11 @@ Public Sub _new(cpt As String, dtei As String, dtes As String, ltr As String, vl
           ok = False
           'calcul du report a nouveau si nécessaire
           dte = New LDate(DateAdd($dtei.G, gb.Day, -1))
-          res1 = Utils.db.Exec("SELECT * FROM " & $brn[i].nomfich & " WHERE dte BETWEEN &1 AND &2 AND compte=&3 AND validee=&4 LIMIT 1", $brn[i].dteinf.D, dte.D, cpt, vld) 
+          If i = der Then
+             res1 = Utils.db.Exec("SELECT * FROM " & $brn[i].nomfich & " WHERE dte <= &1 AND compte=&2 AND validee=&3 LIMIT 1", dte.D, cpt, vld) 
+          Else
+            res1 = Utils.db.Exec("SELECT * FROM " & $brn[i].nomfich & " WHERE dte BETWEEN &1 AND &2 AND compte=&3 AND validee=&4 LIMIT 1", $brn[i].dteinf.D, dte.D, cpt, vld)
+          Endif 
           If res1.Available Then
             req = Utils.db.Subst(" UNION SELECT SUM(montantd) AS montantd,SUM(montantc) AS montantc,CAST(&1 AS DATE) AS dte,compte,'Report a nouveau' AS libelle,0 as numero,'  ' as jour,' ' AS numdoc, ' ' AS tresorerie,' ' as lettree, 'T' AS cloturee,' ' AS dateech,' ' AS collectif,' ' AS numlot,' ' AS relance,' ' AS lind FROM " & $brn[i].nomfich & " WHERE dte <= &3 AND compte=&4 AND validee=&5", $dtei.G, $brn[i].dteinf.D, dte.D, cpt, vld)
             dte = dtsup(i)
