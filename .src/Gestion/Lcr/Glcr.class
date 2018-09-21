@@ -1,0 +1,372 @@
+' Gambas class file
+
+Dte1 As Integer
+rBq As Result
+Tri As String
+CoulB As Integer ' Variable pour la couleur du background
+CoulF As Integer ' Variable pour la couleur du Foreground
+Fnt As String ' Variable pour la police
+CoulZns As Integer ' Variable pour la couleur du background des zones de saisie
+CoulZnaf As Integer ' Variable pour la couleur du background des columnviews
+Coulfc As Integer ' Variable pour la couleur du focus
+Coulfond As New String[]
+PosY As Integer
+
+Public Sub _New()
+
+  Dim rResult As Result
+  Dim Frmt As New String[]
+  Dim ch As Chainage
+
+  Frmt = Utils.FColr(Start.LocalSettings["/Coul/Znaff"])
+  CoulZnaf = Val(Frmt[0])
+  Frmt = Utils.FColr(Start.LocalSettings["/Coul/Znss"])
+  CoulZns = Val(Frmt[0])
+  Frmt = Utils.FColr(Start.LocalSettings["/Coul/Focus"])
+  Coulfc = Val(Frmt[0])
+  Frmt = Utils.FColr(Start.LocalSettings["/Coul/Fnets"])
+  Utils.Observers(Me)
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Coul_fen"] = 0 Then Me.Background = Val(Frmt[0])
+  Music.Load(Start.Musique)
+  Ech1.Dat = True
+  Ech2.Dat = True
+  ch = New Chainage([Ech1, Ech2])
+  Me.Center
+
+End
+
+Public Sub Form_Open()
+
+  Try rbq = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBanques") & " ")
+  If Not Error Then
+    If rBq.Available Then
+      Do
+        Try BQ.Add(rBq!banques_code & " - " & rBq!banques_nom)
+      Loop Until rBq.MoveNext()
+    Endif
+  Endif
+  colLcr.Columns.count = 9
+  colLcr.Columns[0].Width = 70
+  colLcr.Columns[1].Width = 250
+  colLcr.Columns[2].Alignment = 3
+  colLcr.Columns[2].Width = 100
+  colLcr.Columns[3].Alignment = 3
+  colLcr.Columns[3].Width = 100
+  colLcr.Columns[4].Alignment = 3
+  colLcr.Columns[4].Width = 100
+  colLcr.Columns[5].Alignment = 2
+  colLcr.Columns[5].Width = 100
+  colLcr.Columns[6].Alignment = 3
+  colLcr.Columns[6].Width = 30
+  colLcr.Columns[7].Alignment = 3
+  colLcr.Columns[7].Width = 30
+  colLcr.Columns[8].Alignment = 3
+  colLcr.Columns[8].Width = 30
+  colLcr.Columns[0].Text = "Code"
+  colLcr.Columns[1].Text = "Nom"
+  colLcr.Columns[2].Text = "Date fac"
+  colLcr.Columns[3].Text = "Date ech"
+  colLcr.Columns[4].Text = "Numéro fac"
+  ColLcr.Columns[5].Text = "Montant"
+  ColLcr.Columns[6].Text = "E"
+  ColLcr.Columns[7].Text = "B"
+  ColLcr.Columns[8].Text = "C"
+  Deb()
+
+End
+
+'***************************************************
+'*  On affiche les LCR du bordereau séléctionné    *
+'***************************************************
+Public Sub Deb()
+
+  Dim rBrd As Result
+  Dim echeance1, echeance2 As String
+
+  echeance1 = Ech1.dte.D
+  echeance2 = Ech2.dte.D
+  With Utils
+    ColLcr.Clear
+    ' on selectionne sans date d'échéance
+    If t2.value And Not cd1.value Then
+      If T1.Value Then
+        rBrd = .db.Exec("select * from Fiches_Lcr where bordereau <> &1", 1)
+      Else
+        rBrd = .db.Exec("select * from Fiches_Lcr where bordereau <> &1 and ecartee = &2", 1, .convBool(E1.value))
+      Endif
+    Else
+      If Not t2.value And t1.value And Not cd1.value Then
+        If a1.value And IsNull(Entree.Text) Then rBrd = .db.Exec("select * from Fiches_Lcr where bordereau <> &1 and banque = &2", 1, Left$(Bq.text, 1))
+        If a1.value And Not IsNull(Entree.Text) Then rBrd = .db.Exec("select * from Fiches_Lcr where bordereau <> &1 and banque = &2 and codeentree = &3", 1, Left$(Bq.text, 1), Left$(Entree.text, 1))
+        If a2.value Then rBrd = .db.Exec("select * from Fiches_Lcr where bordereau <> &1 andand bordereau <> " & 0 & "", 1)
+      Else
+        If Not t2.value And Not t1.value And Not cd1.value Then
+          If a1.value And IsNull(Entree.Text) Then rBrd = .db.Exec("select * from Fiches_Lcr where bordereau <> &1 and banque = &2", 1, Left$(Bq.text, 1))
+          If a1.value And Not IsNull(Entree.Text) Then rBrd = .db.Exec("select * from Fiches_Lcr where bordereau <> &1 and banque = &2 and codeentree = &3", 1, Left$(Bq.text, 1), Left$(Entree.text, 1))
+          If a2.Value Then rBrd = .db.Exec("select * from Fiches_Lcr where bordereau <> " & 1 & " and banque <> &1 and ecartee = &2", 1, .convBool(E1.value))
+        Else
+          ' on selectionne avec date d'échéance
+          If t2.value And cd1.value Then
+            If T1.Value Then
+              rBrd = .db.Exec("select * from Fiches_Lcr where bordereau <> &1 and datech >= " & echeance1 & " and datech <= " & echeance2 & ",1")
+            Else
+              rBrd = .db.Exec("select * from Fiches_Lcr where bordereau <> &1 and ecartee = &2 and datech >= " & echeance1 & " and datech <= " & echeance2 & "  ", 1, .convBool(E1.value))
+            Endif
+          Else
+            If t2.value Not cd1.value Then
+              rBrd = .db.Exec("select * from Fiches_Lcr where bordereau <> " & 1 & "")
+            Else
+              If Not t2.value And cd1.value Then
+                If T1.Value And a1.value Then rBrd = .db.Exec("select * from Fiches_Lcr where bordereau <> &1 and banque is not null and datech >= " & echeance1 & " and datech <= " & echeance2 & ",1")
+                If T1.Value And a2.value Then rBrd = .db.Exec("select * from Fiches_Lcr where bordereau <> &1 andand bordereau <> " & 0 & " and datech >= " & echeance1 & " and datech <= " & echeance2 & ",1")
+              Else
+                If Not t2.value And Not t1.value And cd1.value Then
+                  If a1.value Then rBrd = .db.Exec("select * from Fiches_Lcr where bordereau <> &1 and banque is not null and ecartee = &2 and datech >= " & echeance1 & " and datech <= " & echeance2 & "  ", 1, .convBool(E1.value))
+                  If a2.Value Then rBrd = .db.Exec("select * from Fiches_Lcr where bordereau <> &1 andand bordereau <> " & 0 & " and ecartee = &2 and datech >= " & echeance1 & " and datech <= " & echeance2 & "  ", 1, .convBool(E1.value))
+                Endif
+              Endif
+            Endif
+          Endif
+        Endif
+      Endif
+    Endif
+    If rBrd.Available Then
+      Repeat
+        colLcr.Add(rBrd!lind, rBrd!lind)
+        ColLcr.Item[0] = rBrd!code
+        ColLcr.Item[1] = rBrd!nom
+        ColLcr.Item[2] = .Cdate_Aff(rBrd!date)
+        ColLcr.Item[3] = .Cdate_Aff(rBrd!datech)
+        ColLcr.Item[4] = rBrd!numfac
+        ColLcr.Item[5] = Format$(Val(.cpoint(rBrd!montant)), "0.00")
+        If rBrd!ecartee = 1 Then ColLcr.Item[6] = "*"
+        ColLcr.Item[7] = rBrd!banque
+        ColLcr.Item[8] = rBrd!codeentree
+        ColLcr.Item[9] = rBrd!lind
+      Until rBrd.MoveNext()
+    Endif
+  End With
+Catch
+  Music.Play
+  message.Error(Error.Text & " " & Error.where)
+
+End
+
+Public Sub btn_click()
+
+  If a1.Value Then
+    BQ.Visible = True
+    Hbox4.Visible = True
+    E2.value = True
+  Else
+    If A2.Value Then
+      BQ.Visible = False
+      Hbox4.Visible = False
+    Endif
+  Endif
+  If T2.Value Then
+    BQ.Visible = False
+    Hbox4.Visible = False
+  Endif
+  If A1.Value = True Then
+  Else
+    Deb()
+  Endif
+
+End
+
+Public Sub CheckBox1_Click()
+
+  If Panel2.Visible = True Then
+    Panel2.Visible = False
+  Else
+    Panel2.visible = True
+  Endif
+
+End
+
+Public Sub A1_Click()
+
+  If a2.Value = True Then
+    BQ.Visible = True
+    Hbox4.Visible = True
+  Endif
+
+End
+
+Public Sub A2_Click()
+
+  If A1.Value = True Then
+    BQ.Visible = False
+    Hbox4.Visible = False
+  Endif
+
+End
+
+Public Sub T2_Click()
+
+  If T2.Value = True Then
+    BQ.Visible = False
+    Hbox4.Visible = False
+  Endif
+
+End
+
+Public Sub cd1_Click()
+
+  Panel2.Visible = True
+
+End
+
+Public Sub Button9_Click()
+
+  Dim Montant As String
+  Dim nom As String
+  Dim datech As String
+  Dim datecreation As String
+  Dim Numfacture As String
+  Dim iLcr As Integer = 0
+  Dim mTotal As Float = 0
+  Dim liste As String
+  Dim pdf As CLcr
+  Dim Filename As String
+
+  If Not cd1.value And t1.value Then
+    If t2.value Then liste = "Liste de toutes les LCR"
+    If A1.value Then liste = "Liste de toutes les LCR attribuées"
+    If A2.value Then liste = "Liste de toutes les LCR non attribuées"
+  Endif
+  If Not cd1.value And t2.value Then
+    If t1.value Then liste = "Liste de toutes les LCR"
+    If E1.value Then liste = "Liste de toutes les LCR écartées"
+    If E2.value Then liste = "Liste de toutes les LCR non écartées"
+  Endif
+  Shell "cd " & User.Home & ""
+  Filename = User.home & "/Lcr.pdf"
+  pdf = New CLcr("Portrait", "mm", "A4")
+  pdf.Open()
+  pdf.AliasNbPages()
+  pdf.Entete(Liste)
+  'posx = 40
+  posy = 16
+  pdf.Level1A()
+  posy += 20
+  If ColLcr.count > 0 Then
+    ColLcr.MoveFirst()
+    Repeat
+      ColLcr.Item.Selected = True
+      Nom = ColLcr.Item[1]
+      montant = ColLcr.Item[5]
+      mTotal = mTotal + Val(Utils.cpoint(montant))
+      datech = ColLcr.Item[3]
+      datecreation = ColLcr.Item[2]
+      Numfacture = ColLcr.Item[4]
+      pdf.Level2A(Numfacture, datecreation, nom, "", "", "", datech, montant, ColLcr.Item[6], ColLcr.Item[7], ColLcr.Item[8], Posy)
+      PosY += 5
+      If PosY >= 268 Then
+        pdf.Baspage()
+        pdf.Entete(Liste)
+        'posx = 40
+        posy = 16
+        pdf.Level1A()
+        posy += 8
+      Endif
+      Inc iLcr
+    Until ColLcr.MoveNext()
+    pdf.Baspage()
+    pdf.Output(Filename, False)
+    Visualiseur.Prog_Editeur(Filename)
+  Endif
+
+End
+
+'Entete des lignes de LCR
+Public Sub Level2()
+
+  Draw.FillStyle = Fill.Dense12
+  Draw.font = font["Bitstream Charter"]
+  Draw.Font.Bold = False
+  Draw.Font.Size = 10
+  Draw.Rect(180, PosY, 400, 140)
+  Draw.Rect(580, PosY, 600, 140)
+  Draw.Rect(1180, PosY, 1500, 140)
+  Draw.Rect(2680, PosY, 600, 140)
+  Draw.Rect(3280, PosY, 600, 140)
+  Draw.Rect(3880, PosY, 400, 140)
+  Draw.Rect(4280, PosY, 400, 140)
+  Draw.Text("N° facture", 185, PosY, 400, 100, 3)
+  Draw.Text("Date facture", 585, PosY, 600, 100, 3)
+  Draw.Text("Nom", 1185, PosY, 1500, 100, 3)
+  Draw.Text("Date échéance", 2685, PosY, 600, 100, 3)
+  Draw.Text("Montant", 3285, PosY, 600, 100, 3)
+  Draw.Text("Ecartee", 3885, PosY, 400, 100, 3)
+  Draw.Text("banque", 4285, PosY, 400, 100, 3)
+
+End
+
+'Lignes des LCR
+Public Sub Level3(snumfac As String, sdate As String, snom As String, sdatee As String, smontant As String, ecartee As String, banque As String)
+
+  Draw.font = font["Bitstream Charter"]
+  Draw.Font.Bold = False
+  Draw.Font.Size = 8
+  Draw.Text(snumfac, 185, PosY)
+  Draw.Text(sdate, 585, PosY, 500, 60, 3)
+  Draw.Text(snom, 1185, PosY)
+  Draw.Text(sdatee, 2685, posy, 600, 60, 3)
+  Draw.Text(smontant, 3285, posy, 600, 60, 3)
+  Draw.Text(ecartee, 3885, posy, 400, 60, 3)
+  Draw.Text(banque, 4285, posy, 400, 60, 3)
+
+End
+
+'Total lignes LCR
+Public Sub Level4(Nbtraite As String, montant As String)
+
+  Draw.font = font["Bitstream Charter"]
+  Draw.Font.Bold = False
+  Draw.Font.Size = 10
+  Draw.Line(120, PosY, 4700, PosY)
+  PosY = PosY + 60
+  Draw.Text("Nombre de traite(s) : " & Nbtraite, 250, PosY)
+  Draw.Text("Montant : " & Format(Val(Utils.cpoint(montant)), "0.00"), 1300, PosY)
+  PosY = PosY + 40
+  Draw.Line(120, PosY + 200, 4700, PosY + 200)
+
+End
+
+Public Sub BQ_Change()
+
+  Deb()
+
+End
+
+Public Sub Entree_Change()
+
+  Deb()
+
+End
+
+'*****************************************************
+'*            On supprime les LCR affichées          *
+'*****************************************************
+Public Sub Button2_Click()
+
+  Dim rBrd As Result
+
+  With Utils
+    If Message.Question("Attention ! vous allez supprimer les Lcr affichées ", "Oui", "Non") = 1 Then
+      colLcr.MoveFirst()
+      Repeat
+        colLcr.item.Selected = True
+        Utils.db.Exec("DELETE FROM Fiches_Lcr WHERE lind = &1", ColLcr.Item[9])
+      Until colLcr.MoveNext()
+      Form_Open()
+      Message.Info("Traitement terminé !")
+    Endif
+  End With
+Catch
+  Music.Play
+  message.Error(Error.Text & " " & Error.where)
+
+End

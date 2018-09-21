@@ -1,0 +1,479 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Banque.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 24/07/2011
+'# Gestion de la table des banques
+'################################################
+'
+
+Tri As String
+tab As String
+sel As String
+Lcrtable[2] As String
+B As Integer
+son As Integer = Start.Son
+sKey As String
+Dbl As String
+CoulZns As Integer ' Variable pour la couleur du background des zones de saisie
+CoulZnaf As Integer ' Variable pour la couleur du background des columnviews
+Coulfc As Integer ' Variable pour la couleur du focus
+nv As Boolean = True
+ComboTest As Boolean = False
+
+Public Sub _New()
+
+  Dim Frmt As New String[]
+  Dim ch As Chainage
+
+  Frmt = Utils.FColr(Start.localSettings["/Coul/Znaff"])
+  CoulZnaf = Val(Frmt[0])
+  Frmt = Utils.FColr(Start.localSettings["/Coul/Znss"])
+  CoulZns = Val(Frmt[0])
+  Frmt = Utils.FColr(Start.localSettings["/Coul/Focus"])
+  Coulfc = Val(Frmt[0])
+  Frmt = Utils.FColr(Start.localSettings["/Coul/Fnets"])
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Coul_fen"] = 0 Then
+    Me.Background = Val(Frmt[0])
+  Else
+    Coulfc = &HAAFF7F&
+  Endif
+  Music.Load(Start.Musique)
+  Me.Center
+  CO.Text = "Code Banque"
+  Inte.Text = "Désignation"
+  code.reg = "[1-9]{1}"
+  ch = New Chainage([code, rs, CodeBanque, Dml, Nume, Numcompt, cg, Mail, Reftireur, Siren, Refremise])
+  
+End
+
+Public Sub Form_Open()
+
+  Tab = "Fiches_Banques"
+  Tri = "banques_code"
+  Tris()
+  Deb2()
+  code.SetFocus
+  code.Select
+
+End
+
+Public Sub ColBanque_Data(Row As Integer, Column As Integer)
+
+  With Utils
+    Lcrtable[0] = "banques_code"
+    Lcrtable[1] = "banques_nom"
+    .rs1.MoveTo(Row)
+    Try ColBanque.data.Text = Str(.rs1[Lcrtable[Column]])
+  End With
+
+End
+
+Public Sub Tris()
+
+  With ColBanque
+    .Columns.count = 2
+    .Columns[0].Width = CO.Width
+    .Columns[1].Width = Inte.Width
+  End With
+
+End
+
+Public Sub Deb2()
+
+  Utils.Base(ColBanque, "select * from Fiches_Banques where " & Tri & " like  \"" & sel & "%\" order by " & Tri & "")
+
+End
+
+Public Sub Deb3()
+
+  Utils.Base(ColBanque, "select * from Fiches_Banques where " & Tri & " like  \"" & sel & "%\" order by " & Tri & " Desc")
+
+End
+
+Public Sub Maj_Zones()
+
+  Dim rBanque As Result
+
+  With Utils
+    If ColBanque.Row > -1 Then
+      code.Text = ColBanque[ColBanque.row, 0].Text
+    Endif
+    rBanque = .db.Exec("select * from Fiches_Banques where banques_code = &1", Code.Text)
+    If rBanque.Available Then
+      Rs.Text = rBanque!banques_nom
+      Nume.Text = rBanque!banques_nume
+      Dml.Text = rBanque!banques_dmln
+      Cg.Text = rBanque!banques_codeg
+      Numcompt.Text = rBanque!banques_numcpt
+      Siren.Text = rBanque!banques_numsiren
+      ComboBox1.Text = rBanque!banques_adr
+      Rfin.Text = rBanque!banques_fenrg
+      Crst.Text = rBanque!banques_txt
+      Mail.Text = rBanque!banques_mail
+      Refremise.text = rBanque!banques_ref
+      Entete.text = rBanque!banques_entete
+      Corps.text = rBanque!banques_corps
+      Reftireur.Text = rBanque!banques_reftireur
+      CodeBanque.Text = rBanque!banques_codeb
+    Endif
+  End With
+
+End
+
+Public Sub Refresh()
+
+  form_Open()
+
+End
+
+Public Sub CleanChamps()
+
+  Code.Clear
+  Rs.clear
+  Nume.clear
+  Dml.clear
+  Cg.clear
+  Numcompt.clear
+  Siren.clear
+  ComboBox1.Text = ""
+  Rfin.Text = ""
+  Crst.clear
+  Mail.Clear
+  Refremise.clear
+  Entete.Clear
+  Corps.Clear
+  Reftireur.Clear
+  CodeBanque.Clear
+
+End
+
+Public Sub Colbanque_Click()
+
+  CleanChamps()
+  If Not IsNull(ColBanque[ColBanque.row, 0].Text) Then
+    Maj_Zones()
+  Endif
+  CO.Text = "Code Banque"
+  Inte.Text = "Désignation"
+  code.SetFocus
+  code.Select
+  nv = False
+Catch
+  Code.setfocus
+
+End
+
+Public Sub Btn_keyPress()
+
+  If key.code = key.enter Or key.code = key.return Then
+    Select Case Last.tag
+      Case 3
+        Button4_Click()
+        code.SetFocus
+        code.Select
+        Stop Event
+    End Select
+  Endif
+
+  If key.code = key.F1 Then
+    Button7_Click()
+    Stop Event
+  Endif
+
+End
+
+Public Sub Dsg_GotFocus()
+
+  Select Case Last.tag
+
+    Case 1
+      Button4_Click()
+  End Select
+
+End
+
+Public Sub Btn_Click()
+
+  Select Case Last.tag
+    Case 1
+      Button7_Click()
+
+    Case 2
+      Button3_Click()
+
+    Case 3
+      Dsg1.SetFocus 'sert à gerer la perte de focus
+      Button4_Click()
+      Stop Event
+
+    Case 4
+      Me.Close
+
+  End Select
+
+End
+
+Public Sub Cmpt_Lostfocus()
+
+  Select Case Last.tag
+    Case 1
+      If Not IsNull(code.text) Then
+        If nv = True Then
+          code_LF()
+          If B = 1 Then
+            code.SetFocus
+            code.Select
+          Endif
+        Endif
+      Endif
+      Stop Event
+
+    Case 2
+      Rs.Text = Utils.Remplace(Rs.Text)
+      Stop Event
+
+  End Select
+
+  If b <> 1 Then Utils.ObsLstf(Last)
+
+End
+
+Public Sub code_LF()
+
+  If code.Text <> "" Then
+    banques_Man()
+  Else
+    b = 1
+  Endif
+
+End
+
+Public Sub Co_GotFocus()
+
+  Co.Background = Coulfc
+  Co_Click()
+
+End
+
+Public Sub Co_LostFocus()
+
+  Utils.ObsLstf(CO)
+
+End
+
+Public Sub Inte_GotFocus()
+
+  Inte.Background = Coulfc
+  Inte_Click()
+
+End
+
+Public Sub Inte_LostFocus()
+
+  Utils.ObsLstf(Inte)
+
+End
+
+Public Sub Dbclk()
+
+  If Not Dbl Then
+    Deb3()
+    Dbl = "1"
+  Else
+    Deb2()
+    Dbl = ""
+  Endif
+
+End
+
+Public Sub Co_Click()
+
+  sel = ""
+  Dbl = ""
+  ref()
+  Co.Text = ""
+  Inte.Text = "Désignation"
+  Tri = "banques_code"
+  Deb2()
+
+End
+
+Public Sub Co_Dblclick()
+
+  sel = ""
+  ref()
+  Co.Text = ""
+  Inte.Text = "Désignation"
+  Tri = "banques_code"
+  Dbclk()
+
+End
+
+Public Sub Co_KeyPress()
+
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    Deb2()
+  Endif
+
+End
+
+Public Sub Inte_Click()
+
+  sel = ""
+  Dbl = ""
+  ref()
+  Co.Text = "Code Banque"
+  Inte.Text = ""
+  Tri = "banques_nom"
+  Deb2()
+
+End
+
+Public Sub Inte_Dblclick()
+
+  sel = ""
+  ref()
+  Co.Text = "Code Banque"
+  Inte.Text = ""
+  Tri = "banques_nom"
+  Dbclk()
+
+End
+
+Public Sub Inte_KeyPress()
+
+  If Key.code = Key.Return Or Key.code = Key.Enter Then
+  Else
+    If key.code = key.backspace Then
+      sel = Left$(sel, (Len(sel) - 1))
+    Else
+      sel = sel & key.Text
+    Endif
+    Deb2()
+  Endif
+Catch
+
+End
+
+Public Sub Ref()
+
+  Tri = "banques_code"
+  CleanChamps()
+  Tris()
+
+End
+
+'***************************************************
+'* Saisie d'une banque d'oeuvre manuellement       *
+'***************************************************
+Public Sub banques_man()
+
+  Dim rResult As Result
+
+  rResult = Utils.db.Exec("SELECT * FROM Fiches_Banques where banques_code = &1", code.Text)
+  If rResult.Available Then
+    With utils
+      code.Text = rResult!banques_code
+      Rs.text = rResult!banques_nom
+      Maj_Zones()
+    End With
+  Endif
+
+End
+
+'**********************************
+'* Suppression du code banque     *
+'**********************************
+Public Sub Button3_Click()
+
+  If son Then
+    Music.Play
+  Endif
+  If Message.Question("Etes vous sur de vouloir effacer cet enregistrement", "Oui", "Non") = 1 Then
+    Utils.db.Exec("DELETE FROM Fiches_Banques WHERE banques_code = &1", code.Text)
+  Endif
+  sKey = ColBanque.row
+  Refresh()
+  cleanchamps()
+  ColBanque.MoveTo(skey, 0)
+
+End
+
+'**********************************
+'*  Validation du code banque     *
+'**********************************
+Public Sub Button4_Click()
+
+  Dim rResult As Result
+  Dim CountRow As Integer
+
+  With Utils
+    Rs.Text = .Remplace(Rs.Text)
+    If code.TEXT = "" Then
+      Message("VOUS DEVEZ D'ABORD REMPLIR LES CHAMPS OBLIGATOIRES(code, N° emetteur, domiciliation ...)", "OK")
+    Else
+      If b <> 1 Then
+        rResult = Utils.db.Exec("SELECT * FROM Fiches_Banques where banques_code = &1 ", code.Text)
+        If Not rResult.Available Then
+          Utils.db.Exec("INSERT INTO Fiches_Banques (banques_code, banques_nom, banques_dmln, banques_nume, banques_codeb, banques_codeg, banques_numcpt, banques_numsiren, banques_adr, banques_txt, banques_fenrg, banques_mail, banques_ref, banques_entete, banques_corps, banques_reftireur) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16})", code.Text, Rs.Text, Dml.Text, Nume.Text, CodeBanque.Text, Cg.Text, Numcompt.Text, Siren.Text, ComboBox1.Text, Crst.Text, Rfin.text, Mail.Text, Refremise.text, Entete.text, Corps.text, Reftireur.Text)
+          skey = code.Text
+          Refresh()
+          Cleanchamps()
+          nv = False
+          For CountRow = 0 To (ColBanque.Rows.Count - 1)
+            If ColBanque[CountRow, 1].Text = skey Then
+              ColBanque.Rows[CountRow].Selected = True
+              Break
+            Endif
+          Next
+        Else
+          Utils.db.Exec("UPdate  Fiches_Banques  SET  banques_code = &1 , banques_nom = &2 , banques_dmln = &3 , banques_nume = &4, banques_codeb = &5, banques_codeg = &6, banques_numcpt = &7, banques_numsiren = &8, banques_adr = &9, banques_txt = &{10}, banques_fenrg = &{11}, banques_mail = &{12}, banques_ref = &{13}, banques_entete = &{14}, banques_corps = &{15}, banques_reftireur = &{16} where banques_code = &1", code.Text, Rs.Text, Dml.Text, Nume.Text, CodeBanque.Text, Cg.Text, Numcompt.Text, Siren.Text, ComboBox1.Text, Crst.Text, Rfin.text, Mail.Text, Refremise.Text, Entete.text, Corps.text, Reftireur.Text)
+          sKey = ColBanque.row
+          Cleanchamps()
+          Refresh()
+          ColBanque.MoveTo(skey, 0)
+        Endif
+      Endif
+    Endif
+  End With
+Catch
+  If son Then
+    Music.Play
+  Endif
+  message.Error(Error.Text & " " & Error.where)
+
+End
+
+'**********************************
+'*    Appel de la doc html        *
+'**********************************
+Public Sub Button7_Click()
+
+  Visdoc.Web(Application.Path &/ "Docs/Banques.html")
+
+End

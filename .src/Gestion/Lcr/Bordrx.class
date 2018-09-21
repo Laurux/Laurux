@@ -1,0 +1,561 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Bordereaux.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 24/07/2011
+'# Gestion des bordereaux
+'################################################
+'
+
+Tri As String
+tab As String
+rs1 As Result
+sel As String
+txt As String
+Brdtable[10] As String
+B As Integer
+rResult As Result
+son As Integer = Start.Son
+sKey As String
+Dbl As String
+CoulB As Integer ' Variable pour la couleur du background
+CoulF As Integer ' Variable pour la couleur du Foreground
+Fnt As String ' Variable pour la police
+CoulZns As Integer ' Variable pour la couleur du background des zones de saisie
+CoulZnaf As Integer ' Variable pour la couleur du background des columnviews
+Coulfc As Integer ' Variable pour la couleur du focus
+Coulfond As New String[]
+nv As Boolean = True
+Dte1 As Integer
+Type As String
+Public Bsel As Boolean
+Public sCmpt As String
+Public sdesg As String
+PosX As Integer
+PosY As Integer
+rBq As Result
+Public Nb As Integer = 0
+Public sDate As Boolean = False
+Public iLind As Integer
+Public ControleCombobox As Boolean = True
+
+Public Sub _New()
+
+  Dim Frmt As New String[]
+
+  Frmt = Utils.FColr(Start.localSettings["/Coul/Znaff"])
+  CoulZnaf = Val(Frmt[0])
+  Frmt = Utils.FColr(Start.localSettings["/Coul/Znss"])
+  CoulZns = Val(Frmt[0])
+  Frmt = Utils.FColr(Start.localSettings["/Coul/Focus"])
+  Coulfc = Val(Frmt[0])
+  Frmt = Utils.FColr(Start.localSettings["/Coul/Fnets"])
+  Utils.Observers(Me)
+  If Start.LocalSettings["/Soc" & Start.Societe & "/Coul_fen"] = 0 Then Me.Background = Val(Frmt[0])
+  Music.Load(Start.Musique)
+  Me.Center
+  Entete()
+
+End
+
+Public Sub Form_Open()
+
+  colLcr.Columns.count = 6
+  colLcr.Columns[0].Width = 100
+  colLcr.Columns[1].Width = 280
+  colLcr.Columns[2].Alignment = 3
+  colLcr.Columns[2].Width = 120
+  colLcr.Columns[3].Alignment = 3
+  colLcr.Columns[3].Width = 120
+  colLcr.Columns[4].Alignment = 3
+  colLcr.Columns[4].Width = 120
+  colLcr.Columns[5].Alignment = 2
+  colLcr.Columns[5].Width = 120
+  colLcr.Columns[0].Text = "Code"
+  colLcr.Columns[1].Text = "Nom"
+  colLcr.Columns[2].Text = "Date fac"
+  colLcr.Columns[3].Text = "Date ech"
+  colLcr.Columns[4].Text = "Numéro fac"
+  ColLcr.Columns[5].Text = "Montant"
+  Tri = "bordereau"
+  Tris()
+  Deb()
+
+End
+
+Public Sub Tris()
+
+  With ColBrd
+    .Columns.count = 8
+    .Columns[0].Width = BOR.Width
+    .Columns[1].Width = BQ.Width
+    .Columns[2].Width = CE.Width
+    .Columns[3].Width = DTR.Width
+    .Columns[4].Width = RFR.Width
+    .Columns[5].Width = DTV.Width
+    .Columns[6].Width = MNT.Width
+    .Columns[7].Width = ST.Width
+  End With
+
+End
+
+Public Sub Entete()
+
+  BOR.Text = "N°"
+  BQ.Text = "Banque"
+  CE.Text = "Code entrée"
+  DTR.Text = "Date remise"
+  RFR.Text = "Ref remise"
+  DTV.Text = "date valeur"
+  MNT.Text = "Montant"
+  ST.Text = "Etat" '0 non envoyé, 1 envoyé
+  sel = ""
+
+End
+
+Public Sub ColBrd_Data(Row As Integer, Column As Integer)
+
+  With Utils
+    Brdtable[0] = "bordereau"
+    Brdtable[1] = "banque"
+    Brdtable[2] = "codeentree"
+    Brdtable[3] = "dateremise"
+    Brdtable[4] = "refremise"
+    Brdtable[5] = "datevaleur"
+    Brdtable[6] = "tot"
+    Brdtable[7] = "etat"
+    'Brdtable[8] = "lind"
+    .rs1.MoveTo(Row)
+    Try ColBrd.data.Text = Str(.rs1[Brdtable[Column]])
+    If column = 0 Or If column = 2 Or If column = 3 Or If column = 5 Or If column = 7 Then ColBrd.Data.Alignment = 3
+    If column = 1 Then
+      rbq = Utils.db.Exec("SELECT * FROM Fiches_Banques where banques_code = &1", ColBrd.data.Text)
+      If rBq.Available Then ColBrd.data.Text = ColBrd.data.Text & " - " & rBq!banques_nom
+    Endif
+    If Column = 3 Or If Column = 5 Then
+      ColBrd.data.Text = Replace$(ColBrd.data.Text, "/", ".")
+      ColBrd.data.Text = Left$(ColBrd.data.Text, 10)
+    Endif
+    If column = 6 Then ColBrd.Data.Alignment = 2
+  End With
+
+End
+
+Public Sub Deb()
+
+  Utils.base(ColBrd, "SELECT * FROM Fiches_Bordereaux where etat = " & 0 & "  order by bordereau")
+
+End
+
+Public Sub Deb2()
+
+  Utils.base(ColBrd, "SELECT * FROM Fiches_Bordereaux where etat = " & 1 & "  order by bordereau")
+
+End
+
+'***************************************************
+'*  On affiche les LCR du bordereau séléctionné    *
+'***************************************************
+Public Sub ColBrd_Click()
+
+  Dim rBrd As Result
+
+  With Utils
+    ColLcr.Clear
+    If Not IsNull(ColBrd[ColBrd.row, 0].Text) Then
+      rBrd = .db.Exec("select * from Fiches_Lcr where bordereau = &1", ColBrd[ColBrd.row, 0].Text)
+      If rBrd.Available Then
+        Repeat
+          colLcr.Add(rBrd!lind, rBrd!lind)
+          ColLcr.Item[0] = rBrd!code
+          ColLcr.Item[1] = rBrd!nom
+          ColLcr.Item[2] = LDate(rBrd!date).L
+          ColLcr.Item[3] = LDate(rBrd!datech).L
+          ColLcr.Item[4] = rBrd!numfac
+          ColLcr.Item[5] = rBrd!montant
+          ColLcr.Item[6] = rBrd!acceptee
+        Until rBrd.MoveNext()
+      Endif
+    Endif
+  End With
+Catch
+  Music.Play
+  message.Error(Error.Text & " " & Error.where)
+
+End
+
+'***************************************************
+'*  On réinjecte les LCR du bordereau séléctionné  *
+'***************************************************
+Public Sub Button10_Click()
+
+  Dim rBrd As Result
+  Dim brd As String
+
+  With Utils
+    Try brd = ColBrd[ColBrd.row, 0].Text
+    If Not Error Then
+      If N.Value = True Then
+        If Message.Question("Attention ! vous allez réinjecter les LCR du bordereau  N° " & ColBrd[ColBrd.row, 0].Text & " pour la banque " & ColBrd[ColBrd.row, 1].Text, "Oui", "Non") = 1 Then
+          ColLcr.Clear
+          If Not IsNull(ColBrd[ColBrd.row, 0].Text) Then
+            rBrd = .db.Exec("select * from Fiches_Lcr where bordereau = &1", ColBrd[ColBrd.row, 0].Text)
+            If rBrd.Available Then
+              Repeat
+                Utils.db.Exec("UPdate  Fiches_Lcr  SET  bordereau = &1 where bordereau = &2", "", ColBrd[ColBrd.row, 0].Text)
+              Until rBrd.MoveNext()
+            Endif
+            Utils.db.Exec("DELETE FROM Fiches_Bordereaux WHERE bordereau = &1", ColBrd[ColBrd.row, 0].Text)
+            Form_Open()
+            Message.Info("Traitement terminé !")
+          Endif
+        Endif
+      Else
+        Message.Info("On ne peut pas réinjecter un bordereau qui a été envoyé à la banque !")
+      Endif
+    Endif
+  End With
+Catch
+  Music.Play
+  message.Error(Error.Text & " " & Error.where)
+
+End
+
+'*****************************************************
+'*  On supprime les LCR et le bordereau séléctionné  *
+'*****************************************************
+Public Sub Button2_Click()
+
+  Dim brd As String
+
+  With Utils
+    Try brd = ColBrd[ColBrd.row, 0].Text
+    If Not Error Then
+      If N.Value = False Then
+        If Message.Question("Attention ! vous allez supprimer le bordereau N° " & ColBrd[ColBrd.row, 0].Text & " pour la banque " & ColBrd[ColBrd.row, 1].Text, "Oui", "Non") = 1 Then
+          ColLcr.Clear
+          If Not IsNull(ColBrd[ColBrd.row, 0].Text) Then
+            Utils.db.Exec("DELETE FROM Fiches_Lcr WHERE bordereau = &1", ColBrd[ColBrd.row, 0].Text)
+            Utils.db.Exec("DELETE FROM Fiches_Bordereaux WHERE bordereau = &1", ColBrd[ColBrd.row, 0].Text)
+            Form_Open()
+            Message.Info("Traitement terminé !")
+          Endif
+        Endif
+      Else
+        Message.Info("Vous ne pouvez pas supprimer un bordereau qui n'a pas été envoyé à la banque !")
+      Endif
+    Endif
+  End With
+Catch
+  Music.Play
+  message.Error(Error.Text & " " & Error.where)
+
+End
+
+Public Sub Button4_Click()
+
+  Me.Close
+
+End
+
+Public Sub Button9_Click()
+
+  Gen_Bordereau(1)
+
+End
+
+Public Sub Gen_Bordereau(Org As String)
+
+  Dim setb As String
+  Dim sguichet As String
+  Dim snum As String
+  Dim srib As String
+  Dim sdom As String
+  Dim snom As String
+  Dim sadr1 As String
+  Dim sadr2 As String
+  Dim scp As String
+  Dim Traite As String
+  Dim rBrd As Result
+  Dim rCli As Result
+  Dim Filename, Filename2 As String
+  Dim Numero As String
+  Dim Emetteur As String
+  Dim Resoc As String
+  Dim Dombq As String
+  Dim Cguichet As String
+  Dim Numcompte As String
+  Dim Numsiren As String
+  Dim cdacc As String
+  Dim codebanque As String
+  Dim numcpt As String
+  Dim reference As String
+  Dim Montant As String
+  Dim adresse As String
+  Dim datech As String
+  Dim datecreation As String
+  Dim Numfacture, Type As String
+  Dim iLcr As Integer = 0
+  Dim mTotal As Float = 0
+  Dim pdf As CLcr
+
+  Type = "Bordereau de remise de LCR magnétiques du " & Format$(Now, "dd-mm-yyyy")
+  Coulfond = Utils.Coulfd()
+  PosY = 100
+  Try filename2 = Settings["/Soc" & Start.Soc & "/Fichiers"] & "/Bordereau" & ColBrd[ColBrd.row, 0].Text & ".pdf "
+  If Not Error Then
+    Shell "cd " & Settings["/Soc" & Start.Soc & "/Fichiers"] & ""
+    Filename = Settings["/Soc" & Start.Soc & "/Fichiers"] & "/Lcr" & Start.Soc & ColBrd[ColBrd.row, 0].Text & ".pdf"
+    pdf = New CLcr("Portrait", "mm", "A4")
+    pdf.Open()
+    pdf.AliasNbPages()
+    pdf.Entete(Type)
+    posx = 40
+    posy = 16
+    reference = ColBrd[ColBrd.row, 4].Text
+    Reference = reference & String$(11 - Len(reference), " ")
+    rbq = Utils.db.Exec("SELECT * FROM Fiches_Banques where banques_code = &1", ColBrd[ColBrd.row, 1].Text)
+    If rBq.Available Then
+      Emetteur = rBq!banques_nume
+      Resoc = rBq!banques_nom
+      Dombq = rBq!banques_dmln
+      Cguichet = rBq!banques_codeg & "  "
+      CodeBanque = rBq!banques_codeb & "  "
+      Numcompte = rBq!banques_numcpt & "  "
+    Endif
+    pdf.Level1B(Resoc, "Emetteur " & Emetteur, Resoc & Dombq, CodeBanque, cguichet, Numcompte, "Référence remise : " & reference, "Code entrée : ", Posy)
+    PosY += 44
+    pdf.Level2B(PosY)
+    PosY += 14
+    ColLcr.MoveFirst()
+    Repeat
+      ColLcr.Item.Selected = True
+      rCli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " where cli_code = &1", ColLcr.Item[0])
+      Adresse = rCli!cli_rs_soc & " " & rCli!cli_nom & " " & rCli!cli_pnm & " " & rCli!cli_cd_ptl & " " & rCli!cli_ville
+      montant = ColLcr.Item[5]
+      mTotal = mTotal + Val(Utils.cpoint(montant))
+      datech = ColLcr.Item[3]
+      datecreation = ColLcr.Item[2]
+      Numfacture = ColLcr.Item[4]
+      pdf.Level3B(Numfacture, datecreation, adresse, datech, montant, Posy)
+      PosY += 4
+      If PosY >= 268 Then
+        pdf.Baspage()
+        pdf.Entete(Type)
+        posx = 40
+        posy = 16
+        pdf.Level1B(Resoc, "Emetteur " & Emetteur, Resoc & Dombq, CodeBanque, cguichet, Numcompte, "Référence remise : " & reference, "Code entrée : ", Posy)
+        posy += 44
+      Endif
+      Inc iLcr
+    Until ColLcr.MoveNext()
+    PosY += 5
+    pdf.Lines(Posy)
+    Posy += 4
+    Pdf.Level4B(iLcr, mtotal, posy)
+    Posy += 12
+    pdf.Lines(Posy)
+    pdf.Baspage()
+    pdf.Output(Filename, False)
+    If org = "1" Then
+      Visualiseur.Prog_Editeur(Filename)
+    Else
+      Impression.Prog_Editeur(Settings["/Soc" & Start.Soc & "/Fichiers"] & "/Lcr" & Start.Soc & ColBrd[ColBrd.row, 0].Text & ".pdf")
+    Endif
+  Endif
+
+End
+'Génération du fichier des LCR
+
+Public Sub Button3_Click()
+
+  Dim rBrd As Result
+  Dim rCli As Result
+  Dim rBq As Result
+  Dim hfile As File
+  Dim Numero As Integer = 1
+  Dim Emetteur As String
+  Dim Resoc As String
+  Dim Dombq As String
+  Dim Cguichet As String
+  Dim Numcompte As String
+  Dim Numsiren As String
+  Dim fin As String
+  Dim reftire As String
+  Dim nmtire As String
+  Dim dmlntire As String
+  Dim cdacc As String
+  Dim cdbanque As String
+  Dim cdguichet As String
+  Dim numcpt As String
+  Dim montant As String
+  Dim datech As String
+  Dim datecreation As String
+  Dim reftireur As String
+  Dim adresse1 As String
+  Dim adresse2 As String
+  Dim cp As String
+  Dim total As String = "0"
+  Dim Dateremise As String
+  Dim Datevaleur As String
+  Dim reference As String
+  Dim CodeBanque As String
+  Dim sText As String
+  Dim sText2 As String
+  Dim sCourriel As String
+  Dim TxtMail As String
+  Dim spiece As String
+  Dim spiece2 As String
+  Dim adrimp As Boolean
+  Dim cdent As String
+
+'If Not IsNull(Start.localSettings["/Soc" & Start.Societe & "/Prgmail"]) Then
+  If ColLcr.Count > 0 Then
+    Dateremise = Left$(ColBrd[ColBrd.row, 3].Text, 2) & Mid$(ColBrd[ColBrd.row, 3].Text, 4, 2) & Right$(ColBrd[ColBrd.row, 3].Text, 2)
+    Datevaleur = Left$(ColBrd[ColBrd.row, 5].Text, 2) & Mid$(ColBrd[ColBrd.row, 5].Text, 4, 2) & Right$(ColBrd[ColBrd.row, 5].Text, 2)
+    reference = ColBrd[ColBrd.row, 4].Text
+    Reference = reference & String$(11 - Len(reference), " ")
+    rbq = Utils.db.Exec("SELECT * FROM Fiches_Banques where banques_code = &1", ColBrd[ColBrd.row, 1].Text)
+    If rBq.Available Then
+      Emetteur = rBq!banques_nume & String$(6 - Len(rBq!banques_nume), " ")
+      Try Resoc = rBq!banques_nom & String$(24 - Len(rBq!banques_nom), " ")
+      If Error Then Resoc = Left$(rBq!banques_nom, 24)
+      Try Dombq = rBq!banques_dmln & String$(24 - Len(rBq!banques_dmln), " ")
+      If Error Then Dombq = Left$(rBq!banques_dmln, 24)
+      Cguichet = rBq!banques_codeg & String$(5 - Len(rBq!banques_codeg), " ")
+      CodeBanque = rBq!banques_codeb & String$(5 - Len(rBq!banques_codeb), " ")
+      Numsiren = rBq!banques_numsiren & String$(5 - Len(rBq!banques_numsiren), " ")
+      reftireur = rBq!banques_reftireur & String$(10 - Len(rBq!banques_reftireur), " ")
+      Numcompte = rBq!banques_numcpt & String$(11 - Len(rBq!banques_numcpt), " ")
+      sCourriel = rBq!banques_mail
+      fin = rBq!banques_fenrg 
+      cdent = Left$(ColBrd[ColBrd.row, 2].Text, 1)
+      If rbq!banques_adr = "O" Or (rbq!banques_adr = "C" And Val(cdent) > 4) Then adrimp = True
+    Endif
+    HFile = Open Start.localSettings["/Soc" & Start.Societe & "/Fichiers"] & "/LCR" & Start.Societe & Left$(ColBrd[ColBrd.row, 1].Text, 1) For Write Create
+    If fin Then
+      If fin = "Ws" Then
+        hfile.EndOfLine = gb.Windows
+        fin = ""
+      Else
+        fin = " " & fin
+      Endif
+    Endif
+    Print #HFile, "0360" & Format$(Numero, "00000000") & Emetteur & String$(6, " ") & Dateremise & Resoc & Dombq & cdent & String$(1, " ") & "E" & CodeBanque & cguichet & Numcompte & String$(16, " ") & Datevaleur & String$(10, " ") & Numsiren & String$(10, " ") & reference & fin
+    Inc numero
+    ColLcr.MoveFirst()
+    Repeat
+      ColLcr.Item.Selected = True
+      rCli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " where cli_code = &1", ColLcr.Item[0])
+      Reftire = rCli!cli_ref_tir & String$(10 - Len(rCli!cli_ref_tir), " ")
+      If Len(rCli!cli_nom) < 24 Then
+      Nmtire = rCli!cli_nom & String$(24 - Len(rCli!cli_nom), " ")
+      Else
+        Nmtire = Left$(rCli!cli_nom, 24)
+      Endif
+      Nmtire = Upper$(Utils.Replace(Nmtire))
+      If Len(rCli!cli_dmln) < 24 Then
+      dmlntire = rCli!cli_dmln & String$(24 - Len(rCli!cli_dmln), " ")
+      Else
+        dmlntire = Left$(rCli!cli_dmln, 24)
+      Endif
+      dmlntire = Upper$(Utils.Replace(dmlntire))
+      cdacc = ColLcr.Item[6]
+      If IsNull(cdacc) Then cdacc = "0"
+      cdbanque = rCli!cli_cd_bq & String$(5 - Len(rCli!cli_cd_bq), " ")
+      cdguichet = rCli!cli_cd_gch & String$(5 - Len(rCli!cli_cd_gch), " ")
+      numcpt = rCli!cli_num_cpt & String$(11 - Len(rCli!cli_num_cpt), " ")
+      montant = ColLcr.Item[5]
+      montant = Format$(Val(montant) * 100, "000000000000")
+      datech = Left$(ColLcr.Item[3], 2) & Mid$(ColLcr.Item[3], 4, 2) & Right$(ColLcr.Item[3], 2)
+      datecreation = Left$(ColLcr.Item[2], 2) & Mid$(ColLcr.Item[2], 4, 2) & Right$(ColLcr.Item[2], 2)
+      If reftireur = Space(10) And ColLcr.Item[4] Then reftireur = ColLcr.Item[4]
+      Print #HFile, "0660" & Format$(Numero, "00000000") & Emetteur & String$(2, " ") & reftire & nmtire & dmlntire & cdacc & String$(2, " ") & cdbanque & cdguichet & numcpt & montant & String$(4, " ") & datech & datecreation & String$(20, " ") & reftireur & fin
+      Inc numero
+      If adrimp Then
+        adresse1 = rCli!cli_adr1 & String$(32 - Len(rCli!cli_adr1), " ")
+        adresse1 = Upper$(Utils.Replace(adresse1))
+        adresse2 = rCli!cli_adr2 & String$(32 - Len(rCli!cli_adr2), " ")
+        adresse2 = Upper$(Utils.Replace(adresse2))
+        cp = rCli!cli_cd_ptl & rCli!cli_ville
+        cp = Upper$(Utils.Replace(cp))
+        cp = cp & String$(32 - Len(cp), " ")
+        Print #HFile, "1660" & Format$(Numero, "00000000") & String$(6, " ") & adresse1 & adresse2 & cp & String$(46, " ") & fin
+        Inc numero
+      Endif
+      Total = Val(Total) + Val(montant)
+    Until ColLcr.MoveNext()
+    Print #HFile, "0860" & Format$(Numero, "00000000") & String$(90, " ") & Format$(Total, "000000000000") & String$(46, " ") & fin
+    Close #hFile
+    Utils.db.Exec("UPdate  Fiches_Bordereaux  SET  etat = &2 where bordereau = &1", ColBrd[ColBrd.row, 0].Text, True)
+    sText = "Bordereau de remise de LCR."
+    Stext2 = "Bonjour,\nVeuillez trouver ci-joint notre bordereau de remise de LCR n° " & ColBrd[ColBrd.row, 0].Text & ".\nCordialement."
+    sPiece2 = Start.localSettings["/Soc" & Start.Societe & "/Fichiers"] & "/LCR" & Start.Societe & Left$(ColBrd[ColBrd.row, 1].Text, 1)
+    If Not IsNull(sCourriel) Then
+      Me.mouse = Mouse.Wait
+      Gen_Bordereau(2)
+      sPiece = Start.localSettings["/Soc" & Start.Societe & "/Fichiers"] & "/Lcr" & Start.Societe & ".pdf"
+      EnvMail.Envoi2(scourriel, stext, sText2, spiece, spiece2)
+      'Exec ["xdg-email", "--attach", sPiece, "--attach", sPiece2, "--subject", sText, "--body", sText2, sCourriel]
+      Me.mouse = Mouse.Default
+      Wait 1
+      Message.Info("Génération du courriel d'envoi du bordereau n° " & ColBrd[ColBrd.row, 0].Text & " terminé !")
+      ColLcr.Clear
+      N.Value = True
+      Tri = "bordereau"
+      Tris()
+      Deb()
+    Else
+      Music.Play
+      Message.Error("L'adresse mail de la banque n'a pas été renseignée! Envoi impossible.")
+    Endif
+  Else
+    Message.Warning("Génération impossible ! Vous n'avez pas sélectionné de bordereau.")
+  Endif
+'Else
+'   Message.Warning("Le gestionnaire de messagerie n'est pas défini dans les préférences !")
+'Endif
+End
+
+Public Sub A_Click()
+
+  ColLcr.Clear
+  ColBrd.Clear
+  Deb2()
+
+End
+
+Public Sub N_Click()
+
+  ColLcr.Clear
+  ColBrd.Clear
+  Deb()
+
+End
+
+'**********************************
+'*    Appel de la doc html        *
+'**********************************
+Public Sub Button1_Click()
+
+  Visdoc.Web(Application.Path &/ "Docs/Lcr5.html")
+
+End

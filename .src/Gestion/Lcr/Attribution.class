@@ -1,0 +1,715 @@
+' Gambas class file
+
+'----------------------------------------------------------------------------
+'
+
+'
+'Ce programme est un logiciel libre; Vous pouvez le redistribuer et/ou
+'le modifier selon les termes de la GNU General PUBLIC License publiés par
+'la Free Software Foundation.
+
+'Ce programme est distribué sans garantie. Voyez la GNU General PUBLIC
+'License pour plus de details.
+
+'Vous devez lire la GNU General PUBLIC Licence.
+'Si vous ne disposez pas d'un exemplaire, veuillez écrire
+'à " The Free Software Foundation
+'INC, 59 Temple place - Suite 33, Boston
+'MA 02111-1307 USA
+'----------------------------------------------------------------------------
+'################################################
+'# nom du fichier           : Attribution.class
+'# Auteur                   : Jacky Tripoteau
+'# date de création         : 24/07/2011
+'# Gestion des attributions des banques
+'################################################
+'
+
+Tri As String
+sel As String
+Lcrtable[9] As String
+B As Integer
+son As Integer = Start.Son
+sKey As String
+CoulZns As Integer ' Variable pour la couleur du background des zones de saisie
+CoulZnaf As Integer ' Variable pour la couleur du background des columnviews
+Coulfc As Integer ' Variable pour la couleur du focus
+Coulfond As New String[]
+Dte1 As Integer
+Type As String
+Public Bsel As Boolean
+Public sCmpt As String
+Public sdesg As String
+PosY As Integer
+rBq As Result
+Public Nb As Integer = 0
+Public sDate As Boolean = False
+Public iLind As Integer
+Private Enrg As Integer
+Private pdf As CLcr
+Private der As Result
+
+Public Sub _New()
+
+  Dim Frmt As New String[]
+  Dim ch As Chainage
+
+  Frmt = Utils.FColr(Start.localSettings["/Coul/Znaff"])
+  CoulZnaf = Val(Frmt[0])
+  Frmt = Utils.FColr(Start.localSettings["/Coul/Znss"])
+  CoulZns = Val(Frmt[0])
+  Frmt = Utils.FColr(Start.localSettings["/Coul/Focus"])
+  Coulfc = Val(Frmt[0])
+  Frmt = Utils.FColr(Start.localSettings["/Coul/Fnets"])
+  If Start.localSettings["/Soc" & Start.Societe & "/Coul_fen"] = 0 Then
+    Me.Background = Val(Frmt[0])
+  Else
+    Coulfc = &HAAFF7F&
+  Endif
+  Music.Load(Start.Musique)
+  Me.Center
+  code.reg = "4*1*1*[0-9]{0,5}"
+  dte.Dat = True
+  datee.Dat = True
+  montant.numerique = True
+  Montant.nbdec = "2"
+  ch = New Chainage([code, nom, Dte, datee, numfac, montant, Button3])
+  Entete()
+  Try rbq = Utils.db.Exec("SELECT * FROM Fiches_Lcr ")
+  Nb = rBq.count
+
+End
+
+Public Sub Form_Open()
+
+  Tri = "date"
+  Tris()
+  Deb2()
+  'Total()
+  bq.Clear
+  BQ2.Clear
+  BQ.Add("")
+  BQ2.Add("")
+  Try rbq = Utils.db.Exec("SELECT * FROM Fiches_Banques ")
+  If Not Error Then
+    If rBq.Available Then
+      Do
+        Try BQ.Add(rBq!banques_code & " - " & rBq!banques_nom)
+        Try BQ2.Add(rBq!banques_code & " - " & rBq!banques_nom)
+      Loop Until rBq.MoveNext()
+    Endif
+  Endif
+  code.SetFocus
+  code.Select
+
+End
+
+Public Sub Entete()
+
+  CO.Text = "Code"
+  Inte.Text = "Nom"
+  DA.Text = "Date fac"
+  DAE.Text = "Date ech"
+  NUM.Text = "Numero"
+  MNT.Text = "Montant"
+  ACC.text = "Type"
+  BAQ.Text = "banque"
+  sel = ""
+
+End
+
+Public Sub CO_GotFocus()
+
+  Co.Background = Coulfc
+  sel = ""
+  sDate = False
+  Tri = "code"
+  Tris()
+  Deb2()
+
+End
+
+Public Sub Co_LostFocus()
+
+  Utils.ObsLstf(CO)
+
+End
+
+Public Sub Inte_GotFocus()
+
+  Inte.Background = Coulfc
+  sel = ""
+  sDate = False
+  Tri = "nom"
+  Tris()
+  Deb2()
+
+End
+
+Public Sub Inte_LostFocus()
+
+  Utils.ObsLstf(Inte)
+
+End
+
+Public Sub DA_GotFocus()
+
+  DA.Background = Coulfc
+  sel = ""
+  sDate = False
+  Tri = "date"
+  Tris()
+  Deb2()
+
+End
+
+Public Sub DA_LostFocus()
+
+  Utils.ObsLstf(DA)
+
+End
+
+Public Sub DAE_GotFocus()
+
+  DAE.Background = Coulfc
+  DAE.clear
+  sDate = True
+  Tri = "datech"
+  sel = ""
+  Tris()
+  Deb2()
+
+End
+
+Public Sub DAE_KeyPress()
+
+  If key.code = key.backspace Then
+    sel = ""
+    DAE.clear
+    Deb2()
+  Else
+    sel = sel & key.Text
+    If Len(sel) = 4 Then
+      sel = "%-" & Right$(sel, 2) & "-" & Left$(sel, 2)
+      Deb4()
+    Else
+      If Len(sel) = 8 Then
+        sel = Right$(sel, 2) & "-" & Mid$(sel, 3, 2) & "-" & Left$(sel, 2)
+        Deb4()
+      Endif
+    Endif
+  Endif
+
+End
+
+Public Sub DAE_LostFocus()
+
+  DAE.text = "Date ech"
+  Utils.ObsLstf(DAE)
+
+End
+
+Public Sub NUM_GotFocus()
+
+  NUM.Background = Coulfc
+  sel = ""
+  sDate = False
+  Tri = "numfac"
+  Tris()
+  Deb2()
+
+End
+
+Public Sub NUM_LostFocus()
+
+  Utils.ObsLstf(NUM)
+
+End
+
+Public Sub MNT_GotFocus()
+
+  MNT.Background = Coulfc
+  sel = ""
+  sDate = False
+  Tri = "montant"
+  Tris()
+  Deb2()
+
+End
+
+Public Sub MNT_LostFocus()
+
+  Utils.ObsLstf(MNT)
+
+End
+
+Public Sub ACC_LostFocus()
+
+  Utils.ObsLstf(ACC)
+
+End
+
+Public Sub ACC_GotFocus()
+
+  ACC.Background = Coulfc
+  sel = ""
+  sDate = False
+  Tri = "acceptee"
+  Tris()
+  Deb2()
+
+End
+
+Public Sub BAQ_LostFocus()
+
+  Utils.ObsLstf(BAQ)
+
+End
+
+Public Sub BAQ_GotFocus()
+
+  BAQ.Background = Coulfc
+  sel = ""
+  sDate = False
+  Tri = "banque"
+  Tris()
+  Deb2()
+
+End
+
+Public Sub ColLcr_Data(Row As Integer, Column As Integer)
+
+  With Utils
+    Lcrtable[0] = "code"
+    Lcrtable[1] = "nom"
+    Lcrtable[2] = "date"
+    Lcrtable[3] = "datech"
+    Lcrtable[4] = "numfac"
+    Lcrtable[5] = "montant"
+    Lcrtable[6] = "banque"
+    Lcrtable[7] = "acceptee"
+    Lcrtable[8] = "lind"
+    .rs1.MoveTo(Row)
+    Try ColLcr.data.Text = Str(.rs1[Lcrtable[Column]])
+    If Column = 2 Then
+      ColLcr.data.Text = Replace$(ColLcr.data.Text, "/", ".")
+      ColLcr.data.Text = Left$(ColLcr.data.Text, 10)
+    Endif
+    If Column = 3 Then
+      ColLcr.data.Text = Replace$(ColLcr.data.Text, "/", ".")
+      ColLcr.data.Text = Left$(ColLcr.data.Text, 10)
+    Endif
+    If column = 5 Then ColLcr.Data.Alignment = 2
+    If column = 6 Then
+      If ColLcr.Data.Text <> "0" Then
+        rbq = Utils.db.Exec("SELECT * FROM Fiches_Banques where banques_code = &1", ColLcr.data.Text)
+        If rBq.Available Then ColLcr.data.Text = ColLcr.data.Text & " - " & rBq!banques_nom
+      Else
+        ColLcr.Data.Text = ""
+      Endif
+    Endif
+    If column = 7 Then ColLcr.Data.Alignment = 3
+    If column = 7 Then
+      If ColLcr.data.Text = "1" Then
+        ColLcr.data.Text = "X"
+      Else
+        ColLcr.data.Text = ""
+      Endif
+    Endif
+  End With
+
+End
+
+Public Sub Tris()
+
+  With ColLcr
+    .Columns.count = 9
+    .Columns[0].Width = CO.Width
+    .Columns[1].Width = Inte.Width
+    .Columns[2].Width = DA.Width
+    .Columns[3].Width = DAE.Width
+    .Columns[4].Width = NUM.Width
+    .Columns[5].Width = MNT.Width
+    .Columns[6].Width = BAQ.Width
+    .Columns[7].Width = ACC.Width
+  End With
+
+End
+
+Public Sub Deb()
+
+  Dim Tri2 As String = "lind"
+
+  Enrg = 0
+  If sDate = False Then
+    Utils.Base(ColLcr, "select * from Fiches_Lcr where banque = " & "0" & " and ecartee <> " & 1 & "  and bordereau = " & 0 & " order by " & Tri2 & ", 1")
+  Else
+    Utils.Base(ColLcr, "select * from Fiches_Lcr where banque = " & "0" & " and ecartee <> " & 1 & " and " & Tri & " like  \"%" & sel & "%\"  and bordereau = " & 0 & " order by " & tri2 & ", 1")
+  Endif
+
+End
+
+Public Sub Deb2()
+
+  Enrg = 0
+  If N.Value = True Then Utils.Base(ColLcr, "select * from Fiches_Lcr where banque = " & "0" & "  and ecartee = " & 0 & " and bordereau = " & 0 & " order by " & Tri & ", 1")
+  If A.Value = True Then
+    If IsNull(BQ.text) Then
+      Utils.Base(ColLcr, "select * from Fiches_Lcr where banque <> " & "0" & "  and ecartee <> " & 1 & "  and bordereau = " & 0 & " order by " & Tri & ",1 ")
+      Der = Utils.db.Exec("SELECT Count(*) as nb  FROM Fiches_Lcr where banque <> " & "0" & "  and acceptee <> " & 1 & "  and ecartee <> " & 1 & "  and bordereau = " & 0 & "")
+      Enrg = der!nb
+    Else
+      Utils.Base(ColLcr, "select * from Fiches_Lcr where banque = " & Left$(BQ.Text, 1) & "  and ecartee <> " & 1 & "  and bordereau = " & 0 & " order by " & Tri & ", 1 ")
+      Der = Utils.db.Exec("SELECT Count(*) as nb  FROM Fiches_Lcr where banque = " & Left$(BQ.Text, 1) & " and ecartee <> " & 1 & "  and bordereau = " & 0 & " order by " & Tri & ", 1 ")
+      Enrg = der!nb
+    Endif
+  Endif
+  Total()
+
+End
+
+Public Sub Deb3()
+
+  Enrg = 0
+  If N.Value = True Then Utils.Base(ColLcr, "select * from Fiches_Lcr  where banque is null and acceptee <> " & 1 & " order by " & Tri & " Desc")
+  If A.Value = True Then Utils.Base(ColLcr, "select * from Fiches_Lcr where banque is not null and banque = " & Left$(BQ.Text, 1) & " and acceptee = " & 1 & "  and bordereau = " & 0 & " order by " & Tri & " Desc")
+  Total()
+
+End
+
+Public Sub Deb4()
+
+  Enrg = 0
+  If N.Value = True Then Utils.Base(ColLcr, "select * from Fiches_Lcr where banque is null and acceptee <> " & 1 & "  and ecartee <> " & 1 & " or banque = " & "0" & " and acceptee <> " & 1 & " and ecartee <> " & 1 & " and " & Tri & " like  \"%" & sel & "%\"  order by " & Tri & ", 1")
+  If A.Value = True Then Utils.Base(ColLcr, "select * from Fiches_Lcr where banque is not null and acceptee = " & 1 & " and " & Tri & " like  \"%" & sel & "%\" or banque = " & "0" & " and acceptee = " & 1 & " and ecartee <> " & 1 & " and " & Tri & " like  \"%" & sel & "%\"  order by " & Tri & ", 1")
+  Total()
+
+End
+
+Public Sub Total()
+
+  Dim ikey As Integer = 0
+  Dim b As Boolean = False
+  Dim Nb, der As Integer = 0
+  Dim Tot As Float = 0
+
+  With Utils
+    Repeat
+      ColLcr.MoveTo(ikey, 0)
+      If Not Error Then
+        If ikey = Enrg Then
+          Break
+          Enrg = 0
+        Endif
+        Try Tot = Tot + Val(Utils.cpoint(ColLcr[ColLcr.row, 5].Text))
+        If Error Then
+          B = True
+        Else
+          Inc nb
+        Endif
+      Else
+        B = True
+      Endif
+      Inc ikey
+      'If ikey > 2 Then b = True
+    Until b <> False
+    Nb2.Text = nb
+    Mt2.Text = Format$(Tot, "0.00")
+  End With
+Catch
+  Music.Play
+  Try message.Error(Error.Text & " " & Error.where)
+
+End
+
+Public Sub N_click()
+
+  Entete()
+  Deb2()
+
+End
+
+Public Sub A_click()
+
+  Entete()
+  Deb2()
+
+End
+
+Public Sub BQ_Click()
+
+  BQ2.text = BQ.Text
+  Entete()
+  Deb2()
+
+End
+
+Public Sub Refresh()
+
+  form_Open()
+
+End
+
+Public Sub Button4_Click()
+
+  Me.close
+
+End
+
+Public Sub ColLcr_Click()
+
+  If Not IsNull(ColLcr[ColLcr.row, 0].Text)
+    CleanChamps
+    Maj_Zones()
+  Endif
+Catch
+  Code.SetFocus
+
+End
+
+Public Sub CleanChamps()
+
+  Code.clear
+  Nom.Clear
+  dte.Clear
+  Datee.Clear
+  Numfac.Clear
+  Montant.Clear
+  cRej.Value = False
+  BQ2.Text = ""
+
+End
+
+Public Sub Maj_Zones()
+
+  Dim rLcr As Result
+
+  With Utils
+    code.Text = ColLcr[ColLcr.row, 0].Text
+    rLcr = .db.Exec("select * from Fiches_Lcr where lind = &1", ColLcr[ColLcr.row, 8].Text)
+    If rLcr.Available Then
+      Nom.Text = rLcr!nom
+      dte.dte.G = rLcr!date
+      Datee.dte.G = rLcr!datech
+      Numfac.Text = rLcr!numfac
+      Montant.text = rLcr!montant
+      Try cRej.Value = rLcr!ecartee
+      BQ2.text = ColLcr[ColLcr.row, 6].Text
+      iLind = ColLcr[ColLcr.row, 8].Text
+    Endif
+  End With
+Catch
+  Music.Play
+  message.Error(Error.Text & " " & Error.where)
+
+End
+
+'**********************************
+'*    Attribution des LCR         *
+'**********************************
+Public Sub Button10_Click()
+
+  Dim ikey As Integer = 0
+  Dim b As Boolean = False
+  Dim $lind As String
+
+  With Utils
+    If Not IsNull(BQ.Text) Then
+      If message.Warning("Attention ! Vous allez attribuer le code banque " & BQ.Text & " a l'ensemble des lignes de LCR.", "Oui", "Non") = 1 Then
+        Deb()
+        Utils.db.Exec("LOCK TABLES Fiches_Lcr WRITE, Fiches_Banques WRITE")
+        Repeat
+          ColLcr.MoveTo(ikey, 0)
+          If $lind = ColLcr[ColLcr.row, 8].Text Then Break
+          Utils.db.Exec("UPdate  Fiches_Lcr  SET banque = &1 where lind = &2", Left$(BQ.Text, 1), ColLcr[ColLcr.row, 8].Text)
+          Inc ikey
+          $lind = ColLcr[ColLcr.row, 8].Text
+        Until b <> False
+        Utils.db.Exec("UNLOCK TABLES")
+        Refresh()
+      Endif
+    Else
+      Message.Error("Vous devez sélectionner une banque avant de faire l'attribution !")
+    Endif
+  End With
+Catch
+  Music.Play
+  Try message.Error(Error.Text & " " & Error.where)
+  Utils.db.Exec("UNLOCK TABLES")
+
+End
+
+'**********************************
+'*     Mise à jour d'une LCR      *
+'**********************************
+Public Sub Button3_Click()
+
+  Dim Bq3 As String = "0"
+
+  If Not IsNull(Left$(BQ2.text, 1)) Then Bq3 = Left$(BQ2.text, 1)
+  Utils.db.Exec("UPdate  Fiches_Lcr  SET code = &1, nom = &2, date = &3, datech = &4, montant = &5, ecartee = &6, banque = &7 where lind = &8", Code.Text, Nom.Text, dte.Dte.G, datee.dte.G, montant.Text, Utils.convBool(cRej.Value), BQ3, iLind)
+  CleanChamps()
+  Refresh()
+
+End
+
+'**********************************
+'*    Suppression d'une LCR      *
+'**********************************
+Public Sub Button2_Click()
+
+  If son Then
+    Music.Play
+  Endif
+  If Message.Question("Etes vous sur de vouloir effacer cet enregistrement", "Oui", "Non") = 1 Then
+    Utils.db.Exec("DELETE FROM Fiches_Lcr WHERE lind = &1", ColLcr[ColLcr.row, 8].Text)
+  Endif
+  sKey = ColLcr.row
+  CleanChamps()
+  Refresh()
+  ColLcr.MoveTo(skey, 0)
+
+End
+
+'**********************************
+'*    Appel de la doc html        *
+'**********************************
+Public Sub Button1_Click()
+
+  Visdoc.Web(Application.Path &/ "Docs/Lcr3.html")
+
+End
+
+Public Sub Button5_Click()
+
+  TabStrip1.Enabled = True
+
+End
+
+Public Sub Button7_Click()
+
+  Compte()
+
+End
+
+'************************************************
+'*  Recherche d'un compte par le bouton   *
+'************************************************
+Public Sub compte()
+
+  Dim MyForm As TriComptes
+
+  Tri = "cast(compte_cc AS char)"
+  MyForm = New TriComptes(Tri, "C", "D4")
+  MyForm.Showmodal()
+  If Bsel = True Then
+    Code.text = sCmpt
+    compteman()
+    Nom.SetFocus
+  Endif
+
+End
+
+'******************************************************************
+'*  Recherche d'un compte tiers lors d'une saisie manuelle        *
+'******************************************************************
+Public Sub compteman()
+
+  Dim Cmpts As Result
+
+  Cmpts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & "  WHERE compte_cc = &1 and coll <> &2", code.Text, 1)
+  If Cmpts.Available Then Nom.Text = Cmpts!intitule_cc
+
+End
+
+Public Sub Cmpt_keypress()
+
+  If key.code = key.F1 Then
+    Button1_Click()
+    Stop Event
+  Endif
+
+End
+
+Public Sub Cmpt_Lostfocus()
+
+  Select Case Last.tag
+    Case 1
+      If Not IsNull(code.text) Then
+        compteman()
+      Endif
+
+  End Select
+
+End
+
+Public Sub Imp_Lcr()
+
+  Dim snom As String
+  Dim sadr1 As String
+  Dim sadr2 As String
+  Dim scp As String
+  Dim rTraite As Result
+  Dim rclient As Result
+  Dim Filename As String
+  Dim Posx, Posy As Integer
+
+  Coulfond = Utils.Coulfd()
+  If N.value = True Then rTraite = Utils.db.Exec("SELECT * FROM Fiches_Lcr where banque = &1 order by banque", 0)
+  If A.value And IsNull(BQ.Text) Then rTraite = Utils.db.Exec("SELECT * FROM Fiches_Lcr where banque <> &1", 0)
+  If A.value And Not IsNull(BQ.Text) Then rTraite = Utils.db.Exec("SELECT * FROM Fiches_Lcr where banque = &1", Left$(BQ.Text, 1))
+  With Utils
+    If rTraite.Available Then
+      Shell "cd " & User.Home & ""
+      Filename = User.home & "/Lcr.pdf"
+      pdf = New CLcr("Portrait", "mm", "A4")
+      pdf.Open()
+      pdf.AliasNbPages()
+      pdf.Entete(Type)
+      posx = 40
+      posy = 26
+      pdf.Level1A()
+      posy += 8
+      Repeat
+        rclient = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " where cli_code = &1", rTraite!code)
+        If rclient.Available Then
+          snom = rclient!cli_rs_soc & " " & rclient!cli_nom & " " & rclient!cli_pnm
+          sadr1 = rclient!cli_adr1
+          sadr2 = rclient!cli_adr2
+          scp = rclient!cli_cd_ptl & " " & rclient!cli_ville
+          pdf.Level2A(rTraite!numfac, LDate(rTraite!date).L, snom, sadr1, sadr2, scp, LDate(rTraite!datech).L, rTraite!montant, rTraite!ecartee, rTraite!acceptee, rTraite!banque, Posy)
+          PosY += 4
+        Endif
+        If Not IsNull(sadr1) And If sadr1 <> " " Then PosY += 5
+        If Not IsNull(sadr2) And If sadr2 <> " " Then PosY += 5
+        If Not IsNull(scp) And If scp <> " " Then PosY += 5
+        pdf.Lines(posy)
+        PosY += 2
+        If PosY >= 268 Then
+          pdf.Baspage()
+          pdf.Entete(Type)
+          posx = 40
+          posy = 26
+          pdf.Level1A()
+          posy += 8
+        Endif
+      Until rTraite.MoveNext()
+      pdf.Baspage()
+      pdf.Output(Filename, False)
+      Visualiseur.Prog_Editeur(Filename)
+    Else
+      Message.Warning("Aucune LCR à imprimer !")
+    Endif
+  End With
+
+End
+
+Public Sub Button9_Click()
+
+  If N.value Then Type = " LCR non attribuées "
+  If A.value And IsNull(BQ.Text) Then Type = " LCR attribuées pour toutes les banques "
+  If A.value And Not IsNull(BQ.Text) Then Type = " LCR attribuées à la banque " & BQ.Text
+  Message.Info("Vous allez imprimer la liste des" & Type)
+  Imp_Lcr()
+
+End
