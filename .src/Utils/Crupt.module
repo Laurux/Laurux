@@ -75,7 +75,7 @@ Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As S
   Endif
   If org = "EdRup" Then
     If Chk1 Then
-      rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigcom") & " left join " & Cbase.Table("TabArt") & " on art_code = code WHERE four >= &1 and four <= &2", four1, four2, Art1, Art2, 0)
+      rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigcom") & " left join " & Cbase.Table("TabArt") & " on art_code = code WHERE code >= &3 and code <= &4 and four >= &1 and four <= &2", four1, four2, Art1, Art2)
     Else
       rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigcom") & " left join " & Cbase.Table("TabArt") & " on art_code = code WHERE code >= &3 and code <= &4 and four >= &1 and four <= &2 and art_stocke = &5", four1, four2, Art1, Art2, 1)
     Endif
@@ -119,7 +119,11 @@ Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As S
       Endif
     Until rarts.MoveNext()
   Endif
-  rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigbl") & " left join " & Cbase.Table("TabBl") & "  on numbl = num_ligbl where type = &1 and typel_ligbl = &2 order by cdclibl", "C", "A")
+  If org = "EdRup" Then
+    rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigbl") & " left join " & Cbase.Table("TabBl") & "  on numbl = num_ligbl where type = &5 and typel_ligbl = &6 and code_ligbl >= &3 and code_ligbl <= &4 and (four_ligbl is null or (four_ligbl >= &1 and four_ligbl <= &2)) order by cdclibl", four1, four2, Art1, Art2, "C", "A")
+  Else
+    rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigbl") & " left join " & Cbase.Table("TabBl") & "  on numbl = num_ligbl where type = &2 and typel_ligbl = &3 and four_ligbl = &1 order by cdclibl", four1, "C", "A")
+  Endif
   If rarts.Available Then
     Repeat
       Qtecli = 0
@@ -215,7 +219,7 @@ Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As S
                 Utils.db.Exec("UPdate  " & Tab3 & "  SET  qte = &3, qtecom = &4 where codea = &1 and codec = &2 and numcom = &5 and intitulea = &6", codea, codec, Qtec, qtec, numcom, intitulea)
               Endif
             Else
-              Try Utils.db.Exec("INSERT INTO " & Tab2 & "(codea, intitulea, four, qtecli, qtefour) VALUES (&1,&2,&3, &4, &5)", codea, intitulea, fourn, Qtec, 0)
+              Try Utils.db.Exec("INSERT INTO " & Tab2 & "(codea, intitulea, four, qtecli, qtefour, codec, intitulec, numcom) VALUES (&1,&2,&3, &4, &5, &6, &7, &8)", codea, intitulea, fourn, Qtec, 0, codec, intitulec, numcom)
               If Error Then
                 Utils.db.Exec("UPdate  " & Tab2 & "  SET  qtecli = &2 where codea = &1 and intitulea = &3", codec, Qtec, intitulea)
               Endif
@@ -226,7 +230,11 @@ Public Sub Rupture(chk1 As Boolean, chk2 As Boolean, four1 As String, four2 As S
     Until rarts.MoveNext()
   Endif
   If Org = "EdRup" Then
-    rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_four >= &1 and art_four <= &2 and art_stocke = &3 order by art_code", four1, four2, 1)
+    If Chk1 Then
+      rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_code >= &3 and art_code <= &4 and art_four >= &1 and art_four <= &2 order by art_code", four1, four2, Art1, Art2)
+    Else
+      rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_code >= &3 and art_code <= &4 and art_four >= &1 and art_four <= &2 and art_stocke = &5 order by art_code", four1, four2, Art1, Art2, 1)
+    Endif
   Else
     rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_four = &1 and art_stocke = &2 order by art_code", four1, 1)
   Endif
