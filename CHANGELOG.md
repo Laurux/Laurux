@@ -1,5 +1,32 @@
 # Change Log
 
+## [v3.68.3](https://github.com/Laurux/Laurux/tree/v3.68.3) (2018-09-26)
+[Full Changelog](https://github.com/Laurux/Laurux/compare/v3.68.2...v3.68.3)
+
+**Fixed bugs:**
+
+- L'historique de vente dans la fenetre article doublon pour clients comptes et facture caisse [\#139](https://github.com/Laurux/Laurux/issues/139)
+- Bug sur lock des parametres [\#138](https://github.com/Laurux/Laurux/issues/138)
+- Logo sur les mails [\#120](https://github.com/Laurux/Laurux/issues/120)
+- Edition de facture TTC [\#118](https://github.com/Laurux/Laurux/issues/118)
+- Fichier FEC [\#117](https://github.com/Laurux/Laurux/issues/117)
+- bug en lettrage sur le calcul de somme de contrôle [\#116](https://github.com/Laurux/Laurux/issues/116)
+- l'impression des libellés en devis se retrouve dans la zone TVA [\#115](https://github.com/Laurux/Laurux/issues/115)
+
+**Closed issues:**
+
+- Facture : Remise et ecotaxe [\#134](https://github.com/Laurux/Laurux/issues/134)
+- AMELIORATION importante dans la création de matériel [\#133](https://github.com/Laurux/Laurux/issues/133)
+- BUG crash à la recherche dans la table des matériels en stock [\#129](https://github.com/Laurux/Laurux/issues/129)
+- BUG code famille lors de la création d'un article [\#128](https://github.com/Laurux/Laurux/issues/128)
+- Totaux échéancier [\#127](https://github.com/Laurux/Laurux/issues/127)
+- crash moulinage lors de la generation de facture caisse [\#125](https://github.com/Laurux/Laurux/issues/125)
+- GROS BUG : remise article invisible quand le devis est édité en TTC [\#124](https://github.com/Laurux/Laurux/issues/124)
+- Recherche d'un montant qui prend trop de temps [\#123](https://github.com/Laurux/Laurux/issues/123)
+- BUG - Impossible de supprimer une ligne en facture d'entretien [\#122](https://github.com/Laurux/Laurux/issues/122)
+- Numero de lot en trésorerie [\#121](https://github.com/Laurux/Laurux/issues/121)
+- Saisie de trésorerie [\#119](https://github.com/Laurux/Laurux/issues/119)
+
 ## [v3.68.2](https://github.com/Laurux/Laurux/tree/v3.68.2) (2018-05-21)
 [Full Changelog](https://github.com/Laurux/Laurux/compare/v3.68.1...v3.68.2)
 
