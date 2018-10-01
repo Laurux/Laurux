@@ -387,6 +387,7 @@ Public Sub Moulinage()
   Dim bl_cli_debit As Float
   Dim Error_Verif_Tck As String[] = []
   Dim mrg As Float
+  Dim msg_err As String
   
   RegroupBL = New Facturergbl
   Virements()
@@ -814,6 +815,23 @@ Public Sub Moulinage()
     Endif
   End With
   Me.Mouse = mouse.Default
+  
+  Catch
+    If Start.son Then
+      Music.Play
+    Endif
+    If Object.IsValid(rTck)
+      If rTck.Available Then msg_err = "Ticket " & rTck!numero Else msg_err = "Ticket " & "inconnu"
+    Else
+      msg_err = "Ticket " & "invalid"
+    Endif
+    If Object.IsValid(rlTck)
+      If rlTck.Available Then msg_err = msg_err & " Ligne " & rlTck!numlig Else msg_err = msg_err & " Ligne " & "inconnue"
+    Else
+      msg_err = msg_err & " Ligne " & "invalid"
+    Endif
+    message.Error(Error.Text & " " & Error.where & "\n\nErreur Fatal au moulinage!!\n" & msg_err & "\nVous devez restaurer la sauvegarde\n " & User.home & "/Sauve/" & Utils.db.Name & ".sql" & Format$(Now, "yyyymmdd") & "\nPuis faire suivre votre sauvegarde sur le forum pour analyse par les développeurs\net ne plus pratiquer de nouveau moulinage avant correction")
+    Me.Mouse = Mouse.Default
 
 End
 
@@ -939,10 +957,14 @@ Public Sub Recup_Art(code As String, qtea As String, mht As String, mttc As Stri
       Try Rms[5, 0] = Str(Rarts!qte11)
       Try Rms[5, 1] = Str(Rarts!qte12)
       Try Rms[5, 2] = Str(Rarts!rem6)
-      If ((Val(.cpoint(artpu)) <> 0) And (Artpu = Format$((Val(.CPoint(mht)) / Val(.CPoint(Qtea))), "0.00"))) Then
-        Artbrut = Format$(Val(.CPoint(Artpu)) * Val(.CPoint(Qtea)), Nbdec)
+      If Val(.CPoint(Qtea)) = 0 Then
+        Artpu = Artbrut = "0"
       Else
-        artpu = Format$(Val(.CPoint(Artbrut)) / Val(.CPoint(Qtea)), Nbdec)
+        If ((Val(.cpoint(artpu)) <> 0) And (Artpu = Format$((Val(.CPoint(mht)) / Val(.CPoint(Qtea))), "0.00"))) Then
+          Artbrut = Format$(Val(.CPoint(Artpu)) * Val(.CPoint(Qtea)), Nbdec)
+        Else
+          artpu = Format$(Val(.CPoint(Artbrut)) / Val(.CPoint(Qtea)), Nbdec)
+        Endif
       Endif
       Remises_quantitatives()
       Decimal()
