@@ -1264,9 +1264,18 @@ Public Sub butedit_Click()
   Dim lab As ReportLabel
   Dim coul As Integer
   Dim totd, totc, sld As Float
+  Dim Filename As String
+  Dim prt As New Printer
+  Dim pgb As ProgBar
+  
+  pgb = New ProgBar("Edition en cours", 0)
+  pgb.Show
+  Filename = User.Home & "/tmp/Extrait.pdf"
+  prt.OutputFile = Filename
   
   If IsNull($lstex.resext) Then Return
-  If Not Bclient.Value And Not Bfournisseur.Value Or Not $lstex.resext.Available Then Return
+  Try $lstex.resext.MoveFirst
+  If Not $lstex.resext.Available Then Return
   coul = Val("&H" & Hex(Start.R) & Hex(Start.G) & Hex(Start.B))
   $rpt = New Report
   vb = New ReportVBox($rpt)
@@ -1399,7 +1408,10 @@ Public Sub butedit_Click()
   lab.Text = Format(sld, "0.00")
   lab.Alignment = Align.Right
   
-  $rpt.Preview
+  $rpt.Print(prt)
+  Visualiseur.Prog_Editeur(Filename)
+  pgb.Close
+  
 End
 
 Private Sub ajoulign(sld As Float)
@@ -1414,7 +1426,7 @@ Private Sub ajoulign(sld As Float)
   lab.Width = "30mm"
   lab.Height = "4mm"
   lab.Font = font["Serif,-2"]
-  lab.Text = LDate($lstex!dte).L
+  lab.Text = LDate($lstex.resext!dte).L
   lab.Alignment = Align.Left
   lab.Border = ReportBorder["Right:1pt #000000"]
   
