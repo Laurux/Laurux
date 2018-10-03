@@ -1,0 +1,142 @@
+' Gambas class file
+
+Private identifiantCaisse As String
+Private modeReponse As String
+Private modeAutorisation As String
+Private delaiTimeout As Integer
+
+Private serialTPE As SerialPort
+
+Private Const BYTE_ACK As Byte = 6
+Private Const BYTE_EOT As Byte = 4
+Private Const BYTE_ENQ As Byte = 5
+Private Const BYTE_STX As Byte = 2
+Private Const BYTE_ETX As Byte = 3
+
+Private Const PAIEMENT_CARTE As Byte = 49
+Private Const PAIEMENT_CHEQUE As Byte = 108
+
+Private Const TAILLE_REPONSE_COMPLET As Integer = 83
+Private Const TAILLE_REPONSE_REDUIT As Integer = 28
+
+Private Const ACTIVER_REPONSE As String = "1"
+Private Const TYPE_TRANSACTION As String = "0"
+
+Private Const MONNAIE_EUR As Integer = 978
+
+Public Sub _new(unNumeroCaisse As Integer, Optional unModeReponse As Boolean = True, Optional forcerAutorisation As Boolean = False, Optional unCheminAppareil As String = "/dev/ttyACM0", Optional unBaud As Integer = 9600, Optional unDelaiAttenteMaximale As Integer = 120)
+
+  serialTPE = New SerialPort As "serialTPE"
+  serialTPE.PortName = unCheminAppareil
+  serialTPE.Speed = Str(unBaud)
+
+  serialTPE.Parity = 0
+  serialTPE.DataBits = "8"
+  serialTPE.StopBits = "1"
+  serialTPE.FlowControl = 0
+
+  Try serialTPE.Open()
+  If Error Then
+    Raise Error("Impossible d'établir une connexion avec le TPE, avez-vous bien configurer votre terminal ?")
+  Endif
+
+  If unModeReponse == True Then
+    modeReponse = "A010"
+  Else
+    modeReponse = "A011"
+  Endif
+
+  If forcerAutorisation == True Then
+    modeAutorisation = "B011"
+  Else
+    modeAutorisation = "B010"
+  Endif
+
+End
+
+Private Sub envoyerSignal(unSignal As Byte) As Boolean
+
+  Try Print #serialTPE, Chr$(unSignal)
+
+  If Error Then
+    Return False
+  Endif
+
+  Return True
+
+End
+
+Private Sub attendreSignal(unSignal As Byte) As Boolean
+
+  Dim out As Byte
+
+  Try Read #serialTPE, out, 1
+  If Error Then
+    Return False
+  Else If unSignal == out
+    Return True
+  Endif
+
+End
+
+Private Sub calculerLRC(unMessage As Byte[]) As Byte
+
+  Dim sumXOR As Byte
+  Dim Element As Byte
+
+  For Each Element In unMessage
+    sumXOR += (Element Xor sumXOR)
+  Next
+
+  Return sumXOR
+
+End
+
+Private Sub demanderInitialisation() As Boolean
+
+  If envoyerSignal(BYTE_ACK) == True Then
+    If attendreSignal(BYTE_ACK) == True Then
+      Return True
+    Else
+      envoyerSignal(BYTE_ACK)
+      Return False
+    Endif
+  Endif
+
+End
+
+Private Sub demanderReponse() As Boolean
+
+  If attendreSignal(BYTE_ACK) == True Then
+    If envoyerSignal(BYTE_EOT) == True Then
+      If attendreSignal(BYTE_ENQ) == True Then
+        Return envoyerSignal(BYTE_ACK)
+      Endif
+    Endif
+  Endif
+
+  Return False
+
+End
+
+Public Sub demanderPaiement(unMontant As Float) As Boolean
+
+  Dim bufDemande As String = identifiantCaisse & Str$(unMontant) & ACTIVER_REPONSE & Chr$(PAIEMENT_CARTE) & TYPE_TRANSACTION & Str$(MONNAIE_EUR) & "          " & modeReponse & modeAutorisation
+
+  If demanderInitialisation() == False Then
+    Return False
+  Endif
+
+  Try Print #serialTPE, Chr$(BYTE_STX); bufDemande; Chr$(calculerLRC(bufDemande))
+
+  If Error Then
+    Return False
+  Else
+
+    If demanderReponse() == True Then
+
+    Endif
+
+  Endif
+
+End

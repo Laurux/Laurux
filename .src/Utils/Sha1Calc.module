@@ -118,24 +118,30 @@ Public Function CalcSha1_Verify(Tab As String, numecr As String, Optional lind A
 End
 
 'Clé pour la caisse associé aux tickets precedent
-Public Function CalcSha1T($Tab As String, $Ncaisse As String, $numero As String, prev_numero As String, Optional update As Boolean = True) As String
+Public Function CalcSha1T($Tab As String, $numero As String, prev_numero As String, Optional update As Boolean = True) As String
 
   Dim sresult As Result
   Dim lresult As Result
   Dim $cle, $cleout As String
 
-  sResult = Utils.db.Exec("SELECT * FROM  " & $Tab & " WHERE caisse = &1 and numero = &2", $Ncaisse, $numero)
+  sResult = Utils.db.Exec("SELECT * FROM  " & $Tab & " WHERE numero = &1", $numero)
   If sResult.Available Then
     Repeat
       $cle = sResult!caisse & sResult!numero & sResult!date & sResult!client & sResult!scheque & sResult!mcheque & sResult!nmcheque & sResult!scarte & sResult!mcarte & sResult!nmcarte & sResult!sespeces & sResult!mespeces & sResult!scredit & sResult!mcredit & sResult!mht & sResult!mtva & sResult!mttc & sResult!savoir
-      $cle &= sResult!scavoir & sResult!mavoir & sResult!type & sResult!vendeur & sResult!carte & sResult!points & sResult!sbonus & sResult!mbonus & sResult!sresto & sResult!mresto & sResult!sbachat & sResult!mbachat & sResult!nom & sResult!suppr & sResult!retro
+      $cle &= sResult!scavoir & sResult!mavoir & sResult!type & sResult!carte & sResult!points & sResult!sbonus & sResult!mbonus & sResult!sresto & sResult!mresto & sResult!sbachat & sResult!mbachat & sResult!suppr & sResult!retro
       'On chaine les contrôle avec le ticket précédent si il existe dans la table
-      lResult = Utils.db.Exec("SELECT * FROM  " & $Tab & " WHERE caisse = &1 and numero = &2", $Ncaisse, prev_numero)
-      
+      lResult = Utils.db.Exec("SELECT * FROM  " & $Tab & " WHERE numero = &1", prev_numero)
       If lResult.Available Then
         $cle &= Trim(lResult!control)
       Else
-        prev_numero = ""
+        'on recherche dans la table d'historique
+        lResult = Utils.db.Exec("SELECT * FROM Fiches_HisEntTickets WHERE numero = &1", prev_numero)
+        If lResult.Available Then
+          $cle &= Trim(lResult!control)
+        Else
+        'ticket inexistant
+          prev_numero = ""
+        Endif
       Endif
       $cleout = Base64$(Digest["sha1"]($cle))
       If update = True Then

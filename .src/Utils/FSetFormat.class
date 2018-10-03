@@ -3,53 +3,86 @@
 Static Public {Format} As New CFormat
 
 Public Sub Button1_Click()
-
+  
   If Not IsNull(Format.Font) Then Dialog.Font = Format.Font
   If Not Dialog.SelectFont() Then Format.Font = Dialog.Font
   lblExemple.Font = Format.Font
-
+  
 End
 
 Public Sub ColorButton1_Change()
-
+  
   Dim Rouge As Integer, Vert As Integer, Bleu As Integer
   Dim Couleur As Long
-
+  
   Couleur = ColorButton1.Color
   Format.Background = ColorButton1.Color
   Rouge = Int(Couleur Mod 256)
   Vert = Int((Couleur Mod 65536) / 256)
   Bleu = Int(Couleur / 65536)
   lblExemple.Background = Format.Background
-
+  
 End
 
 Public Sub ColorButton2_Change()
-
+  
   Format.Foreground = ColorButton2.Color
   lblExemple.Foreground = Format.Foreground
-
+  
 End
 
 Static Public Sub Run()
-
+  
   FSetFormat.ShowModal
-
+  
 End
 
 Public Sub Form_Open()
-
+  
+  Utils.Observers(Me)
   ColorButton1.Color = IIf(Format.Background = -1, color.TextBackground, Format.Background)
   ColorButton2.Color = IIf(Format.Foreground = -1, color.TextForeground, Format.Foreground)
   lblExemple.Font = Format.Font
   lblExemple.Background = Format.Background
   lblExemple.Foreground = Format.Foreground
   lblExemple.Alignment = IIf(Format.Alignment = -1, Align.Left, Format.Alignment)
-
+  
 End
 
 Public Sub Button2_Click()
-
+  
   Me.Close
+  
+End
 
+Public Sub Button3_Click()
+  
+  Format.Background = &HDFE7FF&
+  lblExemple.Background = &HDFE7FF&
+  
+End
+
+Public Sub Lgo2_Click()
+  
+  Dialog.Filter = FileFilter(True)
+  Dialog.Path = User.home
+  Dialog.Title = "Sélection du logo"
+  If Dialog.OpenFile() Then Return
+  Logo2.Text = Dialog.Path
+  Utils.db.Exec("UPDATE " & Cbase.Table("TabTouches") & " set fond = &1 where touche = &2", Logo2.text, Attrib.fnd)
+Catch
+  Message.Warning(ERROR.Text)
+  
+End
+
+Private Function FileFilter(Optional All As Boolean = False) As String[]
+  
+  Dim filter As New String[]
+  
+  filter.Add("*.png")
+  filter.Add("Portable Network Graphics")
+  filter.Add("*.jpeg *.jpg")
+  filter.Add("Joint Photographic Experts Group")
+  Return filter
+  
 End

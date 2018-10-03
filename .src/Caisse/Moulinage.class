@@ -94,17 +94,15 @@ Public Sub Button1_Click()
 
 End
 
-Public Sub Livre_caisse()
+Public Sub Livre_caisse(Optional Ncaisse As String = "", Optional Statut As String = "V", Optional Validate As Boolean = False, Optional p_date As LDate = Null, Optional Format As String = "A4", Optional Filename As String = "") As Boolean
 
-  Dim rTkx, rttva As Result
+  Dim rTkx, rttva, rTkd, rTkl As Result
   Dim rTkFam As Result
   Dim rTkhv As Result
   Dim rCaisse As Result
-  Dim Tabz As String
-  Dim Tabe, Tabl As String
-  Dim Tabr As String
+  'Dim Tabz As String
+  Dim Tabe, Tabl, Tabx As String
   Dim Posy As Integer
-  Dim Filename As String
   Dim sFam As String = "0,00"
   Dim sFam2 As String = "0,00"
   Dim sLFam, tintitule As String
@@ -116,66 +114,103 @@ Public Sub Livre_caisse()
   Dim totventes As String = 0
   Dim totboncaisse As String = 0
   Dim Fdc As String = "0"
-  Dim Totnbtck As Integer = 0
+  Dim Totnbtck, X2, Y2, NBT As Integer = 0
   Dim Pnm, itva As Float = 0
   Dim Enc As Boolean = False
-  Dim pdf As Clivre
-  Dim Ncaisse, sintitule As String
+  Dim pdf As Cfacture
+  Dim $code, $intitule As String
+  Dim sintitule As String
+  Dim filtredate As String
+  Dim initdate As String
+  Dim Boncaisse, tcheque, tcarte, tespece, tmttc As Float
+  Dim Ba4 As Boolean = True
+  Dim FndCaisse As String
+  Dim ipos As Integer
+  Dim Ret As Boolean = False
+  Dim dteov As LDate
+  
+  Tabe = "Fiches_EntTicketz" ' & rCaisse!code
+  Tabx = "Fiches_Fam"
+  Tabl = "Fiches_LigTicketz" ' & rCaisse!code
 
   With Utils
-    If Not Exist(User.home & "/Caisse/") Then Mkdir User.home & "/Caisse/"
-    Filename = User.home & "/Caisse/Livre_" & Format$(DateChooser1.Value, "dd-mm-yyyy") & ".pdf"
-    pdf = New Clivre("P", "mm", "A4")
+    
+  
+    If Filename = "" Then
+      If Not Exist(User.home & "/Caisse/") Then Mkdir User.home & "/Caisse/"
+      If p_date Then
+        Filename = User.home & "/Caisse/Livre_caisse" & Ncaisse & "_" & Format$(p_date.G, "dd-mm-yyyy") & ".pdf"
+      Else
+        Filename = User.home & "/Caisse/Livre_caisse" & Ncaisse & "_" & Format$(Now, "dd-mm-yyyy") & ".pdf"
+      Endif
+    Endif
+    
+    If p_date Then
+      filtredate = " and DATE(e.date) = \"" & p_date.D & "\""
+      initdate = "du " & p_date.L
+    Else
+      filtredate = ""
+      initdate = "au " & LDate().L 
+    Endif
+    pdf = New Cfacture("P", "mm", Format)
+    If Format <> "A4" Then
+      Ba4 = False
+    Endif
     pdf.Open()
     pdf.AliasNbPages()
     rCaisse = Utils.db.Exec("select * from  " & Cbase.Table("TabCaisses") & " order by code")
     If rCaisse.Available Then
       Repeat
-        Ncaisse = rCaisse!code
-        sIntitule = "Livre de caisse du " & Format$(DateChooser1.Value, "dd-mm-yyyy") & " : Caisse N° " & Ncaisse
-        Tabz = "Fiches_Ticketz"
-        Tabr = "Fiches_Regltz"
-        Tabe = "Fiches_EntTickets" & Ncaisse
-        Tabl = "Fiches_LigTickets" & Ncaisse
-        Try Fdc = Format$(rCaisse!fndc, "0.00")
-        totcaisse = Val(.cpoint(Totcaisse)) + Val(.cpoint(Fdc))
-        rTkx = Utils.db.Exec(" select * from " & Tabr & " where caisse = &1 order by type", Ncaisse)
-        If rTkx.Available Then
-          Enc = True
-        Else
-          Enc = False
+        If Ncaisse <> Null Then
+          If Ncaisse <> rCaisse!code Then Continue
         Endif
-        rTkx = Utils.db.Exec(" select * from " & Cbase.Table("TabEntTck") & " where statut = &1 and caisse = &2 and DATE(date) = &3 and (suppr is null or suppr != 1)", 0, Ncaisse, LDate(DateChooser1.Value).D)
-        If rTkx.Available Or If Enc = True Then
-          pdf.newPage()
+        
+        sIntitule = "Livre de caisse " & initdate & " : Caisse N° " & rCaisse!code
+  
+  
+        rTkx = Utils.db.Exec("select * from  " & Cbase.Table("TabCaisses") & " WHERE code = &1", rCaisse!code)
+        Try Fdc = Format$(rTkx!fndc, "0.00")
+        Try dteov = New LDate(rTkx!dteov)
+        totcaisse = Val(.cpoint(Totcaisse)) + Val(.cpoint(Fdc))
+        
+        rTkx = Utils.db.Exec(" select * from " & Tabe & " as e where e.statut = &1 and e.caisse = &2" & filtredate, Statut, rCaisse!code)
+        If rTkx.Available Then
+          Ret = True 'Donnee présente
           Totnbtck = rTkx.count
+          pdf.newPage()
+          Posy = 5
           If rTkx.Available Then
-            Repeat 
-              If rTkx!type = 1 Then
-                Try totboncaisse = Val(.cpoint(totboncaisse)) + Val(.cpoint(rTkx!mttc))
-              Else If rTkx!savoir = 1 Then
+            Repeat
+              ' Les clients comptes génère des BL il n'y a donc pas de vente/d'encaissement
+              ' l'encaissement pourra avoir lieu en caisse lors du règlement de BL
+              If rTkx!type = 1 Then Continue
+              If rTkx!savoir = 1 Then
                 Try totventes = Val(.cpoint(Totventes)) - Val(.cpoint(rTkx!mttc))
               Else
                 Try totventes = Val(.cpoint(Totventes)) + Val(.cpoint(rTkx!mttc))
               Endif
+              If rTkx!scheque = "V" Then tcheque = tcheque + Val(.cpoint(rTkx!mcheque))
+              If rTkx!scarte = "U" Then tcarte = tcarte + Val(.cpoint(rTkx!mcarte))
+              If rTkx!sespeces = "N" Then tespece = tespece + Val(.cpoint(rTkx!mespeces))
             Until rTkx.MoveNext()
           Endif
-          Posy += 5
-          Pdf.Level3(sIntitule, Posy)
-          Posy += 8
-          pdf.Level2("Fond de caisse initial ", Fdc, "", Posy)
-          Posy += 8
-          pdf.Lines2(Posy)
-          Posy += 5
-          rTkhv = Utils.db.Exec(" select * from " & Tabr & " where caisse = &1 and DATE(date) = &2 order by type", Ncaisse, LDate(DateChooser1.Value).D)
+          
+          rTkhv = Utils.db.Exec(" select * from " & Tabl & " as l inner join " & Tabe & " as e on e.numero = l.numero where e.statut = &1 and e.suppr !=1 and e.caisse = &2 " & filtredate & " order by l.type", Statut, rCaisse!code)
           If rTkhv.Available Then
-            'Posy += 5
-            'Pdf.Level3(sIntitule, Posy)
-            'Posy += 8
-            'pdf.Level2("Fond de caisse initial ", Fdc, "", Posy)
-            'Posy += 8
-            'pdf.Lines2(Posy)
-            'Posy += 5
+            Posy += 5
+            Pdf.Level3(sIntitule, Posy, Ba4)
+            Posy += 8
+            Pdf.Level3("Caissier(e) " & rTkhv!vendeur, Posy, Ba4)
+            Posy += 8
+            pdf.Level2E(Posy)
+            Posy += 8
+            If p_date Then
+              pdf.Level2("Fond de caisse actuel le " & LDate(Now).LT, Fdc, "", Posy)
+            Else
+              pdf.Level2("Fond de caisse initial le " & dteov.LT, Fdc, "", Posy)
+            Endif
+            Posy += 8
+            pdf.Lines2(Posy)
             pdf.Level2("Mouvements hors ventes ", "", "", Posy)
             Posy += 5
             Repeat
@@ -200,9 +235,20 @@ Public Sub Livre_caisse()
             Until rTkhv.MoveNext()
             Posy += 3
             pdf.Lines2(Posy)
-            Posy += 5
           Endif
-          rTkhv = Utils.db.Exec(" select * from " & Tabr & " where caisse = &1 and DATE(date) = &2 order by type", Ncaisse, LDate(DateChooser1.Value).D)
+          rTkd = Utils.db.Exec(" select  sum(replace(mttc, ',', '.')) as tmttc from " & Tabe & " as e where e.statut = &1 and e.suppr = &2 and e.caisse =&3" & filtredate, Statut, 1, rCaisse!code)
+          If rTkd.Available Then Try tmttc = rTkd!tmttc
+          rTkx = Utils.db.Exec(" select * from " & Tabe & " as e where e.statut = &1 and e.suppr = &2 and e.caisse =&3" & filtredate, Statut, 1, rCaisse!code)
+          If rTkx.Available Then
+            pdf.Level2("Tickets  annulés :  ", Format$(tmttc, "0.00"), rTkx.Count, Posy)
+            Posy += 5
+            Repeat
+              pdf.Level2(rTkx!numero, Format$(Val(.cpoint(rTkx!mttc)), "0.00"), "", Posy)
+              Posy += 5
+            Until rTkx.MoveNext()
+            pdf.Lines2(Posy)
+          Endif
+          rTkhv = Utils.db.Exec(" select count(*) as cnt, l.type, sum(cast(REPLACE(l.montant,',','.') as decimal(7,2))) as totmontant, DATE(e.date) as ddate from " & Tabl & " as l left join " & Tabe & " as e on l.numero = e.numero where l.type is not Null and e.statut = &1 and e.caisse = &2 and e.suppr != 1 " & filtredate & " group by l.type, DATE(e.date)", Statut, rCaisse!code)
           If rTkhv.Available Then
             pdf.Level2("Mouvements ventes ", "", "", Posy)
             Posy += 5
@@ -210,50 +256,80 @@ Public Sub Livre_caisse()
               If rTkhv!type = "N" Then sreg = "Tot. rglts par especes "
               If rTkhv!type = "Q" Then sreg = "Tot. rendu monnaie "
               If rTkhv!type = "U" Then sreg = "Tot. rglts par cartes "
-              If rTkhv!type = "V" Then sreg = "Tot. rglts par chèques "
+              If rTkhv!type = "V" Then sreg = "Tot. rglts par cheques "
               If rTkhv!type = "B" Then sreg = "Tot. bonus utilises "
               If rTkhv!type = "E" Then sreg = "Tot. bons de reduction "
-              If rTkhv!type = "X" Then sreg = "Tot. bons achat"
-              If rTkhv!type = "Y" Then sreg = "Tot. chèques cadeaux"
+              If rTkhv!type = "X" Then sreg = "Tot. bons achat "
+              If rTkhv!type = "Y" Then sreg = "Tot. cheques cadeaux "
               If rTkhv!type = "W" Then sreg = "Tot. credits "
               If rTkhv!type = "Z" Then sreg = "Tot. avoirs "
+              If rTkhv!type = "1" Then sreg = "Tot. Cheques entreprise"
               If rTkhv!type = "M" Then sreg = "Tot. clients compte "
-              If rTkhv!type = "1" Then sreg = "Tot. chèques entreprise "
-              'IF rTkhv!type = "G" THEN sreg = "Tot. acomptes verses"
-              If rTkhv!type = "C" Then sreg = "Tot. acomptes utilises"
-              sMtreg = Format$(Val(.cpoint(rTkhv!montant)), "0.00")
-              If rTkhv!type = "N" Then totcaisse = Val(.cpoint(Totcaisse)) + Val(.cpoint(rTkhv!montant))
-              If rTkhv!type = "Q" Then totcaisse = Val(.cpoint(Totcaisse)) - Val(.cpoint(rTkhv!montant))
-              sqte = rTkhv!qte
-              If rTkhv!type = "A" Or If rTkhv!type = "E" Or If rTkhv!type = "B" Or If rTkhv!type = "C" Or If rTkhv!type = "N" Or If rTkhv!type = "U" Or If rTkhv!type = "V" Or If rTkhv!type = "X" Or If rTkhv!type = "Y" Or If rTkhv!type = "W" Or If rTkhv!type = "Z" Or If rTkhv!type = "Q" Or If rTkhv!type = "M" Or If rTkhv!type = "1" Then
-                pdf.Level2(sReg, sMTreg, sqte, Posy)
-                Posy += 5
+              If rTkhv!totmontant <> Null Then
+                sMtreg = Format$(Val(.cpoint(rTkhv!totmontant)), "0.00")
+              Else
+                sMtreg = "0.00"
+              Endif
+              ' If rTkhv!type = "N" Then
+              ' totcaisse = Val(.cpoint(Totcaisse)) + tespece
+              ' sMtreg = Format$(Val(.cpoint(tespece)), "0.00")
+              ' Endif
+              'If rTkhv!type = "N" Then totcaisse = Val(.cpoint(Totcaisse)) + Val(.cpoint(rTkhv!montant))
+              'If rTkhv!type = "Q" Then totcaisse = Val(.cpoint(Totcaisse)) - Val(.cpoint(rTkhv!montant))
+              sqte = rTkhv!cnt
+              If Val(sqte) > 0 Then
+                If rTkhv!type = "E" Or If rTkhv!type = "B" Or If rTkhv!type = "N" Or If rTkhv!type = "U" Or If rTkhv!type = "V" Or If rTkhv!type = "X" Or If rTkhv!type = "Y" Or If rTkhv!type = "W" Or If rTkhv!type = "Z" Or If rTkhv!type = "M" Or If rTkhv!type = "1" Then
+                  sreg &= " du " & LDate(rTkhv!ddate).L
+                  pdf.Level2(sReg, sMTreg, sqte, Posy)
+                  Posy += 5
+                Endif
+              Endif
+              If posy > 260 Then
+                pdf.Baspage()
+                pdf.newPage
+                Posy = 5
               Endif
             Until rTkhv.MoveNext()
           Endif
-          Posy += 5
-          pdf.Level2("Total ventes (hors clients compte)", Format$(Val(.cpoint(Totventes)), "0.00"), "", Posy)
+          totcaisse = Val(.cpoint(Totcaisse)) + tespece
+          pdf.Lines2(Posy)
+          pdf.Level2("Total ventes (hors clients compte) ", Format$(Val(.cpoint(Totventes)), "0.00"), "", Posy)
+          If Not p_date Then
+            Posy += 5
+            pdf.Lines2(Posy)
+            pdf.Level2("Fond de caisse final le " & LDate(Now).LT, Format$(Val(.cpoint(Totcaisse)), "0.00"), "", Posy)
+            FndCaisse = Totcaisse
+          Endif
           Posy += 5
           pdf.Lines2(Posy)
-          Posy += 5
-          pdf.Level2("Total bons de caisse ", Format$(Val(.cpoint(totboncaisse)), "0.00"), "", Posy)
-          Posy += 5
-          pdf.Lines2(Posy)
-          Posy += 5
-          pdf.Level2("Fond de caisse ", Format$(Val(.cpoint(Totcaisse)), "0.00"), "", Posy)
-          Posy += 5
-          pdf.Lines2(Posy)
-          Posy += 5
-          pdf.Level2("Nombre de tickets :", Totnbtck, "", Posy)
-          Posy += 5
-          Try Pnm = Totventes / Totnbtck
-          If Error Then Pnm = 0
-          pdf.Level2("Panier moyen :", Format$(Pnm, "0.00"), "", Posy)
-          Posy += 5
-          pdf.Lines2(Posy)
-          Posy += 5
+          'rTkx = Utils.db.Exec(" select * from " & Tabr & " where type = &1", "M")
+          'If rTkx.Available Then
+            'totventes = 0
+          '  Repeat
+          '    Try Boncaisse = Val(Utils.cpoint(Boncaisse)) + Val(Utils.cpoint(rTkx!montant))
+          '  Until rTkx.MoveNext()
+            'Posy += 5
+          '  pdf.Level2("Total bons de caisse ", Format$(Val(.cpoint(Boncaisse)), "0.00"), "", Posy)
+          '  Posy += 5
+          '  pdf.Lines2(Posy)
+          '  If posy > 260 Then
+          '    pdf.Baspage()
+          '    pdf.newPage
+          '    Posy = 5
+          '  Endif
+          'Endif
+          If Validate = 1 Then
+            pdf.Lines2(Posy)
+            pdf.Level2("Nombre de tickets :", Totnbtck, "", Posy)
+            Posy += 5
+            Try Pnm = Totventes / Totnbtck
+            If Error Then Pnm = 0
+            pdf.Level2("Panier moyen :", Format$(Pnm, "0.00"), "", Posy)
+            Posy += 5
+            pdf.Lines2(Posy)
+          Endif
           'Recapitulatif TVA sur les ticket avec un encaissement
-          rttva = Utils.db.Exec("select * from  " & Cbase.Table("TabLigTck") & " as l inner join " & Cbase.Table("TabEntTck") & " as e on e.numero = l.numero WHERE left(intitule,3) = &1 and e.type = &2 and e.suppr = &3 and e.caisse = &4 and DATE(e.date) = &5 order by intitule", "TVA", 0, 0, Ncaisse, LDate(DateChooser1.Value).D)
+          rttva = Utils.db.Exec("select * from  " & Tabl & " as l inner join " & Tabe & " as e on e.numero = l.numero WHERE left(intitule,3) = &1 and e.type = &2 and e.suppr != 1 and e.statut = &3 and e.caisse=&4 " & filtredate & " order by intitule", "TVA", 0, Statut, rCaisse!code)
           If rttva.Available Then
             pdf.Level2("Recapitulatif TVA (sur encaissement)", "", "", Posy)
             Posy += 5
@@ -276,66 +352,307 @@ Public Sub Livre_caisse()
             Posy += 5
             pdf.Lines2(Posy)
           Endif
-          rTkx = Utils.db.Exec(" select * from Fiches_Caisses where code = &1", Ncaisse)
-          'pdf.Level2("Total période (sur encaissement)", Format$(Val(.cpoint(rTkx!fndtotp)), "0.00"), "", Posy)
+        
+          'pdf.Level2("Total période (sur encaissement)", Format$(Val(.cpoint(rCaisse!fndtotp)), "0.00"), "", Posy)
           ' Posy += 5
           ' pdf.Lines2(Posy)
-          pdf.Level2("Total général (sur encaissement)", Format$(Val(.cpoint(rTkx!fndtotg)), "0.00"), "", Posy)
+          pdf.Level2("Total général (sur encaissement)", Format$(Val(.cpoint(rCaisse!fndtotg)), "0.00"), "", Posy)
           Posy += 5
           pdf.Lines2(Posy)
-
-          Try rTkx = Utils.db.Exec(" select * from " & Tabz & " where caisse = &1 and date = &2 order by fam", Ncaisse, LDate(DateChooser1.Value).D)
-          If Not Error Then
-            sqte = "0,00"
-            If rTkx.Available Then
-              pdf.Level2("Total ventes par familles", "", "", Posy)
+          
+          rTkFam = Utils.db.Exec("select sum(cast(replace(l.qte,',','.') as decimal(7,2))) as totalfamqte, fam, sum(cast(replace(l.mht,',','.') as decimal(7,2))) as totalfamht, libell_fam from " & Tabl & " as l left join " & Tabe & " as e on l.numero = e.numero left join " & Tabx & " on l.fam = code_fam where l.fam is not Null and l.type = &1 and e.statut = &2 and e.suppr != 1 and e.caisse = &3 " & filtredate & " group by fam order by totalfamht", "A", Statut, rCaisse!code)
+          If rTkFam.Available Then
+            pdf.Level2("Total ventes HT par familles", "", "", Posy)
+            Posy += 5
+            Repeat
+              sFam = "Famille " & Left$(rTkFam!fam, 2)
+              pdf.Level2(Utils.Replace(rTkFam!libell_fam) & " " & Format$(Val(utils.cpoint(rTkFam!totalfamht)) / Totventes * 100, "0.00") & " %", rTkFam!totalfamht, rTkFam!totalfamqte, Posy)
               Posy += 5
-              sFam2 = "Famille " & Left$(rTkx!fam, 2)
-              Repeat
-                sFam = "Famille " & Left$(rTkx!fam, 2)
-                If sFam2 <> sFam Then
-                  If (totventes + totboncaisse) <> 0 Then
-                    pdf.Level2(sFam2 & " " & rTkFam!libell_fam & " " & Format$(Val(utils.cpoint(sMTfam)) / (Totventes + totboncaisse) * 100, "0.00") & " %", sMTfam, sqte, Posy)
-                    Posy += 5
-                  Endif
-                  sMtfam = "0,00"
-                  sQte = "0,00"
-                Endif
-                rTkFam = Utils.db.Exec(" select * from " & Cbase.Table("TabFam") & " where code_fam = &1", Left$(rTkx!fam, 2))
-                If Not rTkFam.Available Then rTkFam = Utils.db.Exec(" select * from " & Cbase.Table("TabFam") & " where code_fam = &1", rTkx!fam)
-                sLFam = rTkFam!libell_fam
-                sMtfam = Format$(Val(Utils.cpoint(sMtfam)) + Val(Utils.cpoint(rTkx!montant)), "0.00")
-                sqte = Format$(Val(.cpoint(sqte)) + Val(.cpoint(rTkx!qte)), "0.00")
-                sFam2 = sFam
-              Until rTkx.MoveNext()
-              If (totventes + totboncaisse) <> 0 Then
-                pdf.Level2(sFam & " " & sLFam & " " & Format$(Val(utils.cpoint(sMTfam)) / (Totventes + totboncaisse) * 100, "0.00") & " %", sMTfam, sqte, Posy)
-                Posy += 5
+              If posy > 260 Then
+                pdf.Baspage()
+                pdf.newPage
+                Posy = 5
               Endif
-            Endif
+            Until rTkFam.MoveNext()
+            Posy += 5
           Endif
+          'On imprime les tickets supprimés.
+          If Ba4 Then
+            ipos = 80
+          Else
+            ipos = 10
+          Endif
+          rTkx = Utils.db.Exec(" select * from " & Tabe & " as e where e.statut = &1 and e.suppr = &2 and e.caisse = &3 " & filtredate & " order by numero", Statut, 1, rCaisse!code)
+          If rTkx.Available Then
+            pdf.Baspage()
+            pdf.newPage
+            Posy = 5
+            Y2 = 5
+            pdf.Entete("Caisse " & rCaisse!code & ": Récapitulatif des tickets supprimés " & initdate, ipos, Posy, 1, Ba4)
+            Posy += 10
+            Y2 += 10
+            Repeat
+              Inc NBT
+              If Nbt = 2 Then
+                X2 = 106
+              Else
+                X2 = 2
+              Endif
+              If Not Ba4 Then X2 = 2
+              If Posy >= 278 Or If Y2 >= 278 Then
+                pdf.Baspage()
+                pdf.newPage
+                Posy = 5
+                Y2 = 5
+                If Ba4 Then
+                  pdf.Entete("Caisse " & rCaisse!code & ": Récapitulatif des tickets supprimés " & initdate, ipos, Posy, 1, Ba4)
+                  Posy += 10
+                  Y2 += 10
+                Endif
+              Endif
+              If Ba4 Then
+                If Nbt < 2 Then
+                  pdf.Entete("Ticket numéro " & rTkx!numero & "     " & LDate(rTkx!date).LT & " " & rTkx!nom, X2, Posy, 1, "")
+                Else
+                  pdf.Entete("Ticket numéro " & rTkx!numero & "     " & LDate(rTkx!date).LT & " " & rTkx!nom, X2, Y2, 1, "")
+                Endif
+              Else
+                pdf.Entete("Ticket numéro " & rTkx!numero & "     " & LDate(rTkx!date).LT & " " & rTkx!nom, X2, Posy, 1, "")
+              Endif
+              If Ba4 Then
+                If Nbt = 1 Then Posy += 8
+                If Nbt = 2 Then Y2 += 8
+              Else
+                Posy += 8
+              Endif
+              rTkl = Utils.db.Exec(" select * from " & Tabl & " where numero = &1 order by LInd", rTkx!numero)
+              If rTkl.Available Then
+                Repeat
+                  $code = rTkl!code & String$(15 - Len(rTkl!code), " ")
+                  $intitule = rTkl!intitule & String$(40 - (Len(rTkl!intitule) - 10), " ")
+                  If Ba4 Then
+                    If Nbt < 2 Then
+                      pdf.Level1($code, $intitule, rTkl!montant, rTkl!qte, X2, PosY, "")
+                    Else
+                      pdf.Level1($code, $intitule, rTkl!montant, rTkl!qte, X2, Y2, "")
+                    Endif
+                  Else
+                    pdf.Level1($code, $intitule, rTkl!montant, rTkl!qte, X2, PosY, "")
+                  Endif
+                  If Ba4 Then
+                    If Nbt = 1 Then Posy += 3
+                    If Nbt = 2 Then Y2 += 3
+                  Else
+                    Posy += 3
+                  Endif
+                  If Posy >= 280 Or If Y2 >= 280 Then
+                    pdf.Baspage()
+                    pdf.newPage
+                    Posy = 5
+                    Y2 = 5
+                    If Ba4 Then
+                      pdf.Entete("Caisse " & rCaisse!code & ": Récapitulatif des tickets supprimés " & initdate, ipos, Posy, 1, Ba4)
+                      Posy += 10
+                      Y2 += 10
+                    Endif
+                  Endif
+                Until rTkl.MoveNext()
+              Endif
+              If Nbt = 2 Then nbt = 0
+            Until rTkx.MoveNext()
+          Endif
+          
+          'On imprime les tickets.
+          nbt = 0
+          rTkx = Utils.db.Exec(" select * from " & Tabe & " as e where e.type = 0 and e.statut = &1 and e.suppr = &2 and e.caisse = &3 " & filtredate & " order by numero", Statut, 0, rCaisse!code)
+          If rTkx.Available Then
+            pdf.Baspage()
+            pdf.newPage
+            Posy = 5
+            Y2 = 5
+            pdf.Entete("Caisse " & rCaisse!code & ": Récapitulatif des tickets encaissés " & initdate, ipos, Posy, 1, Ba4)
+            Posy += 10
+            Y2 += 10
+            Repeat
+              Inc NBT
+              If Nbt = 2 Then
+                X2 = 106
+              Else
+                X2 = 2
+              Endif
+              If Not Ba4 Then X2 = 2
+              If Posy >= 278 Or If Y2 >= 278 Then
+                pdf.Baspage()
+                pdf.newPage
+                Posy = 5
+                Y2 = 5
+                If Ba4 Then
+                  pdf.Entete("Caisse " & rCaisse!code & ": Récapitulatif des tickets encaissés " & initdate, ipos, Posy, 1, Ba4)
+                  Posy += 10
+                  Y2 += 10
+                Endif
+              Endif
+              If Ba4 Then
+                If Nbt < 2 Then
+                  pdf.Entete("Ticket numéro " & rTkx!numero & "     " & LDate(rTkx!date).LT, X2, Posy, 1, "")
+                Else
+                  pdf.Entete("Ticket numéro " & rTkx!numero & "     " & LDate(rTkx!date).LT, X2, Y2, 1, "")
+                Endif
+              Else
+                pdf.Entete("Ticket numéro " & rTkx!numero & "     " & LDate(rTkx!date).LT, X2, Posy, 1, "")
+              Endif
+              If Ba4 Then
+                If Nbt = 1 Then Posy += 8
+                If Nbt = 2 Then Y2 += 8
+              Else
+                Posy += 8
+              Endif
+              rTkl = Utils.db.Exec(" select * from " & Tabl & " where numero = &1 order by LInd", rTkx!numero)
+              If rTkl.Available Then
+                Repeat
+                  $code = rTkl!code & String$(15 - Len(rTkl!code), " ")
+                  $intitule = rTkl!intitule & String$(40 - (Len(rTkl!intitule) - 10), " ")
+                  If Ba4 Then
+                    If Nbt < 2 Then
+                      pdf.Level1($code, $intitule, rTkl!montant, rTkl!qte, X2, PosY, "")
+                    Else
+                      pdf.Level1($code, $intitule, rTkl!montant, rTkl!qte, X2, Y2, "")
+                    Endif
+                  Else
+                    pdf.Level1($code, $intitule, rTkl!montant, rTkl!qte, X2, PosY, "")
+                  Endif
+                  If Ba4 Then
+                    If Nbt = 1 Then Posy += 3
+                    If Nbt = 2 Then Y2 += 3
+                  Else
+                    Posy += 3
+                  Endif
+                  If Posy >= 280 Or If Y2 >= 280 Then
+                    pdf.Baspage()
+                    pdf.newPage
+                    Posy = 5
+                    Y2 = 5
+                    If Ba4 Then
+                      pdf.Entete("Caisse " & rCaisse!code & ": Récapitulatif des tickets encaissés " & initdate, ipos, Posy, 1, Ba4)
+                      Posy += 10
+                      Y2 += 10
+                    Endif
+                  Endif
+                Until rTkl.MoveNext()
+              Endif
+              If Nbt = 2 Then nbt = 0
+            Until rTkx.MoveNext()
+          Endif
+          
+          'On imprime les tickets client compte.
+          nbt = 0
+          rTkx = Utils.db.Exec(" select * from " & Tabe & " as e where e.type = 1 and e.statut = &1 and e.suppr = &2 and e.caisse = &3 " & filtredate & " order by numero", Statut, 0, rCaisse!code)
+          If rTkx.Available Then
+            pdf.Baspage()
+            pdf.newPage
+            Posy = 5
+            Y2 = 5
+            pdf.Entete("Caisse " & rCaisse!code & ": Récapitulatif des tickets des clients en compte " & initdate, ipos, Posy, 1, Ba4)
+            Posy += 10
+            Y2 += 10
+
+            Repeat
+              Inc NBT
+              If Nbt = 2 Then
+                X2 = 106
+              Else
+                X2 = 2
+              Endif
+              If Not Ba4 Then X2 = 2
+              If Posy >= 278 Or If Y2 >= 278 Then
+                pdf.Baspage()
+                pdf.newPage
+                Posy = 5
+                Y2 = 5
+                If Ba4 Then
+                  pdf.Entete("Caisse " & rCaisse!code & ": Récapitulatif des tickets des clients en compte " & initdate, ipos, Posy, 1, Ba4)
+                  Posy += 10
+                  Y2 += 10
+                Endif
+              Endif
+              If Ba4 Then
+                If Nbt < 2 Then
+                  pdf.Entete("Ticket numéro " & rTkx!numero & "     " & LDate(rTkx!date).LT, X2, Posy, 1, "")
+                  pdf.Entete(rTkx!client & " " & rTkx!nom, X2, Posy + 4, 1, "")
+                Else
+                  pdf.Entete("Ticket numéro " & rTkx!numero & "     " & LDate(rTkx!date).LT, X2, Y2, 1, "")
+                  pdf.Entete(rTkx!client & " " & rTkx!nom, X2, Y2 + 4, 1, "")
+                Endif
+              Else
+                pdf.Entete("Ticket numéro " & rTkx!numero & "     " & LDate(rTkx!date).LT, X2, Posy, 1, "")
+                pdf.Entete(rTkx!client & " " & rTkx!nom, X2, Posy + 4, 1, "")
+              Endif
+              If Ba4 Then
+                If Nbt = 1 Then Posy += 10
+                If Nbt = 2 Then Y2 += 10
+              Else
+                Posy += 10
+              Endif
+              rTkl = Utils.db.Exec(" select * from " & Tabl & " where numero = &1 order by LInd", rTkx!numero)
+              If rTkl.Available Then
+                Repeat
+                  $code = rTkl!code & String$(15 - Len(rTkl!code), " ")
+                  $intitule = rTkl!intitule & String$(40 - (Len(rTkl!intitule) - 10), " ")
+                  If Ba4 Then
+                    If Nbt < 2 Then
+                      pdf.Level1($code, $intitule, rTkl!montant, rTkl!qte, X2, PosY, "")
+                    Else
+                      pdf.Level1($code, $intitule, rTkl!montant, rTkl!qte, X2, Y2, "")
+                    Endif
+                  Else
+                    pdf.Level1($code, $intitule, rTkl!montant, rTkl!qte, X2, PosY, "")
+                  Endif
+                  If Ba4 Then
+                    If Nbt = 1 Then Posy += 3
+                    If Nbt = 2 Then Y2 += 3
+                  Else
+                    Posy += 3
+                  Endif
+                  If Posy >= 280 Or If Y2 >= 280 Then
+                    pdf.Baspage()
+                    pdf.newPage
+                    Posy = 5
+                    Y2 = 5
+                    If Ba4 Then
+                      pdf.Entete("Caisse " & rCaisse!code & ": Récapitulatif des tickets des clients en compte " & initdate, ipos, Posy, 1, Ba4)
+                      Posy += 10
+                      Y2 += 10
+                    Endif
+                  Endif
+                Until rTkl.MoveNext()
+              Endif
+              If Nbt = 2 Then nbt = 0
+            Until rTkx.MoveNext()
+          Endif
+        
+          If Validate Then
+            'Ticket Z on valide les tickets
+            Utils.db.Exec("Update " & Tabe & " as e set e.statut = &1 where e.statut = &2 and e.caisse = &3" & filtredate, "V", Statut, rCaisse!code)
+            'On met à jour le fond de caisse et les dates d'ouverture
+            Utils.db.Exec("UPdate  " & Cbase.Table("TabCaisses") & "  SET fndc = &2, dtefm = &3, tkz = &4 WHERE code = &1", rCaisse!code, Utils.PointBase(Fndcaisse), LDate(Now).DT, 1)
+          Endif
+  
+          pdf.Baspage()
+          
+        Else
+          'Cette caisse n'a aucune donnée a traiter.
         Endif
-        'On met à jour le fond de caisse
-        Utils.db.Exec("UPDATE  " & Cbase.Table("TabCaisses") & "  SET fndc = &2 WHERE code = &1", Ncaisse, Val(Utils.cpoint(Totcaisse)))
-        'et on continue
-        sReg = 0
-        sMTreg = 0
-        sqte = 0
-        sMtfam = 0
-        Totventes = 0
-        Totcaisse = 0
-        Pnm = 0
-        Posy = 0
+  
       Until rCaisse.MoveNext()
       Dec Application.Busy
-      
-      Utils.db.Exec("delete FROM " & Tabz & " where caisse = &1 and date = &2", Ncaisse, LDate(DateChooser1.Value).D)
       pdf.Output(Filename, False)
-      Visualiseur.Prog_Editeur(Filename)
+      If Ret Then Visualiseur.Prog(Filename)
     Else
-      Message.Info("Aucune donnée n'est a traiter !")
+      Message.Info("Aucune caisse n'exite a traiter !")
     Endif
   End With
+  
+  Return Ret
 
 End
 
@@ -412,19 +729,19 @@ Public Sub Moulinage()
   With utils
     Me.mouse = Mouse.Wait
     If rResult.Available Then numbon = rResult!dnbon
-    Try rTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " order by date , numero")
+    Try rTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where statut = &1 order by date, numero", "V")
     If rTck.Available Then
       If LDate(rtck!date).G < DateChooser1.Value Then
         sDate = LDate(rtck!date).L 
         Message.Info("Il reste des tickets à la date du " & sdate & " !\nVeuillez faire un moulinage à cette date SVP.")
       Else
-        rTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where DATE(date) = &1 order by numero asc, date desc", LDate(DateChooser1.Value).D)
+        rTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where DATE(date) = &1 and statut = &2 order by numero asc, date desc", LDate(DateChooser1.Value).D, "V")
         If rTck.Available Then
           Repeat
 
             'On verifie la somme de controle des tiquets
             If rTck!control Then
-              If Sha1Calc.CalcSha1T("Fiches_EntTicketz", rTck!caisse, rTck!numero, rTck!prev_numero, False) <> Trim(rTck!control) Then
+              If Sha1Calc.CalcSha1T("Fiches_EntTicketz", rTck!numero, rTck!prev_numero, False) <> Trim(rTck!control) Then
                 Error_Verif_Tck.Add(rTck!numero)
               Endif
             Else
@@ -446,7 +763,7 @@ Public Sub Moulinage()
         Endif
       
         lasttk = ""
-        rTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where DATE(date) = &1 order by numero asc, date desc", LDate(DateChooser1.Value).D)
+        rTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where DATE(date) = &1 and statut = &2 order by numero asc, date desc", LDate(DateChooser1.Value).D, "V")
         If rTck.Available Then
           Repeat
           
@@ -464,13 +781,7 @@ Public Sub Moulinage()
               resto = ""
             Endif
             bretro = rtck!retro
-            'sDate = Mid(rtck!date, 7, 4) & Mid(rtck!date, 4, 2) & Left(rtck!date, 2) & Mid(rtck!date, 13, 2) & Mid(rtck!date, 16, 2) & "00"
-            'TODO V3.69
-            'Il faut rajouter le champ prev_numero, retro et type dans la table HisEntTck
-            'si prev_numero est null prendre le dernier ticket de cette caisse si il existe
-            'de manière générale il faut aligner les tables Lignes & Ent Ticket entre Laurux/Laurux-Pos pour
-            'améliorer le support commun de class et fonctionnalité
-            'Sha1Calc.CalcSha1T(Cbase.Table("TabHisEntTck"), rtck!caisse, rtck!numero, rtck!prev_numero)
+            Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisEntTck") & " (caisse, numero, date, client, scheque, mcheque, scarte, mcarte, sespeces, mespeces, scredit, mcredit, mht, mtva, mttc, savoir, scavoir, mavoir, vendeur, carte, points, sresto, mresto, nom, suppr, control, type, retro, prev_numero) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21}, &{22}, &{23}, &{24}, &{25}, &{26}, &{27}, &{28}, &{29})", rtck!caisse, rtck!numero, rtck!date, rtck!client, rtck!scheque, rtck!mcheque, rtck!scarte, rtck!mcarte, rtck!sespeces, rtck!mespeces, rtck!scredit, rtck!mcredit, rtck!mht, rtck!mtva, rtck!mttc, rtck!savoir, rtck!scavoir, rtck!mavoir, rtck!vendeur, rtck!carte, rtck!points, rtck!sresto, rtck!mresto, rtck!nom, rtck!suppr, rtck!control, rtck!type, rtck!retro, rtck!prev_numero)
             If Jnl Then
               ' On gère d'abord les clients caisse
               If rTck!type = "0" Then
@@ -778,9 +1089,9 @@ Public Sub Moulinage()
                         Remart = Val(.cpoint(Remart)) + Val(.cpoint(artbrut)) - Val(.cpoint(artnet))
                         totalht = totalht + Val(.cpoint(artnet))
                         totalttc = totalttc + Val(.cpoint(Arttc))
-                        mrg += rltck!marge
+                        'mrg += rltck!marge 'TODO la marge n'est pas dispo sur la ligne en caisse, il faut faire le calcul ici si besoin
                         'on enregistre la ligne du Bl
-                        Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigbl") & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl, mrgart_ligbl, dte_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", numbon, nmlig, rlTck!code, artdsg, artfam, artpu, qte, artbrut, Artrm, artnet, Arttx, Arttc, "A", Nbd, Bloc, rlTck!marge, LDate(rTck!date).DT)
+                        Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigbl") & "(num_ligbl, numlig_ligbl,code_ligbl, libel_ligbl, fam_ligbl, pu_ligbl, qte_ligbl, brut_ligbl, rem_ligbl, netht_ligbl, tx_ligbl, nettc_ligbl, typel_ligbl, dec_ligbl, block_ligbl, mrgart_ligbl, dte_ligbl) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", numbon, nmlig, rlTck!code, artdsg, artfam, artpu, qte, artbrut, Artrm, artnet, Arttx, Arttc, "A", Nbd, Bloc, "", LDate(rTck!date).DT) ' TODO calul marge
                         If rlTck!type = "S" Then
                           rlTck.MovePrevious
                           If rlTck!type = "O" Then rlTck.MovePrevious
@@ -822,17 +1133,16 @@ next_ticket:
             Utils.db.Exec("UNLOCK TABLES")
             'On recalcule les soldes
             'Csolde.Recalc_solde()
-            'On imprime le livre de caisse
-            Livre_caisse()
+            'On imprime le livre de caisse pour toute les caisses
+            Livre_caisse(Null, "V", False, LDate(DateChooser1.Value), "A4")
             'On efface les Tables
-            rTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where DATE(date) = &1", LDate(DateChooser1.Value).D)
+            rTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where DATE(date) = &1 and statut = &2", LDate(DateChooser1.Value).D, "V")
             If rTck.Available Then
               Repeat
                 Utils.db.Exec("delete FROM " & Cbase.Table("TabEntTck") & " where numero = &1", rTck!numero)
                 Utils.db.Exec("delete FROM " & Cbase.Table("TabLigTck") & " where numero = &1", rTck!numero)
               Until rTck.MoveNext()
             Endif
-            Utils.db.Exec("delete from " & Cbase.Table("TabReglt") & " where DATE(date) = &1", LDate(DateChooser1.Value).D)
             Me.mouse = Mouse.Default
             If start.son Then Music.Play
             Message.Info("Traitement terminé !")
@@ -2103,7 +2413,7 @@ Private Sub genfac()
             resligfac!quantite = Val(Replace(resligz!qte, ".", ","))
             resligfac!tva = Val(Replace(resligz!mtva, ".", ","))
             resligfac!montant = Val(Replace(resligz!mht, ".", ","))
-            resligfac!marge = resligz!marge
+            'resligfac!marge = resligz!marge 'TODO la marge n'est pas dispo sur la ligne en caisse, il faut faire le calcul ici si besoin
             resligfac.Update
           Endif
         Until resligz.MoveNext()

@@ -1,0 +1,373 @@
+' Gambas class file
+
+Private btn As Imagebutton
+Public Bsel As Boolean = False
+Public Codearticle As String
+Public Libellearticle As String
+Public fnd As String
+Private Touche_P As String
+Private Touche_S As String
+Private CodeA As New String[36]
+Private ToucheS As New String[36]
+Private hpan As Panel
+Private hbutton As ImageButton
+Private Pan As Boolean = False
+
+Public Sub Form_Open()
+
+  Utils.Observers(Me)
+  Init()
+  Caisse.origine = "Attrib"
+  createPanel()
+
+End
+
+Public Sub createPanel()
+
+  hpan = New Panel(Panel1)
+  hpan.W = Panel1.w
+  hpan.H = Panel1.H
+  hpan.x = 0
+  hpan.Y = 0
+  'hpan.border = Border.Etched
+  hpan.Background = &HE7FFDF&
+  hpan.visible = False
+
+End
+
+Public Sub Init()
+
+  Dim rTch As Result
+  Dim i As Integer
+  Dim t As String = "A"
+
+  For i = 1 To 35
+    t = "A" & i
+    Try btn = Me.Controls[t]
+    Try btn.Text = ""
+    CodeA[i] = ""
+  Next
+  rTch = Utils.db.Exec("SELECT * From " & Cbase.Table("TabTouches") & " where left(touche,1) = &1 and cai = &2 order by touche", "A", Start.$Tcai)
+  If rTch.Available Then
+    Repeat
+      Try Me.Controls[rTch!touche].Name = rTch!touche
+      If Not Error Then
+        Btn = Me.Controls[rTch!touche]
+        btn.Text = rTch!libelle
+        CodeA[btn.tag] = rTch!code
+        Try ToucheS[btn.tag] = Utils.convBool(rTch!touche_s)
+        Try Btn.Background = rTch!coul
+        Try btn.Picture = Picture[rTch!fond]
+      Endif
+    Until rTch.MoveNext()
+  Endif
+  Bouton.Clear
+  TextArea1.Clear
+  Cart.clear
+  CheckBox1.value = False
+
+End
+
+Public Sub Cart_LostFocus()
+
+  If Cart.Text <> Right$(Bouton.Text, Len(Bouton.Text) - 1) Then TestArt()
+
+End
+
+Public Sub TestArt()
+
+  Dim Rarts As Result
+
+  If Not CheckBox1.Value And Not IsNull(Cart.Text) Then
+    Rarts = Utils.db.Exec("SELECT * FROM Fiches_Art where art_code = &1", Cart.Text)
+    If Not Rarts.Available Then
+      Message.Warning("Cet article n'existe pas !")
+      Cart.Clear
+      Label3.text = ""
+      Cart.SetFocus
+    Endif
+  Endif
+
+End
+
+Public Sub Button2_Click()
+
+  Me.close
+
+End
+
+Public Sub Clav2_Click()
+
+  TextArea1.Clear
+  TextArea1.Text = Last.text
+  Cart.Clear
+  Label3.Text = ""
+  CheckBox1.Value = False
+  Bouton.Text = Last.name
+  Cart.Text = CodeA[Last.tag]
+  'If IsNull(Cart.text) Then Cart.Text = Right$(Bouton.Text, Len(Bouton.Text) - 1)
+  Try CheckBox1.value = ToucheS[Last.tag]
+  Touche_P = Last.name
+  fnd = Touche_P
+  TextArea1.Select
+  TextArea1.setfocus
+  If Cart.Text <> Right$(Bouton.Text, Len(Bouton.Text) - 1) Then TestArt()
+
+End
+
+Public Sub Clav2_Dblclick()
+
+  Dim hFormat As CFormat
+  Dim hCont As ImageButton
+  Dim Couleur As Long
+  Dim rTch As Result
+
+  Try hCont = Last
+  If Not Error Then
+    hFormat = CFormat[Start.LocalSettings["/Soc" & Start.Societe & "/caisse/" & hCont.tag]]
+    FSetFormat.Format = hFormat
+    FSetFormat.Run()
+    hFormat = FSetFormat.Format
+    hCont.Background = IIf(hFormat.Background = -1, color.TextBackground, hFormat.Background)
+    Couleur = hCont.Background
+    hCont.Foreground = IIf(hFormat.Foreground = -1, color.TextForeground, hFormat.Foreground)
+    rTch = Utils.db.Exec("SELECT * From " & Cbase.Table("TabTouches") & " where touche = &1", Bouton.Text)
+    If rTch.Available Then
+      Try Utils.db.Exec("UPDATE " & Cbase.Table("TabTouches") & " set coul = &1 where touche = &2 and cai = &3", hCont.background, Bouton.Text, start.$tcai)
+    Endif
+    Init()
+  Endif
+
+End
+
+Public Sub Bouton_KeyPress()
+
+  If Key.code = Key.Del Then
+    If Not IsNull(Bouton.Text) Then
+      Utils.db.Exec("delete  From " & Cbase.Table("TabTouches") & " where touche = &1 and cai = &2", Bouton.Text, start.$tcai)
+      Me.Controls[Bouton.Text].Name = Bouton.Text
+      Btn = Me.Controls[Bouton.Text]
+      btn.text = ""
+      Label3.text = ""
+      Btn.BackGround = &HDFE7FF&
+      CodeA[btn.tag] = ""
+      Try btn.Picture.Clear
+      Btn.Refresh
+      Init()
+    Endif
+  Endif
+
+End
+
+Public Sub Button1_Click()
+
+  Dim rTch As Result
+
+  If Not IsNull(Cart.Text) And If Not IsNull(Bouton.Text) Then
+    rTch = Utils.db.Exec("SELECT * From " & Cbase.Table("TabTouches") & " where touche = &1 and cai = &2", Bouton.Text, start.$tcai)
+    If rTch.Available Then
+      Utils.db.Exec("UPDATE " & Cbase.Table("TabTouches") & " set libelle = &1, code = &2, touche_s = &4 where touche = &3 and cai = &5", TextArea1.text, Cart.Text, Bouton.Text, CheckBox1.value, Start.$tcai)
+    Else
+      Try Utils.db.Exec("INSERT INTO " & Cbase.Table("TabTouches") & " (touche, libelle, code, touche_s, cai) VALUES (&1, &2, &3, &4, &5)", Bouton.Text, TextArea1.text, Cart.Text, CheckBox1.value, start.$tcai)
+      If Error Then Utils.db.Exec("UPDATE " & Cbase.Table("TabTouches") & " set cai = &1 where touche = &2", start.$tcai, Cart.Text)
+    Endif
+    Me.Controls[Bouton.Text].Name = Bouton.Text
+    Btn = Me.Controls[Bouton.Text]
+    btn.text = ""
+    Btn.Refresh
+    Init()
+  Else
+    Message.Error("Veuillez vérifier votre saisie SVP !")
+  Endif
+
+End
+
+Public Sub Button5_Click()
+
+  Dim rTch As Result
+
+  If Not IsNull(Cart.Text) And If Not IsNull(Bouton.Text) Then
+    rTch = Utils.db.Exec("SELECT * From " & Cbase.Table("TabTouches") & " where touche = &1 and cai = &2", Bouton.Text, start.$tcai)
+    If rTch.Available Then
+      Utils.db.Exec("DELETE FROM " & Cbase.Table("TabTouches") & " where touche = &1 and cai = &2", Bouton.Text, start.$tcai)
+    Endif
+    Cart.Clear
+    Label3.text = ""
+    Me.Controls[Bouton.Text].Name = Bouton.Text
+    Btn = Me.Controls[Bouton.Text]
+    CodeA[Btn.tag] = ""
+    Btn.text = ""
+    Btn.Refresh
+    Init()
+  Endif
+
+End
+
+'****************************************Gestion des articles**************************************************
+
+Public Sub Button3_Click()
+
+  Dim MyForm As TriArticles
+
+  Bsel = False
+  MyForm = New TriArticles(True, "", "art_code", "Attrib", "", "")
+  MyForm.Showmodal()
+  If Bsel = True Then
+    Cart.text = Codearticle
+    Label3.Text = Libellearticle
+  Else
+    Cart.SetFocus
+  Endif
+
+End
+
+Public Sub CheckBox1_Click()
+
+  If CheckBox1.Value Then
+    Button4.Visible = True
+  Else
+    If Not pan Then Button4.Visible = False
+  Endif
+
+End
+
+Public Sub Button4_Click()
+
+  If IsNull(Bouton.text) And Not pan Then
+    Message.Warning("Veuillez saisir une famille SVP !")
+  Else
+    If pan Then
+      Bouton.Clear
+      TextArea1.Clear
+      Cart.clear
+      CheckBox1.Enabled = True
+      CheckBox1.value = False
+      hpan.Delete
+      Pan = False
+      Button4.Text = "Sous-familles"
+    Else
+      If Not pan Then
+        Bouton.Clear
+        TextArea1.Clear
+        Cart.clear
+        createPanel()
+        hpan.visible = True
+        Cbutton(Panel1)
+        Pan = True
+        CheckBox1.Enabled = False
+        Button4.Text = "Familles"
+        CheckBox1.Value = False
+      Endif
+    Endif
+  Endif
+Catch
+
+End
+
+'****************************************************
+'*      Création des boutons des sous-familles      *
+'****************************************************
+Public Sub Cbutton(oObj As Object)
+
+  Dim hClass As Object
+
+  For Each hClass In oObj.Children
+    If hClass.Tag Then
+      Hbutton = New (ImageButton, hpan) As "Clav3"
+      hbutton.Name = Touche_P & "B" & Right$(hClass.Name, Len(hClass.name) - 1)
+      hbutton.W = hClass.w
+      hbutton.H = hClass.H
+      hbutton.x = hClass.x
+      hbutton.Y = hClass.y
+      hbutton.Tag = hClass.tag
+    Endif
+  Next
+  Pan = True
+  Init2()
+
+End
+
+Public Sub Clav3_Click()
+
+  TextArea1.Clear
+  TextArea1.Text = Last.text
+  Bouton.Text = Last.name
+  Cart.Text = CodeA[Last.tag]
+  Touche_S = Last.name
+  Fnd = Touche_S
+  TextArea1.Select
+  TextArea1.setfocus
+
+End
+
+Public Sub Clav3_Dblclick()
+
+  Fond_ImageButton()
+
+End
+
+Public Sub Init2()
+
+  Dim rTch As Result
+  Dim i As Integer
+  Dim t As String = "B"
+
+  For i = 1 To 35
+    t = "B" & i
+    Try btn = Me.Controls[t]
+    Try btn.Text = ""
+    CodeA[i] = ""
+  Next
+  i = Len(Touche_P)
+  rTch = Utils.db.Exec("SELECT * From " & Cbase.Table("TabTouches") & " where cai = &1 order by touche", start.$tcai)
+  If rTch.Available Then
+    Repeat
+      If Left(rTch!touche, i) = Touche_p And InStr(rTch!touche, "B") <> 0 Then
+        Try Me.Controls[rTch!touche].Name = rTch!touche
+        If Not Error Then
+          Btn = Me.Controls[rTch!touche]
+          btn.Text = rTch!libelle
+          CodeA[btn.tag] = rTch!code
+          Try Btn.Background = rTch!coul
+          Try btn.Picture = Picture[rTch!fond]
+        Endif
+      Endif
+    Until rTch.MoveNext()
+  Endif
+  Bouton.Clear
+  TextArea1.Clear
+  Cart.clear
+
+End
+
+Public Sub Fond_ImageButton()
+
+  Dim hFormat As CFormat
+  Dim hCont As ImageButton
+  Dim Couleur As Long
+  Dim rTch As Result
+
+  Try hCont = Last
+  If Not Error Then
+    btn = Last
+    hFormat = CFormat[Start.LocalSettings["/Soc" & Start.Societe & "/caisse/" & hCont.tag]]
+    FSetFormat.Format = hFormat
+    FSetFormat.Run()
+    hFormat = FSetFormat.Format
+    hCont.Background = IIf(hFormat.Background = -1, color.TextBackground, hFormat.Background)
+    Couleur = hCont.Background
+    hCont.Foreground = IIf(hFormat.Foreground = -1, color.TextForeground, hFormat.Foreground)
+    rTch = Utils.db.Exec("SELECT * From " & Cbase.Table("TabTouches") & " where touche = &1 and cai = &2", Bouton.Text, start.$tcai)
+    If rTch.Available Then
+      Utils.db.Exec("UPDATE " & Cbase.Table("TabTouches") & " set coul = &1 where touche = &2 and cai = &3", hCont.background, Bouton.Text, start.$tcai)
+    Else
+      Try Utils.db.Exec("INSERT INTO " & Cbase.Table("TabTouches") & " (touche, libelle, code, coul, cai) VALUES (&1, &2, &3, &4, &5)", Bouton.Text, TextArea1.text, Cart.Text, hCont.background, start.$tcai)
+    Endif
+    If hpan.visible = False Then
+      Init()
+    Else
+      Init2()
+    Endif
+  Endif
+
+End

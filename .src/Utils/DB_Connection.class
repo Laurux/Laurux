@@ -78,6 +78,9 @@ Public Sub Start(Optional Enabling As Boolean = False, Optional Clear As Boolean
     logh.Add(handler_r, "remote")
     log.addHandler(logh["remote"])
   Endif
+  'logger is not enabled before begin is done
+  'to avoid logging event during logger start
+  log.Enabled = False
   log.Begin()
   log.Enabled = Enabling
 
@@ -305,7 +308,9 @@ Public Sub Exec(Request As String, ...) As Result
     Backtrace = System.Backtrace
     Backtrace.Extract(Backtrace.Length - 1, -1)
     Backtrace.Extract(0, 1)
-    log.Log("Exec_SQL;" & user_name & ";" & host_id & ";" & machine_id & ";" & process_id & ";" & Backtrace.Join(",") & ";" & Request)
+    If log.Enabled Then
+      log.Log("Exec_SQL;" & user_name & ";" & host_id & ";" & machine_id & ";" & process_id & ";" & Backtrace.Join(",") & ";" & Request)
+    Endif
   Endif
   
   regex = New RegExp
@@ -416,6 +421,38 @@ Public Sub Exec(Request As String, ...) As Result
 End
 
 
+
+Public Sub LockIncrement(Field As String, Table As String, Optional p_form As String = "0") As Result 
+  
+  Dim rResult As Result
+  Dim rResult2 As Result
+  Dim Value As Integer
+  Dim ctx As Collection
+   
+  Utils.db.Exec("LOCK TABLES " & Table & " WRITE ")
+  With utils
+    rResult = Utils.db.Exec("Select " & Field & " FROM " & Table)
+    If rResult.Available Then
+      Value = Val(rResult[Field])
+      Value = Value + 1
+      Utils.db.Exec("Update " & Table & " set " & Field & " = &1", Format(Value, p_form))
+    Endif
+  End With
+  rResult2 = Utils.db.Exec("Select " & Field & " FROM " & Table)
+  If rResult.Available And rResult.Available Then
+    If Val(rResult2[Field]) - Val(rResult[Field]) <> 1 Then
+      Message.Error("Erreur lors de l'increment du champ " & Field & " dans la table " & Table)
+    Endif
+  Else
+    Message.Error("Impossible d'incrementer le champ " & Field & " dans la table " & Table)
+  Endif
+  Utils.db.Exec("UNLOCK TABLES")
+  
+  Return rResult2
+  
+End
+
+
 Public Sub Create(Table As String) As Result 
   
   Dim rResult As Result
@@ -425,7 +462,9 @@ Public Sub Create(Table As String) As Result
     Backtrace = System.Backtrace
     Backtrace.Extract(Backtrace.Length - 1, -1)
     Backtrace.Extract(0, 1)
-    log.Log("Exec_SQL;" & user_name & ";" & host_id & ";" & machine_id & ";" & process_id & ";" & Backtrace.Join(",") & ";" & "Create " & Table)
+    If log.Enabled Then
+      log.Log("Exec_SQL;" & user_name & ";" & host_id & ";" & machine_id & ";" & process_id & ";" & Backtrace.Join(",") & ";" & "Create " & Table)
+    Endif
   Endif
 
   'Une fois logger on execute la requete
@@ -467,7 +506,9 @@ Public Sub Edit(Table As String, Request As String, ...) As Result
     Backtrace = System.Backtrace
     Backtrace.Extract(Backtrace.Length - 1, -1)
     Backtrace.Extract(0, 1)
-    log.Log("Exec_SQL;" & user_name & ";" & host_id & ";" & machine_id & ";" & process_id & ";" & Backtrace.Join(",") & ";" & "Edit " & Table & " : " & Request)
+    If log.Enabled Then
+      log.Log("Exec_SQL;" & user_name & ";" & host_id & ";" & machine_id & ";" & process_id & ";" & Backtrace.Join(",") & ";" & "Edit " & Table & " : " & Request)
+    Endif
   Endif
 
   'Une fois logger on execute la requete
@@ -496,7 +537,9 @@ Public Sub GUI_Event(hCont As Variant, Source As Variant[], Act As String, Value
     Backtrace = System.Backtrace
     'Backtrace.Extract(Backtrace.Length - 1, -1)
     Backtrace.Extract(0, 2)
-    log.Log("GUI;" & user_name & ";" & host_id & ";" & machine_id & ";" & process_id & ";" & Backtrace.Join(",") & ";" & Request)
+    If log.Enabled Then
+      log.Log("GUI;" & user_name & ";" & host_id & ";" & machine_id & ";" & process_id & ";" & Backtrace.Join(",") & ";" & Request)
+    Endif
   Endif
 
 End

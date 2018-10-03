@@ -36,6 +36,7 @@ Public PsY As Integer
 Public CpTable[5] As String
 Private Btunnel As Boolean = True
 Private $mopt As Menuopt
+Private $keyObserver As Observer
 
 Public Sub _new()
 
@@ -50,8 +51,22 @@ Public Sub _new()
   Endif
   Utils.Observers(Me)
   Me.Center
+  $keyObserver = New Observer(Me) As "KeyObserver"
 
 End
+
+Public Sub KeyObserver_Keypress()
+  
+  If Key.Code = Key.F11 Then
+    If Me.FullScreen Then
+      Me.FullScreen = False
+    Else
+      Me.FullScreen = True
+    Endif
+  Endif
+  
+End
+
 
 Public Sub Form_Open()
 
@@ -161,8 +176,9 @@ Public Sub Form_Open()
     If Application.Path = "/usr/bin/" & Application.Name Then
       Menu173.Visible = False
     Else
-      Majversion.RecupVersion()
+      
     Endif
+    Majversion.RecupVersion()
     LauruxMaj.Verif_Version()
     
     'lit les préférences locales puis surcharge par les globales si elles existent
@@ -171,11 +187,6 @@ Public Sub Form_Open()
     Pr.ApplyGlobal(Start.GlobalSettings)
     
     If Start.LocalSettings["/Soc" & Start.Societe & "/Infob"] Then Application.ShowTooltips = False
-    If Start.LocalSettings["/Soc" & Start.Societe & "/Cnomade"] Then
-      Menu300.Visible = True
-    Else
-      Menu300.Visible = False
-    Endif
 
     SetObserver(ScrollView1)
     Try rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabPromo") & " where datedeb = &1", Format$(Now, "yyyy-mm-dd"))
@@ -405,9 +416,6 @@ Public Sub preferences()
   Start.LocalSettings["/Soc" & Start.Societe & "/Conditions"] = 1
   Start.LocalSettings["/Soc" & Start.Societe & "/Tva550"] = 0
   Start.LocalSettings["/Soc" & Start.Societe & "/Codetva"] = " "
-  Start.LocalSettings["/Soc" & Start.Societe & "/Compta"] = 0
-  Start.LocalSettings["/Soc" & Start.Societe & "/Gestion"] = 0
-  Start.LocalSettings["/Soc" & Start.Societe & "/CptFac"] = 1
   Start.LocalSettings["/Soc" & Start.Societe & "/Qt1"] = 0
   Start.LocalSettings["/Soc" & Start.Societe & "/Coul_fen"] = 0
   Start.LocalSettings["/Soc" & Start.Societe & "/Qt1"] = 0
@@ -2361,11 +2369,6 @@ Public Sub Menu299_Click()
 
 End
 
-Public Sub Menu300_Click()
-
-  Fimport.ShowModal()
-
-End
 
 Public Sub Menu301_Click()
 
@@ -2584,5 +2587,23 @@ End
 Public Sub Menuis_Click()
 
   Glcr.Show
+
+End
+
+Public Sub Menu332_Click()
+
+  Dim Menu As Object
+
+  Menu = New Cmenu
+    If Not IsNull(Start.LocalSettings["/Soc" & Start.Societe & "/caisse/Ncai"]) Then
+      If Start.LocalSettings["/Soc" & Start.Societe & "/caisse/choixtouches"] Then
+        Start.$tcai = Split(Start.LocalSettings["/Soc" & Start.Societe & "/caisse/Ncai"], ";")[0]
+      Else
+        Start.$tcai = 0
+      Endif
+    Endif
+    
+    Object.Call(Menu, "Show")
+  
 
 End

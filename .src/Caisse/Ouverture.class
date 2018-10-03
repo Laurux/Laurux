@@ -1,0 +1,270 @@
+' Gambas class file
+
+$mdp As String
+b As Integer
+sNcai As String
+sNcaisse As String
+hfile As File
+sFiletxt As String
+Public $clav As String
+
+Public Sub _new()
+
+  Dim Rrslt As Result
+
+  Utils.Observers(Me)
+  Music.Load(Start.Musique)
+  SetObservers(Me, Me)
+  Try Rrslt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabVendeurs"))
+  If Not Error Then
+    If Rrslt.Available Then
+      Caissiere.Add("", "0")
+      Do
+        Try Caissiere.Add(Rrslt!code & " " & Rrslt!nom)
+      Loop Until Rrslt.MoveNext()
+    Endif
+  Endif
+  Try Rrslt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCaisses") & " where poste = &1 ", System.host)
+  If Not Error Then
+    If Rrslt.Available Then
+      Combobox1.Add("  ", "0")
+      Do
+        Combobox1.Add(Rrslt!code & " " & Rrslt!intitule)
+      Loop Until Rrslt.MoveNext()
+    Endif
+  Endif
+Catch
+  If Start.son Then
+    Music.Play
+  Endif
+  Try message.Error(Error.Text & " " & Error.where)
+
+End
+
+Public Sub SetObservers(hClass As Object, hCont As Container)
+
+  Dim hCtrl As Object
+  Dim hOBS As Observer
+
+  For Each hCtrl In hCont.Children
+    If hCtrl Is Button Then
+      hOBS = New Observer(hCtrl) As "OBS"
+    Endif
+    If hCtrl Is Container Then SetObservers(hClass, hCtrl)
+  Next
+
+End
+
+Public Sub Obs_Enter()
+
+  Last.Font = Font["" ",Bold," ""]
+  Last.background = Color.Lighter(Color.Buttonbackground)
+  'Last.Move(Last.x - 2, Last.y - 2, Last.w + 4, Last.h + 4)
+
+End
+
+Public Sub Obs_Leave()
+
+  Last.Font = Font["" "," "," ""]
+  Last.background = Color.ButtonBackground
+  'Last.Move(Last.x + 2, Last.y + 2, Last.w - 4, Last.h - 4)
+
+End
+
+Public Sub Mdp_KeyPress()
+
+  If Key.code = Key.enter Or If Key.code = Key.RETURN Or If Key.code = Key.Tab Then
+    Mdp_Vendeurs()
+    If b = 1 Then
+      b = 0
+    Else
+      Button1.SetFocus
+    Endif
+  Endif
+
+End
+
+Public Sub Mdp_Vendeurs()
+
+  If Mdp.Text <> $Mdp Then
+    If Start.son Then
+      Music.Play
+    Endif
+    Message.Error("Mot de passe erroné ! Veuillez saisir votre mot de passe SVP")
+    Mdp.SetFocus
+    Mdp.Select
+    b = 1
+    ' If Start.LocalSettings["/Soc" & Start.Societe & "/caisse/tactile"] Then Button3_Click()
+  Else
+    b = 0
+  Endif
+
+End
+
+Public Sub Combobox1_Click()
+
+  Dim Rslt As Result
+
+  If Not IsNull(Combobox1.Text) Then
+    Rslt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCaisses") & " where code = &1 ", Left$(Combobox1.Text, 1))
+    If IsNull(Rslt!fndc) Then
+      Fndc.text = "0,00"
+    Else
+      Fndc.text = Format$(Rslt!fndc, "0.00")
+    Endif
+    TextLabel1.text = LDate(Rslt!dtefm).LT
+  Endif
+Catch
+  If Start.son Then
+    Music.Play
+  Endif
+  Try message.Error(Error.Text & " " & Error.where)
+
+End
+
+Public Sub Caissiere_Click()
+
+  Dim Rrslt As Result
+
+  If Not IsNull(Caissiere.Text) Then
+    Rrslt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabVendeurs") & " where code = &1 ", Left$(Caissiere.Text, 2))
+    $mdp = hexdblKey.crypt("de", Rrslt!mdp, "Laurux")
+    b = TestCaisses.TestCai(Left$(Combobox1.Text, 1), Left$(caissiere.Text, 1))
+    If B = 1 Then
+      Caissiere.SetFocus
+    Else
+      Mdp.SetFocus
+      Mdp.Select
+      'If Start.LocalSettings["/Soc" & Start.Societe & "/caisse/tactile"] Then Button3_Click()
+    Endif
+  Endif
+Catch
+  If Start.son Then
+    Music.Play
+  Endif
+  Try message.Error(Error.Text & " " & Error.where)
+
+End
+
+Public Sub Button2_Click()
+
+  Me.close
+
+End
+
+Public Sub Button1_Click()
+
+  Try Clavier.Close()
+  sNcai = Left$(Combobox1.Text, 1)
+  sNcaisse = "Caisse" & sNcai
+  sFiletxt = User.home & "/" & sNcaisse & ".lock"
+  If Combobox1.Text = "  " Then
+    If Start.son Then
+      Music.Play
+    Endif
+    Message.Error("Veuillez saisir votre numéro de caisse SVP")
+  Else
+    If caissiere.Text = "  " Then
+      If Start.son Then
+        Music.Play
+      Endif
+      Message.Error("Veuillez saisir votre code vendeur SVP")
+    Else
+      If IsNull(Mdp.text) Then
+        If Start.son Then
+          Music.Play
+        Endif
+        Message.Error("Veuillez saisir votre mot de passe SVP")
+        Mdp.SetFocus
+        If Start.LocalSettings["/Soc" & Start.Societe & "/caisse/tactile"] Then Button3_Click()
+      Else
+        Mdp_Vendeurs()
+        If b = 1 Then
+          Mdp.SetFocus
+          Mdp.Select
+          b = 0
+          If Start.LocalSettings["/Soc" & Start.Societe & "/caisse/tactile"] Then Button3_Click()
+        Else
+          If Exist(User.home & "/" & sNcaisse & ".lock") Then
+            If Start.son Then
+              Music.Play
+            Endif
+            Message.Warning("Cette caisse est déjà connéctée !")
+            If Start.LocalSettings["/Soc" & Start.Societe & "/caisse/choixtouches"] Then
+              Start.$tcai = sNcai
+            Else
+              Start.$tcai = 0
+            Endif
+            Try Clavier.Close
+          Else
+            b = TestCaisses.TestCai(sNcai, Left$(Caissiere.Text, 1))
+            If B = 1 Then
+              Caissiere.SetFocus
+            Else
+              hFile = Open sfiletxt For Write Create
+              Print #hFile, caissiere.Text & "O"
+              Close #hFile
+              Start.LocalSettings["/Soc" & Start.Societe & "/caisse/Ncai"] = sNcai & ";" & Left$(Caissiere.Text, 2)
+              Start.LocalSettings.Save
+              If Start.LocalSettings["/Soc" & Start.Societe & "/caisse/choixtouches"] Then
+                Start.$tcai = sNcai
+              Else
+                Start.$tcai = 0
+              Endif
+              Utils.db.Exec("UPdate  " & Cbase.Table("TabCaisses") & "  SET dteov = &1, connecte = &2, vdr_code = &3 WHERE code = &4", LDate(Now).DT, 1, Left$(Caissiere.Text, 2), sNcai)
+              If Start.son Then
+                Music.Play
+              Endif
+              Message.Info("Bonjour " & Mid$(Caissiere.Text, 2, Len(Caissiere.Text) - 1) & " ! La caisse numéro " & sNcai & " est connectée ! Vous pouvez maintenant commencer votre travail.")
+              Me.close
+            Endif
+          Endif
+        Endif
+      Endif
+    Endif
+  Endif
+
+End
+
+Public Function Rcai(sCai As String) As String
+
+  scai = Combobox1.Text
+  Return scai
+
+End
+
+Public Sub Rvdr(Caisse As String) As String
+
+  Dim rResult As Result
+  Dim svdr As String = ""
+  
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCaisses") & " as c left join " & Cbase.Table("TabVendeurs") & " as v on c.vdr_code = v.code where c.code = &1", Caisse)
+  If rResult.Available Then
+    svdr = rResult!nom
+  Endif
+
+  Return svdr
+
+End
+
+Public Sub Org(sorg As String) As String
+
+  sorg = "O"
+  Return sorg
+
+End
+
+Public Sub button1_KeyPress()
+
+  Button1_Click()
+
+End
+
+Public Sub Button3_Click()
+
+  Dim MyForm As Clavier
+
+  MyForm = New Clavier
+  MyForm.Show()
+
+End

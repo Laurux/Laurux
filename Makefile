@@ -19,13 +19,23 @@ ifeq ("$(O)","")
 O:=.hidden/Stable
 endif
 
-all: $(APP) $(APP).desktop
+all: $(APP) $(APP).desktop $(APP)-Pos.desktop
 
 $(APP).desktop:
 	$(Q) echo "[Desktop Entry]" > $@
 	$(Q) echo "Name=$(APP)" >> $@
 	$(Q) echo "Exec=sh -c \"mkdir -p \\\$$HOME/.local/share/icons && cp -f \\\$$HOME/$(APP)/Icones/Larus.png \\\$$HOME/.local/share/icons/ ; cp \\\$$HOME/$(APP)/$(APP).desktop `xdg-user-dir DESKTOP` ; \\\$$HOME/$(APP)/$(APP)\"" >> $@
 	$(Q) echo "Icon=Larus.png" >> $@
+	$(Q) echo "Terminal=false" >> $@
+	$(Q) echo "Type=Application" >> $@
+	$(Q) echo "Categories=Finance" >> $@
+	$(Q) chmod 755 $@
+
+$(APP)-Pos.desktop:
+	$(Q) echo "[Desktop Entry]" > $@
+	$(Q) echo "Name=$(APP)-Pos" >> $@
+	$(Q) echo "Exec=sh -c \"mkdir -p \\\$$HOME/.local/share/icons && cp -f \\\$$HOME/$(APP)/Icones/Laurux-Pos.png \\\$$HOME/.local/share/icons/ ; cp \\\$$HOME/$(APP)/$(APP)-Pos.desktop `xdg-user-dir DESKTOP` ; \\\$$HOME/$(APP)/$(APP) -p\"" >> $@
+	$(Q) echo "Icon=Laurux-Pos.png" >> $@
 	$(Q) echo "Terminal=false" >> $@
 	$(Q) echo "Type=Application" >> $@
 	$(Q) echo "Categories=Finance" >> $@
@@ -44,7 +54,7 @@ $(APP): .project $(shell find .src -type f)
 clean:
 	$(vecho) "Cleaning $(PROJECT)"	
 	$(Q)rm -f $(APP)
-	$(Q)rm -f $(APP).desktop
+	$(Q)rm -f $(APP).desktop $(APP)-Pos.desktop
 	$(Q)rm -rf $(O)
 	$(Q)rm -rf .gambas
 

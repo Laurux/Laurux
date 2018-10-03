@@ -13,6 +13,7 @@ Private rResult As Result
 Private r2Result As Result
 Private bMaj As Boolean = False
 
+
 Public Sub Verif_Version()
 
   TabSoc = "Fiches_Societes"
@@ -1101,12 +1102,18 @@ Public Sub Verif_Version()
   If rResult!version = "3.68" Then
     If Start.LocalSettings["/dbase/Maj"] Then Maj369()
     Try Utils.db.Exec("update Fiches_Parametres set version = &1 ", "3.69")
-    'Laurux-Pos compatibility version
-    Try Utils.db.Exec("update Fiches_Parametres set version_pos = &1 ", "3.26")
+    'Laurux-Pos is integrated with Laurux
+    Try Utils.db.Exec("update Fiches_Parametres set version_pos = &1 ", "3.69")
   Endif
-
+  
   If bMaj Then Shell "xdg-open 'http://www.laurux.fr/drupal/changelog'"
-
+  
+Catch
+  
+  If Majversion.RecupVersion(False) <> Majversion.RecupVersionApp() Then
+    Message("Une erreur importante a eu lieu lors de la mise a jour de la base de donnée!\nVersion " & Majversion.RecupVersion(False) & " vers " & Majversion.RecupVersionApp() & "\n" & Error.Text & " " & Error.Where & "\nIl est imperatif de restaurer votre précédente version de Laurux ainsi que l'archive de votre base de donnée!\nVous pouvez faire suivre cette archive sur le forum pour analyse du problème")
+  Endif
+  
 End
 
 Public Sub Maj40()
@@ -5035,44 +5042,59 @@ Public Sub Maj369()
 
   Dim PB As ProgBar
   Dim txt As String
+  Dim lasttk As String = "0000001"
+  
+  'Modification de la caisse
+  PB = New ProgBar("Modification des caisses", 4)
+  PB.Show()
+  PB.Avancement("Table Caisse", 1)
   
   'Changemement Date format en ticket (le moulinage est effectué avant MAJ)
   Tab1 = "Fiches_Caisses"
   Try Utils.db.Exec("ALTER TABLE " & Tab1 & " change dteov dteov datetime")
   Try Utils.db.Exec("ALTER TABLE " & Tab1 & " change dtefm dtefm datetime")
+  Try Utils.db.Exec("ALTER TABLE " & Tab1 & " drop dntk")
+  Try Utils.db.Exec("ALTER TABLE " & Tab1 & " add (cutk char(7))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab1 & " add (vdr_code char(2))")
 
+  PB.Avancement("Table Tickets", 1)
   rResult = Utils.db.Exec("SELECT * FROM " & Tab1 & " ")
   If rResult.Available Then
     Repeat
       Tab = "Fiches_EntTickets" & rResult!code
-      Try Utils.db.Exec("ALTER TABLE " & Tab & " change date date datetime")  
+      Try Utils.db.Exec("DROP TABLE IF exists " & Tab)
       Tab = "Fiches_Reglts" & rResult!code
-      Try Utils.db.Exec("ALTER TABLE " & Tab & " change date date datetime")  
+      Try Utils.db.Exec("DROP TABLE IF exists " & Tab)
       tab = "Fiches_LigTickets" & rResult!code
-      Try Utils.db.Exec("ALTER TABLE " & tab & " MODIFY fam Char(20)")
+      Try Utils.db.Exec("DROP TABLE IF exists " & tab)
       tab = "Fiches_Ticketx" & rResult!code
-      Try Utils.db.Exec("ALTER TABLE " & tab & " MODIFY fam char(20)")
-      Try Utils.db.Exec("ALTER TABLE " & tab & " change date date datetime")
-      Try Utils.db.Exec("ALTER TABLE " & Tab & " drop marge")
+      Try Utils.db.Exec("DROP TABLE IF exists " & tab)
       tab = "Fiches_Ticketz" & rResult!code
-      Try Utils.db.Exec("drop Table IF exists " & Tab & "")
+      Try Utils.db.Exec("DROP TABLE IF exists " & Tab)
     Until rResult.MoveNext()
   Endif
+  
+  PB.Avancement("Table TicketsZ", 1)
   Tab = "Fiches_EntTicketz"
   Try Utils.db.Exec("ALTER TABLE " & Tab & " change date date datetime")
-  Tab = "Fiches_Regltz"
-  Try Utils.db.Exec("ALTER TABLE " & Tab & " change date date datetime")
+  Tab = "Fiches_LigTicketz"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (date DATETIME)")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " drop marge")
   
-  Tab = "Fiches_Ticketz"
-  Try Utils.db.EXEC("CREATE TABLE " & Tab &
-    "(numero Char(7)," &
-    "fam Char(20)," &
-    "montant Char(12)," &
-    "qte Char(12)," &
-    "caisse Char(2)," &
-    "date datetime," &
-    Utils.db.AutoIncrement("lInd") & ")" & Utils.db.Engine())
-
+  PB.Avancement("Table Historique Tickets", 1)
+  Tab = "Fiches_HisEntTickets"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (type CHAR(1))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (retro TINYINT(1))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (prev_numero CHAR(7))")
+  Tab = "Fiches_HisLigTickets"
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (mrem CHAR(12))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (mtva CHAR(12))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (block CHAR(4))")
+  Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (date DATETIME)")
+  Tab = "Fiches_Regltz"
+  Try Utils.db.Exec("DROP TABLE " & Tab)
+  PB.Close()
+  
    'Date des articles (date d'achat et de création)
   Tab = "Fiches_Art"
   Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (art_ddate2 datetime)")
@@ -5085,10 +5107,10 @@ Public Sub Maj369()
       PB.Avancement("Conversion articles " & rResult!art_design, 10)
       If TypeOf(rResult!art_ddate) = gb.String
         'Utilisation de la classe LDate pour les conversions de date on utilise la dernière date d'achat comme création
-        Utils.db.Exec("UPdate   " & Tab & " SET art_ddate2 = &1, art_cdate = &1 WHERE art_code = &2", LDate(rResult!art_ddate).DT, rResult!art_code)
+        Try Utils.db.Exec("UPdate   " & Tab & " SET art_ddate2 = &1, art_cdate = &1 WHERE art_code = &2", LDate(rResult!art_ddate).DT, rResult!art_code)
       Else If TypeOf(rResult!art_ddate) = gb.Null
         'Si aucune date possible de création on prend la date de l'exercice en cours
-        Utils.db.Exec("UPdate   " & Tab & " SET art_cdate = &1 WHERE art_code = &2", LDate(Now).EDeb.DT, rResult!art_code)
+        Try Utils.db.Exec("UPdate   " & Tab & " SET art_cdate = &1 WHERE art_code = &2", LDate(Now).EDeb.DT, rResult!art_code)
       Endif
     Until rResult.MoveNext()
     PB.Close()
@@ -5107,7 +5129,7 @@ Public Sub Maj369()
       PB.Avancement("Conversion avoirs " & rResult!ntk, 10)
       If TypeOf(rResult!dte) = gb.String
         'Utilisation de la classe LDate pour les conversions de date
-        Utils.db.Exec("UPdate   " & Tab & " SET dte2 = &1 WHERE lind = &2", LDate(rResult!dte).DT, rResult!lind)
+        Try Utils.db.Exec("UPdate   " & Tab & " SET dte2 = &1 WHERE lind = &2", LDate(rResult!dte).DT, rResult!lind)
       Endif
     Until rResult.MoveNext()
     PB.Close()
@@ -5128,9 +5150,9 @@ Public Sub Maj369()
   Try Utils.db.Exec("ALTER TABLE Fiches_HistoLigfacM ADD dtligbl_ligfac datetime")
   Try Utils.db.Exec("ALTER TABLE Fiches_HistoLigfacM ADD numbl_ligfac char(6)")
   PB.Avancement("Lignes Factures", 1)
-  Utils.db.Exec("UPDATE Fiches_HistoLigfac SET dtligbl_ligfac=(SELECT datefac FROM Fiches_HistoFac WHERE numfac=num_ligfac)  WHERE dtligbl_ligfac IS NULL")
+  Try Utils.db.Exec("UPDATE Fiches_HistoLigfac SET dtligbl_ligfac=(SELECT datefac FROM Fiches_HistoFac WHERE numfac=num_ligfac)  WHERE dtligbl_ligfac IS NULL")
   PB.Avancement("Lignes Factures Materiels", 1)
-  Utils.db.Exec("UPDATE Fiches_HistoLigfacM SET dtligbl_ligfac=(SELECT datefac FROM Fiches_HistoFacM WHERE numfac=num_ligfac)  WHERE dtligbl_ligfac IS NULL")
+  Try Utils.db.Exec("UPDATE Fiches_HistoLigfacM SET dtligbl_ligfac=(SELECT datefac FROM Fiches_HistoFacM WHERE numfac=num_ligfac)  WHERE dtligbl_ligfac IS NULL")
   PB.Close()
   'Fichier BL rajout date de sasie
   PB = New ProgBar("Conversion des dates BL", 4)
@@ -5140,9 +5162,9 @@ Public Sub Maj369()
   PB.Avancement("Table BL Matériels", 1)
   Try Utils.db.Exec("ALTER TABLE Fiches_LigblM ADD dte_ligbl datetime")
   PB.Avancement("Ligned BL", 1)
-  Utils.db.Exec("UPDATE Fiches_Ligbl SET dte_ligbl=(SELECT datebl FROM Fiches_Bl WHERE numbl=num_ligbl) WHERE dte_ligbl IS NULL")
+  Try Utils.db.Exec("UPDATE Fiches_Ligbl SET dte_ligbl=(SELECT datebl FROM Fiches_Bl WHERE numbl=num_ligbl) WHERE dte_ligbl IS NULL")
   PB.Avancement("Ligned BL Matériels", 1)
-  Utils.db.Exec("UPDATE Fiches_LigblM SET dte_ligbl=(SELECT datebl FROM Fiches_Bl WHERE numbl=num_ligbl) WHERE dte_ligbl IS NULL")
+  Try Utils.db.Exec("UPDATE Fiches_LigblM SET dte_ligbl=(SELECT datebl FROM Fiches_Bl WHERE numbl=num_ligbl) WHERE dte_ligbl IS NULL")
   PB.Close()
   'maj des options
   If Start.LocalSettings["/Soc" & Start.Societe & "/pp"] = True Then
@@ -5168,14 +5190,22 @@ Public Sub Maj369()
       PB.Avancement("Tickets " & rResult!numero, 300)
       If TypeOf(rResult!date) = gb.String
         'Utilisation de la classe LDate pour les conversions de date
-        Utils.db.Exec("UPdate   " & Tab & " SET date2 = &1 WHERE lInd = &2", LDate(rResult!date).DT, rResult!lInd)
+        Try Utils.db.Exec("UPdate   " & Tab & " SET date2 = &1 WHERE lInd = &2", LDate(rResult!date).DT, rResult!lInd)
+        'Pour tout les tickets on applique la date pour chaque ligne
+        Try Utils.db.Exec("UPdate Fiches_HisLigTickets SET date = &1 WHERE numero = &2", LDate(rResult!date).DT, rResult!numero)
       Endif
+      lasttk = rResult!numero
     Until rResult.MoveNext()
     PB.Close()
     Try Utils.db.Exec("ALTER TABLE " & Tab & " drop date")
     Try Utils.db.Exec("ALTER TABLE " & Tab & " change date2 date datetime")
   Endif
   
+  Try Utils.db.Exec("ALTER TABLE Fiches_Parametres ADD dntk char(7)")
+  Try Utils.db.Exec("ALTER TABLE Fiches_Parametres ADD cutk char(7)")
+  Try Utils.db.Exec("UPdate Fiches_Parametres SET dntk = &1", lasttk)
+  Try Utils.db.Exec("UPdate Fiches_Parametres SET cutk = &1", lasttk)
+
   'contrib asirbu2002
   Tab = "Fiches_Ligabon"
   Try Utils.db.Exec("ALTER TABLE " & Tab & " ADD (libelle VarChar(50))")
@@ -5187,7 +5217,7 @@ Public Sub Maj369()
   
   Try txt = Start.LocalSettings["/Soc" & Start.Societe & "/Fichiers"] 
   If IsNull(txt) Then 
-    Try Start.LocalSettings["/Soc" & Start.Societe & "/Fichiers"] = "/home" 
+    Try Start.LocalSettings["/Soc" & Start.Societe & "/Fichiers"] = User.Home
     Start.LocalSettings.Save
   Endif
     

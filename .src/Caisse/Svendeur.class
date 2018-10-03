@@ -1,0 +1,59 @@
+' Gambas class file
+
+Public Sub _new()
+  
+  Dim Rslt As Result
+  
+  Utils.Observers(Me)
+  Me.center
+  Try Rslt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabVendeurs"))
+  If Not Error Then
+    If Rslt.Available Then
+      Caissiere.Add("", "0")
+      Do
+        Try Caissiere.Add(Rslt!code & " " & Rslt!nom)
+      Loop Until Rslt.MoveNext()
+    Endif
+  Endif
+  
+End
+
+Public Sub Caissiere_Click()
+  
+  Dim Rslt As Result
+  
+  If Not IsNull(Caissiere.Text) Then
+    Rslt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabVendeurs") & " where code = &1 ", Left$(Caissiere.Text, 1))
+    If rslt.Available Then
+      Caissiere.SetFocus
+    Else
+      Message.Error("Ce vendeur n'existe pas...")
+      Caissiere.SetFocus
+    Endif
+  Endif
+Catch
+  If Start.son Then
+    Music.Play
+  Endif
+  Try message.Error(Error.Text & " " & Error.where)
+  
+End
+
+Public Sub Button2_Click()
+  
+  If Not IsNull(Caissiere.text) Then
+    Start.$Cai = Caissiere.text
+    Caisse.$Vendeur = True
+  Else
+    Caisse.$Vendeur = False
+  Endif
+  Me.Close
+  
+End
+
+Public Sub Button1_Click()
+  
+  Caisse.$Vendeur = False
+  Me.Close
+  
+End

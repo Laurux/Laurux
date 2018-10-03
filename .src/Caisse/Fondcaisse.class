@@ -1,0 +1,381 @@
+' Gambas class file
+
+Qte As Textbox
+Prec As Textbox
+Suiv As Textbox
+Mon As TextBox
+Ncaisse As String
+$cai As String
+$vdr As String
+Private ModifFDC As Boolean = False
+Private Devises As String
+Private ch As Chainage
+Private ListQteBox As TextBox[]
+Private ListMonBox As TextBox[]
+
+Public Sub _new()
+
+  Dim rResult As Result
+  Dim Tab As String
+  Dim fdctheo As Float
+  Dim fdcbase As String
+
+  Utils.Observers(Me)
+  SetObservers(Me, Me)
+  ListQteBox = [Qte50000, Qte20000, Qte10000, Qte5000, Qte2000, Qte1000, Qte500, Qte200, Qte100, Qte50, Qte20, Qte10, Qte5, Qte2, Qte1] 
+  ListMonBox = [Mon50000, Mon20000, Mon10000, Mon5000, Mon2000, Mon1000, Mon500, Mon200, Mon100, Mon50, Mon20, Mon10, Mon5, Mon2, Mon1] 
+  ch = New Chainage(ListQteBox)
+  $cai = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/Ncai"]
+  Ncaisse = Left$($cai, 1)
+  $vdr = Ouverture.Rvdr(Ncaisse)
+  rResult = Utils.db.Exec("select * from  " & Cbase.Table("TabCaisses") & " WHERE code = &1", Ncaisse)
+  Try fdcbase = Format$(rResult!fndc, "0.00")
+  If Error Then fdcbase = "0,00"
+  Box1.Select
+  If rResult!tkz = 1 Then
+    TextLabel1.Text = "Modification du fond de caisse initial numéro " & Ncaisse & " (" & $vdr & ")"
+    ModifFDC = True
+    Label2.Text = "Nouveau FDC"
+    Box1.Text = fdcbase
+    Label20.Visible = False
+    Date_Now.Visible = False
+    FDC_The.Visible = False
+    Label21.Visible = False
+    Date_Ini.Visible = False
+    FDC_Ini.Visible = False
+  Else
+    TextLabel1.Text = "Controle du fond de caisse actuel numéro " & Ncaisse & " (" & $vdr & ")"
+    ModifFDC = False
+    Button1.Visible = False
+    Button2.Text = "Sortir"
+    Label2.Text = "FDC Réel"
+    FDC_Ini.Text = fdcbase
+    Date_Ini.Text = LDate(rResult!dteov).LT
+    Date_Now.Text = LDate().LT
+    FDC_Ini.ReadOnly = True
+    Box1.Text = "0,00"
+    fdctheo = Val(Utils.cpoint(FDC_Ini.Text))
+    rResult = Utils.db.Exec(" select count(*) as cnt, l.type, sum(cast(REPLACE(l.montant,',','.') as decimal(7,2))) as totmontant, DATE(e.date) as ddate from " & Cbase.Table("TabLigTck") & " as l left join " & Cbase.Table("TabEntTck") & " as e on l.numero = e.numero where l.type is not Null and e.statut = &1 and e.caisse = &2 and e.suppr != 1 group by l.type, DATE(e.date)", "0", NCaisse)
+    If rResult.Available Then
+      Repeat
+        If rResult!type = "N" Then fdctheo += Val(Utils.cpoint(rResult!totmontant)) 
+        If rResult!type = "Q" Then fdctheo -= Val(Utils.cpoint(rResult!totmontant)) 
+      Until rResult.MoveNext()
+    Endif
+    FDC_The.Text = Format(fdctheo, "0.00")
+    FDC_The.ReadOnly = True
+    Box1.Text = FDC_The.Text
+  Endif
+  
+  Tab = "Fiches_Parametres"
+  rResult = Utils.db.Exec("SELECT * FROM " & tab & "")
+  If rResult.Available Then
+    devises = rResult!devise
+    If IsNull(devises) Then devises = "Euros"
+    Label1.Text = devises
+  Endif
+
+End
+
+Public Sub Form_Open()
+
+  PictureBox1.Picture = Picture[Application.path & "/Icones/" & devises & "/p01.png"]
+  PictureBox2.Picture = Picture[Application.path & "/Icones/" & devises & "/p02.png"]
+  PictureBox3.Picture = Picture[Application.path & "/Icones/" & devises & "/p05.png"]
+  PictureBox4.Picture = Picture[Application.path & "/Icones/" & devises & "/p10.png"]
+  PictureBox5.Picture = Picture[Application.path & "/Icones/" & devises & "/p20.png"]
+  PictureBox6.Picture = Picture[Application.path & "/Icones/" & devises & "/p50.png"]
+  PictureBox7.Picture = Picture[Application.path & "/Icones/" & devises & "/p1.png"]
+  PictureBox8.Picture = Picture[Application.path & "/Icones/" & devises & "/p2.png"]
+  PictureBox9.Picture = Picture[Application.path & "/Icones/" & devises & "/b5.png"]
+  PictureBox10.Picture = Picture[Application.path & "/Icones/" & devises & "/b10.png"]
+  PictureBox11.Picture = Picture[Application.path & "/Icones/" & devises & "/b20.png"]
+  PictureBox12.Picture = Picture[Application.path & "/Icones/" & devises & "/b50.png"]
+  PictureBox13.Picture = Picture[Application.path & "/Icones/" & devises & "/b100.png"]
+  PictureBox14.Picture = Picture[Application.path & "/Icones/" & devises & "/b200.png"]
+  PictureBox15.Picture = Picture[Application.path & "/Icones/" & devises & "/b500.png"]
+
+End
+
+Public Sub Form_Close()
+  
+  
+End
+
+
+Public Sub SetObservers(hClass As Object, hCont As Container)
+
+  Dim hCtrl As Object
+  Dim hOBS As Observer
+
+  For Each hCtrl In hCont.Children
+    If hCtrl Is Button Then
+      hOBS = New Observer(hCtrl) As "OBS"
+    Endif
+    If hCtrl Is Container Then SetObservers(hClass, hCtrl)
+  Next
+
+End
+
+Public Sub Obs_Enter()
+
+  Last.Font = Font["" ",Bold," ""]
+  Last.background = Color.Lighter(Color.Buttonbackground)
+  'Last.Move(Last.x - 2, Last.y - 2, Last.w + 4, Last.h + 4)
+
+End
+
+Public Sub Obs_Leave()
+
+  Last.Font = Font["" "," "," ""]
+  Last.background = Color.ButtonBackground
+  'Last.Move(Last.x + 2, Last.y + 2, Last.w - 4, Last.h - 4)
+
+End
+
+Public Sub numpad_Click()
+  
+  If Box1.text = "0,00" Then Box1.Clear
+  If Panel2.Visible = False Then
+    Box1.Insert(Last.tag)
+  Else
+    If Last.tag <> "," Then Qte.Insert(Last.tag)
+    TotalFDC()
+  Endif
+
+End
+
+Public Sub Raz_Click()
+
+  If Panel2.Visible = False Then
+    Box1.clear
+  Else
+    Qte.clear
+  Endif
+  
+  TotalFDC()
+
+End
+
+Public Sub Button3_Click()
+
+  If Button3.text = "&Détail caisse" Then
+    Button3.Text = "&Fond de caisse"
+    Panel2.Visible = True
+    Label17.Visible = True
+    Label18.Visible = True
+    Box1.clear
+    Qte50000.SetFocus
+    Qte = Qte50000
+    Mon = Mon50000
+    Box1.ReadOnly = True
+    Box1.Background = Color.LightBackground
+    TotalFDC()
+  Else
+    Button3.Text = "&Détail caisse"
+    Panel2.visible = False
+    Label17.Visible = False
+    Label18.Visible = False
+    Box1.Text = FDC_The.Text
+    Box1.ReadOnly = False
+    Box1.Background = Color.Default
+    Box1.SetFocus
+  Endif
+
+End
+
+Public Sub Box1_KeyPress()
+
+  If key.code = Key.enter Or Key.code = Key.return Or If Key.Code = Key.Tab Then
+    Stop Event
+    Button2_Click()
+  Else
+    ChkFDC()
+  Endif
+
+End
+
+Public Sub ChkFDC()
+
+  If Not (Key.Text Match "[0-9,.]") Then
+    If key.code <> key.BackSpace And Key.Code <> Key.tab And Key.Code <> Key.Delete And key.code <> 37 And key.code <> 42 And key.code <> 43 And key.code <> 45 And key.code <> 47 Then
+      Stop Event
+    Endif
+  Endif
+
+End
+
+Public Sub TotalFDC()
+
+  Dim el_qte, el_mnt As TextBox
+  Dim i As Integer = 0
+  Dim calculfdc As Float = 0
+  Dim mnt As Float
+
+  For Each el_qte In ListQteBox
+    If el_qte.Text <> "" Then
+      If Val(el_qte.Text) <> Null Then
+        mnt = Val(el_qte.Text) * (Val(Replace(el_qte.Name, "Qte", "")) / 100)
+        calculfdc += mnt
+        ListMonBox[i].Text = Format(mnt, "0.00")
+      Else
+        Message.Warning("Verifiez votre saisie")
+        el_qte.Clear()
+        ListMonBox[i].Clear
+        Stop Event
+        Break
+      Endif
+    Else
+      ListMonBox[i].Clear
+    Endif
+    Inc i
+  Next
+  
+  Box1.Text = Format(calculfdc, "0.00")
+
+End
+
+Public Sub Qte_KeyPress()
+  
+  Dim el_qte, el_mnt As TextBox
+  Dim i As Integer = 0
+  Dim calculfdc As Float = 0
+  Dim mnt As Float
+  Dim pos As Integer
+  
+  For Each el_qte In ListQteBox
+    If el_qte.tag = Last.tag Then
+      pos = el_qte.Pos
+      If Key.Text Match "[0-9]" And el_qte.tag = Last.tag Then
+        el_qte.Insert(Key.Text)
+        Stop Event
+      Else If Key.Code = Key.Del Then
+        el_qte.text = Mid(el_qte.Text, 1, pos) & Mid(el_qte.Text, pos + 2, el_qte.Length - pos)
+        el_qte.Pos = pos - 1
+        Stop Event
+      Else If Key.Code = Key.BackSpace Then
+        el_qte.text = Mid(el_qte.Text, 1, pos - 1) & Mid(el_qte.Text, pos + 1, el_qte.Length - pos)
+        el_qte.Pos = pos - 1
+        Stop Event
+      Else If Key.Code <> Key.Tab And Key.Code <> Key.Enter And Key.Code <> Key.Return And Key.Code <> Key.Left And Key.Code <> Key.Right Then
+        Stop Event
+      Endif
+    Endif
+    Inc i
+  Next
+  
+  TotalFDC()
+  
+End
+
+
+
+Public Sub Qte_GotFocus()
+
+  Dim el_qte As TextBox
+  Dim i As Integer = 0
+  
+  For Each el_qte In ListQteBox
+    If el_qte.tag = Last.tag Then
+      Qte = el_qte
+      If i = 0 Then
+        Prec = ListQteBox[ListQteBox.Length - 1]
+        Suiv = ListQteBox[i + 1]
+      Else If i = ListQteBox.Length - 1
+        Prec = ListQteBox[i - 1]
+        Suiv = ListQteBox[0]
+      Else
+        Prec = ListQteBox[i - 1]
+        Suiv = ListQteBox[i + 1]
+      Endif
+    Endif
+    Inc i
+  Next
+  
+  TotalFDC()
+
+End
+
+Public Sub Qte_LostFocus()
+
+  TotalFDC()
+  
+End
+
+
+Public Sub Box1_LostFocus()
+
+  Try Box1.text = Format$(Val(Utils.cpoint(Box1.text)), "0.00")
+
+End
+
+Public Sub Button1_Click()
+
+  Try Kill User.home & "/" & "Caisse.lock"
+  Me.Close
+
+End
+
+Public Sub Button2_Click()
+
+  If ModifFDC Then
+    Utils.db.Exec("UPdate  " & Cbase.Table("TabCaisses") & "  SET fndc = &2 WHERE code = &1", Ncaisse, Utils.PointBase(Box1.Text))
+    Me.Close
+  Else
+    If Val(Utils.cpoint(Box1.Text)) <> Val(Utils.cpoint(FDC_The.Text)) Then
+      Select Case Message.Warning("Attention le fond de caisse Reel (" & Val(Utils.cpoint(Box1.Text)) & ")\net Theorique (" & Val(Utils.cpoint(FDC_The.Text)) & ") ne correspondent pas!\nUne ecriture de perte/gain peut etre inscrite\nQue voulez vous faire?", "Generer l'ecriture", "Sortir", "Annuler")
+        Case 1
+          Message.Info("A faire")
+        Case 2
+          Me.Close
+        Default
+          'Nothing
+      End Select
+    Else
+      Me.Close
+    Endif
+  Endif
+
+End
+
+Public Sub PictureBox6_MouseDown()
+
+End
+
+Public Sub btn_Enter()
+
+  If Len(Last.name) = 11 And Right(Last.name) >= "9" Or If Len(Last.name) = 12 Then
+    P13.width = 64
+    P13.height = 34
+  Else
+    P13.width = 56
+    P13.height = 48
+  Endif
+  P13.visible = True
+  P13.Picture = Last.picture
+  P13.x = Last.x
+  P13.y = Last.y - 12
+  If Right(Last.name, 2) = "15" Then P13.y = Last.y
+  If Len(Last.name) = 11 And Right(Last.name) = "1" Then
+    P13.y = Last.y - 20
+  Endif
+
+End
+
+Public Sub P13_Leave()
+
+  P13.visible = False
+
+End
+
+Public Sub Precedent_Click()
+
+  If Prec Then Prec.SetFocus()
+
+End
+
+Public Sub Suivant_Click()
+
+  If Suiv Then Suiv.SetFocus()
+
+End

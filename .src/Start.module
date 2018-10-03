@@ -32,11 +32,14 @@ Private hlb As Label
 Public NoTips As Boolean = False
 Public StartDate As Date
 Public MainWindow As Window
+Public $cai As String
+Public $tcai As String
 
 'Arguments
 Public Arg_Config_File As String
 Public Arg_Log As Boolean
 Public Arg_Replay As Boolean
+Public Arg_Pos As Boolean
 Public Arg_Start_Societe As String
 Public Arg_Restore_DB As String
 Public Arg_LogFile As String
@@ -67,6 +70,7 @@ Public Sub Main()
 
   If IsNull(Arg_Start_Societe) Then
     Try Societe = Start.LocalSettings["/Soc"]
+    If IsNull(Societe) Then Societe = "01"
   Else
     Societe = Format(CInt(Arg_Start_Societe), "00")
     Start.LocalSettings["/Soc"] = Societe
@@ -121,10 +125,9 @@ Public Sub Main()
     Start.LocalSettings.Reload
   Endif
   If Not Exist(User.home & "/tmp") Then Mkdir User.home & "/tmp"
-  Application.Font = Font["Serif,11"]
   Try Fontes = Start.LocalSettings["/Soc" & Societe & "/Font"]
   If IsNull(fontes) Then
-    Application.Font = Font["Serif,11"]
+    Application.Font = Font["Serif,10"]
   Else
     Application.Font = Font[Fontes]
   Endif
@@ -206,7 +209,7 @@ Public Sub UnLock()
   'second special case without separators if alone
   Pids = Replace$(Pids, CStr(Application.Id), "")
   If IsNull(Trim(Pids)) Then
-    Kill User.home & "/" & Application.Name & ".lock"
+    Try Kill User.home & "/" & Application.Name & ".lock"
   Else
     Pids = Trim(Pids)
     File.Save(User.home & "/" & Application.Name & ".lock", Pids)
@@ -249,21 +252,37 @@ Public Sub Lancement()
   If IsNull(Stockes) Then Stockes = "&HF9F9BD&"
   If IsNull(Nstockes) Then Nstockes = "&HF9F9BD&"
   If IsNull(Suspendus) Then Suspendus = "&HF9F9BD&"
-  If Start.LocalSettings["/Soc" & Societe & "/Compta"] Then
-    Menu = New Fmenuc
+  
+  Try Fontes = Start.LocalSettings["/Soc" & Start.Societe & "/Font"]
+  If IsNull(fontes) Then
+    Application.Font = Font["Serif,10"]
   Else
-    If Start.LocalSettings["/Soc" & Societe & "/Gestion"] Then
-      Menu = New Fmenuf
-    Else
-      Menu = New Fmenu
+    Application.Font = Font[Fontes]
+  Endif
+  
+  If Start.Arg_Pos Then
+    Menu = New Cmenu
+    If Not IsNull(Start.LocalSettings["/Soc" & Start.Societe & "/caisse/Font"]) Then
+       Application.Font = Font[Start.LocalSettings["/Soc" & Start.Societe & "/caisse/Font"]]
     Endif
+    
+    If Not IsNull(Start.LocalSettings["/Soc" & Start.Societe & "/caisse/Ncai"]) Then
+      If Start.LocalSettings["/Soc" & Start.Societe & "/caisse/choixtouches"] Then
+        $tcai = Split(Start.LocalSettings["/Soc" & Start.Societe & "/caisse/Ncai"], ";")[0]
+      Else
+        $tcai = 0
+      Endif
+    Endif
+  Else
+    Menu = New Fmenu
   Endif
   If Start.LocalSettings["/Soc" & Societe & "/Caisse"] Then Caisse = True
   
   Object.Call(Menu, "Show")
   MainWindow = Object.GetProperty(Menu, "Window")
   
-  If Start.LocalSettings["/Tips"] And Not NoTips Then
+  'Tips only in Laurux
+  If Not Start.Arg_Pos And Not NoTips And Start.LocalSettings["/Tips"] Then
     Tips = New FTips
     Tips.Show()
   Endif
@@ -340,6 +359,7 @@ Public Sub Parse_Args()
       Quit
     Endif
   Endif
+  Arg_Pos = Args.Has("p", "pos", "Demarre la Caisse")
   Arg_Log = Args.Has("l", "log", "Active le logging")
   Arg_Replay = Args.Has("r", "replay", "Active le replay")
   Arg_LogFile = Args.Get("", "logfile", "fichier de log (si logging/replay activé)", Application.Name & ".log")

@@ -93,6 +93,7 @@ Private $DefOrientation As String 'default orientation
 Private $CurOrientation As String 'current orientation
 Private $OrientationChanges As Boolean[] 'array indicating orientation changes
 Private $k As Float 'scale factor (number of points in user unit)
+Private $form As String 'format of the page
 Private $fwPt As Float 'width of page format in points
 Private $fhPt As Float 'height of page format in points
 Private $fw As Float 'width of page format in user unit
@@ -169,6 +170,7 @@ Public Sub _new(Optional orientation As String = "P", Optional unit As String = 
   $columnAligns = New String[]
   $angle = 0
   $page = -1
+  $form = form
   $buffer = ""
   $pages = New String[]
   $OrientationChanges = New Boolean[]
@@ -261,6 +263,9 @@ Public Sub _new(Optional orientation As String = "P", Optional unit As String = 
     Case "a3"
       $fwPt = 841.89
       $fhPt = 1190.55
+    Case "80mm"
+      $fwPt = 210
+      $fhPt = 841.89
     Case "a4"
       $fwPt = 595.28
       $fhPt = 841.89
@@ -611,7 +616,7 @@ Public Sub SetDrawColor(r As Integer, Optional g As Integer = -1, Optional b As 
     $DrawColor = _stringFloat(r / 255, "0.000") & " " &
       _stringFloat(g / 255, "0.000") & " " &
       _stringFloat(b / 255, "0.000") & " RG"
-    End If
+  End If
   If ($page >= 0) Then _out($DrawColor)
 
 End
@@ -625,7 +630,7 @@ Public Sub SetFillColor(r As Integer, Optional g As Integer = -1, Optional b As 
     $FillColor = _stringFloat(r / 255, "0.000") & " " &
       _stringFloat(g / 255, "0.000") & " " &
       _stringFloat(b / 255, "0.000") & " rg"
-    End If
+  End If
   $ColorFlag = ($FillColor <> $TextColor)
   If ($page >= 0) Then _out($FillColor)
 
@@ -640,7 +645,7 @@ Public Sub SetTextColor(r As Integer, Optional g As Integer = -1, Optional b As 
     $TextColor = _stringFloat(r / 255, "0.000") & " " &
       _stringFloat(g / 255, "0.000") & " " &
       _stringFloat(b / 255, "0.000") & " rg"
-    End If
+  End If
   $ColorFlag = ($FillColor <> $TextColor)
 
 End
@@ -980,7 +985,7 @@ Public Sub Text(x As Float, y As Float, txt As String)
 
   s = "BT " & _stringFloat(x * $k, "0.00") & " " &
     _stringFloat(($h - y) * $k, "0.00") & " Td (" & _escape(txt) & ") Tj ET"
-    If ($underline And txt <> "") Then s &= " " & _dounderline(x, y, txt)
+  If ($underline And txt <> "") Then s &= " " & _dounderline(x, y, txt)
   If ($ColorFlag) Then s = "q " & $TextColor & " " & s & " Q"
   _out(s)
 
@@ -1024,7 +1029,7 @@ Public Sub Cell(w As Float, Optional h As Float = 0, Optional txt As String = ""
         _stringFloat(($h - $y) * k, "0.00") & " " &
         _stringFloat(w * k, "0.00") & " " &
         _stringFloat(- h * k, "0.00") & " re " & op & " "
-      End If
+    End If
     ' [GB2:ISTY] Else If (IsString(border)) Then
   Else If (TypeOf(border) = gb.String) Then
     x = $x
@@ -1034,25 +1039,25 @@ Public Sub Cell(w As Float, Optional h As Float = 0, Optional txt As String = ""
         _stringFloat(($h - y) * k, "0.00") & " m " &
         _stringFloat(x * k, "0.00") & " " &
         _stringFloat(($h - (y + h)) * k, "0.00") & " l S "
-      End If
+    End If
     If (InStr(border, "T")) Then
       s &= _stringFloat(x * k, "0.00") & " " &
         _stringFloat(($h - y) * k, "0.00") & " m " &
         _stringFloat((x + w) * k, "0.00") & " " &
         _stringFloat(($h - y) * k, "0.00") & " l S "
-      End If
+    End If
     If (InStr(border, "R")) Then
       s &= _stringFloat((x + w) * k, "0.00") & " " &
         _stringFloat(($h - y) * k, "0.00") & " m " &
         _stringFloat((x + w) * k, "0.00") & " " &
         _stringFloat(($h - (y + h)) * k, "0.00") & " l S "
-      End If
+    End If
     If (InStr(border, "B")) Then
       s &= _stringFloat(x * k, "0.00") & " " &
         _stringFloat(($h - (y + h)) * k, "0.00") & " m " &
         _stringFloat((x + w) * k, "0.00") & " " &
         _stringFloat(($h - (y + h)) * k, "0.00") & " l S "
-      End If
+    End If
   End If
   If (txt <> "") Then
     Select Case align
@@ -1123,7 +1128,7 @@ Public Sub Cell(w As Float, Optional h As Float = 0, Optional txt As String = ""
 
     s &= "BT " & _stringFloat(($x + dx) * k, "0.00") & " " &
       _stringFloat(($h - ($y + 0.5 * h + 0.3 * $FontSize)) * k, "0.00") & " Td (" & txt2 & ") Tj ET"
-      If ($underline) Then s &= " " & _dounderline($x + dx, $y + 0.5 * h + 0.3 * $FontSize, txt)
+    If ($underline) Then s &= " " & _dounderline($x + dx, $y + 0.5 * h + 0.3 * $FontSize, txt)
     If ($ColorFlag) Then s &= " Q"
     'IF (slink) THEN ME.Link($x + dx, $y + 0.5 * h - 0.5 * $FontSize, ME.GetStringWidth(txt), $FontSize, slink)
     If (slink) Then
@@ -2262,6 +2267,12 @@ Public Function GetH() As Float
 
 End
 
+Public Sub GetFormat() As String
+
+  Return ($form)
+
+End
+
 'Polygons (Andrew Meier)
 ' This script allows to draw polygons.
 '   points: array of the form (x1, y1, x2, y2, ..., xn, yn)
@@ -2823,12 +2834,12 @@ Public Sub Clip(x As Float, y As Float, w As Float, h As Float)
     _stringFloat(w * $k, "0,00") & " " &
     _stringFloat(- h * $k, "0,00") & " re W n"
   'set up transformation matrix for gradient
-    s &= " " &
+  s &= " " &
     _stringFloat(w * $k, "0.000") & " 0 0 " &
     _stringFloat(h * $k, "0.000") & " " &
     _stringFloat(x * $k, "0.000") & " " &
     _stringFloat(($h - (y + h)) * $k, "0.000") & " cm"
-    _out(s)
+  _out(s)
 
 End
 
@@ -3014,7 +3025,7 @@ Public Sub Code39(x As Float, y As Float, code As String, Optional ext As Boolea
     "U-110010101011,V-100110101011,W-110011010101,X-100101101011,Y-110010110101," &
     "Z-100110110101,--100101011011,.-110010101101, -100110101101,*-100101101101," &
     "$-100100100101,/-100100101001,+-100101001001,%-101001001001"
-    wide_encoding = "0-101000111011101,1-111010001010111,2-101110001010111,3-111011100010101,4-101000111010111," &
+  wide_encoding = "0-101000111011101,1-111010001010111,2-101110001010111,3-111011100010101,4-101000111010111," &
     "5-111010001110101,6-101110001110101,7-101000101110111,8-111010001011101,9-101110001011101," &
     "A-111010100010111,B-101110100010111,C-111011101000101,D-101011100010111,E-111010111000101," &
     "F-101110111000101,G-101010001110111,H-111010100011101,I-101110100011101,J-101011100011101," &
@@ -3023,7 +3034,7 @@ Public Sub Code39(x As Float, y As Float, code As String, Optional ext As Boolea
     "U-111000101010111,V-100011101010111,W-111000111010101,X-100010111010111,Y-111000101110101," &
     "Z-100011101110101,--100010101110111,.-111000101011101, -100011101011101,*-100010111011101," &
     "$-100010001000101,/-100010001010001,+-100010100010001,%-101000100010001"
-    encoding = Split(IIf(wide, wide_encoding, narrow_encoding), ",")
+  encoding = Split(IIf(wide, wide_encoding, narrow_encoding), ",")
   'Inter-character spacing
   gap = IIf(w > 0.29, "00", "0")
   'Convert to bars
@@ -3511,7 +3522,7 @@ Private Sub _putpages()
           h = IIf($OrientationChanges[l[0]], wPt, hPt)
           annots &= "/Dest [" & Str(1 + 2 * l[0]) & " 0 R /XYZ 0 " &
             _stringFloat(h - l[1] * $k, "0.00") & " null]>>"
-          End If
+        End If
       Next
       _out(annots & "]")
     End If
@@ -4557,8 +4568,8 @@ Private Function _encode_code39_ext(code As String) As String
     "-,.,/O,0,1,2,3,4,5,6,7,8,9,/Z,%F,%G,%H,%I,%J,%V,A,B,C,D,E,F,G,H,I," &
     "J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,%K,%L,%M,%N,%O,%W,+A,+B,+C,+D,+E,+F,+G," &
     "+H,+I,+J,+K,+L,+M,+N,+O,+P,+Q,+R,+S,+T,+U,+V,+W,+X,+Y,+Z,%P,%Q,%R,%S,%T"
-    code_ext = ""
-    For i = 1 To Len(code)
+  code_ext = ""
+  For i = 1 To Len(code)
     If (Asc(Mid(code, i, 1)) > 127) Then Error.Raise("Invalid character: " & Mid(code, i, 1))
     code_ext &= Split(encode, ",")[Asc(Mid(code, i, 1))]
   Next
@@ -4593,7 +4604,7 @@ Public Sub Cell2(w As Float, Optional h As Float = 0, Optional txt As String = "
         _stringFloat(($h - $y) * k, "0.00") & " " &
         _stringFloat(w * k, "0.00") & " " &
         _stringFloat(- h * k, "0.00") & " re " & op & " "
-      End If
+    End If
     ' [GB2:ISTY] Else If (IsString(border)) Then
   Else If (TypeOf(border) = gb.String) Then
     x = $x
@@ -4603,25 +4614,25 @@ Public Sub Cell2(w As Float, Optional h As Float = 0, Optional txt As String = "
         _stringFloat(($h - y) * k, "0.00") & " m " &
         _stringFloat(x * k, "0.00") & " " &
         _stringFloat(($h - (y + h)) * k, "0.00") & " l S "
-      End If
+    End If
     If (InStr(border, "T")) Then
       s &= _stringFloat(x * k, "0.00") & " " &
         _stringFloat(($h - y) * k, "0.00") & " m " &
         _stringFloat((x + w) * k, "0.00") & " " &
         _stringFloat(($h - y) * k, "0.00") & " l S "
-      End If
+    End If
     If (InStr(border, "R")) Then
       s &= _stringFloat((x + w) * k, "0.00") & " " &
         _stringFloat(($h - y) * k, "0.00") & " m " &
         _stringFloat((x + w) * k, "0.00") & " " &
         _stringFloat(($h - (y + h)) * k, "0.00") & " l S "
-      End If
+    End If
     If (InStr(border, "B")) Then
       s &= _stringFloat(x * k, "0.00") & " " &
         _stringFloat(($h - (y + h)) * k, "0.00") & " m " &
         _stringFloat((x + w) * k, "0.00") & " " &
         _stringFloat(($h - (y + h)) * k, "0.00") & " l S "
-      End If
+    End If
   End If
   If (txt <> "") Then
     Select Case align
@@ -4688,7 +4699,7 @@ Public Sub Cell2(w As Float, Optional h As Float = 0, Optional txt As String = "
 
     s &= "BT " & _stringFloat(($x + dx) * k, "0.00") & " " &
       _stringFloat(($h - ($y + 0.5 * h + 0.3 * $FontSize)) * k, "0.00") & " Td (" & txt2 & ") Tj ET"
-      If ($underline) Then s &= " " & _dounderline($x + dx, $y + 0.5 * h + 0.3 * $FontSize, txt)
+    If ($underline) Then s &= " " & _dounderline($x + dx, $y + 0.5 * h + 0.3 * $FontSize, txt)
     If ($ColorFlag) Then s &= " Q"
     'IF (slink) THEN ME.Link($x + dx, $y + 0.5 * h - 0.5 * $FontSize, ME.GetStringWidth(txt), $FontSize, slink)
     If (slink) Then

@@ -1,0 +1,235 @@
+' Gambas class file
+
+Private Fontes As String
+Private chkNbase As Boolean = False
+Private Lig As String
+Private Intitule As String
+Private cs As String
+Private cv As String
+Private hImage As Image
+
+Public Sub _new()
+
+  Dim $imp, $lp As String
+
+  Utils.Observers(Me)
+  If Exist("/usr/bin/" & Application.Name) Then Button2.Visible = False
+  TextLabel3.Text = "Fichier de conf : " & Start.LocalSettings.Path
+  SetObservers(Me, Me)
+  Try Logo.value = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/logo"]
+  If Logo.Value Then
+    Panlogo.Visible = True
+    Try Logo2.text = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/ilogo"]
+    aff_logo()
+  Endif
+  Try admin.value = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/admin"]
+  Try admin2.value = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/admin2"]
+  Try Qt1.value = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/qt1"]
+  Try Ctrlstk.value = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/ctrlstk"]
+  Try RecapBonus.value = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/recapbonus"]
+  Try RecapSoldeCli.value = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/recapsoldecli"]
+  Try Ordre.Text = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/ordre"]
+  Try Lieu.Text = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/lieu"]
+  Try Intitule = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/intitule"]
+  Try son.Value = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/son"]
+  Try Balance.Value = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/balance"]
+  If Balance.value Then
+    TypeB.Visible = True
+    TypeB.text = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/Tbalance"]
+  Endif
+  Try Portb.Text = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/portb"]
+  Try TypeB.text = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/Tbalance"]
+  Try ChoixImp.Value = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/choiximp"]
+  Try ChoixImp2.Value = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/choiximp2"]
+  Try ChoixImpn.Value = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/choiximpn"]
+  Try ChoixImpc.Value = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/choiximpc"]
+  Try HistoCli.Value = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/histocli"]
+  Try Tircarte.Value = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/tircarte"]
+  Try Nbf.Text = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/nbf"]
+  Try GestAffUSB.Value = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/affusbwn"]
+  Try Tactile.Value = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/tactile"]
+  Try ChoixTouches.Value = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/choixtouches"]
+  Try Tfamille.Value = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/Tfamilles"]
+  Try ChmZ.Text = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/ChmZ"]
+  If IsNull(Nbf.text) Then Nbf.Text = "1"
+  If IsNull(Fontes) Then
+    If Start.LocalSettings["/Soc" & Start.Societe & "/caisse/Font"]
+      FontChooser1.SelectedFont = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/Font"]
+    Else
+      FontChooser1.SelectedFont = "Serif,9"
+    Endif
+  Else
+    FontChooser1.SelectedFont = Fontes
+  Endif
+  Shell "lpc status 2>&1" To $imp
+  For Each $lp In Split($imp, "\n")
+    If Right($lp) = ":" Then Cimp.add(Left($lp, -1))
+  Next
+  Try Cimp.Text = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/Cimp"]
+  Try CmdImp.Text = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/CmdImp"]
+  Try CmdVis.Text = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/CmdVis"]
+  Try TKpdf.Value = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/TKpdf"]
+  Try FACpdf.Value = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/FACpdf"]
+
+End
+
+Public Sub SetObservers(hClass As Object, hCont As Container)
+
+  Dim hCtrl As Object
+  Dim hOBS As Observer
+
+  For Each hCtrl In hCont.Children
+    If hCtrl Is Button Then
+      hOBS = New Observer(hCtrl) As "OBS"
+    Endif
+    If hCtrl Is Container Then SetObservers(hClass, hCtrl)
+  Next
+
+End
+
+Public Sub Obs_Enter()
+
+  Last.Font = Font["" ",Bold," ""]
+  Last.background = Color.Lighter(Color.Buttonbackground)
+  'Last.Move(Last.x - 2, Last.y - 2, Last.w + 4, Last.h + 4)
+
+End
+
+Public Sub Obs_Leave()
+
+  Last.Font = Font["" "," "," ""]
+  Last.background = Color.ButtonBackground
+  'Last.Move(Last.x + 2, Last.y + 2, Last.w - 4, Last.h - 4)
+
+End
+
+Public Sub Button1_Click()
+
+  Me.close
+
+End
+
+Public Sub Logo_Click()
+
+  If Logo.Value Then
+    Panlogo.Visible = True
+  Else
+    Panlogo.Visible = False
+  Endif
+
+End
+
+Public Sub Lgo2_Click()
+
+  Dialog.Filter = FileFilter(True)
+  Dialog.Path = User.home
+  Dialog.Title = "Sélection du logo"
+  If Dialog.OpenFile() Then Return
+  Logo2.Text = Dialog.Path
+  aff_logo()
+Catch
+  Message.Warning(ERROR.Text)
+
+End
+
+Private Function FileFilter(Optional All As Boolean = False) As String[]
+
+  Dim filter As New String[]
+
+  filter.Add("*.png")
+  filter.Add("Portable Network Graphics")
+  filter.Add("*.jpeg *.jpg")
+  filter.Add("Joint Photographic Experts Group")
+  Return filter
+
+End
+
+Public Sub aff_logo()
+
+  hImage = Image.Load(Logo2.Text)
+  dwgImage.Clear()
+  Draw.Begin(dwgImage)
+  Draw.Image(hImage, 0, 0, dwgImage.Width, dwgImage.Height)
+  Draw.End
+Catch
+
+End
+
+Public Sub dwgImage_Draw()
+
+  Try Draw.Image(hImage, 0, 0, dwgImage.Width, dwgImage.Height)
+
+End
+
+Public Sub Form_Close()
+
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/logo"] = logo.Value
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/admin"] = admin.Value
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/admin2"] = admin2.Value
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/qt1"] = Qt1.value
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/ctrlstk"] = Ctrlstk.value
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/recapbonus"] = RecapBonus.value
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/recapsoldecli"] = RecapSoldeCli.value
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/ilogo"] = Logo2.Text
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/ordre"] = Ordre.Text
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/lieu"] = Lieu.Text
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/Font"] = FontChooser1.SelectedFont
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/intitule"] = Intitule
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/son"] = son.Value
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/balance"] = Balance.Value
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/Tbalance"] = TypeB.text
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/portb"] = Portb.Text
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/choiximp"] = ChoixImp.Value
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/choiximp2"] = ChoixImp2.Value
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/choiximpn"] = ChoixImpn.Value
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/choiximpc"] = ChoixImpc.Value
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/histocli"] = HistoCli.Value
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/nbf"] = Nbf.Text
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/tactile"] = Tactile.Value
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/tircarte"] = Tircarte.Value
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/affusbwn"] = GestAffUSB.Value
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/choixtouches"] = ChoixTouches.Value
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/Tfamilles"] = Tfamille.Value
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/ChmZ"] = ChmZ.Text
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/Cimp"] = Cimp.Text
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/CmdImp"] = CmdImp.Text
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/CmdVis"] = CmdVis.Text
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/TKpdf"] = TKpdf.Value
+  Start.LocalSettings["/Soc" & Start.Societe & "/caisse/FACpdf"] = FACpdf.Value
+  Start.LocalSettings.Save
+
+End
+
+Public Sub Button2_Click()
+
+  Majversion.Show()
+
+End
+
+Public Sub BchmZ_Click()
+
+  Dialog.Title = "Choisir un repertoire"
+  Dialog.Path = User.home
+  If Not Dialog.SelectDirectory() Then
+    ChmZ.Text = Dialog.Path
+  Else
+    ChmZ.Text = User.Home
+  Endif
+
+End
+
+Public Sub Balance_Click()
+
+  If Balance.value Then
+    TypeB.visible = True
+  Else
+    TypeB.Visible = False
+  Endif
+
+End
+
+Public Sub Button3_Click()
+
+  LauruxConf.ShowModal()
+
+End

@@ -1,0 +1,163 @@
+' Gambas class file
+
+Export
+Inherits UserControl
+Public Const _Properties As String = "*,Picture,Text, Background{Color}"
+Public Const _DefaultEvent As String = "Click"
+Private $hView As DrawingArea
+Property Picture As Picture
+Property Position As Integer
+Private $iPosition As Integer
+Private $bHover As Boolean
+Private $bFocus As Boolean
+Private $bMouseDown As Boolean
+Property Text As String
+Private $sText As String
+Private $hPicture As Picture
+Private $htmpPic As Picture
+Private $iBackground As Integer = Me.Background
+Property BackGround As Integer
+
+Event Click
+
+Public Sub _new()
+
+  $hView = New DrawingArea(Me) As "View"
+  $hView.Focus = True
+  Me.Proxy = $hView
+
+End
+
+Public Sub View_Enter()
+
+  $bHover = True
+  $hView.Refresh
+
+End
+
+Public Sub View_Leave()
+
+  $bHover = False
+  $hView.Refresh
+
+End
+
+Public Sub View_GotFocus()
+
+  $bFocus = True
+  $hView.Refresh
+
+End
+
+Public Sub View_LostFocus()
+
+  $bFocus = False
+  $hView.Refresh
+
+End
+
+Public Sub View_MouseDown()
+
+  $bMouseDown = True
+  $hView.Refresh
+
+End
+
+Public Sub View_MouseUp()
+
+  $bMouseDown = False
+  $hView.Refresh
+  Raise Click
+
+End
+
+Private Function Position_Read() As Integer
+
+  Return $iPosition
+  $hView.Refresh
+
+End
+
+Private Sub Position_Write(Value As Integer)
+
+  $iPosition = Value
+  $hView.Refresh
+
+End
+
+Public Sub View_Draw()
+
+  Dim iPicX, iPicY As Integer
+  Dim iX, iY As Integer
+  Dim iFlag As Integer
+
+  If $bHover Then iFlag += MyStyle.Hovered
+  If $bFocus Then iFlag += MyStyle.HasFocus
+  If Not Me.Enabled Then iFlag += MyStyle.Disabled
+
+  MyStyle.DrawButton(0, 0, Paint.Width, Paint.Height, $bMouseDown, iFlag, $iBackground)
+
+  If $hPicture Then
+
+    If $bMouseDown Then
+      Inc iX
+      Inc iY
+    Endif
+    iPicX = (Me.Width - $htmpPic.W) / 2
+    iPicY = (Me.Height - $htmpPic.H) / 2
+    Draw.Picture($htmpPic, iPicX + iX, iPicY + iY, $hPicture.Width, $hPicture.Height)
+
+  Endif
+  Paint.Brush = Paint.Color(Color.White)
+  'Paint.DrawTextShadow($sText, iX, iY, Paint.Width, Paint.Height, Align.Center, 2)
+  Paint.font = Me.Font
+  Paint.LineWidth = 2
+  Paint.Text($sText, iX - 1, iY - 1, Paint.Width + 2, Paint.Height + 2, Align.Center)
+  'Draw.RichText($sText, 0, 0, Me.W + 2, Me.H + 2, Align.Center)
+  If $bHover Then
+    Paint.Brush = Paint.Color(Color.Gray)
+    Paint.Stroke(True)
+  Endif
+  Paint.Brush = Paint.Color(Color.ButtonForeground)
+  Paint.Fill
+
+End
+
+Private Function Picture_Read() As Picture
+
+  Return $hPicture
+
+End
+
+Private Sub Picture_Write(Value As Picture)
+
+  $hPicture = Value
+  '$htmpPic = $hPicture.Image.fuzzy(0).Opacity(0.8).Picture
+  '$htmpPic = $hPicture.Image.Fuzzy(5).Picture
+  $htmpPic = $hPicture.Image.Opacity(0.7).Picture
+
+End
+
+Private Function Text_Read() As String
+
+  Return $sText
+
+End
+
+Private Sub Text_Write(Value As String)
+
+  $sText = Value
+
+End
+
+Private Function BackGround_Read() As Integer
+
+  Return $iBackground
+
+End
+
+Private Sub BackGround_Write(Value As Integer)
+
+  $iBackground = Value
+
+End

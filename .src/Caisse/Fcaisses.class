@@ -248,86 +248,6 @@ Public Sub Button1_Click()
         Utils.db.Exec("UPdate  " & Cbase.Table("TabCaisses") & "  SET intitule = &2, imp = &3, type = &4, ecole = &5, poste = &6, typeimp = &7, depot = &8 WHERE code = &1", Code.text, Libelle.Text, Combobox1.text, ComboBox2.text, ecole.value, Poste.text, ComboBox3.Text, Left$(Dep.Text, 2))
       Else
         Utils.db.Exec("INSERT INTO " & Cbase.Table("TabCaisses") & " (code,intitule, imp, type, ecole, poste, typeimp, depot, fndtotp,fndtotg) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10})", Code.text, Libelle.Text, Combobox1.text, Combobox2.text, ecole.value, Poste.Text, ComboBox3.Text, Left$(Dep.Text, 2), 0, 0)
-        Tab = "Fiches_EntTickets" & Code.text
-        Try Utils.db.EXEC("CREATE TABLE " & Tab &
-          "(caisse Char(1), " &
-          "vendeur Char(35)," &
-          "numero Char(7)," &
-          "date Datetime," &
-          "client Char(30)," &
-          "scheque Char(1)," &
-          "mcheque Char(12)," &
-          "nmcheque Char(30)," &
-          "scarte  Char(1)," &
-          "nmcarte Char(30)," &
-          "mcarte Char(12)," &
-          "sespeces Char(1)," &
-          "mespeces Char(12)," &
-          "scredit  Char(1)," &
-          "mcredit Char(12)," &
-          "nmcredit Char(30)," &
-          "sbachat  Char(1)," &
-          "mbachat Char(12)," &
-          "scavoir  Char(1)," &
-          "mavoir Char(12)," &
-          "nmavoir Char(30)," &
-          "sbonus Char(1)," &
-          "mbonus Char(12)," &
-          "mht Char(12)," &
-          "mtva Char(12)," &
-          "mttc Char(12)," &
-          "statut Char(1)," &
-          "savoir Char(1) ," &
-          "type Char(1) ," &
-          "mrem Char(12)," &
-          "carte Char(13)," &
-          "points Decimal(12,3)," &
-          "sresto Char(1)," &
-          "mresto Char(12)," &
-          "nom VarChar(35)," &
-          "suppr TINYINT(1)," &
-          "retro TINYINT(1)," &
-          "control VARCHAR(40)," &
-          "prev_numero Char(7), " &
-          Utils.db.AutoIncrement("lInd") & ")" & Utils.db.Engine())
-
-        Tab = "Fiches_LigTickets" & Code.text
-        Try Utils.db.EXEC("CREATE TABLE " & Tab &
-          "(numero Char(7)," &
-          "numlig Char(3)," &
-          "code Char(15)," &
-          "intitule  Char(50)," &
-          "montant Char(12)," &
-          "qte Char(12)," &
-          "type Char(2)," &
-          "fam Char(20)," &
-          "mht Char(12)," &
-          "mrem Char(12)," &
-          "mtva Char(12)," &
-          "block Char(4)," &
-          "tva VarChar(10)," &
-          Utils.db.AutoIncrement("lInd") & ")" & Utils.db.Engine())
-
-        Tab = "Fiches_Ticketx" & Code.text
-        Try Utils.db.EXEC("CREATE TABLE " & Tab &
-          "(numero Char(7)," &
-          "fam Char(20)," &
-          "montant Char(12)," &
-          "qte Char(12)," &
-          "date datetime," &
-          "caisse Char(2)," &
-          Utils.db.AutoIncrement("lInd") & ")" & Utils.db.Engine())
-
-        Tab = "Fiches_Reglts" & Code.text
-        Try Utils.db.EXEC("CREATE TABLE " & Tab &
-          "(intitule Char(30)," &
-          "type Char(15)," &
-          "montant Char(12)," &
-          "qte Char(12)," &
-          "date Datetime," &
-          "caisse Char(2)," &
-          Utils.db.AutoIncrement("lInd") & ")" & Utils.db.Engine())
-
       Endif
     End With
     Refresh()
@@ -351,10 +271,7 @@ Public Sub Button3_Click()
   Dim rResult As Result
   Dim Moulinage As Integer = 0
 
-  Tab = "Fiches_EntTickets" & Code.text
-  Tab2 = "Fiches_LigTickets" & Code.text
-  Tab3 = "Fiches_Ticketx" & Code.text
-  Tab4 = "Fiches_Reglts" & Code.text
+  Tab = "Fiches_EntTicketz"
   If Code.Text <> "" Then
     rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCaisses") & " where code = &1", Code.text)
     If rResult.Available Then
@@ -381,14 +298,9 @@ Public Sub Button3_Click()
     If Moulinage = 1 Then
       Music.Play
       If Message.Question("Etes vous sur de vouloir effacer cet enregistrement", "Oui", "Non") = 1 Then
-        rTkt = Utils.db.Exec("SELECT * FROM " & tab & "")
+        rTkt = Utils.db.Exec("SELECT * FROM " & tab & " where caisse = &1", Caisse.Current[0])
         If Not rTkt.Available Or If moulinage = 1 Then
           Utils.db.Exec("DELETE FROM  " & Cbase.Table("TabCaisses") & " WHERE code = '" & Caisse.Current[0] & "'")
-          Utils.db.Exec("drop Table IF exists " & Tab & "")
-          Utils.db.Exec("drop Table IF exists " & Tab2 & "")
-          Utils.db.Exec("drop Table IF exists " & Tab3 & "")
-          Utils.db.Exec("drop Table IF exists " & Tab4 & "")
-
           Refresh()
           Cleanchamps()
         Else
