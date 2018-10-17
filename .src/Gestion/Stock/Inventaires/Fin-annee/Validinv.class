@@ -79,8 +79,8 @@ Public Sub Button2_click()
           rartinv = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabInv") & "")
           If rartinv.Available Then
             Repeat
-              qteC = rartinv!inv_qtecomptee
-              qteSt = rartinv!inv_qtestock
+              If IsNull(rartinv!inv_qtecomptee) Then qteC = 0 Else qteC = rartinv!inv_qtecomptee
+              If IsNull(rartinv!inv_qtestock) Then qteSt = 0 Else qteSt = rartinv!inv_qtestock
               ' On regarde si l'article inventorié est dans les historiques de ventes
               Rqte = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisLigFac") & " where code_ligfac = &1 ", rartinv!inv_code)
               If Rqte.Available Then
@@ -231,21 +231,17 @@ Public Sub button4_Click()
   Dim ccd As Calculdroit
   Dim vol, volap As Float
 
-  'PATRICKMAG a verifier merge v3.69 utilisation option bois decoché non pris en compte!
-  'si le bouton ne peux pas etre cliqué en mode non matière c'est ok
-  'tu peux supprimer le Else
-  If Start.LocalSettings["/Soc" & Start.Societe & "/bois"] = True Then
-    respar = Utils.db.Exec("SELECT arrete FROM Fiches_Parametres")
-    dte = Date(Right(respar!arrete, 4), Val(Left(respar!arrete, 2)), 1)
-    dte = DateAdd(dte, gb.Month, 13)
-    If res.Available Then
-      Message.Warning("Il y a déjà une cloture à la date du " & Format(dte, "dd.mm.yyyy"))
-      Return
-    Endif
+  respar = Utils.db.Exec("SELECT arrete FROM Fiches_Parametres")
+  dte = Date(Right(respar!arrete, 4), Val(Left(respar!arrete, 2)), 1)
+  dte = DateAdd(dte, gb.Month, 13)
+  res = Utils.db.Exec("SELECT CAST(dtmouv as date) as dtmouv FROM Fiches_ligregie WHERE dtmouv=&1 AND type='I'", dte)
+  If res.Available Then
+    Message.Warning("Il y a déjà une cloture à la date du " & Format(dte, "dd.mm.yyyy"))
+    Return
   Else
     respar = Utils.db.Exec("SELECT dtepec FROM Fiches_Parametres")
     dte = Date(Right(respar!dtepec, 4), Val(Left(respar!dtepec, 2)), 1)
-    dte = DateAdd(dte, gb.Month, 1)  
+'    dte = DateAdd(dte, gb.Month, 1)  
   Endif
   If Message.Question("La nouvelle date de début sera : " & Format(dte, "dd.mm.yyyy") & " êtes vous d'accord ?", "Oui", "Non") = 2 Then Return
   Utils.db.Begin
