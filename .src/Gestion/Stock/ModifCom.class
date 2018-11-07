@@ -93,6 +93,7 @@ Private $o As Integer
 Private $fcd As Fourconsdroi
 Private $lastvalidbldoc As String
 Private $doctype As String
+Private $fourc As String
 
 Public Sub _New(Num As String, Four As String, sDate As String, anomalie As Boolean, DocType As String)
 
@@ -144,6 +145,7 @@ Public Sub _New(Num As String, Four As String, sDate As String, anomalie As Bool
   If Error Then Gmateriel = False
   Nbl2.Text = snum
   codef = sfour
+  $fourc = four
   dater = sdate
   Colrcp.Columns.count = 15
   Colrcp.Columns[0].Text = "Nlgn"
@@ -2575,38 +2577,36 @@ Public Sub Enrgcom(valid As Boolean)
     If four.Text Then
       If Colrcp.Count <> 0 Then
         If Not An.Value Then Comments.Clear
-        EntCom = Utils.db.Exec("SELECT * From " & Tab & " where four = &1 and numrecpt = &2", four.text, Ncom.text)
-        If EntCom.Available Then
-          Utils.db.Exec("UPdate  " & Tab & "  SET  montant = &3, mttc = &4, anomalie = &5, commentaire = &6 where four = &1 and numrecpt = &2", four.text, Ncom.text, Val(Totalrcpt.text), Val(totalttc.text), An.value, Comments.Text)
-        Else
-          Utils.db.Exec("INSERT INTO " & Tab & "(four,numrecpt,ddate,montant, validee, mttc, anomalie, commentaire) VALUES (&1, &2, &3, &4, &5, &6, &7, &8)", four.text, Ncom.text, .Cdate_Dbase(datej.text), Val(Totalrcpt.text), False, Val(totalttc.text), An.value, Comments.Text)
+        If $fourc <> four.Text Or snum <> ncom.Text Then
+          EntCom = utils.db.Exec("SELECT * FROM Fiches_Entrecpt WHERE four=&1 AND numrecpt=&2", four.Text, ncom.Text)
+          If EntCom.Available Then
+            Message.Error("La commande n° " & ncom.Text & " du fournissuer n° " & four.Text & " existe \n modification impossible")
+            Return
+          Endif
         Endif
+        Utils.db.Exec("UPdate  " & Tab & "  SET  montant = &3, mttc = &4, anomalie = &5, commentaire = &6, four=&1, numrecpt=&2, ddate=&7,validee=&{10} WHERE four = &8 and numrecpt = &9 ", four.text, Ncom.text, Val(Totalrcpt.text), Val(totalttc.text), An.value, Comments.Text, .Cdate_Dbase(datej.text), $fourc, snum, False)
+        'suppression des lignes de commande non modifées
+        LigCom = Utils.db.Exec("SELECT * From Fiches_Ligrecpt where four = &1 and numrecpt = &2", $fourc, snum)
+        LigCom.MoveFirst
+        Repeat
+          Maj_Quantite(LigCom!code, - Val(.cpoint(LigCom!qte)))
+          Utils.db.Exec("DELETE from Fiches_Ligrecpt WHERE numrecpt = &1 and four = &2 and nligne = &3 AND code=&4", snum, $fourc, LigCom!nligne, LigCom!code)
+        Until LigCom.MoveNext()
+        'création des lignes de commande modifiées
         Colrcp.MoveFirst
         Tab = "Fiches_Ligrecpt"
         Repeat
           Colrcp.Item.Selected = True
           Cart.text = Colrcp.Current[1]
           LastLigne = Max(Val(Colrcp.Item[0]), LastLigne) 
-          LigCom = Utils.db.Exec("SELECT * From " & Tab & " where four = &1 and numrecpt = &2 and nligne = &3", four.text, Ncom.text, Colrcp.Item[0])
-          If LigCom.Available Then
-            Utils.db.Exec("delete from " & Tab & " WHERE numrecpt = &1 and four = &2 and nligne = &3", Ncom.Text, four.Text, Colrcp.Item[0])
-            Maj_Quantite(LigCom!code, - Val(.cpoint(LigCom!qte)))
-          Endif
           Utils.db.Exec("INSERT INTO " & Tab & "(code,design,numrecpt,four,pbht,rm,paht,qte,frais,prvt, daterecpt, nligne) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12})", Colrcp.Item[1], Colrcp.Item[2], Ncom.Text, four.Text, Colrcp.Item[3], Colrcp.Item[4], Colrcp.Item[5], Colrcp.Item[6 + $o], Colrcp.Item[9 + $o], Colrcp.Item[8 + $o], .Cdate_Dbase(datej.Text), Colrcp.Item[0])
           Maj_Quantite(Colrcp.Item[1], Val(.cpoint(Colrcp.Item[6 + $o])))
         Until Colrcp.Movenext()
-        'supprime les lignes inutilisées et on ajuste le stock 
-        LigCom = Utils.db.Exec("SELECT * From " & Tab & " where four = &1 and numrecpt = &2 and nligne > &3", four.text, Ncom.text, LastLigne)
-        If LigCom.Available Then
-          Repeat
-            Maj_Quantite(LigCom!code, - Val(.cpoint(LigCom!qte)))
-            Utils.db.Exec("delete from " & Tab & " WHERE numrecpt = &1 and four = &2 and nligne = &3", Ncom.Text, four.Text, LigCom!nligne)
-          Until LigCom.MoveNext()
+        If $soption = "B" Or $soption = "T" Then
+          $fcd.enrligne(ncom.Text)
         Endif
       Endif
-      If $soption = "B" Or $soption = "T" Then
-        $fcd.enrligne(ncom.Text)
-      Endif
+
       RazBl()
       four.Clear
       fournom.Clear
