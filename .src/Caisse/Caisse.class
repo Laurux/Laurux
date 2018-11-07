@@ -81,8 +81,8 @@ $Caissiere As String
 Pointille As String
 Imprimante As String
 Famille As String
-Mvt As String ' flag encaissement HV
-TypEnc As String ' type encaissement hors vente
+'Mvt As String ' flag encaissement HV
+'TypEnc As String ' type encaissement hors vente
 Dtck As String 'dernier ticket enregistré (sert par impression de facture)
 Entetet As String ' entete société pour facture
 Entetcli As String ' entete client compte pour facture
@@ -281,10 +281,7 @@ Public Sub Form_Open()
   Try sBalance = Start.LocalSettings["/Soc" & Start.Societe & "/caisse/balance"]
   If sBalance = True Then Init_sport2()
   If Start.LocalSettings["/Soc" & Start.Societe & "/caisse/choiximp"] Then Button37.visible = True
-  If Start.LocalSettings["/Soc" & Start.Societe & "/caisse/touchfam"] Then TouchFam = True
-  If Start.LocalSettings["/Soc" & Start.Societe & "/caisse/Tfamilles"] Then
-    Panel17.Visible = True
-  Endif
+  
   'Entete_Tck("0")
   Qte.Text = "1"
   rticket.text = "0"
@@ -306,6 +303,15 @@ Public Sub Form_Open()
   Cbutton(Panel17)
   InitTouche()
   'ClavFam()
+  
+  If Start.LocalSettings["/Soc" & Start.Societe & "/caisse/touchfam"] Then TouchFam = True
+  If Start.LocalSettings["/Soc" & Start.Societe & "/caisse/Tfamilles"] Then
+    Panel17.Visible = True
+    Pan = False
+  Else
+    Pan = True
+  Endif
+  
   Cart.SetFocus
   Zone = "Article"
 
@@ -975,8 +981,8 @@ Public Sub Cart_KeyPress()
       Endif
 
       If Key.code = 84 Then Ouv_Tiroir()
-      If key.code = key.F2 Then button22_Click()
-      If key.code = key.F3 Then button23_Click()
+      If key.code = key.F2 Then Btn_Find_Click()
+      If key.code = key.F3 Then Btn_EntreeEnc_Click()
       If key.code = key.F4 Then Button20_Click()
       If key.code = key.F6 Then Button21_Click()
       If key.code = key.F5 Then button24_Click()
@@ -1247,6 +1253,63 @@ Public Sub Valid_commentaire()
   'ClavFam()
 
 End
+
+Public Sub Valid_HorsVte(Acompte As Boolean, Enc As Boolean, Libelle As String, Acptcli As String)
+
+  Inc iligne
+  Inc iNlg
+  bloc = iligne
+  LigTk.Add(iligne, iligne)
+  LigTk.Item[0] = iNlg
+  If Acompte = True
+    LigTk.Item[2] = "Encaissement Acompte"
+  Else If Enc = True Then
+    LigTk.Item[2] = "Encaissement Hors Vente"
+  Else
+    LigTk.Item[2] = "Sortie Hors Vente"
+  Endif
+  LigTk.Item[5] = "C"
+  LigTk.Item[8] = bloc
+  Inc iNlg
+  Inc iligne
+  LigTk.Add(iligne, iligne)
+  LigTk.Item[0] = iNlg
+  LigTk.Item[1] = Acptcli
+  LigTk.Item[2] = Libelle
+  If Acompte = True
+    LigTk.Item[5] = "EA"
+  Else If Enc = True Then
+    LigTk.Item[5] = "EH"
+  Else
+    LigTk.Item[5] = "SH"
+    Especes2.Text = "-" & Especes2.Text 
+  Endif
+  LigTk.Item[3] = Especes2.Text
+  LigTk.Item[4] = 1
+  LigTk.Item[6] = Especes2.Text 'HT = TTC
+  LigTk.Item[8] = bloc
+  LigTk.Item[9] = 0
+  LigTk.Item[10] = ""
+  LigTk.Item[11] = Especes2.Text
+  
+  TotalTk.Text = Format$(Val(Utils.cpoint(TotalTk.Text)) + Val(LigTk.Item[3]), "0.00")
+  Frame5.Visible = False
+  Especes2.Clear
+  Nmc3.Clear
+  AcptClicpt.Clear
+  
+  TextLabel1.Text = "Article"
+  Zone = "Article"
+  Cart.Clear
+  iComm = 0
+  iRem = 0
+  iQte = 0
+  Qte.text = "1"
+  Cart.SetFocus
+  'ClavFam()
+
+End
+
 
 Public Sub Valid_Cart() As Boolean
 
@@ -2471,14 +2534,14 @@ End
 Public Sub Button11_Click()
 
   init_paiement()
-  If Mvt = "E" Then
-    Frame5.Visible = True
-    Frame5.Raise
-    Frame5.text = "Encaissement hors vente en espèces"
-    TypEnc = "E"
-    Nmc3.SetFocus
-    Zone = "Nmc3"
-  Else
+  'If Mvt = "E" Then
+  '  Frame5.Visible = True
+  '  Frame5.Raise
+  '  Frame5.text = "Encaissement hors vente en espèces"
+  '  TypEnc = "E"
+  '  Nmc3.SetFocus
+  '  Zone = "Nmc3"
+  'Else
     'init_paiement()
     Especes.visible = True
     Especes.text = Rticket.Text
@@ -2486,7 +2549,7 @@ Public Sub Button11_Click()
     Especes.Select
     Zone = "Especes"
     Aff_viseur("Reglement especes")
-  Endif
+  'Endif
 
 End
 
@@ -2546,16 +2609,17 @@ Public Sub Valid_Especes()
           ColumnView1.MoveFirst()
           Repeat
             If ColumnView1.Item[0] = "N" Then
-              If Val(Utils.cpoint(Especes.Text)) < 0 Then
-                Especes.Text = Abs(Val(Utils.cpoint(Especes.Text)))
-                ColumnView1.Item[2] = Format$(Val(Utils.cpoint(ColumnView1.Item[2])) - Val(Utils.cpoint(Especes.Text)), "0.00")
-              Else
+              'If Val(Utils.cpoint(Especes.Text)) < 0 Then
+              '  Especes.Text = Abs(Val(Utils.cpoint(Especes.Text)))
+              '  ColumnView1.Item[2] = Format$(Val(Utils.cpoint(ColumnView1.Item[2])) - Val(Utils.cpoint(Especes.Text)), "0.00")
+              'Else
                 ColumnView1.Item[2] = Format$(Val(Utils.cpoint(ColumnView1.Item[2])) + Val(Utils.cpoint(Especes.Text)), "0.00")
-              Endif
+              'Endif
             Endif
           Until ColumnView1.MoveNext()
         Endif
-        If Val(Utils.cpoint(Rticket.Text)) < 0 And bmodifregl = False Then
+        'If Val(Utils.cpoint(Rticket.Text)) < 0 And bmodifregl = False Then
+        If Val(Utils.cpoint(Especes.Text)) > 0 And Val(Utils.cpoint(Especes.Text)) > Val(Mticket.Text) And bmodifregl = False Then
           Try ColumnView1.Add("Q", "Q")
           If Not Error Then
             ColumnView1.Item[0] = "Q"
@@ -2624,13 +2688,13 @@ End
 Public Sub Button12_Click()
 
   init_paiement()
-  If Mvt = "E" Then
-    Frame5.Visible = True
-    Frame5.text = "Encaissement hors vente par carte"
-    TypEnc = "C"
-    Nmc3.SetFocus
-    Zone = "Nmc3"
-  Else
+  'If Mvt = "E" Then
+  '  Frame5.Visible = True
+  '  Frame5.text = "Encaissement hors vente par carte"
+  '  TypEnc = "C"
+  '  Nmc3.SetFocus
+  '  Zone = "Nmc3"
+  'Else
     Aff_viseur("Reglement par carte")
     If Frame4.Visible = True Then
       Frame4.Visible = False
@@ -2650,7 +2714,7 @@ Public Sub Button12_Click()
         Button19_click()
       Endif
     Endif
-  Endif
+  'Endif
 
 End
 
@@ -2827,13 +2891,13 @@ End
 Public Sub Button13_Click()
 
   init_paiement()
-  If Mvt = "E" Then
-    Frame5.Visible = True
-    Frame5.text = "Encaissement hors vente par chèque"
-    TypEnc = "H"
-    Nmc3.SetFocus
-    Zone = "Nmc3"
-  Else
+  'If Mvt = "E" Then
+  '  Frame5.Visible = True
+  '  Frame5.text = "Encaissement hors vente par chèque"
+  '  TypEnc = "H"
+  '  Nmc3.SetFocus
+  '  Zone = "Nmc3"
+  'Else
     Aff_viseur("Reglement par cheque")
     If Frame4.Visible = True Then
       Frame4.Visible = False
@@ -2853,7 +2917,7 @@ Public Sub Button13_Click()
         Button19_click()
       Endif
     Endif
-  Endif
+  'Endif
 
 End
 
@@ -4012,11 +4076,15 @@ Public Sub Cacomptes_Click()
 End
 
 '*********************************************On gère les mouvements d'espèces hors vente******************************
-'*****************************************
-'*     Gestion des entrées espèces       *
-'*****************************************
-Public Sub button23_Click()
+'***************************************************
+'*     Gestion des entrées / sortie hors vente     *
+'***************************************************
+Public Sub Btn_EntreeEnc_Click()
 
+  If Clicompte = 1 Then
+    Message.Info("Vous ne pouvez pas saisir un mouvement hors vente sur un bon de caisse")
+    Return
+  Endif
   mdp_admin()
   If GestMdp = 1 Then
     org = "EF3"
@@ -4029,14 +4097,14 @@ Public Sub button23_Click()
     Mdp.SetFocus
     Zone = "Mdp"
   Else
-    If EspecesE.value = True Then TypEnc = "E"
-    Mvt = "E"
     If Frame5.Visible = True Then
       Frame5.Visible = False
     Else
       Frame5.text = "Encaissement Hors vente"
       Frame5.Visible = True
-      EspecesE.value = True
+      AcptClicpt.Visible = False
+      AcptChClicpt.Visible = False
+      MvtHV_Entree.value = True
       Nmc3.SetFocus
       Zone = "Nmc3"
       Frame5.Raise
@@ -4045,59 +4113,125 @@ Public Sub button23_Click()
 
 End
 
-Public Sub EspecesE_Click()
+Public Sub horsven_evkeypress()
+  
+  If Key.code = Key.Esc Or If Key.code = Key.F1 Or If Key.code = Key.F2 Or If Key.code = Key.F3 Then
+    Frame5.Visible = False
+    MvtHV_Sortie.Value = True
+    AcomptesE.Value = False
+    AcptClicpt.Clear
+    Nmc3.Clear
+    Especes2.Clear
+    Cart.SetFocus
+    Zone = "Article"
+  Endif
+  
+End
 
-  If EspecesE.value = True Then
-    TypEnc = "E"
+
+Public Sub MvtHV_Sortie_Click()
+
+  If MvtHV_Sortie.value = True Then
+    Frame5.text = "Decaissement Hors vente"
+    Nmc3.Text = "Origine: "
     Nmc3.SetFocus
+    AcomptesE.Enabled = False
+    AcptClicpt.Visible = False
+    AcptChClicpt.Visible = False
+    AcomptesE.Value = False
+    AcptClicpt.Clear
   Endif
 
 End
 
-Public Sub ChequesE_Click()
+Public Sub MvtHV_Entree_Click()
 
-  If ChequesE.value = True Then
-    TypEnc = "H"
+  If MvtHV_Entree.value = True Then
+    Frame5.text = "Encaissement Hors vente"
     Nmc3.SetFocus
+    AcomptesE.Enabled = True
+    If AcomptesE.Value = True Then
+      AcptClicpt.Visible = True
+      AcptChClicpt.Visible = True
+    Else
+      AcptClicpt.Clear
+      Nmc3.Text = "Origine: "
+    Endif
   Endif
 
 End
 
-Public Sub CartesE_Click()
-
-  If CartesE.value = True Then
-    TypEnc = "C"
-    Nmc3.SetFocus
-  Endif
-
-End
 
 Public Sub AcomptesE_Click()
 
-  Nmc3.SetFocus
+  If AcomptesE.Enabled Then
+    If AcomptesE.Value = True Then
+      Frame5.text = "Acompte recu en caisse"
+      Nmc3.Text = "Acompte recu de "
+      AcptClicpt.Visible = True
+      AcptChClicpt.Visible = True
+      AcptClicpt.SetFocus
+    Else
+      Frame5.text = "Encaissement Hors vente"
+      Nmc3.Text = "Origine: "
+      AcptClicpt.Visible = False
+      AcptChClicpt.Visible = False
+      AcptClicpt.Clear
+    Endif
+    MvtHV_Entree.value = True
+    MvtHV_Sortie.value = False
+  Else
+    AcomptesE.Value = False
+    MvtHV_Entree.value = False
+    AcptClicpt.Visible = False
+    AcptChClicpt.Visible = False
+    MvtHV_Sortie.value = True
+    AcptClicpt.Clear
+  Endif
+
+End
+
+Public Sub AcptChClicpt_Click()
+  
+  Dim hForm As Triclients
+  Dim rResult As Result
+  
+  hForm = New Triclients("Caisse")
+  hForm.Showmodal()
+  If Bsel = True Then
+    rResult = Utils.db.Exec("select * from " & Cbase.Table("TabCli") & " where cli_code = &1", Clicode)
+    If rResult.Available Then
+      AcptClicpt.Text = Clicode
+      Nmc3.Text = "Acompte recu de " & rResult!cli_nom & " " & rResult!cli_pnm
+      Zone = "Especes2"
+      Especes2.SetFocus
+      'On restaure alors le compte client caisse
+      Clicode = CodeclientDefault
+    Endif
+  Endif
+  
+End
+
+
+Public Sub AcptClicpt_KeyPress()
+
+  If Key.Code = Key.Return Or If Key.Code = Key.Enter Or If Key.Code = Key.Tab Then
+    Nmc3.SetFocus
+    Zone = "Nmc3"
+    Stop Event
+  Endif
+  horsven_evkeypress()
 
 End
 
 Public Sub Nmc3_KeyPress()
 
-  If Key.Code = Key.Return Or If Key.Code = Key.Enter Then
+  If Key.Code = Key.Return Or If Key.Code = Key.Enter Or If Key.Code = Key.Tab Then
     Especes2.SetFocus
     Zone = "Especes2"
+    Stop Event
   Endif
-  If Key.code = Key.Esc Or If Key.code = Key.F1 Or If Key.code = Key.F2 Or If Key.code = Key.F3 Then
-    Frame5.Visible = False
-    EspecesE.Value = True
-    AcomptesE.Value = False
-    Nmc3.Clear
-    If IsNull(Especes2.Text) Then mvt = ""
-    Especes2.Clear
-    If mvt = "E" Then
-      Inpm.SetFocus
-    Else
-      Cart.SetFocus
-      Zone = "Article"
-    Endif
-  Endif
+  horsven_evkeypress()
 
 End
 
@@ -4110,37 +4244,28 @@ End
 
 Public Sub Especes2_KeyPress()
 
-  ChkPrx()
+  ChkPrx(1) 'la valeur doit etre forcement positive car en cas de sortie hors vente un "-" sera ajouté
   If Key.Code = Key.Return Or If Key.Code = Key.Enter Then
-    button28.SetFocus
+    Btn_Valid_HorsEnc.SetFocus
+    Stop Event
   Endif
-  If Key.code = Key.Esc Or If Key.code = Key.F1 Or If Key.code = Key.F2 Or If Key.code = Key.F3 Then
-    Frame5.Visible = False
-    Nmc3.Clear
-    Especes2.Clear
-    If mvt = "E" Then
-      Inpm.SetFocus
-    Else
-      Cart.SetFocus
-      Zone = "Article"
-    Endif
-  Endif
+  horsven_evkeypress()
 
 End
 
-Public Sub button28_KeyPress()
+Public Sub Btn_Valid_HorsEnc_KeyPress()
 
-  button28_Click()
-
-End
-
-Public Sub button28_Click()
-
-  Valid_Especes2()
+  Btn_Valid_HorsEnc_Click()
 
 End
 
-Public Sub Valid_Especes2()
+Public Sub Btn_Valid_HorsEnc_Click()
+
+  Mvt_HorsEnc(MvtHV_Entree.Value)
+
+End
+
+Public Sub Mvt_HorsEnc(Enc As Boolean)
 
   If Not IsNull(Especes2.text) Then
     Especes2.Text = Utils.cpoint(Especes2.Text)
@@ -4155,48 +4280,28 @@ Public Sub Valid_Especes2()
       Especes2.Select
       Zone = "Especes2"
     Else
-      Especes2.Text = Format$(Val(Especes2.Text), "0.00")
-      Frame5.Visible = False
-      HBox5.visible = True
-      AcomptesE.Visible = True
-      Imp_Especes(Mvt)
+      
+      If Nmc3.Text = "" Then
+        Message.Error("Vous devez saisir un libelle aux mouvements hors vente!")
+      Else
+        Especes2.Text = Format$(Val(Especes2.Text), "0.00")
+        Frame5.Visible = False
+        HBox5.visible = True
+        AcomptesE.Visible = True
+        Valid_HorsVte(AcomptesE.Value, Enc, Nmc3.Text, AcptClicpt.Text)
+      Endif
+      
     Endif
   Endif
 
 End
 
 '*****************************************
-'*     Gestion des sorties espèces       *
+'*   Gestion de la recherche en caisse   *
 '*****************************************
-Public Sub button22_Click()
+Public Sub Btn_Find_Click()
 
-  mdp_admin()
-  If GestMdp = 1 Then
-    org = "F2"
-    If Start.son Then
-      If Start.son Then
-        Music.Play
-      Endif
-    Endif
-    Frame8.visible = True
-    Mdp.SetFocus
-    Zone = "Mdp"
-  Else
-    Mvt = "S"
-    If Frame5.Visible = True Then
-      Frame5.Visible = False
-      HBox5.visible = True
-      AcomptesE.Visible = True
-    Else
-      Frame5.text = "Sortie espèces"
-      Frame5.Visible = True
-      HBox5.visible = False
-      AcomptesE.Visible = False
-      Nmc3.SetFocus
-      Zone = "Nmc3"
-      Frame5.Raise
-    Endif
-  Endif
+  Message.Info("Non implementé")
 
 End
 
@@ -4204,220 +4309,217 @@ End
 '*    On imprime le mouvement d'espèces       *
 '**********************************************
 
-Public Sub Imp_Especes(tpesp As String)
+' Public Sub Imp_Especes(tpesp As String)
+' 
+'   Dim Posx As Integer
+'   Dim Posy As Integer
+'   Dim Filename As String
+'   Dim Tpe As String
+'   Dim Tpe2 As String
+'   Dim Tpe3 As String
+'   Dim sline As String
+' 
+'   Filename = User.home & "/Ticket.pdf"
+'   If Imprimante = "DéfautA4" Then
+'     pdf = New Cfacture("P", "mm", "A4")
+'   Else
+'     If Imprimante = "Défaut80" Then
+'       pdf = New Cfacture("P", "mm", "80mm")
+'     Endif
+'   Endif
+'   pdf.Open()
+'   pdf.AliasNbPages()
+'   pdf.newPage()
+'   Posy = 4
+'   If Mvt = "E" Then
+'     If TypEnc = "E" Then
+'       If AcomptesE.Value = True Then
+'         Tpe = "Acompte en espèces "
+'       Else
+'         Tpe = "Hors vente en espèces "
+'       Endif
+'       tpesp = "G"
+'     Endif
+'     If TypEnc = "C" Then
+'       If AcomptesE.Value = True Then
+'         Tpe = "Acompte par carte "
+'       Else
+'         Tpe = "Hors vente par carte "
+'       Endif
+'       tpesp = "P"
+'     Endif
+'     If TypEnc = "H" Then
+'       If AcomptesE.Value = True Then
+'         Tpe = "Acompte en Chèque "
+'       Else
+'         Tpe = "Hors vente par chèque "
+'       Endif
+'       tpesp = "H"
+'     Endif
+'   Else
+'     If tpesp = "S" Then
+'       Tpe = "Sortie espèces "
+'       tpesp = "F"
+'     Endif
+'   Endif
+'   If Imprimante = "DéfautA4" Or If Imprimante = "Défaut80" Then
+'     For Each sline In Split(Entete.Text, "\n")
+'       If Left$(sline, 6) = "Ticket" Then Break
+'       pdf.Entete(sline, Posx, Posy, "B", "")
+'       Posy += 5
+'     Next
+'     Posy += 3
+'     pdf.Level2("Caisse No " & Ncaisse & " " & Tpe & " le " & Format$(Now, "dd-mm-yyyy  hh-nn"), "", "", Posy)
+'     Posy += 8
+'     pdf.Lines2(Posy)
+'     posy += 8
+'     pdf.Level2(Nmc3.text & " " & Format$(Val(utils.cpoint(Especes2.text)), "0.00"), "", "", Posy)
+'     Posy += 8
+'     pdf.Lines2(Posy)
+'     pdf.Output(Filename, False)
+'     Impression.Ticket(Filename, "1")
+'   Else
+'     If Left$(Imprimante, 4) = "/dev" Then
+'       Entete_Tck("")
+'       'Print #Sport, "Ticket No " & Ntk & Space$(35) & datetk
+'       Tpe = Utils.Replace(tpe)
+'       Print #Sport, Pointille
+'       If Len(tpe) > 26 Then
+'         tpe2 = Left$(tpe, 23)
+'         tpe3 = Mid$(tpe, Len(tpe2) + 2, Len(tpe) - Len(tpe2))
+'       Endif
+'       If tpesp = "F" Then
+'         Print #Sport, "Caisse No " & Ncaisse & " " & tpe
+'         Print #Sport, " le " & Format$(Now, "dd-mm-yyyy  hh-nn")
+'       Else
+'         If Len(tpe) <= 26 Then
+'           Print #Sport, "Caisse No " & Ncaisse & " " & Tpe & " le " & Format$(Now, "dd-mm-yyyy  hh-nn")
+'         Else
+'           Print #Sport, "Caisse No " & Ncaisse & " " & Tpe2
+'           Print #Sport, Tpe3 & " le " & Format$(Now, "dd-mm-yyyy  hh-nn")
+'         Endif
+'       Endif
+'       Print #Sport, Nmc3.text & " " & Format$(Val(utils.cpoint(Especes2.text)), "0.00")
+'       Print #Sport, Pointille
+'       Print #Sport, " "
+'       Print #Sport, " "
+'       'Entete_Tck("1")
+'       Ouv_Tiroir()
+'     Endif
+'   Endif
+'   Maj_Mespeces(Nmc3.text, tpesp, Especes2.Text, "1")
+'   If AcomptesE.Value = True Then Maj_Acomptes(Nmc3.text, tpesp, Especes2.Text, tpe)
+'   Especes2.Clear
+'   Nmc3.Clear
+'   Mvt = ""
+'   TypEnc = ""
+'   Frame2.Visible = False
+'   HBox5.visible = True
+'   AcomptesE.Visible = True
+'   Cart.SetFocus
+'   Zone = "Article"
+' 
+' End
 
-  Dim Posx As Integer
-  Dim Posy As Integer
-  Dim Filename As String
-  Dim Tpe As String
-  Dim Tpe2 As String
-  Dim Tpe3 As String
-  Dim sline As String
+' Public Sub Maj_Mespeces(intitule As String, Reg As String, smnt As String, sqte As String)
+' 
+'   Dim TabReglt As String
+' 
+'   TabReglt = "Fiches_Reglts" & Ncaisse
+'   Utils.db.Exec("INSERT INTO " & TabReglt & " (intitule, type, montant, qte, date) VALUES (&1, &2, &3, &4, &5)", Intitule, Reg, smnt, sqte, Format$(Now, "dd-mm-yyyy"))
+' 
+' End
 
-  Filename = User.home & "/Ticket.pdf"
-  If Imprimante = "DéfautA4" Then
-    pdf = New Cfacture("P", "mm", "A4")
-  Else
-    If Imprimante = "Défaut80" Then
-      pdf = New Cfacture("P", "mm", "80mm")
-    Endif
-  Endif
-  pdf.Open()
-  pdf.AliasNbPages()
-  pdf.newPage()
-  Posy = 4
-  If Mvt = "E" Then
-    If TypEnc = "E" Then
-      If AcomptesE.Value = True Then
-        Tpe = "Acompte en espèces "
-      Else
-        Tpe = "Hors vente en espèces "
-      Endif
-      tpesp = "G"
-    Endif
-    If TypEnc = "C" Then
-      If AcomptesE.Value = True Then
-        Tpe = "Acompte par carte "
-      Else
-        Tpe = "Hors vente par carte "
-      Endif
-      tpesp = "P"
-    Endif
-    If TypEnc = "H" Then
-      If AcomptesE.Value = True Then
-        Tpe = "Acompte en Chèque "
-      Else
-        Tpe = "Hors vente par chèque "
-      Endif
-      tpesp = "H"
-    Endif
-  Else
-    If tpesp = "S" Then
-      Tpe = "Sortie espèces "
-      tpesp = "F"
-    Endif
-  Endif
-  If Imprimante = "DéfautA4" Or If Imprimante = "Défaut80" Then
-    For Each sline In Split(Entete.Text, "\n")
-      If Left$(sline, 6) = "Ticket" Then Break
-      pdf.Entete(sline, Posx, Posy, "B", "")
-      Posy += 5
-    Next
-    Posy += 3
-    pdf.Level2("Caisse No " & Ncaisse & " " & Tpe & " le " & Format$(Now, "dd-mm-yyyy  hh-nn"), "", "", Posy)
-    Posy += 8
-    pdf.Lines2(Posy)
-    posy += 8
-    pdf.Level2(Nmc3.text & " " & Format$(Val(utils.cpoint(Especes2.text)), "0.00"), "", "", Posy)
-    Posy += 8
-    pdf.Lines2(Posy)
-    pdf.Output(Filename, False)
-    Impression.Ticket(Filename, "1")
-  Else
-    If Left$(Imprimante, 4) = "/dev" Then
-      Entete_Tck("")
-      'Print #Sport, "Ticket No " & Ntk & Space$(35) & datetk
-      Tpe = Utils.Replace(tpe)
-      Print #Sport, Pointille
-      If Len(tpe) > 26 Then
-        tpe2 = Left$(tpe, 23)
-        tpe3 = Mid$(tpe, Len(tpe2) + 2, Len(tpe) - Len(tpe2))
-      Endif
-      If tpesp = "F" Then
-        Print #Sport, "Caisse No " & Ncaisse & " " & tpe
-        Print #Sport, " le " & Format$(Now, "dd-mm-yyyy  hh-nn")
-      Else
-        If Len(tpe) <= 26 Then
-          Print #Sport, "Caisse No " & Ncaisse & " " & Tpe & " le " & Format$(Now, "dd-mm-yyyy  hh-nn")
-        Else
-          Print #Sport, "Caisse No " & Ncaisse & " " & Tpe2
-          Print #Sport, Tpe3 & " le " & Format$(Now, "dd-mm-yyyy  hh-nn")
-        Endif
-      Endif
-      Print #Sport, Nmc3.text & " " & Format$(Val(utils.cpoint(Especes2.text)), "0.00")
-      Print #Sport, Pointille
-      Print #Sport, " "
-      Print #Sport, " "
-      'Entete_Tck("1")
-      Ouv_Tiroir()
-    Endif
-  Endif
-  Maj_Mespeces(Nmc3.text, tpesp, Especes2.Text, "1")
-  If AcomptesE.Value = True Then Maj_Acomptes(Nmc3.text, tpesp, Especes2.Text, tpe)
-  Especes2.Clear
-  Nmc3.Clear
-  Mvt = ""
-  TypEnc = ""
-  Frame2.Visible = False
-  HBox5.visible = True
-  AcomptesE.Visible = True
-  Cart.SetFocus
-  Zone = "Article"
-
-End
-
-Public Sub Maj_Mespeces(intitule As String, Reg As String, smnt As String, sqte As String)
-
-  Dim TabReglt As String
-
-  TabReglt = "Fiches_Reglts" & Ncaisse
-  Utils.db.Exec("INSERT INTO " & TabReglt & " (intitule, type, montant, qte, date) VALUES (&1, &2, &3, &4, &5)", Intitule, Reg, smnt, sqte, Format$(Now, "dd-mm-yyyy"))
-
-End
-
-Public Sub Maj_Acomptes(intitule As String, Reg As String, smnt As String, libelac As String)
+Public Sub Maj_Acomptes(intitule As String, smnt As String, libelac As String)
 
   Dim rJnl As Result
   Dim CptCaisse As String
-  Dim Vic As String
-  Dim Vichq As String
-  Dim typeP As String
 
   With Utils
+    'TODO à deplacer au moulinage a partir de la ligne du ticket
+    
     'On recupère les données pour la trésorerie.(journal et comptes de virement interne)
-    rJnl = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabParam") & " ")
-    If rJnl.Available Then
-      Jour = rJnl!jrnal2
-      Vic = rJnl!viremc
-      Vichq = rJnl!viremchq
-    Endif
-    numecr = "numecriture"
-    numr = Ecritures(numecr)
-    numr = numr + 1
-    numecr = "numecriture2"
-    numr2 = Ecritures(numecr)
-    numr2 = numr2 + 1
+    'rJnl = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabParam") & " ")
+    'If rJnl.Available Then
+    '  Jour = rJnl!jrnal2
+    'Endif
+    'numecr = "numecriture"
+    'numr = Ecritures(numecr)
+    'numr = numr + 1
+    'numecr = "numecriture2"
+    'numr2 = Ecritures(numecr)
+    'numr2 = numr2 + 1
     ' on met à jour la table des acomptes
-    Utils.db.Exec("INSERT INTO " & Cbase.Table("TabAcomptes") & " (intitule, type, montant, date) VALUES (&1, &2, &3, &4)", Intitule, Reg, Val(.cpoint(smnt)), Format$(Now, "yyyy-mm-dd"))
-    ' On met à jour la trésorerie
-    rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabJour") & " where code_jo = &1", jour)
-    CptCaisse = rResult!cde_banque
-    If reg = "P" Then typeP = Vic
-    If reg = "H" Then typeP = Vichq
-    If reg = "G" Then typeP = CptCaisse
-    Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jour, numr, clicode, Clicaisse, Format$(Now, "yyyy-mm-dd"), Ntk, Ntk, libelac, 0, Val(.cpoint(smnt)), 1, 0, 1, 0, 1, Format$(Now, "yyyy-mm-dd"), numr2)
-    maj_solde(clicode, sMnt)
-    Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jour, numr, typeP, "Espèces", Format$(Now, "yyyy-mm-dd"), Ntk, Ntk, libelac, Val(.cpoint(smnt)), 0, 1, 0, 1, 0, 1, Format$(Now, "yyyy-mm-dd"), numr2)
-    maj_solde(typeP, sMnt)
-    Maj_Collectif(clicode, Clicaisse, libelac, smnt)
+    Utils.db.Exec("INSERT INTO " & Cbase.Table("TabAcomptes") & " (intitule, type, montant, date) VALUES (&1, &2, &3, &4)", Left$(Intitule, 35), Left$(libelac, 15), Val(.cpoint(smnt)), Format$(Now, "yyyy-mm-dd"))
+
+    'On met à jour la trésorerie
+    'rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabJour") & " where code_jo = &1", jour)
+    'CptCaisse = rResult!cde_banque
+    'Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jour, numr, clicode, "Acompte en Caisse", Format$(Now, "yyyy-mm-dd"), Ntk, Ntk, libelac, 0, Val(.cpoint(smnt)), 1, 0, 1, 0, 1, Format$(Now, "yyyy-mm-dd"), numr2)
+    'Sha1Calc.CalcSha1("Fiches_Mvt", numr)
+    'maj_solde(clicode, sMnt)
+    'Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,Cloturee, datee, numerodef) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", Jour, numr, Clicaisse, "Acompte en Caisse", Format$(Now, "yyyy-mm-dd"), Ntk, Ntk, libelac, Val(.cpoint(smnt)), 0, 1, 0, 1, 0, 1, Format$(Now, "yyyy-mm-dd"), numr2)
+    'Sha1Calc.CalcSha1("Fiches_Mvt", numr)
+    'maj_solde(CptCaisse, sMnt)
+    'Maj_Collectif(clicode, Clicaisse, libelac, smnt)
     ' On met à jour le numéro d'écriture
-    Utils.db.Exec("UPDATE " & Cbase.Table("TabParam") & " set numecriture = &1, numecriture2 = &2", numr, numr2)
+    'Utils.db.Exec("UPDATE " & Cbase.Table("TabParam") & " set numecriture = &1, numecriture2 = &2", numr, numr2)
   End With
 
 End
 
 ' On met à jour le collectif
-Public Sub Maj_Collectif(Cpt As String, intit As String, libelac As String, Mnt As String)
-
-  Dim Coll As String
-  Dim cResult As Result
-
-  With Utils
-    cResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", Cpt)
-    coll = cResult!coll_cc
-    Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour, numero, compte, collectif, intitule, dte, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, numerodef, numdoc, numlot) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19})", Jour, numr, coll, 1, Intit, Format$(Now, "yyyy-mm-dd"), Libelac, 0, Val(.cpoint(mnt)), 1, 0, 1, 0, 0, 1, 0, numr2, Ntk, Ntk)
-    maj_solde(coll, Mnt)
-  End With
-
-End
+' Public Sub Maj_Collectif(Cpt As String, intit As String, libelac As String, Mnt As String)
+' 
+'   Dim Coll As String
+'   Dim cResult As Result
+' 
+'   With Utils
+'     cResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", Cpt)
+'     coll = cResult!coll_cc
+'     Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMvt") & "(jour, numero, compte, collectif, intitule, dte, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, relance, numerodef, numdoc, numlot) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19})", Jour, numr, coll, 1, Intit, Format$(Now, "yyyy-mm-dd"), Libelac, 0, Val(.cpoint(mnt)), 1, 0, 1, 0, 0, 1, 0, numr2, Ntk, Ntk)
+'     maj_solde(coll, Mnt)
+'   End With
+' 
+' End
 
 ' On met à jour le solde des comptes
-Public Sub maj_solde(Coll As String, Mnt As String)
-
-  Dim cResult As Result
-  Dim Sld As Float
-
-  With utils
-    cResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", coll)
-    If cResult!solde = "" Then
-      Sld = Val(.cpoint(mnt))
-    Else
-      Sld = cResult!solde + Val(.cpoint(mnt))
-    Endif
-    Utils.db.Exec("UPDATE " & Cbase.Table("TabComptes") & " set solde = &2 Where compte_cc = &1", coll, Sld)
-  End With
-
-End
-
-'*****************************************************
-'*  Récuperation du dernier numéro d'écriture        *
-'*****************************************************
-Public Function Ecritures(dernumecr As String) As String
-
-  Dim Params As Result
-  Dim nro As String
-
-  Params = Utils.db.Exec("SELECT " & dernumecr & " FROM " & Cbase.Table("TabParam") & " ")
-  If Params.Available Then
-    If IsNull(Params["" & numecr & ""]) Then
-      nro = 0
-    Else
-      nro = Params["" & numecr & ""]
-    Endif
-  Endif
-  Return nro
-
-End
+' Public Sub maj_solde(Coll As String, Mnt As String)
+' 
+'   Dim cResult As Result
+'   Dim Sld As Float
+' 
+'   With utils
+'     cResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", coll)
+'     If cResult!solde = "" Then
+'       Sld = Val(.cpoint(mnt))
+'     Else
+'       Sld = cResult!solde + Val(.cpoint(mnt))
+'     Endif
+'     Utils.db.Exec("UPDATE " & Cbase.Table("TabComptes") & " set solde = &2 Where compte_cc = &1", coll, Sld)
+'   End With
+' 
+' End
+' 
+' '*****************************************************
+' '*  Récuperation du dernier numéro d'écriture        *
+' '*****************************************************
+' Public Function Ecritures(dernumecr As String) As String
+' 
+'   Dim Params As Result
+'   Dim nro As String
+' 
+'   Params = Utils.db.Exec("SELECT " & dernumecr & " FROM " & Cbase.Table("TabParam") & " ")
+'   If Params.Available Then
+'     If IsNull(Params["" & numecr & ""]) Then
+'       nro = 0
+'     Else
+'       nro = Params["" & numecr & ""]
+'     Endif
+'   Endif
+'   Return nro
+' 
+' End
 
 '****************************************Fin de la gestion des mouvements d'espèces hors vente******************************
 
@@ -4441,11 +4543,11 @@ Public Sub button15_KeyPress()
     If ColumnView1.count = 0 And bmodifregl = False Then
       Init_Reg()
     Else
-      If message.Question("Attention ! Un réglement a été saisi. Sortir de la saisie des réglements va supprimer le ticket.\nQue voulez-vous faire ?\n 1- Continuer la saisie et modifier les règlements,\n 2- Sortir et supprimer le ticket.", "1 ", "2 ") = 1 Then
-        Return
-      Else
+      If message.Question("Attention ! Un réglement a été saisi. Sortir de la saisie des réglements va supprimer le ticket.\nVoulez-vous supprimer le ticket?", "Oui", "Non") = 1 Then
         Button9_Click()
         Init_Reg()
+      Else
+        Return
       Endif
     Endif
   Endif
@@ -5166,18 +5268,10 @@ Public Sub Valid_Mdp()
       Nmc.SetFocus
     Endif
     If Org = "F2" Then
-      Mvt = "S"
-      If Frame5.Visible = True Then
-        Frame5.Visible = False
-      Else
-        Frame5.text = "Sortie espèces"
-        Frame5.Visible = True
-        Nmc3.SetFocus
-        Zone = "Nmc3"
-      Endif
+      Message.Info("Non Implementé")
     Endif
     If Org = "EF3" Then
-      Mvt = "E"
+      'Mvt = "E"
       If Frame2.Visible = True Then
         Frame2.Visible = False
       Else
@@ -5401,6 +5495,11 @@ Public Sub Aff_bastk() As Boolean
         Endif
       Endif
     Else
+      'Hors vente HT = TTC
+      If LigTk.Item[5] = "EH" Or LigTk.Item[5] = "SH" Or LigTk.Item[5] = "EA" Then
+        Try mht = Val(Utils.cpoint(LigTk.Item[6]))
+        Totalht = totalht + mht
+      Endif
       'Cas du Règlement des BL depuis la caisse. Il faut recalculer le montant de TVA à partir des lignes
       If LigTk.Item[5] = "BL" Then
         Try mht = Val(Utils.cpoint(LigTk.Item[6]))
@@ -5650,6 +5749,12 @@ Public Sub Enrg_Tk(Supprime As Boolean)
         If Right$(LigTk.Item[5], 1) = "1" Then
           sresto = "1"
           smresto = LigTk.Item[3]
+          sstatut = 0
+        Endif
+        If LigTk.Item[5] = "EA" Then ' pour les acomptes
+          sacompte = "D"
+          smacompte = LigTk.Item[3]
+          Maj_Acomptes(LigTk.Item[2], smacompte, "Caisse")
           sstatut = 0
         Endif
         If LigTk.Item[5] = "RA" Then ' pour les acomptes
@@ -6820,11 +6925,17 @@ Public Sub SelectionArt()
 
 End
 
-Public Sub ChkPrx()
+Public Sub ChkPrx(Optional Sign As Integer = 0)
 
   If InStr("0123456789,.", Key.Text) = 0 Then
-    If key.code <> key.BackSpace And Key.Code <> Key.tab And Key.Code <> Key.Delete And Key.code <> Key.enter And Key.code <> Key.return And key.code <> 37 And key.code <> 42 And key.code <> 43 And key.code <> 45 And key.code <> 47 And key.code <> key.F3 Then
-      Stop Event
+    If key.code <> key.BackSpace And Key.Code <> Key.tab And Key.Code <> Key.Delete And Key.code <> Key.enter And Key.code <> Key.return And key.code <> 37 And key.code <> 42 And key.code <> key.F3 Then
+      If sign < 0 And key.code = 43 Then
+        Stop Event 
+      Else If sign > 0 And key.code = 45 Then
+        Stop Event
+      Else If sign = 0 And key.code <> 43 And key.code <> 45 Then
+        Stop Event
+      Endif
     Endif
   Endif
 
@@ -8366,31 +8477,31 @@ Public Sub Echap_Click()
 
     Case "Nmc3"
       Frame5.Visible = False
-      EspecesE.Value = True
+      MvtHV_Sortie.Value = True
       AcomptesE.Value = False
       Nmc3.Clear
-      If IsNull(Especes2.Text) Then mvt = ""
+      'If IsNull(Especes2.Text) Then mvt = ""
       Especes2.Clear
-      If mvt = "E" Then
-        Inpm.SetFocus
-        Zone = "Inpm"
-      Else
-        Cart.SetFocus
-        Zone = "Article"
-      Endif
+      'If mvt = "E" Then
+      '  Inpm.SetFocus
+      '  Zone = "Inpm"
+      'Else
+      Cart.SetFocus
+      Zone = "Article"
+      'Endif
 
     Case "Espece2"
       If Key.code = Key.Esc Or If Key.code = Key.F1 Or If Key.code = Key.F2 Or If Key.code = Key.F3 Then
         Frame5.Visible = False
         Nmc3.Clear
         Especes2.Clear
-        If mvt = "E" Then
-          Inpm.SetFocus
-          Zone = "Inpm"
-        Else
-          Cart.SetFocus
-          Zone = "Article"
-        Endif
+        'If mvt = "E" Then
+        '  Inpm.SetFocus
+        '  Zone = "Inpm"
+        'Else
+        Cart.SetFocus
+        Zone = "Article"
+        'Endif
       Endif
 
     Case "Nticket"

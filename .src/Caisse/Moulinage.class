@@ -211,30 +211,6 @@ Public Sub Livre_caisse(Optional Ncaisse As String = "", Optional Statut As Stri
             Endif
             Posy += 8
             pdf.Lines2(Posy)
-            pdf.Level2("Mouvements hors ventes ", "", "", Posy)
-            Posy += 5
-            Repeat
-              If rTkhv!type = "F" Or If rTkhv!type = "G" Or If rTkhv!type = "H" Or If rTkhv!type = "P" Then
-                If rTkhv!type = "F" Then sreg = "Sortie " & rTkhv!intitule
-                If rTkhv!type = "G" Then sreg = "Entree espèces " & rTkhv!intitule
-                If rTkhv!type = "H" Then sreg = "Entree chèques " & rTkhv!intitule
-                If rTkhv!type = "P" Then sreg = "Entree cartes " & rTkhv!intitule
-                sMtreg = Format$(Val(.cpoint(rTkhv!montant)), "0.00")
-                If rTkhv!type = "F" Then sMtreg = "-" & sMtreg
-                If rTkhv!type = "F" Then
-                  totcaisse = Val(.cpoint(Totcaisse)) - Val(.cpoint(rTkhv!montant))
-                Else
-                  If rTkhv!type = "G" Then totcaisse = Val(.cpoint(Totcaisse)) + Val(.cpoint(rTkhv!montant))
-                Endif
-                sqte = rTkhv!qte
-                If rTkhv!type = "F" Or If rTkhv!type = "G" Or If rTkhv!type = "P" Or If rTkhv!type = "H" Then
-                  pdf.Level2(sReg, sMTreg, sqte, Posy)
-                  Posy += 5
-                Endif
-              Endif
-            Until rTkhv.MoveNext()
-            Posy += 3
-            pdf.Lines2(Posy)
           Endif
           rTkd = Utils.db.Exec(" select  sum(replace(mttc, ',', '.')) as tmttc from " & Tabe & " as e where e.statut = &1 and e.suppr = &2 and e.caisse =&3" & filtredate, Statut, 1, rCaisse!code)
           If rTkd.Available Then Try tmttc = rTkd!tmttc
@@ -250,38 +226,66 @@ Public Sub Livre_caisse(Optional Ncaisse As String = "", Optional Statut As Stri
           Endif
           rTkhv = Utils.db.Exec(" select count(*) as cnt, l.type, sum(cast(REPLACE(l.montant,',','.') as decimal(7,2))) as totmontant, DATE(e.date) as ddate from " & Tabl & " as l left join " & Tabe & " as e on l.numero = e.numero where l.type is not Null and e.statut = &1 and e.caisse = &2 and e.suppr != 1 " & filtredate & " group by l.type, DATE(e.date)", Statut, rCaisse!code)
           If rTkhv.Available Then
-            pdf.Level2("Mouvements ventes ", "", "", Posy)
+            pdf.Level2("Mouvements ", "", "", Posy)
             Posy += 5
             Repeat
-              If rTkhv!type = "N" Then sreg = "Tot. rglts par especes "
-              If rTkhv!type = "Q" Then sreg = "Tot. rendu monnaie "
-              If rTkhv!type = "U" Then sreg = "Tot. rglts par cartes "
-              If rTkhv!type = "V" Then sreg = "Tot. rglts par cheques "
-              If rTkhv!type = "B" Then sreg = "Tot. bonus utilises "
-              If rTkhv!type = "E" Then sreg = "Tot. bons de reduction "
-              If rTkhv!type = "X" Then sreg = "Tot. bons achat "
-              If rTkhv!type = "Y" Then sreg = "Tot. cheques cadeaux "
-              If rTkhv!type = "W" Then sreg = "Tot. credits "
-              If rTkhv!type = "Z" Then sreg = "Tot. avoirs "
-              If rTkhv!type = "1" Then sreg = "Tot. Cheques entreprise"
-              If rTkhv!type = "M" Then sreg = "Tot. clients compte "
+              If rTkhv!type = "N" Then
+                sreg = "Tot. rglts especes "
+              Else If rTkhv!type = "Q" Then
+                sreg = "Tot. rendu especes "
+              Else If rTkhv!type = "U" Then
+                sreg = "Tot. rglts par cartes "
+              Else If rTkhv!type = "V" Then
+                sreg = "Tot. rglts par cheques "
+              Else If rTkhv!type = "B" Then
+                sreg = "Tot. bonus utilises "
+              Else If rTkhv!type = "E" Then
+                sreg = "Tot. bons de reduction "
+              Else If rTkhv!type = "X" Then
+                sreg = "Tot. bons achat "
+              Else If rTkhv!type = "Y" Then
+                sreg = "Tot. cheques cadeaux "
+              Else If rTkhv!type = "W" Then
+                sreg = "Tot. credits "
+              Else If rTkhv!type = "Z" Then
+                sreg = "Tot. avoirs "
+              Else If rTkhv!type = "1" Then
+                sreg = "Tot. cheques entr."
+              Else If rTkhv!type = "M" Then
+                sreg = "Tot. clients compte "
+              Else If rTkhv!type = "RA" Then
+                sreg = "Tot. acompte utilise "
+              Else If rTkhv!type = "EA" Then
+                sreg = "Tot. acompte verse "
+              Else If rTkhv!type = "EH" Then
+                sreg = "Tot. entree "
+              Else If rTkhv!type = "SH" Then
+                sreg = "Tot. sortie "
+              Else If rTkhv!type <> "" Then
+                sreg = "Type inconnu " & rTkhv!type & " "
+              Else
+                sreg = ""
+              Endif
+              
               If rTkhv!totmontant <> Null Then
                 sMtreg = Format$(Val(.cpoint(rTkhv!totmontant)), "0.00")
               Else
                 sMtreg = "0.00"
               Endif
-              ' If rTkhv!type = "N" Then
-              ' totcaisse = Val(.cpoint(Totcaisse)) + tespece
-              ' sMtreg = Format$(Val(.cpoint(tespece)), "0.00")
-              ' Endif
-              'If rTkhv!type = "N" Then totcaisse = Val(.cpoint(Totcaisse)) + Val(.cpoint(rTkhv!montant))
-              'If rTkhv!type = "Q" Then totcaisse = Val(.cpoint(Totcaisse)) - Val(.cpoint(rTkhv!montant))
+              'If rTkhv!type = "N" Then totcaisse = Val(.cpoint(Totcaisse)) + Val(.cpoint(rTkhv!totmontant)
+              'If rTkhv!type = "Q" Then totcaisse = Val(.cpoint(Totcaisse)) - Val(.cpoint(rTkhv!totmontant)
               sqte = rTkhv!cnt
               If Val(sqte) > 0 Then
-                If rTkhv!type = "E" Or If rTkhv!type = "B" Or If rTkhv!type = "N" Or If rTkhv!type = "U" Or If rTkhv!type = "V" Or If rTkhv!type = "X" Or If rTkhv!type = "Y" Or If rTkhv!type = "W" Or If rTkhv!type = "Z" Or If rTkhv!type = "M" Or If rTkhv!type = "1" Then
+                If rTkhv!type = "E" Or If rTkhv!type = "B" Or If rTkhv!type = "N" Or If rTkhv!type = "Q" Or If rTkhv!type = "U" Or If rTkhv!type = "V" Or If rTkhv!type = "X" Or If rTkhv!type = "Y" Or If rTkhv!type = "W" Or If rTkhv!type = "Z" Or If rTkhv!type = "M" Or If rTkhv!type = "1" Or If rTkhv!type = "RA" Then
                   sreg &= " du " & LDate(rTkhv!ddate).L
                   pdf.Level2(sReg, sMTreg, sqte, Posy)
                   Posy += 5
+                Else If rTkhv!type = "EA" Or If rTkhv!type = "EH" Or If rTkhv!type = "SH" Then
+                  sreg &= " (mvt. hors ventes) du " & LDate(rTkhv!ddate).L
+                  pdf.Level2(sReg, sMTreg, sqte, Posy)
+                  Posy += 5
+                Else
+                  'Aucun affichage
                 Endif
               Endif
               If posy > 260 Then
@@ -302,22 +306,6 @@ Public Sub Livre_caisse(Optional Ncaisse As String = "", Optional Statut As Stri
           Endif
           Posy += 5
           pdf.Lines2(Posy)
-          'rTkx = Utils.db.Exec(" select * from " & Tabr & " where type = &1", "M")
-          'If rTkx.Available Then
-            'totventes = 0
-          '  Repeat
-          '    Try Boncaisse = Val(Utils.cpoint(Boncaisse)) + Val(Utils.cpoint(rTkx!montant))
-          '  Until rTkx.MoveNext()
-            'Posy += 5
-          '  pdf.Level2("Total bons de caisse ", Format$(Val(.cpoint(Boncaisse)), "0.00"), "", Posy)
-          '  Posy += 5
-          '  pdf.Lines2(Posy)
-          '  If posy > 260 Then
-          '    pdf.Baspage()
-          '    pdf.newPage
-          '    Posy = 5
-          '  Endif
-          'Endif
           If Validate = 1 Then
             pdf.Lines2(Posy)
             pdf.Level2("Nombre de tickets :", Totnbtck, "", Posy)
@@ -962,6 +950,29 @@ Public Sub Moulinage()
                         '  rlTck.MoveNext()
                         'Endif
                       Endif
+                    Endif
+                    If rlTck!type = "RA" And Not rTck!suppr Then
+                      'Ticket avec un règlement par acompte
+                      Message.Info("Reglement acompte")
+                    Endif
+                    If (rlTck!type = "EH" Or rlTck!type = "SH") Then
+                      'Ticket avec une entree ou sortie exceptionnelle de caisse
+                      'on garde l'historique du ticket tel quel
+                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, rltck!numlig, rlTck!code, rlTck!intitule, rltck!montant, rltck!qte, rltck!type, rlTck!fam, rltck!mht, rltck!mrem, rltck!tva)
+                      If rlTck!type = "SH" Then
+                        vente = "658000"
+                      Else
+                        vente = "758000"
+                      Endif
+                      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", vente)
+                      If rResult.Available Then
+                        ivente = rResult!intitule_cc
+                      Endif
+                      montant = Val(.cpoint(rlTck!mht)) 'HT = TTC
+                      If Not rTck!suppr Then
+                        Maj_Totalisation(vente, ivente, montant)
+                      Endif
+                      'Message.Info("Hello")
                     Endif
                   Until rlTck.MoveNext()
                 Endif
@@ -2373,6 +2384,7 @@ Private Sub genfac()
   Dim pu, pxttc, mttc, mht, mtva, mremise As Float
   Dim snfac, snumlig, dnfac As String
   Dim ccd As Calculconsdroit
+  Dim nbvente As Integer = 0
 
   'recuperation et maj du n° facture
   respar = utils.db.Exec("SELECT * FROM Fiches_Parametres")
@@ -2394,6 +2406,7 @@ Private Sub genfac()
         resligz.MoveFirst
         Repeat
           If resligz!type = "A" Then
+            Inc nbvente
             resligfac = utils.db.Create("Tmp_Caisse")
             'On regarde si la ligne suivante existe puis si c'est une remise, si non on revient en arriere. "O"= ligne ecotaxe
             If resligz.Index < (resligz.Length - 1) Then
@@ -2422,6 +2435,9 @@ Private Sub genfac()
     Next
     utils.db.Commit
 
+    'Si il n'y a aucun article (ex moulinage avec juste des tickets de mouvement hors vente on ne produit pas de facture de caisse)
+    If nbvente = 0 Then Return
+    
       'mise a jour entete facture
       utils.db.Begin
       res = Utils.db.Exec("SELECT SUM(montant) AS montht, SUM(tva) AS tottva, SUM(marge) AS totmarge,SUM(remise) as remise FROM Tmp_Caisse")

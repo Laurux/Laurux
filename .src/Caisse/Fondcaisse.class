@@ -53,17 +53,8 @@ Public Sub _new()
     Date_Ini.Text = LDate(rResult!dteov).LT
     Date_Now.Text = LDate().LT
     FDC_Ini.ReadOnly = True
-    Box1.Text = "0,00"
-    fdctheo = Val(Utils.cpoint(FDC_Ini.Text))
-    rResult = Utils.db.Exec(" select count(*) as cnt, l.type, sum(cast(REPLACE(l.montant,',','.') as decimal(7,2))) as totmontant, DATE(e.date) as ddate from " & Cbase.Table("TabLigTck") & " as l left join " & Cbase.Table("TabEntTck") & " as e on l.numero = e.numero where l.type is not Null and e.statut = &1 and e.caisse = &2 and e.suppr != 1 group by l.type, DATE(e.date)", "0", NCaisse)
-    If rResult.Available Then
-      Repeat
-        If rResult!type = "N" Then fdctheo += Val(Utils.cpoint(rResult!totmontant)) 
-        If rResult!type = "Q" Then fdctheo -= Val(Utils.cpoint(rResult!totmontant)) 
-      Until rResult.MoveNext()
-    Endif
-    FDC_The.Text = Format(fdctheo, "0.00")
     FDC_The.ReadOnly = True
+    Calc_FdcTheo()
     Box1.Text = FDC_The.Text
   Endif
   
@@ -75,6 +66,23 @@ Public Sub _new()
     Label1.Text = devises
   Endif
 
+End
+
+Public Sub Calc_FdcTheo()
+
+  Dim rResult As Result
+  Dim fdctheo As Float
+
+  fdctheo = Val(Utils.cpoint(FDC_Ini.Text))
+  rResult = Utils.db.Exec(" select count(*) as cnt, l.type, sum(cast(REPLACE(l.montant,',','.') as decimal(7,2))) as totmontant, DATE(e.date) as ddate from " & Cbase.Table("TabLigTck") & " as l left join " & Cbase.Table("TabEntTck") & " as e on l.numero = e.numero where l.type is not Null and e.statut = &1 and e.caisse = &2 and e.suppr != 1 group by l.type, DATE(e.date)", "0", NCaisse)
+  If rResult.Available Then
+    Repeat
+      If rResult!type = "N" Then fdctheo += Val(Utils.cpoint(rResult!totmontant)) 
+      If rResult!type = "Q" Then fdctheo -= Val(Utils.cpoint(rResult!totmontant)) 
+    Until rResult.MoveNext()
+  Endif
+  FDC_The.Text = Format(fdctheo, "0.00")
+  
 End
 
 Public Sub Form_Open()
@@ -323,10 +331,8 @@ Public Sub Button2_Click()
     Me.Close
   Else
     If Val(Utils.cpoint(Box1.Text)) <> Val(Utils.cpoint(FDC_The.Text)) Then
-      Select Case Message.Warning("Attention le fond de caisse Reel (" & Val(Utils.cpoint(Box1.Text)) & ")\net Theorique (" & Val(Utils.cpoint(FDC_The.Text)) & ") ne correspondent pas!\nUne ecriture de perte/gain peut etre inscrite\nQue voulez vous faire?", "Generer l'ecriture", "Sortir", "Annuler")
+      Select Case Message.Warning("Attention le fond de caisse Reel (" & Val(Utils.cpoint(Box1.Text)) & ")\net Theorique (" & Val(Utils.cpoint(FDC_The.Text)) & ") ne correspondent pas!\nUn ticket d'entree/sortie hors vente en espece doit etre inscrit\nQue voulez vous faire?", "Sortir", "Annuler")
         Case 1
-          Message.Info("A faire")
-        Case 2
           Me.Close
         Default
           'Nothing
@@ -377,5 +383,57 @@ End
 Public Sub Suivant_Click()
 
   If Suiv Then Suiv.SetFocus()
+
+End
+
+Public Sub FDC_Ini_DblClick()
+
+  If Message.Warning("La modification du fond de caisse initial en cours de journée est une opération de correction lié à une saisie erronée en début de journée.\nSi vous souhaitez inscrire une erreur de fond de caisse, il faut créer une sortie ou entrée exceptionnelle d'espèce!\nVoulez-vous continuer?", "Oui", "Non") = 1 Then
+    FDC_Ini.ReadOnly = False
+    FDC_Ini.Background = &HFFFFFF
+    If Panel2.Visible Then
+      Button3_Click()
+    Endif
+    FDC_Ini.SetFocus()
+    FDC_Ini.SelectAll()
+    Stop Event
+  Endif
+
+End
+
+Public Sub FDC_Ini_Update() As Boolean
+  
+  If IsNumber(FDC_Ini.Text) Then
+    Utils.db.Exec("UPdate  " & Cbase.Table("TabCaisses") & "  SET fndc = &2 WHERE code = &1", Ncaisse, Utils.PointBase(FDC_Ini.Text))
+    FDC_Ini.ReadOnly = True
+    FDC_Ini.Background = Color.ButtonBackground
+    Calc_FdcTheo()
+    Box1.Text = FDC_The.Text
+    Box1.SetFocus()
+    Return True
+  Else
+    Message.Warning("Vérifiez votre saisie!")
+    FDC_Ini.SetFocus()
+    FDC_Ini.SelectAll()
+    Return False
+  Endif
+  
+End
+
+
+Public Sub FDC_Ini_KeyPress()
+  
+  If key.code = Key.enter Or Key.code = Key.return Or If Key.Code = Key.Tab Then
+    Box1.SetFocus()
+  Endif
+  
+End
+
+Public Sub FDC_Ini_LostFocus()
+  
+  If FDC_Ini.ReadOnly = False
+    FDC_Ini_Update()
+    Stop Event
+  Endif
 
 End
