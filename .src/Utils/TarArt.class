@@ -1,2 +1,166 @@
 ' Gambas class file
 
+Private $lstpx As New Collection
+Public prixht As Float
+Public nego As Boolean = False
+Public promo As Boolean = False
+Public detail As String
+Public remise As Float
+Public cdr As Calculdroit
+Private $option As String
+
+Event selec(value As String)
+
+Public Sub _new(nart As String, ncli As String, Optional typec As String, cpromo As String)
+
+  Dim res, resart, rescli As Result
+  Dim i As Integer
+  Dim pxprom, tax As Float
+  
+  $option = Utils.Option()
+  If $option = "B" Or $option = "T" Then 
+    resart = Utils.db.Exec("SELECT art_fam,art_pvht,libell_fam,art_prvt,art_dra,art_volm, art_deg FROM Fiches_Art,Fiches_Fam WHERE art_fam=code_fam AND art_code=&1", nart)
+  Else
+    resart = Utils.db.Exec("SELECT art_fam,art_pvht,libell_fam,art_prvt FROM Fiches_Art,Fiches_Fam WHERE art_fam=code_fam AND art_code=&1", nart)
+  Endif
+  If Not resart.Available Then Return
+  If $option = "B" Or $option = "T" Then
+    If resart!art_dra Then
+      cdr = New Calculdroit(resart!art_dra, resart!art_volm, resart!art_deg, 1)
+      If cdr.suspendu Or cdr.drsurfac Then
+        tax = cdr.droit + cdr.secu
+      Endif
+    Endif
+  Endif
+  prixht = resart!art_pvht - tax
+  $lstpx.Add(["Prix de base", Round(prixht, -3)], "0")
+  detail = "Prix de base"
+  If typec Then
+    rescli = Utils.db.Exec("SELECT cli_nom,libelle FROM Fiches_Cli,Fiches_Typec WHERE code=&2 AND cli_code=&1", ncli, typec)
+    If Not rescli.Available Then Return
+  Else
+    rescli = Utils.db.Exec("SELECT cli_nom,cli_typec,libelle FROM Fiches_Cli,Fiches_Typec WHERE cli_typec=code AND cli_code=&1", ncli)
+    If Not rescli.Available Then Return
+    typec = rescli!cli_typec
+  Endif
+  
+  'remise en % pour Type client et famille
+  res = Utils.db.Exec("SELECT * FROM Fiches_RemTypec WHERE codef=&1", resart!art_fam)
+  If res.Available Then
+    res.MoveFirst
+    Repeat
+      i += 1
+      $lstpx.Add([resart!libell_fam & " remise : " & res!remise, Round(resart!art_pvht - ((resart!art_pvht * res!remise) / 100) - tax, -3)], Str(i))
+      If typec = res!coder Then
+        prixht = (resart!art_pvht - ((resart!art_pvht * res!remise) / 100)) - tax
+        nego = True
+        remise = res!remise
+        detail = resart!libell_fam & " remise : " & res!remise
+      Endif
+    Until res.MoveNext()
+  Endif
+  'coeff de marge par famille et type client
+  res = Utils.db.Exec("SELECT * FROM Fiches_CoeffTypec WHERE codef=&1", resart!art_fam)
+  If res.Available Then 
+    res.MoveFirst
+    Repeat
+      i += 1
+      $lstpx.Add([rescli!libelle, Round(resart!art_prvt * res!coeff - tax, -3)], Str(i))
+      If typec = res!coder Then
+        prixht = resart!art_prvt * res!coeff - tax
+        nego = True
+        remise = 0
+        detail = "Tarif " & rescli!libelle
+      Endif
+    Until res.MoveNext()
+  Endif
+  'coeff de marge par type de client et de cet article
+  res = Utils.db.Exec("SELECT * FROM Fiches_TarTypcli WHERE cart=&1", nart)
+  If res.Available Then
+    res.MoveFirst
+    Repeat
+      i += 1
+      $lstpx.Add(["Type de client " & res!type, Round(resart!art_prvt * res!coef - tax, -3)], Str(i))
+      If typec = Trim(res!type) Then
+        prixht = resart!art_prvt * res!coef
+        nego = True
+        remise = 0
+        prixht = resart!art_prvt * res!coef - tax
+        detail = "Type de client " & Typec
+        nego = True
+      Endif
+    Until res.MoveNext()
+  Endif
+   'tarif pour ce client et pour cette famille - on va pas le faire pour chaque client ce pourrait être trop
+  res = Utils.db.Exec("SELECT * FROM Fiches_RemCliFam WHERE codec=&1 AND codef=&2", ncli, resart!art_fam)
+  If res.Available Then
+    i += 1
+    $lstpx.Add([resart!libell_fam & " remise : " & res!remise, Round((resart!art_pvht - ((resart!art_pvht * res!remise) / 100)) - tax, -3)], Str(i))
+    prixht = (resart!art_pvht - ((resart!art_pvht * res!remise) / 100)) - tax
+    nego = True
+    remise = res!remise
+    detail = resart!libell_fam & " remise : " & res!remise
+  Endif
+  'tarif pour ce client et cette article coef de marge
+  res = Utils.db.Exec("SELECT * FROM Fiches_Tarcli WHERE ccli=&1 AND cart=&2", ncli, nart)
+    If res.Available Then
+      i += 1
+      $lstpx.Add(["Tarif " & rescli!cli_nom, Round(resart!art_prvt * res!coef - tax, -3)], Str(i))
+      prixht = resart!art_prvt * res!coef - tax
+      nego = True
+      remise = 0
+      detail = "Tarif " & rescli!cli_nom
+  Endif
+  'voir si promo en cours
+  If cpromo Then
+    If ArtPromo.art_Promo(nart, Cpromo) Then
+      pxprom = ArtPromo.Prix_Promo(nart, Cpromo)
+      If pxprom < prixht Then
+        i += 1
+        $lstpx.Add(["Prix promo  ", Round(pxprom - tax, -3)], Str(i))
+        prixht = pxprom - tax
+        nego = False
+        promo = True
+        remise = 0
+        detail = "Ce produit est actuellement en promotion"
+      Endif
+    Endif
+  Endif
+  
+  prixht = Round(prixht, -3)
+  GridView1.Columns.count = 2
+  GridView1.Columns[0].Width = 200
+  GridView1.Columns[1].Width = 80
+  GridView1.Mode = Select.Single
+  GridView1.Columns[1].Alignment = Align.Right
+  GridView1.Rows.Count = $lstpx.Count
+  
+End
+
+Public Sub GridView1_Data(Row As Integer, Column As Integer)
+
+  Dim tab As Variant
+  
+  If Even(row) Then GridView1.Data.Background = GridView1.Data.Background - 50
+  tab = $lstpx[Str(row)]
+  GridView1.Data.Text = tab[Column]
+
+End
+
+Public Sub GridView1_Activate()
+
+  Raise selec(GridView1[GridView1.Row, 1].Text)
+   Me.Hide
+   Me.Close
+
+End
+
+Public Sub GridView1_KeyPress()
+
+  Select Case Key.Code
+    Case Key.Esc
+      Me.Hide
+      Me.Close
+  End Select
+
+End

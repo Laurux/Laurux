@@ -247,13 +247,14 @@ Private $textcol As TextBox
 Private $checcons As CheckBox
 Private $inbcol As Integer      'Nb de colis par palette
 Private $inbbout As Integer     'Nb de bouteilles par caisse
+Private $tarif As TarArt
 
 '**********************************************************
 '*initialisation écrans et gestion onglet client          *
 '**********************************************************
 Public Sub _New(bfacture As Boolean)
 
-  Dim rdep As Result
+  Dim rdep, res As Result
   Dim $lp, $imp As String
   Dim Frmt As New String[]
   Dim obs As Observer
@@ -479,6 +480,14 @@ Public Sub _New(bfacture As Boolean)
     Artqte.Width = 90
     Artqte.MaxLength = 8
   Endif
+  
+   res = Utils.db.Exec("SELECT * FROM Fiches_Typec ")
+    If res.Available Then 
+      res.MoveFirst
+      Repeat
+         Combocatcli.Add(res!code & " " & res!libelle, res!code)
+      Until res.MoveNext()
+    Endif
 
 End
 
@@ -674,6 +683,7 @@ Public Sub CleanChamps()
   BFacA.Enabled = True
   Textfrais.Text = "0,00"
   Textto1.Clear
+  regroup.Text = ""
   If $soption = "P" Or $soption = "T" Then Texttr1.Clear
 
 End
@@ -2077,6 +2087,22 @@ Public Sub ColblSelection(bright As Boolean)
         If rResult.Available Then
           If $soption = "P" Or $soption = "T" Then Texttr1.Text = rResult!cli_tipp
           If $soption = "B" Or $soption = "T" Then $opt.clicons = rResult!cli_cons
+          Select Case rResult!cli_regr
+            Case "S"
+              regroup.Text = "Regr : Sans"
+            Case "Q"
+              regroup.Text = "Regr : Quinzaine"
+            Case "M"
+              regroup.Text = "Regr : Mensuel"
+            Case "D"
+              regroup.Text = "Regr : Decade"
+          End Select
+          res = Utils.db.Exec("SELECT * FROM Fiches_Typec WHERE code=&1", rResult!cli_typec)
+          If res.Available Then
+            Combocatcli.Text = res!code & " " & res!libelle
+          Else
+            Combocatcli.Text = "  "
+          Endif
           Pays = rResult!cli_pays
           telbur.Text = rResult!cli_tel_bur
           Teldom.text = rResult!cli_tel_dom
@@ -4884,53 +4910,27 @@ Public Sub Maj_zonesArt()
             Pmp = Rarts!art_pmp
             Try coefdep = Rarts!art_coefdep
             If Error Then coefdep = 1
-            If Bdevis.Value = False Then
-              If Promo Then Apromo = ArtPromo.art_Promo(Cart.text, Cpromo)
-              If apromo = True Then
-                Artpu.Text = Format$(ArtPromo.Prix_Promo(Cart.text, Cpromo), Ar$)
-                Artbrut.Text = Format(Val(Artpu.Text), Ar$)
-              Endif
-              If apromo = True Then Balloon.Info(("Ce produit est actuellement en promotion"), Cart)
-            Endif
-            If retro.value = False Then
-              If Apromo = False Then
-                Artpu.Text = Format$(Rarts!art_pvht, Ar$)
-                Artbrut.Text = Format(Val(Artpu.Text), Ar$)
-                Artrm.Text = Txpieces.Text
-              Else
-                Artrm.Text = "0,00"
-              Endif
+            Artpu.Text = Format$(Rarts!art_pvht, Ar$)
+            Artbrut.Text = Format(Val(Artpu.Text), Ar$)
+            Artrm.Text = Txpieces.Text
+            Try $tarif.Delete
+            If Bdevis.Value = False Then 
+              $tarif = New TarArt(Cart.text, code.Text, Me, Left(Combocatcli.Current.Text, 2), Cpromo) As "trf"
             Else
-              Artpu.Text = Format$(Rarts!art_prvt * Val(Val_retro), Ar$)
-              Artbrut.Text = Artpu.Text
-              Artrm.Text = "0,00"
+              $tarif = New TarArt(Cart.text, code.Text, Me, Left(Combocatcli.Current.Text, 2), "") As "trf"
             Endif
-            If ($soption = "B" Or $soption = "T") Then
-              If Rarts!art_dra Then
-                cdr = New Calculdroit(Rarts!art_dra, Rarts!art_volm, Rarts!art_deg, 1)
-                If cdr.suspendu Or cdr.drsurfac Then
-                  artpu.Text = Format(CFloat(Replace(artpu.Text, ",", ".")) - Rarts!art_montdr - Rarts!art_montss, Ar$)
-                Endif
-              Endif
+            $tarif.Hide
+            $tarif.x = artpu.X + 48
+            $tarif.Y = artpu.Y + 100
+            If Not retro.Value Then
+              Artpu.Text = Format$($tarif.prixht, Ar$)
+              Artbrut.Text = artpu.Text
+              Balloon.Info($tarif.detail, artpu)
+              Artrm.Text = Format($tarif.remise, "0.00")
+              If $tarif.promo Then Artrm.Text = "0,00"
+              RemType = Artrm.Text
             Endif
-            If apromo = False Then
-              If Retro.value = False And Not IsNull(Typec) And Val(Txpieces.Text) = 0 Then
-                If Apromo = False Then
-                  Remtypec = Utils.db.Exec("SELECT * FROM " & Tbrlt & " where coder = &1 and codef = &2", Typec, Artfam.Text)
-                  If RemTypec.Available And apromo = False Then
-                    Artrm.Text = RemTypec!remise
-                    RemType = Artrm.Text
-                  Endif
-                Endif
-              Endif
-              If Retro.value = False Then
-                Remtypec = Utils.db.Exec("SELECT * FROM " & Cbase.Table("RemCliFam") & " where codec = &1 and codef = &2", Code.text, Artfam.Text)
-                If RemTypec.Available Then
-                  Artrm.Text = RemTypec!remise
-                  RemType = Artrm.Text
-                Endif
-              Endif
-            Endif
+            
             Try spvcons = Format$(Rarts!art_pvcons, Ar$)
             $UV = Rarts!art_uv
             If IsNull($UV) Then $UV = "0"
@@ -4989,70 +4989,18 @@ Public Sub Maj_zonesArt()
             Else
               Pdxart.Text = Format$(Pdx, "0.000")
             Endif
-            If retro.value = False Then
-              If Not IsNull(typec) Then
-                Tresult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCtcli") & " where coder = &1 and codef = &2", Typec, Artfam.Text)
-                If Tresult.Available Then
-                  Balloon.Info(("Coefficient de vente par type client " & Typec), Cart)
-                  Tcoeff = Tresult!coeff
-                  artpu.Text = Val(.cpoint(Rarts!art_prvt)) * Val(.cpoint(Tcoeff))
-                  Artpu_LF()
-                Endif
-              Endif
-              If Tcli Then
-                Tresult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTcli") & " where type = &1 and cart = &2", Typec, Cart.Text)
-                If Tresult.Available Then
-                  Tcoeff = Tresult!coef
-                  Tartpu = Val(.cpoint(Rarts!art_prvt)) * Val(.cpoint(Tcoeff))
-                  If apromo = True And Val(.cpoint(Artpu.Text)) > Val(.cpoint(Tartpu)) Or If apromo = False Then
-                    Balloon.Info("Tarif type client " & Typec, artpu)
-                    Artrm.Text = "0,00"
-                    Artpu.Text = Format$(Val(.cpoint(Rarts!art_prvt)) * Val(.cpoint(Tcoeff)), Ar$)
-                    If ($soption = "B" Or $soption = "T") Then
-                      If Rarts!art_dra Then
-                        '       cdr = New Calculdroit(Rarts!art_dra, Rarts!art_volm, Rarts!art_deg, 1)
-                        If cdr.suspendu Or cdr.drsurfac Then
-                          artpu.Text = Format(CFloat(Replace(artpu.Text, ",", ".")) - Rarts!art_montdr - Rarts!art_montss, Ar$)
-                        Endif
-                      Endif
-                    Endif
-                    Recup_Tva()
-                    Artpu_LF()
-                  Endif
-                Endif
-                Tresult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTarcli") & " where ccli = &1 and cart = &2", Code.Text, Cart.Text)
-                If Tresult.Available Then
-                  Tcoeff = Tresult!coef
-                  Artrm.Text = "0,00"
-                  Tartpu = Val(.cpoint(Rarts!art_prvt)) * Val(.cpoint(Tcoeff))
-                  If apromo = True And Val(.cpoint(Artpu.Text)) > Val(.cpoint(Tartpu)) Or If apromo = False Then
-                    Message.Info("Tarif client")
-                    Artpu.Text = Format$(Val(.cpoint(Rarts!art_prvt)) * Val(.cpoint(Tcoeff)), Ar$)
-                    If ($soption = "B" Or $soption = "T") Then
-                      If Rarts!art_dra Then
-                        'cdr = New Calculdroit(Rarts!art_dra, Rarts!art_volm, Rarts!art_deg, 1)
-                        If cdr.suspendu Or cdr.drsurfac Then
-                          artpu.Text = Format(CFloat(Replace(artpu.Text, ",", ".")) - Rarts!art_montdr - Rarts!art_montss, Ar$)
-                        Endif
-                      Endif
-                    Endif
-                    Recup_Tva()
-                    Artpu_LF()
-                  Endif
-                Endif
-              Endif
-              If Start.LocalSettings["/Soc" & Start.Societe & "/Depannage"] Then
-                If Depg.Text = "Dépannage" Then
-                  Tcoeff = Coefdep
-                  Artrm.Text = "0,00"
-                  Tartpu = Val(.cpoint(artpu.text)) * Val(.cpoint(Tcoeff))
-                  Message.Info("Tarif dépannage")
-                  Artpu.Text = Format$(Val(.cpoint(artpu.text)) * Val(.cpoint(Tcoeff)), Ar$)
-                  Recup_Tva()
-                  Artpu_LF()
-                Endif
+         
+            If Start.LocalSettings["/Soc" & Start.Societe & "/Depannage"] Then
+              If Depg.Text = "Dépannage" Then
+                Tcoeff = Coefdep
+                Artrm.Text = "0,00"
+                Tartpu = Val(.cpoint(artpu.text)) * Val(.cpoint(Tcoeff))
+                Message.Info("Tarif dépannage")
+                Artpu.Text = Format$(Val(.cpoint(artpu.text)) * Val(.cpoint(Tcoeff)), Ar$)
               Endif
             Endif
+            Recup_Tva()
+            Artpu_LF()
             Try Rms[0, 0] = Str(Rarts!qte1)
             Try Rms[0, 1] = Str(Rarts!qte2)
             Try Rms[0, 2] = Str(Rarts!rem1)
@@ -5107,6 +5055,24 @@ Catch
     Music.Play
   Endif
   Try message.Error(Error.Text & " " & Error.where)
+
+End
+
+Public Sub trf_selec(value As String)   'retourne le pu selectionné dans la frille tarif
+
+  If value Then
+    artpu.Text = Format(value, ar$)
+    artpu.SetFocus
+  Endif
+  
+End
+
+Public Sub Art_DblClick()
+
+  If Last.tag = 3 Then
+    Try $tarif.Show
+    Try $tarif.Raise
+  Endif
 
 End
 
@@ -13589,7 +13555,7 @@ End
 '******************************************
 Public Sub Cli_man()
 
-  Dim Clitab As Result
+  Dim Clitab, res As Result
   Dim Tabcli As String
   Dim Comptab As Result
   Dim Tabcompt As String
@@ -13639,6 +13605,22 @@ Public Sub Cli_man()
       textfrais.Text = "0,00"
     Else
       Textfrais.Text = Format(Clitab!cli_gestion, "0.00")
+    Endif
+    Select Case Clitab!cli_regr
+            Case "S"
+              regroup.Text = "Regr : Sans"
+            Case "Q"
+              regroup.Text = "Regr : Quinzaine"
+            Case "M"
+              regroup.Text = "Regr : Mensuel"
+            Case "D"
+              regroup.Text = "Regr : Decade"
+    End Select
+    res = Utils.db.Exec("SELECT * FROM Fiches_Typec WHERE code=&1", Clitab!cli_typec)
+    If res.Available Then 
+      Combocatcli.Text = res!code & " " & res!libelle
+    Else
+      Combocatcli.Text = "  "
     Endif
     If $soption = "P" Or $soption = "T" Then Texttr1.Text = Clitab!cli_tipp
     If $soption = "B" Or $soption = "T" Then $opt.clicons = Clitab!cli_cons

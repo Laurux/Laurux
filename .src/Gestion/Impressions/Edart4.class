@@ -7,6 +7,7 @@ Private $familles As Trifam
 Private $rpt As Report
 Private $rescli As Result
 Private $soption As String
+Private $tarif As TarArt
 
 Public Codearticle As String
 Public Bsel As Boolean = False
@@ -37,6 +38,7 @@ Public Sub _new()
   four2.Text = "40199999"
   Art.Text = "00000"
   Art2.Text = "ZZZZZ"
+  $soption = Utils.Option()
   
 End
 
@@ -105,10 +107,11 @@ Public Sub Butimp_Click()
 
   Dim resart, res As Result
   Dim img, cle As String
-  Dim prixht, tva, ttc, dr, ss As Float
+  Dim tva, ttc, droit As Float
   Dim nego As Boolean = False
   Dim sdp As Boolean
   Dim Filename As String
+  Dim dr, ss As String
   Dim prt As New Printer
   
   Filename = User.Home & "/tmp/tarif.pdf"
@@ -132,38 +135,28 @@ Public Sub Butimp_Click()
         Repeat
           tva = 0
           ttc = 0
-          nego = False
-          prixht = resart!art_pvht
-          res = Utils.db.Exec("SELECT * FROM Fiches_RemTypec WHERE coder=&2 and codef=&1", resart!art_fam, Textyp.Text)
-          If res.Available Then
-            prixht = resart!art_pvht - (resart!art_pvht * res!remise)
-            nego = True
-          Endif
-          res = Utils.db.Exec("SELECT * FROM Fiches_RemCliFam WHERE codec=&1 AND codef=&2", Textcli.Text, resart!art_fam)
-          If res.Available Then
-            prixht = resart!art_pvht - (resart!art_pvht * res!remise)
-            nego = True
-          Endif
-          res = Utils.db.Exec("SELECT * FROM Fiches_CoeffTypec WHERE coder=&2 and codef=&1", resart!art_fam, Textyp.Text)
-          If res.Available Then 
-            prixht = resart!art_prvt * res!coeff
-            nego = True
-          Endif
-          res = Utils.db.Exec("SELECT * FROM Fiches_TarTypcli WHERE type=&1 AND cart=&2", Textyp.Text, resart!art_code)
-          If res.Available Then
-            prixht = resart!art_prvt * res!coef
-            nego = True
-          Endif
-          res = Utils.db.Exec("SELECT * FROM Fiches_Tarcli WHERE ccli=&1 AND cart=&1", Textcli.Text, resart!art_fam)
-          If res.Available Then
-            prixht = resart!art_prvt * res!coef
-            nego = True
-          Endif
-          If (Checkneg.Value And nego) Or Not Checkneg.Value Then
+          droit = 0
+          dr = ""
+          ss = ""
+          $tarif = New TarArt(resart!art_code, Textcli.Text, Me, Textyp.Text, "")
+          $tarif.Hide
+          If (Checkneg.Value And $tarif.nego) Or Not Checkneg.Value Then
             If Phot.Value Then img = resart!art_photo Else img = ""
-            tva = prixht * (Utils.totobs([resart!taux_tva]) / 100)
-            ttc = prixht + tva
-            ligne(resart!art_code, resart!art_design, Format(prixht, "0.000"), Format(tva, "0.00"), Format(ttc, "0.00"), img, Color.White, "4mm")
+            If $soption = "B" Or $soption = "T" Then
+              If Not IsNull($tarif.cdr) Then
+                tva = $tarif.cdr.tva
+                droit = $tarif.cdr.droit + $tarif.cdr.secu
+                If $tarif.cdr.droit = 0 Then dr = " " Else dr = Format($tarif.cdr.droit, "0.00")
+                If $tarif.cdr.secu = 0 Then ss = " " Else ss = Format($tarif.cdr.secu, "0.00")
+              Endif
+            Endif
+            tva += $tarif.prixht * (Utils.totobs([resart!taux_tva]) / 100)
+            ttc = $tarif.prixht + droit + tva
+            If $soption = "B" Or $soption = "T" Then
+              ligne(resart!art_code, resart!art_design, Format($tarif.prixht, "0.000"), Format(tva, "0.00"), Format(ttc, "0.00"), img, Color.White, "4mm", dr, ss)
+            Else
+              ligne(resart!art_code, resart!art_design, Format($tarif.prixht, "0.000"), Format(tva, "0.00"), Format(ttc, "0.00"), img, Color.White, "4mm")
+            Endif
           Endif
         Until resart.MoveNext()
       Endif
@@ -206,6 +199,22 @@ Private Sub tetedecolone()
   lab.Font = font["Serif,-3"]
   lab.Width = $width
   
+  If $soption = "B" Or $soption = "T" Then
+    lab = New ReportLabel(hb)
+    lab.Text = "droits"
+    lab.Alignment = Align.Center
+    lab.Border = ReportBorder["Right:1pt #000000"]
+    lab.Font = font["Serif,-3"]
+    lab.Width = $width
+    
+    lab = New ReportLabel(hb)
+    lab.Text = "S.S"
+    lab.Alignment = Align.Center
+    lab.Border = ReportBorder["Right:1pt #000000"]
+    lab.Font = font["Serif,-3"]
+    lab.Width = $width
+  Endif
+  
   lab = New ReportLabel(hb)
   lab.Text = "TVA"
   lab.Alignment = Align.Center
@@ -230,7 +239,7 @@ Private Sub tetedecolone()
 
 End
 
-Private Sub ligne(code As String, lib As String, ht As String, tva As String, ttc As String, Imag As String, coul As Integer, h As String)
+Private Sub ligne(code As String, lib As String, ht As String, tva As String, ttc As String, Imag As String, coul As Integer, h As String, Optional dr As String, ss As String)
   
   Dim hb As ReportHBox
   Dim Lab As ReportLabel
@@ -261,6 +270,22 @@ Private Sub ligne(code As String, lib As String, ht As String, tva As String, tt
   lab.Border = ReportBorder["Right:1pt #000000"]
   lab.Font = font["Serif,-3"]
   lab.Width = $width
+  
+  If $soption = "B" Or $soption = "T" Then
+    lab = New ReportLabel(hb)
+    lab.Text = dr
+    lab.Alignment = Align.Right
+    lab.Border = ReportBorder["Right:1pt #000000"]
+    lab.Font = font["Serif,-3"]
+    lab.Width = $width
+    
+    lab = New ReportLabel(hb)
+    lab.Text = ss
+    lab.Alignment = Align.Right
+    lab.Border = ReportBorder["Right:1pt #000000"]
+    lab.Font = font["Serif,-3"]
+    lab.Width = $width
+  Endif
   
   lab = New ReportLabel(hb)
   lab.Text = tva
