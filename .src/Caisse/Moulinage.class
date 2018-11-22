@@ -533,7 +533,7 @@ Public Sub Moulinage()
                         If Not rTck!suppr Then Message.Warning("Le BL " & Format$(rlTck!mrem, "000000") & " est noté règlé dans le ticket " & rlTck!numero & " mais n'est pas associé a ce ticket, il sera ignoré")
                       Endif
                     Endif
-                    If rlTck!type = "A" Or If rlTck!type = "M" Or If rlTck!type = "S" Or If rlTck!type = "T" Or If rlTck!type = "L" Or If rlTck!type = "C" Then
+                    If rlTck!type = "A" Or If rlTck!type = "M" Or If rlTck!type = "S" Or If rlTck!type = "L" Or If rlTck!type = "C" Then
                       If rlTck!type = "A" And IsNull(rlTck!fam) Then
                         rFam = Utils.db.Exec(" select * from " & Cbase.Table("TabArt") & " where art_code = &1", rltck!code)
                         Fam = rFam!art_fam
@@ -624,11 +624,16 @@ Public Sub Moulinage()
                       'If rlTck!type = "S" Or rlTck!type = "A" Then
                       '  rlTck.MoveNext()
                       'Endif
+                      Else
+                        If rlTck!type = "T" Then
+                          'on garde l'historique du ticket tel quel
+                          Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, rltck!numlig, code, $intit, rltck!montant, rltck!qte, rltck!type, Fam, rltck!mht, rltck!mrem, rltck!tva)
+                        Endif
                     Endif
                   Until rlTck.MoveNext()
                 Endif
 
-                'On regroupe les BL règlés dans ce ticket pour chaque client concerné afin de générer une facture
+                 'On regroupe les BL règlés dans ce ticket pour chaque client concerné afin de générer une facture
                 Bl = Utils.db.Exec(" select cdclibl from " & Cbase.Table("TabBl") & " where type = \"B\" and numtick = &1 group by cdclibl", rtck!numero)
                 'On utilise la date du ticket comme date du reglement du bl et de facturation.
                 Date_Bl = Left(rtck!date, 2) & "." & Mid(rtck!date, 4, 2) & "." & Mid(rtck!date, 7, 4)  
@@ -894,7 +899,7 @@ Public Sub Raz_Tables()
     "montant Char(12)," &
     "qte Char(12)," &
     "type Char(1)," &
-    "fam Char(5)," &
+    "fam Char(20)," &
     "mht Char(12)," &
     "mrem Char(12)," &
     "mtva Char(12)," &
