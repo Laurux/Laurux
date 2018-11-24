@@ -230,7 +230,9 @@ Public Sub recup_bl()
   Dim Tab As String = "Fiches_Bl"
   Dim i As Integer
   Dim orientation As Boolean
-
+  Dim gest As Boolean
+  Dim ht, ttc, montfrais As Float
+  
   Tab1 = "Fiches_Ligbl"
   Tab3 = "Facturefm"
   Tab4 = "Bl"
@@ -245,7 +247,8 @@ Public Sub recup_bl()
     "ville Char(35)," &
     "totf Char(12)," &
     "tottc Char(12)," &
-    "PRIMARY KEY (code, nom))" & "ENGINE = MYISAM")
+    "gestbl Decimal(6,2)," &
+    "PRIMARY KEY (code, nom)) " & "ENGINE = MYISAM")
   Utils.db.Exec("drop Table IF exists " & Tab4 & "")
   Utils.db.Exec("CREATE TABLE " & Tab4 &
     "(num Char(12) NOT NULL," &
@@ -254,7 +257,7 @@ Public Sub recup_bl()
     "date date," &
     "ht Char(12)," &
     "ttc Char(12)," &
-    "PRIMARY KEY (num))" & "ENGINE = MYISAM")
+    "PRIMARY KEY (num)) " & "ENGINE = MYISAM")
   dteN = Right$(datej.Text, 4) & Mid$(datej.Text, 4, 2) & Left$(datej.Text, 2)
   If Radiobutton1.Value = True Then
     codeclient.Background = &HD4D0C8& '&HF9F9BD&
@@ -276,6 +279,14 @@ Public Sub recup_bl()
         adr2 = Client!adr2bl
         cpcli = Client!cpbl
         villecli = Client!villebl
+        codecli = Client!cdclibl
+        gest = False
+        montfrais = 0
+      Endif
+      If Codecli <> Client!cdclibl Then
+        gest = False
+        montfrais = 0
+        Codecli = Client!cdclibl
       Endif
       If Not Divers.value Then
         totf = Utils.db.Exec("SELECT * FROM " & Tab3 & " WHERE code = &1", Client!cdclibl)
@@ -285,24 +296,44 @@ Public Sub recup_bl()
       If totf.Available Then
         Total = Format$(Val(totf!totf) + Val(Utils.cpoint(Client!totalht)), "0.00")
         Totalttc = Format$(Val(totf!tottc) + Val(Utils.cpoint(Client!totalttc)), "0.00")
+        ht = Val(Utils.cpoint(Client!totalht))
+        ttc = Val(Utils.cpoint(Client!totalttc))
+        If Utils.totobs([client!gestbl]) <> 0 Then  'Frais de facture : on empeche les frais de se cumuler => seul le 1° sera pris en compte.
+          If gest Then
+            Total = Format$(Val(Total) - client!gestbl, "0.00")
+            Totalttc = Format$(Val(totalttc) - totfrais(client!gestbl), "0.00")
+            ht -= client!gestbl
+            ttc -= totfrais(client!gestbl)
+          Else
+            gest = True
+            montfrais = client!gestbl
+          Endif
+        Endif
         If Not Divers.value Then
-          Utils.db.Exec("UPdate " & Tab3 & " SET totf = &1, tottc = &2 WHERE code = &3", Total, Totalttc, Client!cdclibl)
+          Utils.db.Exec("UPdate " & Tab3 & " SET totf = &1, tottc = &2, gestbl=&4 WHERE code = &3", Total, Totalttc, Client!cdclibl, montfrais)
         Else
-          Utils.db.Exec("UPdate " & Tab3 & " SET totf = &1, tottc = &2 WHERE code = &3 and nom = &4", Total, Totalttc, Client!cdclibl, Nomcli)
+          Utils.db.Exec("UPdate " & Tab3 & " SET totf = &1, tottc = &2, gestbl=&5 WHERE code = &3 and nom = &4", Total, Totalttc, Client!cdclibl, Nomcli, montfrais)
         Endif
       Else
+        
         Try Total = Format$(Client!totalht, "0.00")
         Try Totalttc = Format$(Client!totalttc, "0.00")
+        ht = Client!totalht
+        ttc = Client!totalttc
+        If Utils.totobs([client!gestbl]) <> 0 Then 
+          gest = True
+          montfrais = client!gestbl
+        Endif
         If Not Divers.value Then
-          Utils.db.Exec("INSERT INTO " & Tab3 & " (code, nom, cp, ville, totf, tottc) Values (&1, &2, &3,&4,&5, &6)", Client!cdclibl, Client!nmclibl, Client!cpbl, Client!villebl, Total, totalttc)
+          Utils.db.Exec("INSERT INTO " & Tab3 & " (code, nom, cp, ville, totf, tottc,gestbl) Values (&1, &2, &3,&4,&5, &6, &7)", Client!cdclibl, Client!nmclibl, Client!cpbl, Client!villebl, Total, totalttc, montfrais)
         Else
-          Utils.db.Exec("INSERT INTO " & Tab3 & " (code, nom, adr1, adr2, cp, ville, totf, tottc) Values (&1, &2, &3,&4,&5, &6, &7, &8)", Client!cdclibl, Nomcli, adr1, adr2, cpcli, villecli, Total, totalttc)
+          Utils.db.Exec("INSERT INTO " & Tab3 & " (code, nom, adr1, adr2, cp, ville, totf, tottc, gestbl) Values (&1, &2, &3,&4,&5, &6, &7, &8, &9)", Client!cdclibl, Nomcli, adr1, adr2, cpcli, villecli, Total, totalttc, montfrais)
         Endif
       Endif
       Total = 0
       Bl = Utils.db.Exec("SELECT * FROM " & Tab1 & " where num_ligbl = &1 order by num_ligbl", Client!numbl)
       If Bl.Available Then
-        Utils.db.Exec("INSERT INTO " & Tab4 & " (num, code, nom, date, ht, ttc) Values (&1, &2, &3, &4, &5, &6)", Client!numbl, Client!cdclibl, Nomcli, Client!datebl, Client!totalht, Client!totalttc)
+        Utils.db.Exec("INSERT INTO " & Tab4 & " (num, code, nom, date, ht, ttc) Values (&1, &2, &3, &4, &5, &6)", Client!numbl, Client!cdclibl, Nomcli, Client!datebl, Format(ht, "0.00"), Format(ttc, "0.00"))
       Endif
     Until Client.MoveNext()
   Endif
@@ -331,6 +362,18 @@ Public Sub recup_bl()
     affclient
   Endif
 
+End
+
+Private Function totfrais(frs As Float) As Float
+  
+  Dim res As Result
+  
+  res = Utils.db.Exec("SELECT tvafrais,taux_tva  FROM Fiches_Parametres,Fiches_Tvaav WHERE tvafrais=code_tva")
+  If res.Available Then
+    frs = frs * (1 + (res!taux_tva / 100))
+    Return frs
+  Endif
+  
 End
 
 Public Sub Colbl_Click()
@@ -909,6 +952,7 @@ Public Sub Impression()
   Dim borientation As Boolean = False
   Dim ccd As Calculconsdroit
   Dim ftottva As Float
+  Dim gest As Boolean
 
   P = 31
   Pge = 1
@@ -1052,6 +1096,11 @@ Public Sub Impression()
             Else
               CblRslt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabCli") & " left join " & Tab8 & " on cli_code = code where cli_code = &1 and nom = &2 order by cli_code, nom", Colbl.Item[0], Colbl.Item[1])
             Endif
+            If Utils.totobs([CblRslt!gestbl]) <> 0 Then
+              utils.fraisgestion(CblRslt!gestbl)
+              Try frais = Format(CblRslt!gestbl, "0.00")
+              If Error Then frais = "0,00"
+            Endif
             If Not Divers.value Then
               CCli = CblRslt!cli_code
               nom = CblRslt!cli_nom
@@ -1152,8 +1201,6 @@ Public Sub Impression()
                 If Val(.cpoint(numbl!remmobl)) <> 0 Or Val(.cpoint(numbl!remartbl)) <> 0 Then
                   Variables.bRemise = True
                 Endif
-                utils.fraisgestion(numbl!gestbl)
-                Try frais = Format(numbl!gestbl + Val(Replace(frais, ".", ",")), "0.00")
               Until numbl.MoveNext()
             Endif
             pdf.Level2F(Coulfond, "", PosY)
@@ -1413,7 +1460,7 @@ Public Sub Impression()
               Endif
               PosY = 240
               If borientation Then posy = 155
-              If Pied.Value And Rcp.Value Then
+              If (Pied.Value And Rcp.Value) Or Utils.totobs([frais]) <> 0 Then
                 pdf.Level6F(Tmo, Tart, Trem, Txtbf, frais, PosY)
                 PosY = PosY + 4
               Else
