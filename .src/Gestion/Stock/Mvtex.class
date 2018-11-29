@@ -32,11 +32,14 @@ Stocke As Boolean ' Si article est stocké ?
 p As Float
 son As Integer = Start.Son
 Tri As String
+Private $soption As String
 Public Codearticle As String
 Public Bsel As Boolean = False
 
 Public Sub _New()
 
+  Dim $ch As Chainage
+  
   Utils.Observers(Me)
   Music.Load(Start.Musique)
   Me.center
@@ -58,8 +61,12 @@ Public Sub _New()
   Colrcp.Columns[3].Alignment = 2
   Colrcp.Columns[4].Text = "Commentaire"
   Colrcp.Columns[4].Alignment = 1
-  datej.Text = Format$(Now, "dd.mm.yyyy")
-
+  datej.Dat = True
+  datej.dte.G = Now
+  Qterecue.numerique = True
+  $ch = New Chainage([datej, Cart, Dart, qterecue, Comment, Button1])
+  $soption = utils.Option()
+  
 End
 
 '**********************************************************
@@ -88,33 +95,12 @@ End
 '**********************************************************
 '*      Gestion des touches sur le panel Entete           *
 '**********************************************************
-Public Sub Rcpt_KeyPress()
-
-  If Key.code = Key.enter Or Key.code = Key.return Or Key.code = Key.Tab Then
+Public Sub Rcpt_lostfocus()
 
     Select Case Last.tag
 
-      Case 1
-        Quittedate()
-        If Left$(datej.Text, 5) = "00.00" Then
-          datej.Text = Format$(Now, "dd.mm.yyyy")
-          datej.SetFocus
-          datej.Select
-        Else
-          Cart.SetFocus
-          Cart.select
-        Endif
-        Stop Event
-
       Case 2
-        If Cart.Text = "" Then
-          If son Then
-            Music.Play
-          Endif
-          Message.Warning("Veuillez saisir un article SVP", "Ok")
-          Cart.SetFocus
-          Cart.Select
-        Else
+        If Not IsNull(Cart.Text) Then
           If Left$(Cart.Text) = "*" Then
             Cart.Text = Mid$(Cart.Text, 2, Len(Cart.Text))
             Cart.Text = Utils.Find_cbarre(Cart.Text)
@@ -125,23 +111,28 @@ Public Sub Rcpt_KeyPress()
         Endif
         Stop Event
 
-      Case 3
-        qterecue.SetFocus
-        qterecue.Select
-        Stop Event
-
       Case 4
         qterecue_LF()
-        Comment.SetFocus
-        Comment.Select
-        Stop Event
-
-      Case 5
-        Button1.SetFocus
-        Stop Event
-
+  
     End Select
+End
+
+Public Sub Rcpt_gotfocus()
+
+  If Last.tag <> 2 And Last.tag <> 1 Then
+    If Cart.Text = "" Then
+          If son Then
+            Music.Play
+          Endif
+          Message.Warning("Veuillez saisir un article SVP", "Ok")
+          Stop Event
+          Cart.SetFocus
+          Cart.Select
+    Endif
   Endif
+
+End
+Public Sub rcppt_keypress()
 
   If key.code = key.F1 Then
     Button4_Click()
@@ -153,21 +144,9 @@ Public Sub Rcpt_KeyPress()
       Case 2
         ToggleButton2_Click()
         Stop Event
-
+  
     End Select
   Endif
-
-End
-
-'****************************************************
-'*      Gestion du focus. Routine de Charlie Reinl  *
-'****************************************************
-Public Sub Rcpt_GotFocus()
-
-  With Utils
-    .SetEditColor(Me, Last)
-  End With
-
 End
 
 '*****************************************************
@@ -181,6 +160,7 @@ Public Sub Btn_KeyPress()
 
       Case 1
         If Cart.Text <> "" Then
+          datej.Enabled = False
           qterecue_LF()
           Maj_colrcp()
           CleanChamps()
@@ -200,6 +180,7 @@ Public Sub Btn_Click()
 
     Case 1
       If Cart.Text <> "" Then
+        datej.Enabled = False
         qterecue_LF()
         Maj_colrcp()
         CleanChamps()
@@ -212,16 +193,13 @@ Public Sub Btn_Click()
       If Colrcp.Count Then
         Enrgbl()
       Endif
+      datej.Enabled = True
       datej.SetFocus
       datej.Select
       Stop Event
 
     Case 3
-      If Colrcp.Count Then
-        Enrgbl()
-      Endif
       Me.Close
-      Stop Event
 
   End Select
 
@@ -230,22 +208,11 @@ End
 Public Sub form_close()
 
   If Colrcp.Count Then
-    Enrgbl()
+    If Message.Question("Voulez-vous valider la saisie ?", "Oui", "Non") = 1 Then Enrgbl()
   Endif
 
 End
 
-'********************************************************
-'*    On controle si la date de la saise est bonne      *
-'********************************************************
-Public Sub Quittedate()
-
-  With utils
-    datej.text = .Cdate_calc(datej.text)
-    datej.Text = .Cdate_aff(datej.Text)
-  End With
-
-End
 
 '********************************************
 '* Saisie d'un article manuellement         *
@@ -267,9 +234,7 @@ Public Sub art_man()
         Decm = rResult!art_dec
         Artstock.text = .cpoint(rResult!art_qte)
         qterecue.Text = "1"
-        qterecue.Text = .Cdec(Decm, qterecue.Text)
-        qterecue.SetFocus
-        qterecue.Select
+        qterecue.nbdec = rResult!art_dec
       Else
         If son Then
           Music.Play
@@ -302,8 +267,9 @@ Public Sub SelectionArt()
   MyForm.Showmodal()
   If Bsel = True Then
     Cart.text = Codearticle
-    art_man()
   Endif
+  Cart.SetFocus
+  Cart.Select
 
 End
 
@@ -339,53 +305,20 @@ End
 '**********************************************************
 Public Sub qterecue_LF()
 
-  With utils
-    qterecue.Text = .cpoint(qterecue.Text)
-    If Val(qterecue.Text) = 0 Or Val(qterecue.Text) = Null Then
-      qterecue.Text = "1,00"
-      qterecue.Text = .Cdec(Decm, qterecue.Text)
-      Decm = "2"
-    Else
-      qterecue.Text = .Cdec(Decm, qterecue.Text)
-    Endif
-  End With
+    If qterecue.Value = 0 Then qterecue.Value = 1
 
 End
 
 '***************************************************
-'*    Maj de la quantite du stock en plus          *
+'*    Maj de la quantite du stock                              *
 '***************************************************
-Public Sub Maj_qte()
+Public Sub Maj_qte(qte As Float)
 
   Dim QteResult As Result
-  Dim $Qte As String
 
-  With utils
-    QteResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", Cart.Text)
-    $Qte = .cpoint(QteResult!art_qte)
-    If IsNull($Qte) Then $Qte = "0"
-    Try qterecue.Text = .Cdec(Decm, qterecue.Text)
-    Try Artstock.text = Val(.cpoint($qte)) + Val(.cpoint(qterecue.text))
-  End With
-
-End
-
-'***************************************************
-'*    Maj de la quantite du stock en moins         *
-'***************************************************
-Public Sub Maj_qtem()
-
-  Dim QteResult As Result
-  Dim $Qte As String
-
-  With utils
-    QteResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", Cart.Text)
-    $Qte = .cpoint(QteResult!art_qte)
-    If IsNull($Qte) Then $Qte = ""
-    Try qterecue.Text = .Cdec(Decm, qterecue.Text)
-    Try Artstock.text = Val(.cpoint($qte)) - Val(.cpoint(qterecue.text))
-
-  End With
+    QteResult = Utils.db.Edit("Fiches_Art", "art_code = &1", colrcp.Item[0])
+    QteResult!art_qte += qte
+    QteResult.Update
 
 End
 
@@ -400,71 +333,65 @@ End
 '******************************************************
 Public Sub Maj_colrcp()
 
-  Dim qte As String
+  Dim qte As Float
 
-  With utils
+  If $soption = "B" Or $soption = "T" Then 
+    If utils.valart(datej.dte.g, Cart.Text) Then
+      Message.Warning("Période CM déjà clôturée \n Veuillez changer la date")
+      datej.SetFocus
+      Return
+    Endif
+  Endif
+  If IsNull(Cart.Text) Then Return
+  If Not Colrcp.Exist(Cart.Text) Then
     Colrcp.Add(Cart.text, Cart.text)
     Colrcp.Item[0] = Cart.text
     Colrcp.Item[1] = Dart.text
     If Entree.Value Then
       Colrcp.Item[2] = qterecue.text
-      Maj_qte()
-      Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET art_qte = &2 WHERE art_code = &1", Cart.Text, Artstock.Text)
+      Colrcp.Item[3] = ""
     Else
       Colrcp.Item[3] = qterecue.text
-      Maj_qtem()
-      Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET art_qte = &2 WHERE art_code = &1", Cart.Text, Artstock.Text)
+      Colrcp.Item[2] = ""
     Endif
     Colrcp.Item[4] = Comment.Text
-  Catch
+ Else
     If son Then
       Music.Play
     Endif
+    Colrcp.MoveTo(Cart.Text)
     If message.Question("Cet article a déjà été saisit ! Voulez-vous ? \n 1- cumuler \n 2- remplacer", "1", "2") = "1" Then
-      Colrcp.MoveFirst
-      Do
-        Colrcp.Item.Selected = True
-        If Colrcp.Item[0] = Cart.text Then
-          If Entree.Value Then
-            qte = Format$(Val(Colrcp.Item[2]) + Val(qterecue.text), "0.000")
-            qte = .Cdec(Decm, qte)
-            Colrcp.Item[2] = qte
-            Maj_qte()
-            Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET art_qte = &2 WHERE art_code = &1", Cart.Text, Artstock.Text)
-          Else
-            qte = Format$(Val(Colrcp.Item[3]) + Val(qterecue.text), "0.000")
-            qte = .Cdec(Decm, qte)
-            Colrcp.Item[3] = qte
-            Maj_qtem()
-            Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET art_qte = &2 WHERE art_code = &1", Cart.Text, Artstock.Text)
-          Endif
-          Break
-        Endif
-      Loop Until Colrcp.MoveNext()
+      If IsNull(Colrcp.Item[2]) Then
+        qte = utils.totobs([Colrcp.Item[3]]) * -1
+      Else
+        qte = utils.totobs([Colrcp.Item[2]])
+      Endif
+      If Entree.Value Then
+        qte += qterecue.Value
+      Else
+        qte -= qterecue.Value
+      Endif
+      If qte > 0 Then
+        qterecue.Value = qte
+        colrcp.Item[2] = qterecue.Text
+        colrcp.Item[3] = ""
+      Endif
+      If qte < 0 Then
+        qterecue.Value = qte * -1
+        colrcp.Item[3] = qterecue.Text
+        colrcp.Item[2] = ""
+      Endif
+      If qte = 0 Then colrcp.Remove(Cart.Text)
     Else
-      Colrcp.MoveFirst
-      Do
-        Colrcp.Item.Selected = True
-        If Colrcp.Item[0] = Cart.text Then
-          If Entree.Value Then
-            Artstock.text = Val(.cpoint(Artstock.text)) - Val(.cpoint(Colrcp.Item[2]))
-            Maj_qte()
-            Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET art_qte = &2 WHERE art_code = &1", Cart.Text, Artstock.Text)
-          Else
-            Artstock.text = Val(.cpoint(Artstock.text)) + Val(.cpoint(Colrcp.Item[3]))
-            Maj_qtem()
-            Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET art_qte = &2 WHERE art_code = &1", Cart.Text, Artstock.Text)
-          Endif
-          If Entree.Value Then
-            Colrcp.Item[2] = qterecue.text
-          Else
-            Colrcp.Item[3] = qterecue.text
-          Endif
-          Break
-        Endif
-      Loop Until Colrcp.MoveNext()
+      If Entree.Value Then
+        Colrcp.Item[2] = qterecue.text
+        Colrcp.Item[3] = ""
+      Else
+        Colrcp.Item[3] = qterecue.text
+        Colrcp.Item[2] = ""
+      Endif
     Endif
-  End With
+  Endif
 
 End
 
@@ -485,20 +412,7 @@ Public Sub Colrcp_Activate()
       Sortie.Value = True
       qterecue.text = Colrcp.Current[3]
     Endif
-    'art_man()
-    If Entree.Value Then
-      Maj_qtem()
-      Utils.db.Exec("UPdate  " & tab & "  SET art_qte = &2 WHERE art_code = &1", Cart.Text, Artstock.Text)
-    Else
-      Maj_qte()
-      Utils.db.Exec("UPdate  " & tab & "  SET art_qte = &2 WHERE art_code = &1", Cart.Text, Artstock.Text)
-    Endif
     art_man()
-    If Entree.Value = True Then
-      qterecue.text = Colrcp.Current[2]
-    Else
-      qterecue.text = Colrcp.Current[3]
-    Endif
     Colrcp.Current.Delete
     Colrcp.Sorted = 0
     B = 1
@@ -514,17 +428,6 @@ End
 Public Sub Colrcp_Keypress()
 
   If Key.code = Key.Delete And Colrcp.Count <> 0 Then
-    Cart.text = Colrcp.Current[0]
-    Dart.text = Colrcp.Current[1]
-    qterecue.text = Colrcp.Current[2]
-    art_man()
-    If Entree.Value Then
-      Maj_qtem()
-      Utils.db.Exec("UPdate  " & tab & "  SET art_qte = &2 WHERE art_code = &1", Cart.Text, Artstock.Text)
-    Else
-      Maj_qte()
-      Utils.db.Exec("UPdate  " & tab & "  SET art_qte = &2 WHERE art_code = &1", Cart.Text, Artstock.Text)
-    Endif
     Colrcp.Current.Delete
     Colrcp.Sorted = 0
     B = 1
@@ -532,7 +435,11 @@ Public Sub Colrcp_Keypress()
     Cart.Select
     CleanChamps()
   Endif
-
+  
+  If Key.Code = Key.Enter Or Key.code = Key.Return Then
+     Colrcp_Activate()
+  Endif
+  
 End
 
 '************************************************
@@ -540,44 +447,291 @@ End
 '************************************************
 Public Sub Enrgbl()
 
+  Dim qte As Float
+  Dim cdd As Calculdroit
+  Dim res, resdr As Result
+  Dim snumvi, num, numlig As String
+  Dim bvign, bdroit As Boolean
+  Dim i As Integer
+  
   Tab = "Fiches_Mvtexp"
   With Utils
     If Colrcp.Count <> 0 Then
+      utils.db.Exec("LOCK TABLES Fiches_Art  WRITE, Fiches_Mvtexp WRITE")
       Colrcp.MoveFirst
       Repeat
         Colrcp.Item.Selected = True
-        Utils.db.Exec("INSERT INTO " & Tab & "(code,daterecpt,qtep,qtem,Com) VALUES (&1, &2, &3, &4, &5)", Colrcp.Item[0], .Cdate_Dbase(datej.Text), Colrcp.Item[2], Colrcp.Item[3], Colrcp.Item[4])
+        Utils.db.Exec("INSERT INTO " & Tab & "(code,daterecpt,qtep,qtem,Com) VALUES (&1, &2, &3, &4, &5)", Colrcp.Item[0], datej.dte.G, Colrcp.Item[2], Colrcp.Item[3], Colrcp.Item[4])
+        If sortie.Value Then          'maj des stocks
+          qte = utils.totobs([Colrcp.Item[3]]) * -1
+        Else
+          qte = utils.totobs([Colrcp.Item[2]])
+        Endif
+        Maj_qte(qte)
       Until Colrcp.Movenext()
+      utils.db.Exec("UNLOCK TABLES")
+    
+      'CM si option boissson
+      If $soption = "B" Or $soption = "T" Then
+        'recherche si droit et si vignette alcool
+        Colrcp.MoveFirst
+        Repeat
+           res = utils.db.Exec("SELECT art_volm,art_deg,suspendu FROM Fiches_Art,Fiches_regie WHERE art_dra=Fiches_regie.code AND art_code=&1 and art_dra IS NOT NULL", Colrcp.Item[0])
+           If res.Available Then
+             If res.Available Then
+               bdroit = True
+               If res!suspendu Then bvign = True
+             Endif
+           Endif
+       Until Colrcp.MoveNext()
+       'creation du n° d'enregistrement
+       Repeat
+         i += 1
+         num = datej.dte.D & Str(i)
+         res = utils.db.Exec("SELECT * FROM Fiches_ligregie WHERE num=&1", num)
+        Until Not res.Available
+       'écriture du fichier ligregie
+       If bdroit Then
+         If bvign Then    'recuper le n° de la vigentte ss
+           snumvi = atvig()
+         Endif
+         Colrcp.MoveFirst
+         utils.db.Exec("LOCK TABLES Fiches_Art WRITE, Fiches_regie WRITE, Fiches_ligregie WRITE")
+         utils.db.Begin
+         numlig = "000"
+         Repeat
+           res = utils.db.Exec("SELECT art_dra,art_volm,art_deg FROM Fiches_Art WHERE art_code=&1 and art_dra IS NOT NULL", Colrcp.Item[0])
+           If res.Available Then
+             resdr = utils.db.Create("Fiches_ligregie")
+             resdr!numlig = numlig
+             numlig = Format(Val(numlig) + 1, "000")
+             resdr!num = num
+             resdr!codeart = Colrcp.Item[0]
+             resdr!coderegie = res!art_dra
+             resdr!degres = res!art_deg
+             If utils.totobs([Colrcp.Item[3]]) <> 0 Then
+               qte = utils.totobs([Colrcp.Item[3]])
+               resdr!type = "S"
+              Else
+                qte = utils.totobs([Colrcp.Item[2]])
+                resdr!type = "E"
+             Endif
+             cdd = New Calculdroit(res!art_dra, res!art_volm, res!art_deg, qte)
+             resdr!dtmouv = datej.dte.G
+             resdr!qte = qte
+             resdr!volume = cdd.vol
+             resdr!volumeap = cdd.volap
+             resdr!montdr = cdd.droit
+             resdr!txtvadr = cdd.tauxtvadr
+             resdr!montss = cdd.secu
+             resdr!txtvass = cdd.tauxtvass
+             resdr!vignette = snumvi
+             resdr!cloture = False
+             resdr!volumess = cdd.volumess
+             resdr.Update
+           Endif
+         Until Colrcp.MoveNext()
+         utils.db.Commit
+         utils.db.Exec("UNLOCK TABLES")
+       Endif
+      Endif
+      imprim(bvign, bdroit, snumvi)
     Endif
     RazBl()
   End With
 
 End
 
-Public Sub Sortie_Click()
-
-  If Colrcp.Count Then
-    If son Then
-      Music.Play
-    Endif
-    Message.warning("Veuillez enregistrer votre travail avant la saisie de vos sorties", "Ok")
-    Entree.Value = True
-    p = 0
+Private Function atvig() As String
+  
+  Dim res As Result
+  Dim numv As String
+  Dim n As Integer
+  
+  utils.db.Exec("LOCK TABLES Fiches_Parametres WRITE")
+  res = utils.db.Exec("SELECT nvign FROM Fiches_Parametres")
+  If res.Available Then
+    n = utils.totobs([res!nvign]) + 1
+    numv = Format(n, "0000000000000000000000000")
+    Utils.db.Exec("UPDATE Fiches_Parametres SET nvign=&1", numv)
+    utils.db.Exec("UNLOCK TABLES")
+    Return numv
+  Else
+    Message.Error("Probléme dans le paramétrage du numéro vignette")
+    utils.db.Exec("UNLOCK TABLES")
+    Return Null
   Endif
-
 End
 
-Public Sub Entree_Click()
+'**************Edition************************
 
-  If Colrcp.Count And p = 0 Then
-    If son Then
-      Music.Play
-    Endif
-    Message.warning("Veuillez enregistrer votre travail avant la saisie de vos entrées", "Ok")
-    Entree.Value = True
-    p = 1
+Private Sub imprim(bvign As Boolean, bdroit As Boolean, nvign As String)
+  
+  Dim rep As Report
+  Dim lab As ReportLabel
+  Dim hrep As ReportHBox
+  Dim vrep As ReportVBox
+  Dim cdd As Calculdroit
+  Dim bdr As Boolean
+  Dim coul As Integer
+  Dim res As Result
+  Dim qte As Float
+  Dim Filename As String
+  Dim prt As New Printer
+  
+  Filename = User.Home & "/tmp/mvtex.pdf"
+  prt.OutputFile = Filename
+  
+  bdr = bvign Or bdroit
+  coul = Val("&H" & Hex(Start.R) & Hex(Start.G) & Hex(Start.B))
+  rep = New Report
+  hrep = New ReportHBox(rep)
+  hrep.Height = "5mm"
+  hrep.Border = ReportBorder["Top:1pt #000000;Bottom:1pt #000000;Left:1pt #000000;Right:1pt #000000"]
+  hrep.Fixed = True
+  lab = New ReportLabel(hrep)
+  lab.Text = "Liste des mouvements excptionelles du :   " & datej.dte.L
+  lab.BackGround = ReportBrush.Color(coul)
+  lab.Alignment = Align.Center
+  lab.Font = font["Serif,-1"]
+  
+  hrep = New ReportHBox(rep)
+  hrep.Height = "4mm"
+  hrep.Border = ReportBorder["Top:1pt #000000;Bottom:1pt #000000;Left:1pt #000000;Right:1pt #000000"]
+  hrep.Fixed = True
+  
+  lab = New ReportLabel(hrep)
+  lab.Text = "DATE"
+  lab.Font = font["Serif,-3"]
+  lab.Border = ReportBorder["Right:1pt #000000"]
+  lab.Alignment = Align.Center
+  lab.Width = "20mm"
+  lab.Height = "3mm"
+  lab = New ReportLabel(hrep)
+  lab.Text = "N° Article"
+  lab.Font = font["Serif,-3"]
+  lab.Border = ReportBorder["Right:1pt #000000"]
+  lab.Alignment = Align.Center
+  lab.Width = "20mm"
+  lab.Height = "3mm"
+  lab = New ReportLabel(hrep)
+  lab.Text = "Libelle"
+  lab.Font = font["Serif,-3"]
+  lab.Border = ReportBorder["Right:1pt #000000"]
+  lab.Alignment = Align.Center
+  lab.Expand = True
+  lab.Height = "3mm"
+  lab = New ReportLabel(hrep)
+  lab.Text = "Entrées"
+  lab.Font = font["Serif,-3"]
+  lab.Border = ReportBorder["Right:1pt #000000"]
+  lab.Alignment = Align.Center
+  lab.Width = "20mm"
+  lab.Height = "3mm"
+  lab = New ReportLabel(hrep)
+  lab.Text = "Sorties"
+  lab.Font = font["Serif,-3"]
+  
+  lab.Alignment = Align.Center
+  lab.Width = "20mm"
+  lab.Height = "3mm"
+  If bdr Then
+    lab.Border = ReportBorder["Right:1pt #000000"]
+    lab = New ReportLabel(hrep)
+    lab.Text = "Volume"
+    lab.Font = font["Serif,-3"]
+    lab.Border = ReportBorder["Right:1pt #000000"]
+    lab.Alignment = Align.Center
+    lab.Width = "20mm"
+    lab.Height = "3mm"
+    lab = New ReportLabel(hrep)
+    lab.Text = "Degré"
+    lab.Font = font["Serif,-3"]
+    lab.Border = ReportBorder["Right:1pt #000000"]
+    lab.Alignment = Align.Center
+    lab.Width = "10mm"
+    lab.Height = "3mm"
+    lab = New ReportLabel(hrep)
+    lab.Text = "Alcool Pur"
+    lab.Font = font["Serif,-3"]
+    lab.Border = ReportBorder["Right:1pt #000000"]
+    lab.Alignment = Align.Center
+    lab.Width = "20mm"
+    lab.Height = "3mm"
   Endif
-
+  
+  Colrcp.MoveFirst
+  Repeat
+    hrep = New ReportHBox(rep)
+    hrep.Height = "2mm"
+    lab = New ReportLabel(hrep)
+    lab.Text = datej.dte.L
+    lab.Font = font["Serif,-5"]
+    lab.Alignment = Align.Center
+    lab.Width = "20mm"
+    lab.Height = "2mm"
+    lab = New ReportLabel(hrep)
+    lab.Text = Colrcp.Item[0]
+    lab.Font = font["Serif,-5"]
+    lab.Width = "20mm"
+    lab.Height = "2mm"
+    lab = New ReportLabel(hrep)
+    lab.Text = Colrcp.Item[1]
+    lab.Font = font["Serif,-5"]
+    lab.Width = "20mm"
+    lab.Height = "2mm"
+    lab = New ReportLabel(hrep)
+    lab.Text = Colrcp.Item[2]
+    lab.Font = font["Serif,-5"]
+    lab.Expand = True
+    lab.Height = "2mm"
+    lab = New ReportLabel(hrep)
+    lab.Text = Colrcp.Item[3]
+    lab.Font = font["Serif,-5"]
+    lab.Alignment = Align.Right
+    lab.Width = "20mm"
+    lab.Height = "2mm"
+    lab = New ReportLabel(hrep)
+    lab.Text = Colrcp.Item[4]
+    lab.Font = font["Serif,-5"]
+    lab.Alignment = Align.Right
+    lab.Width = "20mm"
+    lab.Height = "2mm"
+    
+    If bdr Then
+      res = utils.db.Exec("SELECT art_dra,art_volm,art_deg FROM Fiches_Art WHERE art_code=&1 AND art_dra IS NOT NULL", Colrcp.Item[0])
+      If res.Available Then
+        If IsNull(Colrcp.Item[3]) Then
+          qte = utils.totobs(Colrcp.Item[4]) * -1
+        Else 
+          qte = utils.totobs([Colrcp.Item[3]])
+        Endif
+        cdd = New Calculdroit(res!art_dra, res!art_volm, res!art_deg, qte)
+        lab = New ReportLabel(hrep)
+        lab.Text = Format(cdd.vol, "0.00")
+        lab.Font = font["Serif,-5"]
+        lab.Alignment = Align.Right
+        lab.Width = "20mm"
+        lab.Height = "2mm"
+        lab = New ReportLabel(hrep)
+        lab.Text = Format(res!art_deg, "0.00")
+        lab.Font = font["Serif,-5"]
+        lab.Alignment = Align.Right
+        lab.Width = "10mm"
+        lab.Height = "2mm"
+        lab = New ReportLabel(hrep)
+        lab.Text = Format(cdd.volap, "0.00")
+        lab.Font = font["Serif,-5"]
+        lab.Alignment = Align.Right
+        lab.Width = "20mm"
+        lab.Height = "2mm"
+      Endif
+    Endif
+  Until Colrcp.MoveNext()
+  
+   rep.Print(prt)
+   Visualiseur.Prog_Editeur(Filename)
+  
 End
 
 '********************
