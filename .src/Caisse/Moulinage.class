@@ -579,7 +579,7 @@ Public Sub Moulinage()
                           Endif
                           montant = Val(.cpoint(rlTck!mht))
                           If Not rTck!suppr Then
-                            If rTck!type = "0" Then
+                            If rlTck!type <> "T" Then
                               If rTck!savoir = "1" Then
                                 Maj_Totalisation(vente, ivente, "-" & montant)
                               Else
@@ -614,9 +614,9 @@ Public Sub Moulinage()
                       Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, rltck!numlig, code, $intit, rltck!montant, rltck!qte, rltck!type, Fam, rltck!mht, rltck!mrem, rltck!tva)
                       If Not rTck!suppr Then
                         If rTck!savoir = "1" Then
-                          If rlTck!type <> "L" And If rlTck!type <> "M" And If rlTck!type <> "C" Then Maj_Totalisation(Tva, iTva, "-" & montant)
+                          If rlTck!type <> "T" And rlTck!type <> "L" And If rlTck!type <> "M" And If rlTck!type <> "C" Then Maj_Totalisation(Tva, iTva, "-" & montant)
                         Else
-                          If rlTck!type <> "L" And If rlTck!type <> "M" And If rlTck!type <> "C" Then Maj_Totalisation(Tva, iTva, montant)
+                          If rlTck!type <> "T" And rlTck!type <> "L" And If rlTck!type <> "M" And If rlTck!type <> "C" Then Maj_Totalisation(Tva, iTva, montant)
                         Endif
                       Endif
                       'ne pas decommenter on garde les totaux, et pb potentiel si le ticket
@@ -787,28 +787,34 @@ Public Sub Moulinage()
               Endif
             Endif
           Until rTck.MoveNext()
-          Verif()
-          Verif_Caisse = Maj_Compta()
-          Maj_Tresorerie(Verif_Caisse)
-          RegroupBL.Maj_Parametres(numbon)
-          Utils.db.Exec("UNLOCK TABLES")
-          'On recalcule les soldes
-          'Csolde.Recalc_solde()
-          'On imprime le livre de caisse
-          Livre_caisse()
-          'On efface les Tables
-          rTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where mid(date,7,4) = &1 and mid(date,4,2) = &2 and left(date,2) = &3", Format$(DateChooser1.Value, "yyyy"), Format$(DateChooser1.Value, "mm"), Format$(DateChooser1.Value, "dd"))
-          If rTck.Available Then
-            Repeat
-              Utils.db.Exec("delete FROM " & Cbase.Table("TabEntTck") & " where numero = &1", rTck!numero)
-              Utils.db.Exec("delete FROM " & Cbase.Table("TabLigTck") & " where numero = &1", rTck!numero)
-            Until rTck.MoveNext()
+          
+          If Verif() = True Then
+            Verif_Caisse = Maj_Compta()
+            Maj_Tresorerie(Verif_Caisse)
+            RegroupBL.Maj_Parametres(numbon)
+            Utils.db.Exec("UNLOCK TABLES")
+            'On recalcule les soldes
+            'Csolde.Recalc_solde()
+            'On imprime le livre de caisse
+            Livre_caisse()
+            'On efface les Tables
+            rTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntTck") & " where mid(date,7,4) = &1 and mid(date,4,2) = &2 and left(date,2) = &3", Format$(DateChooser1.Value, "yyyy"), Format$(DateChooser1.Value, "mm"), Format$(DateChooser1.Value, "dd"))
+            If rTck.Available Then
+              Repeat
+                Utils.db.Exec("delete FROM " & Cbase.Table("TabEntTck") & " where numero = &1", rTck!numero)
+                Utils.db.Exec("delete FROM " & Cbase.Table("TabLigTck") & " where numero = &1", rTck!numero)
+              Until rTck.MoveNext()
+            Endif
+            Utils.db.Exec("delete from " & Cbase.Table("TabReglt") & " where date = &1", Format$(DateChooser1.Value, "dd-mm-yyyy"))
+            'Raz_Tables()
+            Me.mouse = Mouse.Default
+            If start.son Then Music.Play
+            Message.Info("Traitement terminé !")
+          Else
+            Me.mouse = Mouse.Default
+            If start.son Then Music.Play
+            Message.Info("Vous avez interrompu le processus de moulinage suite a un controle de ventilation!\nVous devez restaurer la sauvegarde\n " & User.home & "/Sauve/" & Utils.db.Name & ".sql" & Format$(Now, "yyyymmdd") & "\nPuis faire suivre votre sauvegarde sur le forum pour analyse par les développeurs\net ne plus pratiquer de nouveau moulinage avant correction")
           Endif
-          Utils.db.Exec("delete from " & Cbase.Table("TabReglt") & " where date = &1", Format$(DateChooser1.Value, "dd-mm-yyyy"))
-          'Raz_Tables()
-          Me.mouse = Mouse.Default
-          If start.son Then Music.Play
-          Message.Info("Traitement terminé !")
         Else
           If start.son Then Music.Play
           Message.Info("Aucune donnée n'est a traiter pour cette sélection !")
@@ -1266,7 +1272,7 @@ Public Sub Maj_Totalisation(cpt As String, intit As String, montant As String)
 
 End
 
-Public Sub Verif()
+Public Sub Verif() As Boolean
 
   Dim hResult As Result
   Dim sCompte As String
@@ -1289,18 +1295,29 @@ Public Sub Verif()
       If hresult.Available Then
         If Val(.cpoint(sTotalD)) < Val(.cpoint(sTotalC)) Then
           sDif = Val(.cpoint(sTotalC)) - Val(.cpoint(sTotalD))
-          sDif = Val(.cpoint(hResult!totalht)) - sDif
-          Utils.db.Exec("UPDATE " & Cbase.Table("Totalisation") & " set totalht = &2 Where compte = &1 ", sCompte, sDif)
+          If (sDif > 0.05) Then
+            If Message.Error("Une erreur de ventilation génère une perte de " & sDif & "!\nVoulez vous continuer et enregistrer une ecriture de charge exceptionelle?", "OK", "Annuler") = 2 Then
+              Return False
+            Endif
+          Endif
+          Utils.db.Exec("INSERT INTO " & Cbase.Table("Totalisation") & "(compte, intitule, totalttc, totalht) VALUES (&1, &2, &3, &4)", "658000", "Erreur moulinage caisse", sDif, sDif)
         Else
           If Val(.cpoint(sTotalD)) > Val(.cpoint(sTotalC)) Then
             sDif = Val(.cpoint(sTotalD)) - Val(.cpoint(sTotalC))
-            sDif = Val(.cpoint(hResult!totalht)) + sDif
-            Utils.db.Exec("UPDATE " & Cbase.Table("Totalisation") & " set totalht = &2 Where compte = &1 ", sCompte, sDif)
+            'sDif = Val(.cpoint(hResult!totalht)) + sDif
+            If (sDif > 0.05) Then
+              If Message.Error("Une erreur de ventilation génère un bénéfice de " & sDif & "!\nVoulez vous continuer et enregistrer une ecriture de produit exceptionelle?", "OK", "Annuler") = 2 Then
+                Return False
+              Endif
+            Endif
+            Utils.db.Exec("INSERT INTO " & Cbase.Table("Totalisation") & "(compte, intitule, totalttc, totalht) VALUES (&1, &2, &3, &4)", "758000", "Erreur moulinage caisse", sDif, sDif)
           Endif
         Endif
       Endif
     Endif
   End With
+  
+  Return True
 
 End
 
@@ -1371,7 +1388,7 @@ Public Sub Maj_Compta() As Float
           collectif = ""
         Endif
         If Left$(Cpt, 3) <> "411" And Left$(Cpt, 3) <> "445" Then
-          If Left$(rResult!compte, 3) <> "709" Then
+          If Left$(rResult!compte, 3) <> "709" And Left$(rResult!compte, 3) <> "658" Then
             If rResult!totalht And Val(.cpoint(rResult!totalht)) > 0 Then
               Mtc = Val(.cpoint(rResult!totalht))
               Mtd = 0
