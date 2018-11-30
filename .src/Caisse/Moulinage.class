@@ -533,7 +533,7 @@ Public Sub Moulinage()
                         If Not rTck!suppr Then Message.Warning("Le BL " & Format$(rlTck!mrem, "000000") & " est noté règlé dans le ticket " & rlTck!numero & " mais n'est pas associé a ce ticket, il sera ignoré")
                       Endif
                     Endif
-                    If rlTck!type = "A" Or If rlTck!type = "M" Or If rlTck!type = "S" Or If rlTck!type = "L" Or If rlTck!type = "C" Then
+                    If rlTck!type = "A" Or If rlTck!type = "M" Or If rlTck!type = "S" Or If rlTck!type = "T" Or If rlTck!type = "L" Or If rlTck!type = "C" Then
                       If rlTck!type = "A" And IsNull(rlTck!fam) Then
                         rFam = Utils.db.Exec(" select * from " & Cbase.Table("TabArt") & " where art_code = &1", rltck!code)
                         Fam = rFam!art_fam
@@ -624,16 +624,11 @@ Public Sub Moulinage()
                       'If rlTck!type = "S" Or rlTck!type = "A" Then
                       '  rlTck.MoveNext()
                       'Endif
-                      Else
-                        If rlTck!type = "T" Then
-                          'on garde l'historique du ticket tel quel
-                          Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, rltck!numlig, code, $intit, rltck!montant, rltck!qte, rltck!type, Fam, rltck!mht, rltck!mrem, rltck!tva)
-                        Endif
                     Endif
                   Until rlTck.MoveNext()
                 Endif
 
-                 'On regroupe les BL règlés dans ce ticket pour chaque client concerné afin de générer une facture
+                'On regroupe les BL règlés dans ce ticket pour chaque client concerné afin de générer une facture
                 Bl = Utils.db.Exec(" select cdclibl from " & Cbase.Table("TabBl") & " where type = \"B\" and numtick = &1 group by cdclibl", rtck!numero)
                 'On utilise la date du ticket comme date du reglement du bl et de facturation.
                 Date_Bl = Left(rtck!date, 2) & "." & Mid(rtck!date, 4, 2) & "." & Mid(rtck!date, 7, 4)  
@@ -806,7 +801,6 @@ Public Sub Moulinage()
               Until rTck.MoveNext()
             Endif
             Utils.db.Exec("delete from " & Cbase.Table("TabReglt") & " where date = &1", Format$(DateChooser1.Value, "dd-mm-yyyy"))
-            'Raz_Tables()
             Me.mouse = Mouse.Default
             If start.son Then Music.Play
             Message.Info("Traitement terminé !")
@@ -846,72 +840,6 @@ Public Sub Moulinage()
 
 End
 
-Public Sub Raz_Tables()
-
-  Try Utils.db.EXEC("CREATE TABLE " & Cbase.Table("TabReglt") &
-    "(lInd INT NOT NULL AUTO_INCREMENT," &
-    "intitule Char(30)," &
-    "montant Char(12)," &
-    "qte Char(12)," &
-    "type Char(15)," &
-    "caisse Char(2)," &
-    "date Char(17)," &
-    "PRIMARY KEY (lInd))" & "ENGINE = MYISAM")
-
-  Try Utils.db.EXEC("CREATE TABLE " & Cbase.Table("TabEntTck") &
-    "(lInd INT NOT NULL AUTO_INCREMENT," &
-    "caisse Char(2)," &
-    "vendeur Char(35)," &
-    "numero Char(7)," &
-    "date Char(17)," &
-    "client Char(30)," &
-    "scheque Char(1)," &
-    "mcheque Char(12)," &
-    "nmcheque Char(30)," &
-    "scarte  Char(1)," &
-    "nmcarte Char(30)," &
-    "mcarte Char(12)," &
-    "sespeces Char(1)," &
-    "mespeces Char(12)," &
-    "scredit  Char(1)," &
-    "mcredit Char(12)," &
-    "nmcredit Char(30)," &
-    "sbachat  Char(1)," &
-    "mbachat Char(12)," &
-    "scavoir  Char(1)," &
-    "mavoir Char(12)," &
-    "nmavoir Char(30)," &
-    "sresto  Char(1)," &
-    "mresto Char(12)," &
-    "mht Char(12)," &
-    "mtva Char(12)," &
-    "mttc Char(12)," &
-    "statut Char(1)," &
-    "savoir Char(1) ," &
-    "type Char(1) ," &
-    "mrem Char(12)," &
-    "carte Char(13)," &
-    "points Decimal(12,3)," &
-    "suppr TINYINT(1)," &
-    "control VARCHAR(40), " &
-    "PRIMARY KEY (lInd))" & "ENGINE = MYISAM")
-
-  Try Utils.db.EXEC("CREATE TABLE " & Cbase.Table("TabLigTck") &
-    "(lInd INT NOT NULL AUTO_INCREMENT," &
-    "numero Char(7)," &
-    "numlig Char(3)," &
-    "code Char(15)," &
-    "intitule  Char(50)," &
-    "montant Char(12)," &
-    "qte Char(12)," &
-    "type Char(1)," &
-    "fam Char(20)," &
-    "mht Char(12)," &
-    "mrem Char(12)," &
-    "mtva Char(12)," &
-    "PRIMARY KEY (lInd))" & "ENGINE = MYISAM")
-
-End
 
 Public Sub Recup_Art(code As String, qtea As String, mht As String, mttc As String, tva As String)
 
