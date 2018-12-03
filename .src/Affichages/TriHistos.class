@@ -85,15 +85,15 @@ Public Sub Histo_ventes()
       LigblResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigbl") & " where code_ligbl = &1 and typel_ligbl = &2 ", code, "A")
       If LigblResult.Available Then
         Do
-          BlResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBl") & " where numbl = &1 ", LigblResult!num_ligbl)
+          BlResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabBl") & " where numbl = &1 and (datebl >= &2 or dtefac >= &2)", LigblResult!num_ligbl, Dtejour)
           If BlResult.Available Then
             If BlResult!type = "B" Or BlResult!type = "F" Then
               If BlResult!imp = "1" Then
-                HisResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabStat") & " where nfac = &1 ", LigblResult!num_ligbl)
+                HisResult = Utils.db.Exec("SELECT numfac as num FROM Fiches_Bl where numbl = &1 ", BlResult!numbl)
               Else
-                HisResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabStat") & " where nfac = &1 ", LigblResult!num_ligbl)
+                HisResult = Utils.db.Exec("SELECT cdclibl as num FROM Fiches_Bl where numbl = &1 ", BlResult!numbl)
               Endif
-              Utils.db.Exec("INSERT INTO " & Cbase.Table("TabStat") & " VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10})", BlResult!cdclibl, BlResult!datebl, BlResult!nmclibl, Val(Utils.cpoint(LigblResult!pu_ligbl)), Val(Utils.cpoint(LigblResult!rem_ligbl)), Val(Utils.cpoint(LigblResult!netht_ligbl)), Val(Utils.CPoint(LigblResult!qte_ligbl)), BlResult!numbl, LigblResult!numlig_ligbl, lind)
+              Utils.db.Exec("INSERT INTO " & Cbase.Table("TabStat") & " VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10})", BlResult!cdclibl, BlResult!datebl, BlResult!nmclibl, Val(Utils.cpoint(LigblResult!pu_ligbl)), Val(Utils.cpoint(LigblResult!rem_ligbl)), Val(Utils.cpoint(LigblResult!netht_ligbl)), Val(Utils.CPoint(LigblResult!qte_ligbl)), HisResult!num, LigblResult!numlig_ligbl, lind)
               Inc lind
             Endif
           Endif
@@ -270,7 +270,7 @@ Public Sub Aff_StatAC()
       Qte_totale.Text = Val(utils.CPoint(Qte_totale.Text)) + Val(Utils.CPoint(Ligrcpt!qte))
     Loop Until Ligrcpt.MoveNext()
   Endif
-  Try rexp = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvtexp") & " where code = &1 and qtep is not null", code, "")
+  Try rexp = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvtexp") & " where code = &1 and qtep is not null and daterecpt >= &2", code, Dtejour)
   If Not Error Then
     If rexp.Available Then
       Do
@@ -527,7 +527,7 @@ Public Sub DocVentes()
       If Not Error Then
         datef.Text = .Cdate_Aff(Colhisto.Item[0])
         numfac.Text = Colhisto.Item[7]
-        If Left$(Numfac.text, 1) <> 0 Then
+'        If Left$(Numfac.text, 1) <> 0 Then
           Rcli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisLigFac") & " WHERE num_ligfac = &1", Colhisto.Item[7])
           If Rcli.Available Then
             Do
@@ -557,28 +557,9 @@ Public Sub DocVentes()
               Endif
             Loop Until Rcli.MoveNext()
             Nlgf.Text = Colrcp3.count
-          Else
-            Rcli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabHisLigTck") & " WHERE numero = &1", Colhisto.Item[7])
-            If Rcli.Available Then
-              Do
-                Colrcp3.Add(Rcli!lInd, Rcli!lInd)
-                rart = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " WHERE art_code = &1", Rcli!code)
-                If rart.Available Then
-                  Colrcp3.Item[1] = Rcli!code
-                  Colrcp3.Item[2] = .CDec(rart!art_dec, Rcli!qte)
-                Endif
-                If Not Colrcp3.Item[3] Then Colrcp3.Item[3] = Rcli!qte
-                Colrcp3.Item[2] = Rcli!intitule
-                Colrcp3.Item[4] = Rcli!montant
-                If Not Colrcp3.Item[3] Then Colrcp3.Item[3] = 0
-                Colrcp3.Item[5] = Rcli!mrem
-                Colrcp3.Item[6] = Rcli!mht
-                If Colrcp3.Item[6] Then Totalfac.Text = Format$(Val(Totalfac.Text) + (Val(Rcli!montant) * Val(Colrcp3.Item[3])), "0.00")
-              Loop Until Rcli.MoveNext()
-            Endif
-          Endif
+          
         Else
-          Rcli = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigbl") & " WHERE num_ligbl = &1", Colhisto.Item[7])
+          Rcli = Utils.db.Exec("SELECT * FROM Fiches_Bl,Fiches_Ligbl WHERE num_ligbl=numbl and (num_ligbl = &1 or numfac=&1)", Colhisto.Item[7])
           If Rcli.Available Then
             Do
               If Rcli!typel_ligbl <> "C" And If Rcli!typel_ligbl <> "R" Then
