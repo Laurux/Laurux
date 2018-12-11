@@ -389,6 +389,7 @@ Public Sub Moulinage()
   Dim mrg As Float
   Dim msg_err As String
   Dim lasttk As String
+  Dim inda As Integer
   
   RegroupBL = New Facturergbl
   'On reinitialise les tables temporaire de ventilation et de virement interne
@@ -440,8 +441,6 @@ Public Sub Moulinage()
           ' On bloque les tables
           Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabParam") & " WRITE, " & Cbase.Table("TabEntTck") & " WRITE, " & Cbase.Table("TabLigTck") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("Totalisation") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabMvtM") & " WRITE, " & Cbase.Table("TabArt") & " WRITE, " & Cbase.Table("TabHisEntTck") & " WRITE, " & Cbase.Table("TabHisLigTck") & " WRITE, " & Cbase.Table("TabJour") & " WRITE,  " & Cbase.Table("TabCli") & " WRITE, " & Cbase.Table("TabBl") & " WRITE, " & Cbase.Table("TabLigbl") & " WRITE, " & Tab & " WRITE, Fiches_Caisses WRITE, Fiches_FamDep WRITE, Fiches_BordereauxC WRITE")
 
-          'Génération de la facture
-          genfac()
         Endif
       
         lasttk = ""
@@ -564,15 +563,13 @@ Public Sub Moulinage()
                       If Not IsNull(rTck!suppr) And rlTck!type = "A" Then $intit = rlTck!intitule
                       If rlTck.Index < rlTck.count - 1 Then
                         $intit = rlTck!intitule
-                        rlTck.MoveNext()
-                        If rlTck!type = "O" Then
+                        inda = rlTck.Index
+                        Repeat
                           rlTck.MoveNext()
-                        Endif
+                        Until rlTck!type <> "O"
+                       
                         If rlTck!type <> "S" Then
-                          rlTck.MovePrevious()
-                          If rlTck!type = "O" Then
-                            rlTck.MovePrevious()
-                          Endif
+                          rlTck.MoveTo(inda)
                         Endif
                       Endif
                       If rlTck!type <> "L" And If rlTck!type <> "M" And If rlTck!type <> "C" Then
@@ -808,6 +805,8 @@ next_ticket:
             Verif_Caisse = Maj_Compta()
             Maj_Tresorerie(Verif_Caisse)
             RegroupBL.Maj_Parametres(numbon)
+            'Génération de la facture
+            genfac()
             Utils.db.Exec("UNLOCK TABLES")
             'On recalcule les soldes
             'Csolde.Recalc_solde()
@@ -2480,7 +2479,7 @@ End
 Private Sub genfac()
 
   Dim res, respu, resentz, resligz, resentfac, resligfac, respar, reslig As Result
-  Dim i, j As Integer
+  Dim i, j, inda As Integer
   Dim rem As Float
   Dim pu, pxttc, mttc, mht, mtva, mremise As Float
   Dim snfac, snumlig, dnfac As String
@@ -2508,11 +2507,13 @@ Private Sub genfac()
             resligfac = utils.db.Create("Tmp_Caisse")
             'On regarde si la ligne suivante existe puis si c'est une remise, si non on revient en arriere. "O"= ligne ecotaxe
             If resligz.Index < (resligz.Length - 1) Then
-              resligz.MoveNext
-              If resligz!type = "O" Then resligz.MoveNext
+              inda = resligz.Index
+              Repeat    'on passe les éco taxes
+                resligz.MoveNext
+              Until resligz!type <> "O"
+              'retour à l'article si pas de remise
               If resligz!type <> "S" Then
-                resligz.MovePrevious
-                If resligz!type = "O" Then resligz.MovePrevious
+                resligz.MoveTo(inda)
               Endif
             Endif
             'calculs intermediaires
