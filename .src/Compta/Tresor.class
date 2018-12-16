@@ -2033,6 +2033,7 @@ Public Sub Ecrit3()
   Dim Ndc As String
   Dim Nlt As String
   Dim Cpt As String
+  Dim Cptj As String
 
   Totaldb = 0
   Totalcd = 0
@@ -2060,6 +2061,18 @@ Public Sub Ecrit3()
           rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMvt") & "  WHERE numero = &1", num)
           If rResult.Available Then
             Journal.Text = rResult!jour
+            rrResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabJour") & " WHERE code_jo = &1", rResult!jour)
+            If rrResult.Available Then
+              If IsNull(rrResult!cde_banque) Or rrResult!type_jo <> "TR" Then
+                Cptj = ""
+              Else
+                Cptj = rrResult!cde_banque
+              Endif
+            Else
+              Message.Error("Le Journal " & rResult!jour & "n'existe pas !")
+              Me.close
+            Endif
+            
             Repeat
               Try Bcol = rResult!collectif
               If Error Then Bcol = False
@@ -2070,7 +2083,7 @@ Public Sub Ecrit3()
                 coll = rResult!collectif
                 numecriture = rResult!numero
                 Utils.db.Exec("INSERT INTO  Fiches_MvtM (jour,numero,compte,intitule,dte,numdoc, numlot, libelle, montantd, montantc,validee, provisoire,tresorerie,lettree,cloturee,pointee, numcol, dateech, lind2, control, datem) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21})", rResult!jour, rResult!numero, rResult!compte, rResult!intitule, rResult!dte, rResult!numdoc, rResult!numlot, rResult!libelle, rResult!montantd, rResult!montantc, rResult!validee, rResult!provisoire, rResult!tresorerie, rResult!lettree, rResult!cloturee, rResult!pointee, rResult!numcol, rResult!dateech, rResult!lind, rResult!control, Utils.Cdate_Dbase(Format$(Now, "dd.mm.yyyy")))
-                If Left(Cpt, 3) <> "512" And If Left(Cpt, 2) <> "53" Then
+                If Cpt <> Cptj Then
                   'Cle = rResult!compte & rResult!numdoc & numecriture
                   Ecrit1.Add(rResult!lind, rResult!lind)
                   Ecrit1.Item[0] = rResult!compte
@@ -2080,6 +2093,7 @@ Public Sub Ecrit3()
                   Ecrit1.Item[4] = Format$(rResult!montantd, "0.00")
                   Ecrit1.Item[5] = Format$(rResult!montantc, "0.00")
                   Ecrit1.Item[6] = Format$(CDate(rResult!dte), "dd.mm.yyyy")
+                  Datej.Text = Ecrit1.Item[6]
                   Ecrit1.Item[7] = rResult!intitule
                   Ecrit1.Item[8] = rResult!jour
                   Ecrit1.Item[9] = Format$(CDate(rResult!datee), "dd.mm.yyyy")
@@ -2168,7 +2182,6 @@ Public Sub Ecrit3()
             Utils.db.Exec("UPDATE " & Cbase.Table("TabMvt") & " SET lettree = &1, numlot = &3 WHERE numlot =  &2", 0, Nlot, Nlot2)
           Endif
         End With
-        Datej.Text = Ecrit1.Item[6]
         Numcompte.SetFocus
         ' On passe l'écriture en provisoire
         Utils.db.Exec("UPDATE  " & Cbase.Table("TabMvt") & "  SET  validee = &2, provisoire = &3 where numero = &1", numecrit.Text, 0, 1)
@@ -2185,6 +2198,7 @@ Catch
   If Message.Question("Cette écriture est incoherente, elle ne peut pas être rappelée !\nVoulez-vous la supprimer ?", "Oui", "Non") = 1 Then
     Utils.db.Exec("delete FROM " & Cbase.Table("TabMvt") & "  WHERE numero = &1", num)
   Endif
+  Me.close
 
 End
 

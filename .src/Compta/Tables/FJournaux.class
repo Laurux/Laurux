@@ -294,7 +294,12 @@ Public Sub Button4_Click()
     Coljo2.Columns[1].Width = 180
     Coljo2.Columns[0].Text = "code"
     Coljo2.Columns[1].Text = "Intitulé"
-    rResult = Utils.db.Exec("SELECT * FROM " & tab & " where comptr_cc <> &1 order by cast(compte_cc AS char)", 0)
+    If Typejo.Text = "TR" Then
+      rResult = Utils.db.Exec("SELECT * FROM " & tab & " where comptr_cc is not null and comptr_cc != 0 order by cast(compte_cc AS char)")
+    Else
+      rResult = Utils.db.Exec("SELECT * FROM " & tab & " where comptr_cc is null or comptr_cc = 0 order by cast(compte_cc AS char)", 0)
+    Endif
+    
     If rResult.Available Then
       Repeat
         Coljo2.Add(rResult!compte_cc, rResult!compte_cc)
@@ -359,6 +364,13 @@ Public Sub cptman()
   If typejo.Text = "TR" And codebq.Text <> "" Then
     rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where compte_cc = &1", codebq.Text)
     If rResult.Available Then
+      If IsNull(rResult!comptr_cc) Or rResult!comptr_cc = 0 Then
+        b = 0
+        If son Then
+          Music.Play
+        Endif
+        Message.Warning("Attention ! Ce compte n'est pas un compte de trésorerie.", "OK")
+      Endif
       codebq.Text = rResult!compte_cc
       b = 1
     Else
