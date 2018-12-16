@@ -488,14 +488,28 @@ Public Sub Moulinage()
                     Maj_Totalisation(Client, ivente, rTck!mttc)
                   Endif
                 Endif
+                
+                'On conserve l'historique des BL selectionné dans le ticket meme si le ticket est supprime
+                rlTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigTck") & " where numero = &1 order by lInd", rTck!numero)
+                If rlTck.Available Then
+                  rltck.MoveFirst
+                  Repeat
+                    
+                    If rlTck!type = "BL" Then
+                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, rltck!numlig, rlTck!code, rlTck!intitule, rltck!montant, rlTck!qte, rltck!type, Fam, rltck!mht, Format$(rlTck!mrem, "000000"), rltck!tva)
+                    Else
+                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, rltck!numlig, rltck!code, rlTck!intitule, rltck!montant, rltck!qte, rltck!type, rlTck!fam, rltck!mht, rltck!mrem, rltck!tva)
+                    Endif
+                  Until rlTck.MoveNext()
+                Endif
+                
+                'Traitement des lignes du ticket
                 rlTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigTck") & " where numero = &1 order by lInd", rTck!numero)
                 If rlTck.Available Then
                   rltck.MoveFirst
                   Repeat
                     If rlTck!type = "BL" Then
                       'rlTck!mrem est utilisé pour récupéré le numéro de Bl
-                      'On conserve l'historique des BL selectionné dans le ticket meme si le ticket est supprime
-                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, rltck!numlig, rlTck!code, rlTck!intitule, rltck!montant, rlTck!qte, rltck!type, Fam, rltck!mht, Format$(rlTck!mrem, "000000"), rltck!tva)
                       Bl = Utils.db.Exec(" select * from " & Cbase.Table("TabBl") & " where type = \"B\" and numtick = &1 and numbl = &2", rlTck!numero, Format$(rlTck!mrem, "000000"))
                       If Bl.Available And Not rTck!suppr Then
                         'aucun mouvement specifique n'est a inscrire pour le BL, le BL passe cependant en type facture et déclaré règlé et imprimé
@@ -546,96 +560,94 @@ Public Sub Moulinage()
                         'Le message de warning n'a du sens que si le ticket n'est pas supprime
                         If Not rTck!suppr Then Message.Warning("Le BL " & Format$(rlTck!mrem, "000000") & " est noté règlé dans le ticket " & rlTck!numero & " mais n'est pas associé a ce ticket, il sera ignoré")
                       Endif
-                    Endif
-                    If rlTck!type = "A" Or If rlTck!type = "M" Or If rlTck!type = "S" Or If rlTck!type = "T" Or If rlTck!type = "L" Or If rlTck!type = "C" Then
-                      If rlTck!type = "A" And IsNull(rlTck!fam) Then
-                        rFam = Utils.db.Exec(" select * from " & Cbase.Table("TabArt") & " where art_code = &1", rltck!code)
-                        Fam = rFam!art_fam
-                        code = rlTck!code
-                        qte = rlTck!qte
-                      Else
-                        Fam = rlTck!fam
-                        code = rlTck!code
-                        qte = rlTck!qte
-                      Endif
-                      If IsNull(Fam) Then Fam = rlTck!fam
-                      If Not IsNull(rTck!suppr) And rlTck!type = "A" Then $intit = rlTck!intitule
-                      If rlTck.Index < rlTck.count - 1 Then
-                        $intit = rlTck!intitule
-                        inda = rlTck.Index
-                        Repeat
-                          rlTck.MoveNext()
-                        Until rlTck!type <> "O"
-                       
-                        If rlTck!type <> "S" Then
-                          rlTck.MoveTo(inda)
+                    Else
+                      If rlTck!type = "A" Or If rlTck!type = "M" Or If rlTck!type = "S" Or If rlTck!type = "T" Or If rlTck!type = "L" Or If rlTck!type = "C" Then
+                        If rlTck!type = "A" And IsNull(rlTck!fam) Then
+                          rFam = Utils.db.Exec(" select * from " & Cbase.Table("TabArt") & " where art_code = &1", rltck!code)
+                          Fam = rFam!art_fam
+                          code = rlTck!code
+                          qte = rlTck!qte
+                        Else
+                          Fam = rlTck!fam
+                          code = rlTck!code
+                          qte = rlTck!qte
                         Endif
-                      Endif
-                      If rlTck!type <> "L" And If rlTck!type <> "M" And If rlTck!type <> "C" Then
-                        rDep = Utils.db.Exec("SELECT * FROM Fiches_Caisses where code = &1", rtck!caisse)
-                        If rDep.Available Then $depot = rdep!depot
-                        rcpt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " where code_fam = &1", Fam)
-                        If rcpt.Available Then
-                          If Not bretro Then
-                            vente = rcpt!compt_fam
-                          Else
-                            vente = rcpt!compt5_fam
+                        If IsNull(Fam) Then Fam = rlTck!fam
+                        If Not IsNull(rTck!suppr) And rlTck!type = "A" Then $intit = rlTck!intitule
+                        If rlTck.Index < rlTck.count - 1 Then
+                          $intit = rlTck!intitule
+                          inda = rlTck.Index
+                          Repeat
+                            rlTck.MoveNext()
+                          Until rlTck!type <> "O"
+                          If rlTck!type <> "S" Then
+                            rlTck.MoveTo(inda)
                           Endif
-                          If Not IsNull($depot) Then
-                            rDep = Utils.db.Exec("SELECT * FROM Fiches_FamDep where fam = &1 and depot = &2", Fam, $depot)
-                            If rDep.Available Then vente = rDep!compte
-                          Endif
-                          rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", vente)
-                          If rResult.Available Then
-                            ivente = rResult!intitule_cc
-                          Endif
-                          montant = Val(.cpoint(rlTck!mht))
-                          If Not rTck!suppr Then
-                            If rlTck!type <> "T" Then
-                              If rTck!savoir = "1" Then
-                                Maj_Totalisation(vente, ivente, "-" & montant)
-                              Else
-                                Maj_Totalisation(vente, ivente, montant)
+                        Endif
+                        If rlTck!type <> "L" And If rlTck!type <> "M" And If rlTck!type <> "C" Then
+                          rDep = Utils.db.Exec("SELECT * FROM Fiches_Caisses where code = &1", rtck!caisse)
+                          If rDep.Available Then $depot = rdep!depot
+                          rcpt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabFam") & " where code_fam = &1", Fam)
+                          If rcpt.Available Then
+                            If Not bretro Then
+                              vente = rcpt!compt_fam
+                            Else
+                              vente = rcpt!compt5_fam
+                            Endif
+                            If Not IsNull($depot) Then
+                              rDep = Utils.db.Exec("SELECT * FROM Fiches_FamDep where fam = &1 and depot = &2", Fam, $depot)
+                              If rDep.Available Then vente = rDep!compte
+                            Endif
+                            rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", vente)
+                            If rResult.Available Then
+                              ivente = rResult!intitule_cc
+                            Endif
+                            montant = Val(.cpoint(rlTck!mht))
+                            If Not rTck!suppr Then
+                              If rlTck!type <> "T" Then
+                                If rTck!savoir = "1" Then
+                                  Maj_Totalisation(vente, ivente, "-" & montant)
+                                Else
+                                  Maj_Totalisation(vente, ivente, montant)
+                                Endif
                               Endif
                             Endif
-                          Endif
-                          tva = rcpt!cdtva_fam
-                          rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTvav") & " Where code_tva = &1", tva)
-                          If rResult.Available Then
-                            tva = rResult!cc_tva
-                          Endif
-                          rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", tva)
-                          If rResult.Available Then
-                            itva = rResult!intitule_cc
-                          Endif
-                          rlTck2 = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigTck") & " where numero = &1 and type = &2 and numlig = &3", rTck!numero, "T", rlTck!numlig, rlTck!code, rlTck!block)
-                          If rlTck2.Available Then
-                            montant = Val(.cpoint(rlTck2!mtva))
-                          Else
-                            rlTck2 = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigTck") & " where numero = &1 and type = &2 and numlig = &3", rTck!numero, "M", rlTck!numlig, rlTck!code, rlTck!block)
+                            tva = rcpt!cdtva_fam
+                            rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabTvav") & " Where code_tva = &1", tva)
+                            If rResult.Available Then
+                              tva = rResult!cc_tva
+                            Endif
+                            rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", tva)
+                            If rResult.Available Then
+                              itva = rResult!intitule_cc
+                            Endif
+                            rlTck2 = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigTck") & " where numero = &1 and type = &2 and numlig = &3", rTck!numero, "T", rlTck!numlig, rlTck!code, rlTck!block)
                             If rlTck2.Available Then
                               montant = Val(.cpoint(rlTck2!mtva))
                             Else
-                              montant = Val(.cpoint(rlTck!mtva))
+                              rlTck2 = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigTck") & " where numero = &1 and type = &2 and numlig = &3", rTck!numero, "M", rlTck!numlig, rlTck!code, rlTck!block)
+                              If rlTck2.Available Then
+                                montant = Val(.cpoint(rlTck2!mtva))
+                              Else
+                                montant = Val(.cpoint(rlTck!mtva))
+                              Endif
                             Endif
                           Endif
+                          If IsNull(montant) Then montant = 0
                         Endif
-                        If IsNull(montant) Then montant = 0
-                      Endif
-                      'on garde l'historique du ticket tel quel
-                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, rltck!numlig, code, $intit, rltck!montant, rltck!qte, rltck!type, Fam, rltck!mht, rltck!mrem, rltck!tva)
-                      If Not rTck!suppr Then
-                        If rTck!savoir = "1" Then
-                          If rlTck!type <> "T" And rlTck!type <> "L" And If rlTck!type <> "M" And If rlTck!type <> "C" Then Maj_Totalisation(Tva, iTva, "-" & montant)
-                        Else
-                          If rlTck!type <> "T" And rlTck!type <> "L" And If rlTck!type <> "M" And If rlTck!type <> "C" Then Maj_Totalisation(Tva, iTva, montant)
+                        If Not rTck!suppr Then
+                          If rTck!savoir = "1" Then
+                            If rlTck!type <> "T" And rlTck!type <> "L" And If rlTck!type <> "M" And If rlTck!type <> "C" Then Maj_Totalisation(Tva, iTva, "-" & montant)
+                          Else
+                            If rlTck!type <> "T" And rlTck!type <> "L" And If rlTck!type <> "M" And If rlTck!type <> "C" Then Maj_Totalisation(Tva, iTva, montant)
+                          Endif
                         Endif
+                        'ne pas decommenter on garde les totaux, et pb potentiel si le ticket
+                        'se termine par une remise ou un article unique et qu'il n'y a pas de ligne de règlement (ex ticket supprimé)
+                        'If rlTck!type = "S" Or rlTck!type = "A" Then
+                        '  rlTck.MoveNext()
+                        'Endif
                       Endif
-                      'ne pas decommenter on garde les totaux, et pb potentiel si le ticket
-                      'se termine par une remise ou un article unique et qu'il n'y a pas de ligne de règlement (ex ticket supprimé)
-                      'If rlTck!type = "S" Or rlTck!type = "A" Then
-                      '  rlTck.MoveNext()
-                      'Endif
                     Endif
                   Until rlTck.MoveNext()
                 Endif
@@ -705,9 +717,8 @@ Public Sub Moulinage()
                       ' On conserve l'historique du ticket client compte meme supprimé au meme format que les tickets caisse
                       Inc numlig
                       nmlig = Format$(Str(numlig), "0000")
-                      If rlTck!type = "A" Or If rlTck!type = "M" Or If rlTck!type = "S" Or If rlTck!type = "T" Or If rlTck!type = "L" Or If rlTck!type = "C" Then
-                        Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, nmlig, rlTck!code, rltck!intitule, rltck!montant, rlTck!qte, rltck!type, rltck!fam, rltck!mht, rltck!mrem, rltck!tva)
-                      Endif
+                      'on garde l'historique du ticket tel quel
+                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, rltck!numlig, code, $intit, rltck!montant, rltck!qte, rltck!type, Fam, rltck!mht, rltck!mrem, rltck!tva)
                     Until rlTck.MoveNext()
                   Endif
                 Else
@@ -747,10 +758,8 @@ Public Sub Moulinage()
                   If rlTck.Available Then
                     Repeat
                       ' On conserve l'historique du ticket client compte au meme format que les tickets caisse
-                      If rlTck!type = "A" Or If rlTck!type = "M" Or If rlTck!type = "S" Or If rlTck!type = "T" Or If rlTck!type = "L" Or If rlTck!type = "C" Then
-                        'TODO 3.69 rajouter la ligne mtva
-                        Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, Right(nmlig, 3), rlTck!code, rltck!intitule, rltck!montant, rltck!qte, rltck!type, rltck!fam, rltck!mht, rltck!mrem, rltck!tva)
-                      Endif
+                      'TODO 3.69 rajouter la ligne mtva
+                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, Right(nmlig, 3), rlTck!code, rltck!intitule, rltck!montant, rltck!qte, rltck!type, rltck!fam, rltck!mht, rltck!mrem, rltck!tva)
                       If rlTck!type = "A" Then
                         rlTck.MoveNext
                         If rlTck!type = "O" Then rlTck.MoveNext

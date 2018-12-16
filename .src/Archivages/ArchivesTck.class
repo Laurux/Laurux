@@ -556,6 +556,7 @@ Public Sub Button4_Click()
   Dim ttvam, ttva2 As Float = 0
   Dim totaltva As String = "0"
   Dim qte As Float
+  Dim tckwithtotal As Boolean = False
 
   Shell "cd " & User.Home & ""
   Filename = User.Home & "/tmp/Ticket.ps " ""
@@ -614,47 +615,60 @@ Public Sub Button4_Click()
         Else
           Pdf.Level4(rntck!code, rntck!intitule, rntck!montant, rntck!qte, PosY)
         Endif
-        If rntck!type <> "L" And rntck!type <> "C" Then Total = Val(Utils.cpoint(Total)) + Val(Utils.cpoint(rntck!montant))
+        If rntck!type = "BC" Then
+          tckwithtotal = True
+          Total = Val(Utils.cpoint(rntck!montant))
+        Else If rntck!type = "BH" Then 
+          tckwithtotal = True
+          Totht = Val(Utils.cpoint(rntck!montant))
+        Else If rntck!type = "MT" Or rntck!type = "C" Then
+          'Do Nothing
+        Else
+          If rntck!type <> "L" And rntck!type <> "O" Then Total = Val(Utils.cpoint(Total)) + Val(Utils.cpoint(rntck!montant))
+        Endif
         Posy = Posy + 5
       Endif
     Until rntck.MoveNext()
-    Posy = Posy + 10
-    Pdf.Entete2(Pointille, Posx, Posy)
-    Posy = Posy + 10
-    rtva = Utils.db.Exec(" select * from " & Tatva & "")
-    Repeat
-      If rtva.Available Then
-        totaltva = Val(Utils.cpoint(totaltva)) + Val(Utils.cpoint(rtva!mtva))
-      Endif
-    Until rtva.MoveNext()
-    If Val(Utils.cpoint(totht)) + Val(Utils.cpoint(totaltva)) <> Val(Utils.cpoint(tottk)) Then Totht = Val(Utils.cpoint(tottk)) - Val(Utils.cpoint(totaltva))
-    Try Pdf.Level4("", "Total HT ", Format$(Val(Utils.cpoint(Totht)), "0.00"), "", PosY)
-    Posy = Posy + 5
-    rtva = Utils.db.Exec(" select * from " & Tatva & "")
-    Repeat
-      If rtva.Available Then
-        Try Pdf.Level4("", "TVA " & rtva!code, Format$(Val(Utils.cpoint(rtva!mtva)), "0.00"), "", PosY)
+    
+    If tckwithtotal = False Then
+      Posy = Posy + 10
+      Pdf.Entete2(Pointille, Posx, Posy)
+      Posy = Posy + 10
+      rtva = Utils.db.Exec(" select * from " & Tatva & "")
+      Repeat
+        If rtva.Available Then
+          totaltva = Val(Utils.cpoint(totaltva)) + Val(Utils.cpoint(rtva!mtva))
+        Endif
+      Until rtva.MoveNext()
+      If Val(Utils.cpoint(totht)) + Val(Utils.cpoint(totaltva)) <> Val(Utils.cpoint(tottk)) Then Totht = Val(Utils.cpoint(tottk)) - Val(Utils.cpoint(totaltva))
+      Try Pdf.Level4("", "Total HT ", Format$(Val(Utils.cpoint(Totht)), "0.00"), "", PosY)
+      Posy = Posy + 5
+      rtva = Utils.db.Exec(" select * from " & Tatva & "")
+      Repeat
+        If rtva.Available Then
+          Try Pdf.Level4("", "TVA " & rtva!code, Format$(Val(Utils.cpoint(rtva!mtva)), "0.00"), "", PosY)
+          Posy = Posy + 5
+        Endif
+      Until rtva.MoveNext()
+      'Try Pdf.Level4("", "Total TVA ", Format$(Val(Utils.cpoint(Tottva)), "0.00"), "", PosY)
+      'Posy = Posy + 5
+      Try Pdf.Level4("", "Total TTC", Format$(Val(Utils.cpoint(TotTk)), "0.00"), "", PosY)
+      If Not IsNull(sReges) Then
         Posy = Posy + 5
+        Try Pdf.Level4("", sReges, "", "", PosY)
       Endif
-    Until rtva.MoveNext()
-    'Try Pdf.Level4("", "Total TVA ", Format$(Val(Utils.cpoint(Tottva)), "0.00"), "", PosY)
-    'Posy = Posy + 5
-    Try Pdf.Level4("", "Total TTC", Format$(Val(Utils.cpoint(TotTk)), "0.00"), "", PosY)
-    If Not IsNull(sReges) Then
-      Posy = Posy + 5
-      Try Pdf.Level4("", sReges, "", "", PosY)
-    Endif
-    If Not IsNull(sRegch) Then
-      Posy = Posy + 5
-      Try pdf.Level4("", sRegch, "", "", PosY)
-    Endif
-    If Not IsNull(sRegca) Then
-      Posy = Posy + 5
-      Try pdf.Level4("", sRegca, "", "", PosY)
-    Endif
-    If Not IsNull(sRegce) Then
-      Posy = Posy + 5
-      Try pdf.Level4("", sRegce, "", "", PosY)
+      If Not IsNull(sRegch) Then
+        Posy = Posy + 5
+        Try pdf.Level4("", sRegch, "", "", PosY)
+      Endif
+      If Not IsNull(sRegca) Then
+        Posy = Posy + 5
+        Try pdf.Level4("", sRegca, "", "", PosY)
+      Endif
+      If Not IsNull(sRegce) Then
+        Posy = Posy + 5
+        Try pdf.Level4("", sRegce, "", "", PosY)
+      Endif
     Endif
   Endif
   pdf.Output(Filename, False)
