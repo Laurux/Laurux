@@ -14,6 +14,8 @@ End Struct
 
 Private $brn As Borne[]
 
+Const champ As String = " montantd,montantc,CAST(dte AS DATE) AS dte,compte,libelle,intitule,numero,jour,numdoc,tresorerie,lettree,cloturee,dateech,collectif,numlot,relance,lind "
+
 Public Sub _new(cpt As String, dtei As String, dtes As String, ltr As String, vld As Boolean, stri As String, Optional origin As String, dteech As String)
 
   Dim res, resf, res1 As Result
@@ -83,27 +85,27 @@ Public Sub _new(cpt As String, dtei As String, dtes As String, ltr As String, vl
             res1 = Utils.db.Exec("SELECT * FROM " & $brn[i].nomfich & " WHERE dte BETWEEN &1 AND &2 AND compte=&3 AND validee=&4 LIMIT 1", $brn[i].dteinf.D, dte.D, cpt, vld)
           Endif 
           If res1.Available Then
-            req = Utils.db.Subst(" UNION SELECT SUM(montantd) AS montantd,SUM(montantc) AS montantc,CAST(&1 AS DATE) AS dte,compte,'Report a nouveau' AS libelle,0 as numero,'  ' as jour,' ' AS numdoc, ' ' AS tresorerie,' ' as lettree, 'T' AS cloturee,' ' AS dateech,' ' AS collectif,' ' AS numlot,' ' AS relance,' ' AS lind FROM " & $brn[i].nomfich & " WHERE dte <= &3 AND compte=&4 AND validee=&5", $dtei.G, $brn[i].dteinf.D, dte.D, cpt, vld)
+            req = Utils.db.Subst(" UNION SELECT SUM(montantd) AS montantd,SUM(montantc) AS montantc,CAST(&1 AS DATE) AS dte,compte,'Report a nouveau' AS libelle,0 as numero,' ' AS intitule,'  ' as jour,' ' AS numdoc, ' ' AS tresorerie,' ' as lettree, 'T' AS cloturee,' ' AS dateech,' ' AS collectif,' ' AS numlot,' ' AS relance,' ' AS lind FROM " & $brn[i].nomfich & " WHERE dte <= &3 AND compte=&4 AND validee=&5", $dtei.G, $brn[i].dteinf.D, dte.D, cpt, vld)
             dte = dtsup(i)
-            req = Utils.db.Subst("SELECT montantd,montantc,CAST(dte AS DATE) AS dte,compte,libelle,numero,jour,numdoc,tresorerie,lettree,cloturee,dateech,collectif,numlot,relance,lind FROM " & $brn[i].nomfich & " WHERE dte BETWEEN &1 AND &2 AND " & cli & lett & " AND validee=&4", $dtei.D, dte.D, cpt, vld) & req
+            req = Utils.db.Subst("SELECT" & champ & " FROM " & $brn[i].nomfich & " WHERE dte BETWEEN &1 AND &2 AND " & cli & lett & " AND validee=&4", $dtei.D, dte.D, cpt, vld) & req
           Else
             'sans calcul du report a nouveau
              ok = False
             dte = dtsup(i)
-            req &= Utils.db.Subst("SELECT montantd,montantc,CAST(dte AS DATE) AS dte,compte,libelle,numero,jour,numdoc,tresorerie,lettree,cloturee,dateech,collectif,numlot,relance,lind FROM " & $brn[i].nomfich & " WHERE dte BETWEEN &1 AND &2 AND " & cli & lett & " AND validee=&4", $dtei.D, dte.D, cpt, vld)
+            req &= Utils.db.Subst("SELECT" & champ & "FROM " & $brn[i].nomfich & " WHERE dte BETWEEN &1 AND &2 AND " & cli & lett & " AND validee=&4", $dtei.D, dte.D, cpt, vld)
           Endif
         Else
           'requete sur année complete
           If $dtei = $brn[i].dteinf Or ltr <> "t" Then
            ok = False
           dte = dtsup(i)
-          req = Utils.db.Subst("SELECT montantd,montantc,CAST(dte AS DATE) AS dte,compte,libelle,numero,jour,numdoc,tresorerie,lettree,cloturee,dateech,collectif,numlot,relance,lind FROM " & $brn[i].nomfich & " WHERE dte BETWEEN &1 AND &2 AND" & cli & lett & " AND validee=&4", $dtei.D, dte.D, cpt, vld)
+          req = Utils.db.Subst("SELECT " & champ & " FROM " & $brn[i].nomfich & " WHERE dte BETWEEN &1 AND &2 AND" & cli & lett & " AND validee=&4", $dtei.D, dte.D, cpt, vld)
           Endif
         Endif
       Else
         'requete sur année suivante
         dte = dtsup(i)
-        req &= Utils.db.Subst(" UNION (SELECT montantd,montantc,CAST(dte AS DATE) AS dte,compte,libelle,numero,jour,numdoc,tresorerie,lettree,cloturee,dateech,collectif,numlot,relance,lind FROM " & $brn[i].nomfich & " WHERE dte BETWEEN &1 AND &2 AND " & cli & lett & " AND validee=&4 AND jour<>&5)", $dtei.D, dte.D, cpt, vld, $jouran)
+        req &= Utils.db.Subst(" UNION (SELECT" & champ & " FROM " & $brn[i].nomfich & " WHERE dte BETWEEN &1 AND &2 AND " & cli & lett & " AND validee=&4 AND jour<>&5)", $dtei.D, dte.D, cpt, vld, $jouran)
       Endif
     Next
     req &= " ORDER BY " & stri
