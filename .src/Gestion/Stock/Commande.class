@@ -139,7 +139,7 @@ Public Sub _New()
   Colrcp.Columns[7 + $o].Alignment = 2
   Colrcp.Columns[8 + $o].Text = "Code barre"
   lcolrcp()
-  Nlgn = "000"
+  Nlgn = "0000"
   If Start.LocalSettings["/Soc" & Start.Societe & "/Coef"] Then
     Coef.Visible = True
     TMQ.Visible = False
@@ -954,12 +954,7 @@ Public Sub Button8_Click()
   Dim Tab1 As String
 
   If Colrcp.Count Then
-    If Start.son Then
-      Music.Play
-    Endif
-    If Message.question("Attention, voulez-vous enregistrer votre commande en cours!", "Oui", "Non") = 1 Then
-      Enrgcom()
-    Endif
+    Enrgcom()
   Endif
   RazBl()
   Tab = "Fiches_Parametres"
@@ -1374,7 +1369,7 @@ Public Sub Gencom()
       stocke = rarts!art_stocke
       nbd = rarts!art_nbd
       nbdec = Utils.Find_nbdec(nbd)
-      Nlgn = Format$(Colrcp.count + 1, "000")
+      Nlgn = Format$(Colrcp.count + 1, "0000")
       If Not IsNull(rarts!qtecom) Then
         Qtecom = rarts!qtecom
       Else
@@ -1579,7 +1574,7 @@ Public Sub Gen_Comfac(Ligbl As String)
         rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1 ", rfact!code_ligbl)
         If rarts.Available Then
           If rarts!art_suspendu <> "1" Then
-            Nlgn = Format$(Colrcp.count + 1, "000")
+            Nlgn = Format$(Colrcp.count + 1, "0000")
             If IsNull(Totalrcpt.Text) Then Totalrcpt.Text = "0,00"
             If IsNull(Tfrais.Text) Then Tfrais.Text = "0,00"
             If IsNull(Pcom.Text) Then Pcom.text = "0,000"
@@ -1663,7 +1658,7 @@ Public Sub GencomRlq()
         LigResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigcom") & " WHERE numcom = &1 and four = &2 order by nligne", rfact!numcom, four.Text)
         If LigResult.Available Then
           Do
-            Nlgn = Format$(Val(Nlgn) + 1, "000")
+            Nlgn = Format$(Val(Nlgn) + 1, "0000")
             Try Colrcp.Add(LigResult!code, LigResult!code)
             If Error Then Colrcp.Add(LigResult!nligne, LigResult!nligne)
             Colrcp.Item[0] = Nlgn
@@ -1803,7 +1798,7 @@ Public Sub Import(Code As String, codeb As String, qte As String, Hnew As File)
     Rarts = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", Code)
     If Rarts.Available Then
       If rarts!art_suspendu <> "1" Then
-        Nlgn = Format$(Colrcp.count + 1, "000")
+        Nlgn = Format$(Colrcp.count + 1, "0000")
         If IsNull(Totalrcpt.Text) Then Totalrcpt.Text = "0,00"
         If IsNull(Tfrais.Text) Then Tfrais.Text = "0,00"
         If IsNull(Pcom.Text) Then Pcom.text = "0,000"
@@ -2741,7 +2736,7 @@ Public Sub Maj_colrcp()
         Endif
       Until Colrcp.MoveNext()
     Else
-      Nlgn = Format$(Colrcp.count + 1, "000")
+      Nlgn = Format$(Colrcp.count + 1, "0000")
       If Nlg = 1 Then
         Colrcp.Add(Cart.text, Cart.text)
         Colrcp.Item[0] = Nlgn
@@ -3010,10 +3005,10 @@ Public Sub Colrcp_Keypress()
         Colrcp.Current.Delete
         If Colrcp.Count > 0 Then
           Colrcp.MoveFirst
-          Nlgn = Format$(0, "000")
+          Nlgn = Format$(0, "0000")
           Do
             Colrcp.Item.Selected = True
-            Nlgn = Format$(Val(Nlgn) + 1, "000")
+            Nlgn = Format$(Val(Nlgn) + 1, "0000")
             Colrcp.Item[0] = Nlgn
           Loop Until Colrcp.MoveNext()
         Endif
@@ -3109,6 +3104,8 @@ End
 '************************************************
 Public Sub Enrgcom()
 
+  Dim Tab As String
+
   With Utils
     Refart.value = True
     Tab = "Fiches_Entcom"
@@ -3162,6 +3159,7 @@ End
 '************************************************
 Public Sub ToggleButton3_Click()
 
+  Dim Tab As String
   Dim Tab1 As String
   Dim Rentcom As Result
   Dim NmF As Result
@@ -3170,53 +3168,46 @@ Public Sub ToggleButton3_Click()
   Tab1 = "Fiches_Four"
   With Utils
     If Colrcp.Count Then
-      If Start.son Then
-        Music.Play
-      Endif
-      If Message.question("Attention, voulez-vous enregistrer votre commande en cours !\nSi vous n'enregistrez pas, la commande sera perdue.", "Oui", "Non") = 1 Then
-        Enrgcom()
-      Else
-        'RazBl()
-        Colrcp.Clear
-      Endif
+      Enrgcom()
+      Colrcp.Clear()
+      'RazBl()
+    Endif
+    If Colcom.visible Then
+      Colcom.clear
+      Colcom.visible = False
     Else
-      If Colcom.visible Then
-        Colcom.clear
-        Colcom.visible = False
+      Colcom.visible = True
+      Colcom.Raise
+      Colcom.Columns.count = 5
+      Colcom.Columns[0].Width = 74
+      Colcom.Columns[1].Width = 280
+      Colcom.Columns[2].Width = 75
+      Colcom.Columns[3].Width = 96
+      Colcom.Columns[0].Text = "Code"
+      Colcom.Columns[1].Text = "                        Nom"
+      Colcom.Columns[2].Text = "  N° Commande"
+      Colcom.Columns[3].Text = "        Date"
+      Colcom.Columns[4].Alignment = 2
+      Colcom.Columns[4].Text = "Montant      "
+      If Not Dne Then
+        Rentcom = Utils.db.Exec("SELECT * FROM " & Tab & " ")
       Else
-        Colcom.visible = True
-        Colcom.Raise
-        Colcom.Columns.count = 5
-        Colcom.Columns[0].Width = 74
-        Colcom.Columns[1].Width = 280
-        Colcom.Columns[2].Width = 75
-        Colcom.Columns[3].Width = 96
-        Colcom.Columns[0].Text = "Code"
-        Colcom.Columns[1].Text = "                        Nom"
-        Colcom.Columns[2].Text = "  N° Commande"
-        Colcom.Columns[3].Text = "        Date"
-        Colcom.Columns[4].Alignment = 2
-        Colcom.Columns[4].Text = "Montant      "
-        If Not Dne Then
-          Rentcom = Utils.db.Exec("SELECT * FROM " & Tab & " ")
-        Else
-          Rentcom = Utils.db.Exec("SELECT * FROM " & Tab & " where left(numcom,'" & Len(Ncom.Text) & "') = '" & Ncom.Text & "'")
-        Endif
-        If Rentcom.Available Then
-          Do
-            Colcom.Add(Rentcom!numcom & Rentcom!four, Rentcom!numcom & Rentcom!four)
-            Colcom.Item[0] = Rentcom!four
-            NmF = Utils.db.Exec("SELECT * FROM " & Tab1 & " where fo_code = &1", Rentcom!four)
-            Try Colcom.Item[1] = Nmf!fo_nom
-            If Error Then message.Error("le fournisseur " & Rentcom!four & " n'existe pas ! Veuillez modifier le code fournisseur de cette commande SVP")
-            Colcom.Item[2] = Rentcom!numcom
-            Colcom.Item[3] = .Cdate_Aff(Rentcom!ddate)
-            Colcom.Item[4] = Format$(Rentcom!montant, "0.00")
-          Loop Until Rentcom.MoveNext()
-          Colcom.MoveFirst
-          Colcom.SetFocus
-          Try Colcom.Item.Selected = True
-        Endif
+        Rentcom = Utils.db.Exec("SELECT * FROM " & Tab & " where left(numcom,'" & Len(Ncom.Text) & "') = '" & Ncom.Text & "'")
+      Endif
+      If Rentcom.Available Then
+        Do
+          Colcom.Add(Rentcom!numcom & Rentcom!four, Rentcom!numcom & Rentcom!four)
+          Colcom.Item[0] = Rentcom!four
+          NmF = Utils.db.Exec("SELECT * FROM " & Tab1 & " where fo_code = &1", Rentcom!four)
+          Try Colcom.Item[1] = Nmf!fo_nom
+          If Error Then message.Error("le fournisseur " & Rentcom!four & " n'existe pas ! Veuillez modifier le code fournisseur de cette commande SVP")
+          Colcom.Item[2] = Rentcom!numcom
+          Colcom.Item[3] = .Cdate_Aff(Rentcom!ddate)
+          Colcom.Item[4] = Format$(Rentcom!montant, "0.00")
+        Loop Until Rentcom.MoveNext()
+        Colcom.MoveFirst
+        Colcom.SetFocus
+        Try Colcom.Item.Selected = True
       Endif
     Endif
   End With
@@ -3259,7 +3250,7 @@ Public Sub Colcom_Click()
       LigResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE numcom = &1 and four = &2 order by nligne", Ncom.Text, four.Text)
       If LigResult.Available Then
         Do
-          Nlgn = Format$(Val(Nlgn) + 1, "000")
+          Nlgn = Format$(Val(Nlgn) + 1, "0000")
           Try Colrcp.Add(LigResult!code, LigResult!code)
           If Error Then Colrcp.Add(LigResult!nligne, LigResult!nligne)
           Colrcp.Item[0] = Nlgn

@@ -304,6 +304,8 @@ Public Sub RazBl()
   An.value = False
   Datej.Text = Format$(Now, "dd.mm.yyyy")
   Colrcp.Clear
+  modif = 0
+  b = 0
   Nbligne.Text = ""
   Totalrcpt.Text = ""
   Tfrais.Text = "0,00"
@@ -2149,7 +2151,7 @@ Public Sub Maj_colrcp()
         Endif
       Until Colrcp.MoveNext()
     Else
-      Nlgn = Format$(Colrcp.count + 1, "000")
+      Nlgn = Format$(Colrcp.count + 1, "0000")
       If Nlg = 1 Then
         If Refart.value = True Then
           Colrcp.Add(Nlgn, Nlgn)
@@ -2283,7 +2285,7 @@ Public Sub ControlProd()
         Colrcp.Item[18] = $textcol.Text
       Endif
     Case 3
-      Nlgn = Format$(Val(Nlgn) + 1, "000")
+      Nlgn = Format$(Val(Nlgn) + 1, "0000")
       If Error Then Nlgn = Colrcp.count + 1
       Nlg = 1
       Try Colrcp.Add(Nlgn, Nlgn)
@@ -2528,8 +2530,8 @@ Public Sub Ren_ligbon()
     Nlgn = "0"
     Repeat
       Colrcp.item.Selected = True
-      Nlgn = Format$(Val(Nlgn) + 1, "000")
-      Colrcp.current[0] = Format$(Val(Nlgn), "000")
+      Nlgn = Format$(Val(Nlgn) + 1, "0000")
+      Colrcp.current[0] = Format$(Val(Nlgn), "0000")
     Until Colrcp.MoveNext()
     If $soption = "B" Or $soption = "T" Then
       $fcd.renligne
@@ -2825,136 +2827,77 @@ Public Sub Maj_Etiqg()
 
 End
 
+
+Public Sub Epur_Com()
+
+  Dim rResult As Result
+  Dim Entcm, Tab As String
+
+  Tab = "Fiches_Ligcom"
+  Entcm = "Fiches_Entcom"
+  'On recherche les commandes épurées et on les supprime
+  rResult = Utils.db.Exec("Select * from " & Entcm & " as e left join " & tab & " as l on e.numcom = l.numcom where l.numcom is null")
+  If rResult.Available Then
+    Repeat
+      Utils.db.Exec("delete from " & Entcm & " WHERE four = &1 and numcom = &2", codefour.Text, rResult!numcom)
+    Until rResult.MoveNext()
+  Endif
+
+End
+
 '************************************************
 '*  On supprime les lignes réceptionnées        *
 '************************************************
 Public Sub Maj_Com()
 
+  Dim rResult As Result
   Dim qtec As String
-  Dim Entcm, ncom2 As String
+  Dim Entcm, Tab, ncom2 As String
   Dim Totcom2 As Float = 0
+  Dim reliquat As Boolean = False
 
   Tab = "Fiches_Ligcom"
   Entcm = "Fiches_Entcom"
   With utils
-    If Colrcp.Count <> 0 Then
-      Colrcp.MoveFirst
-      Repeat
-        Colrcp.Item.Selected = True
-        If Val(.cpoint(Colrcp.Item[3])) <= Val(.cpoint(Colrcp.Item[7])) Then
-          Utils.db.Exec("delete from " & Tab & " WHERE lind = &1", Colrcp.Item[13])
-        Else
-          qtec = Val(.cpoint(Colrcp.Item[3])) - Val(.cpoint(Colrcp.Item[7]))
-          Tab = "Fiches_Art"
-          Utils.db.Exec("UPdate  " & tab & "  SET art_com = &2 WHERE art_code = &1", Colrcp.Item[1], qtec)
-          Tab = "Fiches_Ligcom"
-          Utils.db.Exec("UPdate  " & tab & "  SET qte = &2 WHERE lind = &1", Colrcp.Item[13], qtec)
-          Totcom2 = Totcom2 + Val(Colrcp.Item[6])
-        Endif
-        ncom2 = Colrcp.Item[16]
-      Until Colrcp.MoveNext()
-      'If bTotal Then Utils.db.Exec("delete from Fiches_Ligcom WHERE numcom <> &1 and four = &2", ncom2, Codefour.Text)
-      'If bTotal Then Utils.db.Exec("delete from Fiches_Entcom WHERE numcom <> &1 and four = &2", ncom2, Codefour.Text)
-    Endif
-    If Not bTotal Then
-      ncom2 = numcom.Text
-    Else
-      Totcom = Totcom2
-    Endif
-    Utils.db.Exec("UPdate  " & Entcm & "  SET montant = &1, anomalie = &4, commentaire = &5 WHERE four = &2 and numcom = &3", Totcom, codefour.Text, ncom2, An.value, Comments.Text)
-    bsaisie = True
-    RecupLig()
-    Delcom()
-    Recomp()
-    Enrgcom()
-    bsaisie = False
-  End With
-
-End
-
-'***************************************
-'*     On renumerote les lignes        *
-'***************************************
-Public Sub Recomp()
-
-  With Utils
-    If Colrcp.count Then
-      Colrcp.MoveFirst
-      Totalrcpt.Text = "0,00"
-      Nlgn = "000"
-      Do
-        Colrcp.Item.Selected = True
-        Nlgn = Format$(Val(Nlgn) + 1, "000")
-        Colrcp.Item[0] = Nlgn
-        Totalrcpt.Text = Format$(Val(Totalrcpt.Text) + (Val(.cpoint(Colrcp.Item[6])) * Val(.cpoint(Colrcp.Item[7]))), "0.00")
-      Loop Until Colrcp.MoveNext()
-    Else
-      Totalrcpt.Text = "0,00"
-    Endif
-  End With
-
-End
-
-'**************************************
-'*     Suppression  de commande       *
-'**************************************
-Public Sub Delcom()
-
-  With Utils
-    If Not bTotal Then
-      Tab = "Fiches_Ligcom"
-      ' Utils.db.Exec("delete  from " & Tab & " WHERE numcom = &1 and four = &2 and datecom = &3", Numcom.Text, codefour.Text, .Cdate_Dbase(datecom))
-      Utils.db.Exec("delete  from " & Tab & " WHERE numcom = &1 and four = &2", Numcom.Text, codefour.Text)
-      Tab = "Fiches_Entcom"
-      Utils.db.Exec("delete  from " & Tab & " WHERE numcom = &1 and four = &2", Numcom.Text, Codefour.Text)
-    Else
-      Tab = "Fiches_Ligcom"
-      Utils.db.Exec("delete  from " & Tab & " WHERE four = &1", codefour.Text)
-      Tab = "Fiches_Entcom"
-      Utils.db.Exec("delete  from " & Tab & " WHERE four = &1", Codefour.Text)
-    Endif
-  End With
-
-End
-
-'**********************************
-'*    On enregistre les reliquats *
-'**********************************
-Public Sub Enrgcom()
-
-  Dim LigResult As Result
-  Dim Numcom2 As String
-
-  Tab = "Fiches_Entcom"
-  With Utils
     If Codefour.Text Then
       If Colrcp.Count <> 0 Then
+        Nlgn = "0000"
         Colrcp.MoveFirst
-        Colrcp.Item.Selected = True
-        Numcom2 = Colrcp.Item[16]
-        If Not bTotal Then numcom2 = Numcom.text
-        Utils.db.Exec("INSERT INTO Fiches_Entcom (four,numcom,ddate,montant, reliquat, anomalie, commentaire) VALUES (&1, &2, &3, &4, &5, &6, &7)", Codefour.text, Numcom2, .Cdate_Dbase(Datej.text), Val(Totalrcpt.text), 1, An.value, Comments.Text)
-        Tab = "Fiches_Ligcom"
         Repeat
           Colrcp.Item.Selected = True
-          'If bTotal Then Numcom2 = Colrcp.Item[16]
-          LigResult = Utils.db.Exec("select *  from " & Tab & " WHERE numcom = &1 and four = &2 and code = &3", Numcom2, codefour.Text, Colrcp.Item[1])
-          If LigResult.Available Then
-            If LigResult!qte = Colrcp.Item[7] Then
-              If Left$(Colrcp.Item[1], 4) <> UCase$(".DEP") Then
-                Utils.db.Exec("UPdate  " & tab & "  SET qte = &4 WHERE numcom = &1 and four = &2 and code = &3", Numcom2, codefour.Text, Colrcp.Item[1], Colrcp.Item[7])
-              Else
-                Utils.db.Exec("INSERT INTO " & Tab & "(code,design,numcom,four,pbht,rm,paht,qte,frais,prvt, datecom, nligne) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12})", Colrcp.Item[1], Colrcp.Item[2], Numcom2, Codefour.Text, Colrcp.Item[4], Colrcp.Item[5], Colrcp.Item[6], Colrcp.Item[7], Colrcp.Item[11], Colrcp.Item[12], .Cdate_Dbase(Datej.Text), Colrcp.Item[0])
-              Endif
-            Else
-              Utils.db.Exec("delete from " & Tab & " WHERE numcom = &1 and four = &2 and code = &3", numcom2, codefour.Text, Colrcp.Item[1])
-            Endif
+          If Not bTotal Then
+            ncom2 = numcom.Text
           Else
-            Utils.db.Exec("INSERT INTO " & Tab & "(code,design,numcom,four,pbht,rm,paht,qte,frais,prvt, datecom, nligne) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12})", Colrcp.Item[1], Colrcp.Item[2], Numcom2, Codefour.Text, Colrcp.Item[4], Colrcp.Item[5], Colrcp.Item[6], Colrcp.Item[7], Colrcp.Item[11], Colrcp.Item[12], .Cdate_Dbase(Datej.Text), Colrcp.Item[0])
+            ncom2 = Colrcp.Item[16]
           Endif
-          'DocActif.Free_Lock("CommandeF", numcom2)
-        Until Colrcp.Movenext()
+    
+          If Val(.cpoint(Colrcp.Item[3])) <= Val(.cpoint(Colrcp.Item[7])) Then
+            Utils.db.Exec("delete from " & Tab & " WHERE lind = &1", Colrcp.Item[13])
+          Else
+            Nlgn = Format$(Val(Nlgn) + 1, "0000")
+            'Colrcp.Item[0] = Nlgn
+            qtec = Val(.cpoint(Colrcp.Item[3])) - Val(.cpoint(Colrcp.Item[7]))
+            reliquat = True 'il y a au moins un article qui reste dans cette commande on enregistre le reliquat
+            Tab = "Fiches_Art"
+            Utils.db.Exec("UPdate  " & tab & "  SET art_com = (art_com - &2) WHERE art_code = &1", Colrcp.Item[1], qtec)
+            Tab = "Fiches_Ligcom"
+            Utils.db.Exec("UPdate  " & tab & "  SET qte = &2, nligne = &3 WHERE lind = &1", Colrcp.Item[13], qtec, nlgn)
+            Totcom2 = Totcom2 + (Val(.cpoint(Colrcp.Item[6])) * Val(.cpoint(qtec)))
+            Utils.db.Exec("UPdate  " & Entcm & "  SET montant = &1, anomalie = &4, commentaire = &5, reliquat = &6 WHERE four = &2 and numcom = &3", Round(Totcom, 2), codefour.Text, ncom2, An.value, Comments.Text, reliquat)
+          Endif
+        Until Colrcp.MoveNext()
       Endif
+      
+      If bTotal Then
+        Totcom = Totcom2
+        Epur_Com()
+      Else
+        If Not reliquat Then
+          Utils.db.Exec("delete from " & Entcm & " WHERE numcom = &1", ncom2)
+        Endif
+      Endif
+      
+      bsaisie = False
       RazBl()
       Colrcp.Clear
       b = 0
@@ -2969,6 +2912,7 @@ Public Sub Enrgcom()
   End With
 
 End
+
 
 '************************************************
 '*     On appelle la liste des commandes        *
@@ -3084,7 +3028,7 @@ Public Sub AffColcom()
         If Error Then An.value = False
         Commentaire = EntResult!commentaire
         Do
-          Nlgn = Format$(nlgn + 1, "000")
+          Nlgn = Format$(nlgn + 1, "0000")
           Try Colrcp.Add(nlgn, nlgn)
           Colrcp.Item[0] = nlgn
           Utils.db.Exec("UPdate  " & tab & "  SET nligne = &2 WHERE lind = &1", $num, LigResult!lind)
@@ -3149,7 +3093,7 @@ Public Sub AffColcom()
           $labacc.Text = Format($fcd.accise, "0.00")
         Endif
         Nbligne.Text = Colrcp.count
-        Nlgn = Format$(Colrcp.count + 1, "000")
+        Nlgn = Format$(Colrcp.count + 1, "0000")
         Nl = Nlgn
         Nlg = 1
         'If bTotal Then CreateBR()
@@ -3246,7 +3190,8 @@ Public Sub RecupCom()
     If ComRslt.Available Then
       $fcd = New Fourconsdroi("A")
       Do
-        'If DocActif.Get_Lock("CommandeF", ComRslt!numcom) = False Then Continue
+        If DocActif.Get_Lock("CommandeF", ComRslt!numcom) = False Then Continue
+        Numcom.Text = ComRslt!numcom
         LigResult = Utils.db.Exec("SELECT * FROM " & tab & " WHERE numcom = &1 and four = &2", ComRslt!numcom, codefour.Text)
         If LigResult.Available Then
           Do
@@ -3258,8 +3203,8 @@ Public Sub RecupCom()
             Endif
             If modif = 0 Then
               iligne = Colrcp.count + 1
-              Colrcp.Add(Format$(iligne, "000"), Format$(iligne, "000"))
-              Colrcp.Item[0] = Format$(iligne, "000")
+              Colrcp.Add(Format$(iligne, "0000"), Format$(iligne, "0000"))
+              Colrcp.Item[0] = Format$(iligne, "0000")
               Colrcp.Item[1] = LigResult!code
               If ArtResult.Available Then
                 Pmp = ArtResult!art_pmp
@@ -3305,6 +3250,11 @@ Public Sub RecupCom()
                 Colrcp.Item[3] = Val(utils.cpoint(Colrcp.current[3])) + Val(utils.cpoint(LigResult!qte))
                 Colrcp.Item[7] = Val(utils.cpoint(Colrcp.current[7])) + Val(utils.cpoint(LigResult!qte))
               Endif
+              
+              'On modifie les commandes originale pour regrouper les articles similaire dans la meme reception
+              Utils.db.Exec("UPdate  " & tab & "  SET qte = (qte + &2) WHERE lind = &1", Colrcp.Item[13], LigResult!qte)
+              Utils.db.Exec("delete from " & tab & " WHERE lind = &1", LigResult!lind)
+            
             Endif
             If $soption = "B" Or $soption = "T" Then
               Colrcp.Item[17] = Str(utils.totobs([Colrcp.Item[17], Str(LigResult!palet)]))
@@ -3313,9 +3263,11 @@ Public Sub RecupCom()
             Endif
           Loop Until LigResult.MoveNext()
         Endif
+        DocActif.Free_Lock("CommandeF", ComRslt!numcom) 
       Loop Until ComRslt.MoveNext()
     Endif
     If Colrcp.Count > 0 Then
+      Epur_Com()
       bas_doc()
       'CreateBR()
     Else
@@ -3350,7 +3302,7 @@ Public Sub RecupLig()
         Do
           ArtResult = Utils.db.Exec("SELECT * FROM " & tab2 & " WHERE art_code = &1", LigResult!code)
           Colrcp.Add(LigResult!nligne, LigResult!nligne)
-          Colrcp.Item[0] = Format$(LigResult!nligne, "000")
+          Colrcp.Item[0] = Format$(LigResult!nligne, "0000")
           Colrcp.Item[1] = LigResult!code
           If ArtResult.Available Then
             Pmp = ArtResult!art_pmp
