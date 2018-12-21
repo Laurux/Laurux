@@ -16,8 +16,7 @@ Public Sub _new()
   Me.Center
   rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabParam") & "")
   dte2 = Format$(Now, "dd.mm.yyyy")
-  dte1 = Val(Format$(Now, "yyyy")) - 1
-  dte1 = "01." & Format$(Now, "mm") & "." & dte1
+  dte1 = Format$(DateAdd(DateAdd(Now, gb.Year, -1), gb.Month, 1), "01.mm.yyyy")
   Label28.Text = "Progression des CA mensuels pour la période du  " & dte1 & " au " & dte2
   Periode = dte1 & " au " & dte2
   Music.Load(Variables.Musique)
@@ -46,7 +45,7 @@ Public Sub Traitement()
   Dim MargePmo As Float
   Dim Totca As Float
   Dim N As Float = 0
-  Dim Dte As String
+  Dim Dte As Date
   Dim type As String
 
   Tab = "Fiches_HistoFac"
@@ -66,20 +65,18 @@ Public Sub Traitement()
       "marge_mo Decimal(12,2)," &
       "margepart Decimal(12,2)," &
       "margepmo Decimal(12,2)," &
-      "date Char(6)," &
+      "date Datetime," &
       "nb integer , " &
       "PRIMARY KEY (date))" & "ENGINE = MYISAM")
     If dte1 <> "" Or Left$(dte1, 2) = "00" Or dte2 <> "" Or Left$(dte2, 2) = "00" Then
-      Dte = .Cdate_Dbase(dte1)
-      Dte2 = .Cdate_Dbase(dte2)
       If Mat = 0 Then
-        rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where datefac >= &1 and datefac <= &2 order by datefac", dte1, dte2)
+        rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where datefac >= &1 and datefac <= &2 order by datefac", .Cdate_Dbase(dte1), .Cdate_Dbase(dte2))
       Else
-        rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where datefac >= &1 and datefac <= &2 union SELECT * FROM " & Tab4 & " where datefac >= &1 and datefac <= &2 order by datefac", dte1, dte2)
+        rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where datefac >= &1 and datefac <= &2 union SELECT * FROM " & Tab4 & " where datefac >= &1 and datefac <= &2 order by datefac", .Cdate_Dbase(dte1), .Cdate_Dbase(dte2))
       Endif
       If rResult.Available Then
         Repeat
-          Dte = Right$(Str(rResult!datefac), 2) & Mid$(Str(rResult!datefac), 4, 2)
+          Dte = rResult!datefac
           If Not IsNull(rResult!remmofac) Then
             Try Remmo = Val(rResult!remmofac)
             If Error Then Remmo = rResult!remmofac
@@ -103,8 +100,7 @@ Public Sub Traitement()
             If Error Then MargeMo = 0
             Try MargePmo = (MargeMo / Total) * 100
           Endif
-          nb = nb + 1
-          N1Result = Utils.db.Exec("SELECT * FROM " & Tab2 & " where date = &1", Dte)
+          N1Result = Utils.db.Exec("SELECT * FROM " & Tab2 & " where MONTH(date) = MONTH(&1)", Dte)
           If N1Result.Available Then
             Total = Total + N1Result!totfac
             Brut = Brut + N1Result!brutfac
@@ -117,9 +113,10 @@ Public Sub Traitement()
               MargeMo = MargeMo + N1Result!marge_mo
               Try MargePmo = (MargeMo / Total) * 100
             Endif
-            nb = nb + N1Result!nb
-            Utils.db.Exec("UPdate " & Tab2 & " set brutfac = &1, rmfac = &2, totfac = &3, marge_art = &4, margepart = &5, marge_mo = &6, margepmo = &7, nb = &9 Where date = &8", .PointBase(Brut), .PointBase(Remise), .PointBase(Total), .PointBase(MargeArt), .PointBase(MargePart), .PointBase(MargeMo), .PointBase(MargePmo), Dte, nb)
+            nb = N1Result!nb + 1
+            Utils.db.Exec("UPdate " & Tab2 & " set brutfac = &1, rmfac = &2, totfac = &3, marge_art = &4, margepart = &5, marge_mo = &6, margepmo = &7, nb = &9 Where MONTH(date) = MONTH(&8)", .PointBase(Brut), .PointBase(Remise), .PointBase(Total), .PointBase(MargeArt), .PointBase(MargePart), .PointBase(MargeMo), .PointBase(MargePmo), Dte, nb)
           Else
+            nb = 1
             Utils.db.Exec("INSERT INTO " & Tab2 & "(brutfac, rmfac, totfac, marge_art, margepart, marge_mo, margepmo, date, nb) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9)", .PointBase(Brut), .PointBase(Remise), .PointBase(Total), .PointBase(MargeArt), .PointBase(MargePart), .PointBase(MargeMo), .PointBase(MargePmo), Dte, nb)
           Endif
           Remart = 0
@@ -141,7 +138,7 @@ Public Sub Traitement()
       Endif
       If rResult.Available Then
         Repeat
-          Dte = Right$(Str(rResult!dtefac), 2) & Mid$(Str(rResult!dtefac), 4, 2)
+          Dte = rResult!dtefac
           If Not IsNull(rResult!remmobl) Then
             Remmo = rResult!remmobl
           Endif
@@ -161,8 +158,7 @@ Public Sub Traitement()
             MargeMo = rResult!marge_mo
             Try MargePmo = (MargeMo / Total) * 100
           Endif
-          nb = nb + 1
-          N1Result = Utils.db.Exec("SELECT * FROM " & Tab2 & " where date = &1", Dte)
+          N1Result = Utils.db.Exec("SELECT * FROM " & Tab2 & " where MONTH(date) = MONTH(&1)", Dte)
           If N1Result.Available Then
             Total = Total + N1Result!totfac
             Brut = Brut + N1Result!brutfac
@@ -175,9 +171,10 @@ Public Sub Traitement()
               MargeMo = MargeMo + N1Result!marge_mo
               MargePmo = (MargeMo / Total) * 100
             Endif
-            nb = nb + N1Result!nb
-            Utils.db.Exec("UPdate " & Tab2 & " set brutfac = &1, rmfac = &2, totfac = &3, marge_art = &4, margepart = &5, marge_mo = &6, margepmo = &7, nb = &9 Where date = &8", .PointBase(Brut), .PointBase(Remise), .PointBase(Total), .PointBase(MargeArt), .PointBase(MargePart), .PointBase(MargeMo), .PointBase(MargePmo), Dte, nb)
+            nb = N1Result!nb + 1
+            Utils.db.Exec("UPdate " & Tab2 & " set brutfac = &1, rmfac = &2, totfac = &3, marge_art = &4, margepart = &5, marge_mo = &6, margepmo = &7, nb = &9 Where MONTH(date) = MONTH(&8)", .PointBase(Brut), .PointBase(Remise), .PointBase(Total), .PointBase(MargeArt), .PointBase(MargePart), .PointBase(MargeMo), .PointBase(MargePmo), Dte, nb)
           Else
+            nb = 1
             Utils.db.Exec("INSERT INTO " & Tab2 & "(brutfac, rmfac, totfac, marge_art, margepart, marge_mo, margepmo, date, nb) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9)", .PointBase(Brut), .PointBase(Remise), .PointBase(Total), .PointBase(MargeArt), .PointBase(MargePart), .PointBase(MargeMo), .PointBase(MargePmo), Dte, nb)
           Endif
           Remart = 0
@@ -205,7 +202,7 @@ Public Sub Traitement()
   MargePmo = 0
   rResult = Utils.db.Exec("SELECT * FROM " & Tab2 & " ")
   If rResult.Available Then
-    TotM = 13
+    TotM = 12
     value.Resize(TotM + 1)
     rResult.MoveFirst()
     Repeat
@@ -220,7 +217,7 @@ Public Sub Traitement()
       Totca = Totca + rResult!brutfac
     Until rResult.MoveNext()
     value.Resize(TotM + 1)
-    If TotM > 13 Then Totm = 13
+    If TotM > 12 Then Totm = 12
     Draw_Chart()
     Mrgart.Text = Format$(Margeart, "0.00")
     Mrgmo.Text = Format$(Margemo, "0.00")
@@ -284,26 +281,41 @@ Public Sub Draw_Chart()
 
   Dim skala_1 As Integer
   Dim skala_2 As Integer
-
+  Dim rResult As Result
   Dim distance_x As Float
   Dim distance_y As Float
   Dim Tot As Float
   Dim width_draw As Integer
   Dim colors As Integer[]
   Dim bottom As Integer
-  Dim sumdata As Float
+  Dim top As Integer
+  Dim sumdata As Float = 0
+  Dim maxdata As Float = 0
   Dim mois As String
+  Dim devises_short As String = ""
+  Dim devises As String = ""
+  
+  rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabParam") & "")
+  If rResult Then
+    devises = rResult!devise
+    devises_short = Left(rResult!devise, 1)
+  Endif
+  If IsNull(devises) Then
+    devises = "Euros"
+    devises_short = "E"
+  Endif
 
   Mois = Mid$(Periode, 4, 2)
   colors = New Integer[]
   colors.Resize(totM + 1)
   For i = 1 To totM
-    sumdata = sumdata + value[i]
     If Start.LocalSettings["/Soc" & Start.Societe & "/Prxdec"] Then
       value[i] = value[i] / 100000
     Else
       value[i] = value[i] / 1000
     Endif
+    sumdata = sumdata + value[i]
+    If value[i] > maxdata Then maxdata = value[i]
   Next
   drwchart.Clear
 
@@ -312,14 +324,14 @@ Public Sub Draw_Chart()
   skala_1 = drwchart.ClientH / 11 ' réglage hauteur
   distance_y = drwchart.ClientH - skala_1
   bottom = distance_y + 8 'réglage pied
-  For i = 0 To 100 Step 10
+  For i = 0 To (10 * (Floor(maxdata / 10) + 1)) Step (Floor(maxdata / 10) + 1)
     draw.ForeGround = color.black
-    draw.Text(i, 0, distance_y)
-    draw.Line(20, distance_y + 8, drwchart.ClientWidth, distance_y + 8)
+    draw.Text(i & " K" & devises_short, 0, distance_y)
+    draw.Line(60, distance_y + 8, drwchart.ClientWidth, distance_y + 8)
+    top = distance_y + 8
+    maxdata = i
     distance_y = distance_y - skala_1
   Next
-
-  draw.Line(30, 0, 30, drwchart.ClientH)
 
   skala_2 = (drwchart.ClientW - 30) \ TotM
   distance_x = skala_2 + 30 'réglage horizontal
@@ -333,11 +345,9 @@ Public Sub Draw_Chart()
     draw.ForeGround = color.RGB(i * 100, i * 10, i * 50)
     colors[i] = draw.ForeGround
     If value[i] > 0 Then
-      tot = value[i] + skala_1
-    Else
-      tot = 0
-    Endif
-    If tot <> 0 Then draw.Line(distance_x - (width_draw / 2), bottom, distance_x - (width_draw / 2), bottom - tot)
+      tot = ((value[i] / maxdata) * (bottom - top))
+      draw.Line(distance_x - (width_draw / 2), bottom, distance_x - (width_draw / 2), bottom - tot)
+    Endif 
     distance_x = distance_x + skala_2
     Mois = Val(mois) + 1
     If Val(Mois) > 12 Then Mois = "01"
