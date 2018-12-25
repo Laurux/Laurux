@@ -2194,10 +2194,10 @@ Public Sub Enrgbl()
                 Endif
               Endif
               Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigrecpt") & "(code,design,numrecpt,four,paht,frais,prvt,qte,pbht,rm, daterecpt, nligne, pattc) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11} , &{12} , &{13})", Colrcp.Item[1], Left$(Colrcp.Item[2], 30), Nbl.Text, four.Text, Colrcp.Item[5], Colrcp.Item[10 + $o], Colrcp.Item[9 + $o], Colrcp.Item[6 + $o], Colrcp.Item[3], Colrcp.Item[4], .Cdate_Dbase(datej.Text), Colrcp.Item[0], Colrcp.Item[11 + $o])
-              If Materiel And Gmateriel Then Enrgnum()
             Until Colrcp.Movenext()
             Utils.db.Exec("UNLOCK TABLES")
           Endif
+          If Materiel And Gmateriel Then Enrgnum()
           If $soption = "B" Or $soption = "T" Then
             $fcd.enrligne(nbl.Text)
             $bcrea = True
@@ -2343,9 +2343,11 @@ Public Sub Enrgnum()
   If Not rmats.Available Then rmats = Utils.db.Exec("SELECT * FROM " & Tmats & " where mat_cfour = &1", Colrcp.current[1])
   If rmats.Available Then
     Repeat
-      rmat = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMat") & " where mat_code = &1 and mat_serie = &2", Cart.Text, numero.text)
+      rmat = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMat") & " where mat_code = &1 and mat_serie = &2", rmats!mat_code, rmats!mat_serie)
       If Not rmat.Available Then
-        Try Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMat") & "(mat_serie,mat_code,mat_design, mat_fam,mat_four,mat_cequ,mat_cbarre,mat_cfour,mat_paht,mat_dpa,mat_dfour,mat_ddate,mat_frais,mat_prvt,mat_eco,mat_cdarr,mat_nbd,mat_design2,mat_qte, mat_vendu, mat_rcpt) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21})", rmats!mat_serie, rmats!mat_code, rmats!mat_design, rmats!mat_fam, rmats!mat_four, rmats!mat_cequ, rmats!mat_cbarre, rmats!mat_cfour, rmats!mat_paht, rmats!mat_dpa, rmats!mat_dfour, rmats!mat_ddate, rmats!mat_frais, rmats!mat_prvt, rmats!mat_eco, rmats!mat_cdarr, rmats!mat_nbd, rmats!mat_design2, 1, 0, nbl.Text)
+        Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMat") & "(mat_serie,mat_code,mat_design, mat_fam,mat_four,mat_cequ,mat_cbarre,mat_cfour,mat_paht,mat_dpa,mat_dfour,mat_ddate,mat_frais,mat_prvt,mat_eco,mat_cdarr,mat_nbd,mat_design2,mat_qte, mat_vendu, mat_rcpt) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21})", rmats!mat_serie, rmats!mat_code, rmats!mat_design, rmats!mat_fam, rmats!mat_four, rmats!mat_cequ, rmats!mat_cbarre, rmats!mat_cfour, rmats!mat_paht, rmats!mat_dpa, rmats!mat_dfour, rmats!mat_ddate, rmats!mat_frais, rmats!mat_prvt, rmats!mat_eco, rmats!mat_cdarr, rmats!mat_nbd, rmats!mat_design2, 1, 0, nbl.Text)
+      Else
+        Message.Error("Le matériel " & rmats!mat_code & " numero de série : " & rmats!mat_serie & " Existe déjà dans la base de donnée!\nImpossible de l'enregistrer.")
       Endif
     Until rmats.MoveNext()
   Endif

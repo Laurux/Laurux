@@ -2550,12 +2550,13 @@ Public Sub Enrgcoml()
 
   Dim rResult As Result
   Dim ArtResult As Result
-  Dim Mtl As Integer = 0
   Dim Ncode As String
   Dim CtrlCom As Boolean = True
   Dim decons As Saisiedecons
   Dim win As Window
-  
+  Dim Materiel As Boolean = False
+  Dim qte_mat As Integer = 0
+
   If Colrcp.count = 0 Then Return
 
   With Utils
@@ -2569,113 +2570,122 @@ Public Sub Enrgcoml()
         If Not ArtResult.Available Then ArtResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_cfour = &1 and art_four = &2", Colrcp.Item[1], codefour.text)
         If ArtResult.Available Then
           Ncode = Artresult!art_code
-          Materiel = ArtResult!art_mat
-          If materiel Then
-            Rmats = Utils.db.Exec("SELECT * FROM " & Tmats & " where mat_code = &1", Ncode)
-            If Not Rmats.Available Then
-              Ncode = Colrcp.Item[1]
-              Message.Warning("Attention, vous n'avez pas saisis les numéros de série pour l' article " & Ncode & " Validation impossible.")
-              Mtl = 1
-              Break
-            Endif
+          If ArtResult!art_mat Then
+            Materiel = True
+            qte_mat = qte_mat + Val(.cpoint(Colrcp.Item[7]))
           Endif
         Endif
       Until Colrcp.Movenext()
     Endif
-    If Mtl = 0 Then
-      If Not bTotal Then
-        rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntcom") & " where numcom = &1 and four = &2", numcom.Text, codefour.Text)
-        If Not rResult.Available Then CtrlCom = False
+
+    'Verification que l'ensemble des numeros de serie ont ete rentré
+    If Materiel Then
+      Rmats = Utils.db.Exec("SELECT * FROM " & Tmats)
+      If Not Rmats.Available Then
+        Message.Warning("Attention, vous n'avez pas saisis de numéros de série de la réception!\nValidation impossible.")
+        Return
+      Else
+        If Rmats.count <> qte_mat Then
+          Message.Warning("Attention, le nombre de numéro de série saisie (" & Rmats.count & ") ne correspond pas au nombre attendu (" & qte_mat & ")!\nValidation impossible.")
+          Return
+        Endif
       Endif
-      If CtrlCom Then
-        If totalrcpt.Text <> "0,00" Then
-          If Datej.Text <> "" Or Left$(Datej.Text, 2) = "00" Then
-            If numbl.Text <> "" Then
-              Totcom = Totcom - Val(totalrcpt.Text)
-              rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntrecpt") & " where numrecpt = &1 and four = &2", numbl.Text, codefour.Text)
-              If Not rResult.Available Then
-                If Colrcp.Count <> 0 Then
-                  If $soption = "B" Or $soption = "T" Then
-                    Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabArt") & " WRITE, " & Cbase.Table("TabLigrecpt") & " WRITE, " & Cbase.Table("TabEtiqp") & " WRITE, " & Cbase.Table("TabEtiqg") & " WRITE, " & Cbase.Table("TabEntrecpt") & " WRITE, " & Cbase.Table("TabMat") & " WRITE, " & Tmats & " write, Fiches_ligcons WRITE, Fiches_consigne WRITE")
-                  Else
-                    Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabArt") & " WRITE, " & Cbase.Table("TabLigrecpt") & " WRITE, " & Cbase.Table("TabEtiqp") & " WRITE, " & Cbase.Table("TabEtiqg") & " WRITE, " & Cbase.Table("TabEntrecpt") & " WRITE, " & Cbase.Table("TabMat") & " WRITE, " & Tmats & " write")
-                  Endif
-                  Utils.db.Exec("INSERT INTO " & Cbase.Table("TabEntrecpt") & "(four,numrecpt,ddate,montant,validee, mttc, anomalie, commentaire) VALUES (&1, &2, &3, &4, &5, &6, &7, &8)", codefour.text, numbl.text, .Cdate_Dbase(Datej.text), Val(Totalrcpt.text), False, Val(Totalttc.text), An.value, Comments.text)
-                  Colrcp.MoveFirst
-                  Repeat
-                    Colrcp.Item.Selected = True
-                    If Val(utils.cpoint(Colrcp.Item[7])) <> 0 Then
-                      Dpa = Colrcp.Item[6]
-                      ArtResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", Colrcp.Item[1])
-                      If Not ArtResult.Available Then ArtResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_cfour = &1 and art_four = &2", Colrcp.Item[1], Codefour.text)
-                      If Not ArtResult.Available Then ArtResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_cfour = &1", Colrcp.Item[1])
-                      If ArtResult.Available Then
-                        If ArtResult!art_stocke Then
-                          Aqte = ArtResult!art_qte
-                          Pmp = ArtResult!art_pmp
-                          Txconv = ArtResult!art_txconv
-                          Materiel = ArtResult!art_mat
-                          Maj_Qta()
-                          If ArtResult!art_etiq And Val(.cpoint(Colrcp.Item[7])) > 0 Then Maj_Etiqp()
-                          If Etiqa = True And Val(.cpoint(Colrcp.Item[7])) > 0 Then Maj_Etiqg()
-                          Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET art_qte = &2, art_pmp = &3, art_dpa = &4, art_dfour = &5, art_ddate = &6 WHERE art_code = &1", ArtResult!art_code, Arts, Val(.cpoint(Pmp)), Val(.cpoint(Colrcp.Item[6])), codefour.text, Datej.text)
-                        Else
-                          Materiel = False
-                          Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET art_dpa = &2, art_dfour = &3, art_ddate = &4 WHERE art_code = &1", ArtResult!art_code, Val(.cpoint(Colrcp.Item[6])), codefour.text, Datej.text)
+    Endif
+
+    If Not bTotal Then
+      rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntcom") & " where numcom = &1 and four = &2", numcom.Text, codefour.Text)
+      If Not rResult.Available Then CtrlCom = False
+    Endif
+    If CtrlCom Then
+      If totalrcpt.Text <> "0,00" Then
+        If Datej.Text <> "" Or Left$(Datej.Text, 2) = "00" Then
+          If numbl.Text <> "" Then
+            Totcom = Totcom - Val(totalrcpt.Text)
+            rResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabEntrecpt") & " where numrecpt = &1 and four = &2", numbl.Text, codefour.Text)
+            If Not rResult.Available Then
+              If Colrcp.Count <> 0 Then
+                If $soption = "B" Or $soption = "T" Then
+                  Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabArt") & " WRITE, " & Cbase.Table("TabLigrecpt") & " WRITE, " & Cbase.Table("TabEtiqp") & " WRITE, " & Cbase.Table("TabEtiqg") & " WRITE, " & Cbase.Table("TabEntrecpt") & " WRITE, " & Cbase.Table("TabMat") & " WRITE, " & Tmats & " write, Fiches_ligcons WRITE, Fiches_consigne WRITE")
+                Else
+                  Utils.db.Exec("LOCK TABLES " & Cbase.Table("TabArt") & " WRITE, " & Cbase.Table("TabLigrecpt") & " WRITE, " & Cbase.Table("TabEtiqp") & " WRITE, " & Cbase.Table("TabEtiqg") & " WRITE, " & Cbase.Table("TabEntrecpt") & " WRITE, " & Cbase.Table("TabMat") & " WRITE, " & Tmats & " write")
+                Endif
+                Utils.db.Exec("INSERT INTO " & Cbase.Table("TabEntrecpt") & "(four,numrecpt,ddate,montant,validee, mttc, anomalie, commentaire) VALUES (&1, &2, &3, &4, &5, &6, &7, &8)", codefour.text, numbl.text, .Cdate_Dbase(Datej.text), Val(Totalrcpt.text), False, Val(Totalttc.text), An.value, Comments.text)
+                Colrcp.MoveFirst
+                Repeat
+                  Colrcp.Item.Selected = True
+                  If Val(utils.cpoint(Colrcp.Item[7])) <> 0 Then
+                    Dpa = Colrcp.Item[6]
+                    ArtResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_code = &1", Colrcp.Item[1])
+                    If Not ArtResult.Available Then ArtResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_cfour = &1 and art_four = &2", Colrcp.Item[1], Codefour.text)
+                    If Not ArtResult.Available Then ArtResult = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabArt") & " where art_cfour = &1", Colrcp.Item[1])
+                    If ArtResult.Available Then
+                      If ArtResult!art_stocke Then
+                        Aqte = ArtResult!art_qte
+                        Pmp = ArtResult!art_pmp
+                        Txconv = ArtResult!art_txconv
+                        If (ArtResult!art_mat) Then
+                          Materiel = True
                         Endif
+                        Maj_Qta()
+                        If ArtResult!art_etiq And Val(.cpoint(Colrcp.Item[7])) > 0 Then Maj_Etiqp()
+                        If Etiqa = True And Val(.cpoint(Colrcp.Item[7])) > 0 Then Maj_Etiqg()
+                        Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET art_qte = &2, art_pmp = &3, art_dpa = &4, art_dfour = &5, art_ddate = &6 WHERE art_code = &1", ArtResult!art_code, Arts, Val(.cpoint(Pmp)), Val(.cpoint(Colrcp.Item[6])), codefour.text, Datej.text)
+                      Else
+                        Materiel = False
+                        Utils.db.Exec("UPdate  " & Cbase.Table("TabArt") & "  SET art_dpa = &2, art_dfour = &3, art_ddate = &4 WHERE art_code = &1", ArtResult!art_code, Val(.cpoint(Colrcp.Item[6])), codefour.text, Datej.text)
                       Endif
-                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigrecpt") & "(code,design,numrecpt,four,daterecpt,qte,pbht,rm,paht,nligne, frais, prvt, pattc) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13})", Colrcp.Item[1], Colrcp.Item[2], numbl.Text, codefour.Text, .Cdate_Dbase(Datej.Text), Colrcp.Item[7], Colrcp.Item[4], Colrcp.Item[5], Colrcp.Item[6], Colrcp.Item[0], Colrcp.Item[11], Colrcp.Item[12], Colrcp.Item[15])
-                      If Materiel And Gmateriel Then Enrgnum()
                     Endif
-                  Until Colrcp.Movenext()
-                  If $soption = "B" Or $soption = "T" Then
-                    $fcd.enrligne(numbl.Text)
-                    win = New Window
-                    decons = New Saisiedecons(win, win, Codefour.Text, numbl.Text, Datej.Text)
-                    win.Height = decons.Height
-                    win.Width = decons.Width
-                    win.ShowModal
+                    Utils.db.Exec("INSERT INTO " & Cbase.Table("TabLigrecpt") & "(code,design,numrecpt,four,daterecpt,qte,pbht,rm,paht,nligne, frais, prvt, pattc) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13})", Colrcp.Item[1], Colrcp.Item[2], numbl.Text, codefour.Text, .Cdate_Dbase(Datej.Text), Colrcp.Item[7], Colrcp.Item[4], Colrcp.Item[5], Colrcp.Item[6], Colrcp.Item[0], Colrcp.Item[11], Colrcp.Item[12], Colrcp.Item[15])
                   Endif
-                  Utils.db.Exec("UNLOCK TABLES")
+                Until Colrcp.Movenext()
+                If Materiel And Gmateriel Then Enrgnum()
+                If $soption = "B" Or $soption = "T" Then
+                  $fcd.enrligne(numbl.Text)
+                  win = New Window
+                  decons = New Saisiedecons(win, win, Codefour.Text, numbl.Text, Datej.Text)
+                  win.Height = decons.Height
+                  win.Width = decons.Width
+                  win.ShowModal
                 Endif
-                Maj_Com()
-                b = 0
-              Else
-                If son Then
-                  Music.Play
-                Endif
-                message.Warning("Ce N° de Bl existe déjà, veuillez en saisir un autre SVP !", "Ok")
-                b = 1
+                Utils.db.Exec("UNLOCK TABLES")
               Endif
+              Maj_Com()
+              b = 0
             Else
               If son Then
                 Music.Play
               Endif
-              message.Warning("Veuillez saisir un N° de Bl SVP !", "Ok")
+              message.Warning("Ce N° de Bl existe déjà, veuillez en saisir un autre SVP !", "Ok")
               b = 1
             Endif
           Else
-            If son Then Music.Play
-            message.Warning("Veuillez saisir une date SVP !", "Ok")
-            b = 2
+            If son Then
+              Music.Play
+            Endif
+            message.Warning("Veuillez saisir un N° de Bl SVP !", "Ok")
+            b = 1
           Endif
         Else
-          RazBl()
-        Endif
-
-        If Etiqb = True Then
-          Syntheses.Message("Des étiquettes ont été préparées ! Voulez-vous les imprimer ?")
-          If Message.Warning("Des étiquettes ont été préparées ! Voulez-vous les imprimer ?", "Oui", "Non") = 1 Then
-            EtiqRecpt.Show
-          Endif
+          If son Then Music.Play
+          message.Warning("Veuillez saisir une date SVP !", "Ok")
+          b = 2
         Endif
       Else
-        If Not bTotal Then
-          If son Then Music.Play
-          message.Warning("Ce numéro de commande n'existe pas ! Veuillez saisir une commande existante SVP  !", "Ok")
-          Numcom.SetFocus
-          Numcom.Select
+        RazBl()
+      Endif
+
+      If Etiqb = True Then
+        Syntheses.Message("Des étiquettes ont été préparées ! Voulez-vous les imprimer ?")
+        If Message.Warning("Des étiquettes ont été préparées ! Voulez-vous les imprimer ?", "Oui", "Non") = 1 Then
+          EtiqRecpt.Show
         Endif
+      Endif
+    Else
+      If Not bTotal Then
+        If son Then Music.Play
+        message.Warning("Ce numéro de commande n'existe pas ! Veuillez saisir une commande existante SVP  !", "Ok")
+        Numcom.SetFocus
+        Numcom.Select
       Endif
     Endif
   End With
@@ -2785,9 +2795,11 @@ Public Sub Enrgnum()
   If Not rmats.Available Then rmats = Utils.db.Exec("SELECT * FROM " & Tmats & " where mat_cfour = &1", Colrcp.current[1])
   If rmats.Available Then
     Repeat
-      rmat = Utils.db.Exec("SELECT * FROM " & Tmat & " where mat_code = &1 and mat_serie = &2", Cart.Text, numero.text)
+      rmat = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabMat") & " where mat_code = &1 and mat_serie = &2", rmats!mat_code, rmats!mat_serie)
       If Not rmat.Available Then
-        Utils.db.Exec("INSERT INTO " & Tmat & "(mat_serie,mat_code,mat_design, mat_fam,mat_four,mat_cequ,mat_cbarre,mat_cfour,mat_paht,mat_dpa,mat_dfour,mat_ddate,mat_frais,mat_prvt,mat_eco,mat_cdarr,mat_nbd,mat_design2,mat_qte, mat_vendu, mat_rcpt) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21})", rmats!mat_serie, rmats!mat_code, rmats!mat_design, rmats!mat_fam, rmats!mat_four, rmats!mat_cequ, rmats!mat_cbarre, rmats!mat_cfour, rmats!mat_paht, rmats!mat_dpa, rmats!mat_dfour, rmats!mat_ddate, rmats!mat_frais, rmats!mat_prvt, rmats!mat_eco, rmats!mat_cdarr, rmats!mat_nbd, rmats!mat_design2, 1, 0, numbl.Text)
+        Utils.db.Exec("INSERT INTO " & Cbase.Table("TabMat") & "(mat_serie,mat_code,mat_design, mat_fam,mat_four,mat_cequ,mat_cbarre,mat_cfour,mat_paht,mat_dpa,mat_dfour,mat_ddate,mat_frais,mat_prvt,mat_eco,mat_cdarr,mat_nbd,mat_design2,mat_qte, mat_vendu, mat_rcpt) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17}, &{18}, &{19}, &{20}, &{21})", rmats!mat_serie, rmats!mat_code, rmats!mat_design, rmats!mat_fam, rmats!mat_four, rmats!mat_cequ, rmats!mat_cbarre, rmats!mat_cfour, rmats!mat_paht, rmats!mat_dpa, rmats!mat_dfour, rmats!mat_ddate, rmats!mat_frais, rmats!mat_prvt, rmats!mat_eco, rmats!mat_cdarr, rmats!mat_nbd, rmats!mat_design2, 1, 0, numbl.Text)
+      Else
+        Message.Error("Le matériel " & rmats!mat_code & " numero de série : " & rmats!mat_serie & " Existe déjà dans la base de donnée!\nImpossible de l'enregistrer.")
       Endif
     Until rmats.MoveNext()
   Endif
