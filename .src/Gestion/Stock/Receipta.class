@@ -2109,6 +2109,7 @@ Public Sub Maj_colrcp()
 
   Dim rResult As Result
   Dim $dart As String
+  Dim Nlgnkey As String
 
   Tab = "Fiches_Art"
   With utils
@@ -2151,10 +2152,13 @@ Public Sub Maj_colrcp()
         Endif
       Until Colrcp.MoveNext()
     Else
-      Nlgn = Format$(Colrcp.count + 1, "0000")
       If Nlg = 1 Then
         If Refart.value = True Then
-          Colrcp.Add(Nlgn, Nlgn)
+          Colrcp.MoveLast()
+          'On associe une clef differente du numero de ligne pour simplifier l'allocation unique de clef
+          Nlgnkey = Val(Colrcp.Item.key) + 1 'on est techniquement du coup illimté en allocation de clef
+          Colrcp.Add(Nlgnkey, Nlgnkey)
+          Colrcp.Item[0] = Format$(Colrcp.count, "0000")
         Else
           If Reffour.Value = True Then
             If Not IsNull(Ref_four) Then
@@ -2172,7 +2176,6 @@ Public Sub Maj_colrcp()
             Endif
           Endif
         Endif
-        Colrcp.Item[0] = Nlgn
       Else
         If Nlg = 0 Then
           Colrcp.Add(Nl & "-", Nl & "-")
@@ -2277,7 +2280,7 @@ Public Sub ControlProd()
       Endif
       Colrcp.Item[7] = qterecue.text
       If stocke Then
-        Utils.db.Exec("Update Fiches_Art SET art_qte = &2, art_pmp = &3, art_dpa = &4, art_dfour = &5, art_coef = &6 WHERE art_code = &1", Cart.Text, Artstock.Text, Val(Utils.cpoint(Pmp)), Val(Utils.cpoint(paht.Text)), Codefour.Text, Coef.Text)
+        Utils.db.Exec("Update Fiches_Art SET art_qte = &2, art_pmp = &3, art_dpa = &4, art_dfour = &5, art_coef = &6 WHERE art_code = &1", Cart.Text, Artstock.Text, Val(Utils.cpoint(Pmp)), Val(Utils.cpoint(paht.Text)), Codefour.Text, Val(Utils.cpoint(Coef.Text)))
       Endif
       Colrcp.Item[8] = Format$(Val(paht.text) * Val(Utils.cpoint(Colrcp.Item[7])), nbdec)
       If $soption = "B" Or $soption = "T" Then
@@ -3252,7 +3255,7 @@ Public Sub RecupCom()
               Endif
               
               'On modifie les commandes originale pour regrouper les articles similaire dans la meme reception
-              Utils.db.Exec("UPdate  " & tab & "  SET qte = (qte + &2) WHERE lind = &1", Colrcp.Item[13], LigResult!qte)
+              Utils.db.Exec("UPdate  " & tab & "  SET qte = (qte + &2) WHERE lind = &1", Colrcp.Item[13], Val(utils.cpoint(LigResult!qte)))
               Utils.db.Exec("delete from " & tab & " WHERE lind = &1", LigResult!lind)
             
             Endif
