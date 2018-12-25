@@ -1,5 +1,25 @@
 # Change Log
 
+## [v3.68.4](https://github.com/Laurux/Laurux/tree/v3.68.4) (2018-12-25)
+[Full Changelog](https://github.com/Laurux/Laurux/compare/v3.68.3...v3.68.4)
+
+**Fixed bugs:**
+
+- Ecriture caisse [\#151](https://github.com/Laurux/Laurux/issues/151)
+- Modification de réception de marchandise [\#146](https://github.com/Laurux/Laurux/issues/146)
+- Plantage en facturation lors d'une suppression de mo [\#145](https://github.com/Laurux/Laurux/issues/145)
+- bug : rappel des matériels [\#144](https://github.com/Laurux/Laurux/issues/144)
+
+**Closed issues:**
+
+- Pb de modification d'ecriture de trésorerie sur des ventilations sur compte 512xxx [\#153](https://github.com/Laurux/Laurux/issues/153)
+- Historique des ventes : no des BL au lieu des numéros de facture [\#150](https://github.com/Laurux/Laurux/issues/150)
+- bug : historique des ventes / achats [\#149](https://github.com/Laurux/Laurux/issues/149)
+- bug : perte des couleurs 3.68.3 [\#142](https://github.com/Laurux/Laurux/issues/142)
+- maj \(enhancement ?\) [\#141](https://github.com/Laurux/Laurux/issues/141)
+- bug : recherche de no de série difficile [\#140](https://github.com/Laurux/Laurux/issues/140)
+- BUG - table des matériels : incohérence due au double enregistrement [\#136](https://github.com/Laurux/Laurux/issues/136)
+
 ## [v3.68.3](https://github.com/Laurux/Laurux/tree/v3.68.3) (2018-09-26)
 [Full Changelog](https://github.com/Laurux/Laurux/compare/v3.68.2...v3.68.3)
 
