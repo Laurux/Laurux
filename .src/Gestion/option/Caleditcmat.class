@@ -159,6 +159,11 @@ Private Function calcdate() As Boolean
     Textcontrol.Text = Textcontrol.Text & "Il n'existe pas d'inventaire matiére \n"
     If cloture.Value Then Return True
   Endif
+  res = Utils.db.Exec("SELECT * FROM Fiches_ligregie WHERE dtmouv=&1 AND (type='M' OR type='I')", $dteinf.G)
+  If Not res.Available Then
+    Textcontrol.Text = "Période précédente non cloturée \n"
+    If cloture.Value Then Return True
+  Endif
   
 End
 
@@ -254,6 +259,7 @@ Private Function Edit(clt As Boolean) As Collection
     res = Utils.db.Exec("SELECT * FROM Fiches_ligregie, Fiches_regie WHERE dtmouv BETWEEN &1 AND &2 AND cloture=&4 AND (Fiches_ligregie.type='S' OR Fiches_ligregie.type='C') AND Fiches_regie.code=coderegie AND suspendu=&3", $dteinf.D, $dteinf.FinMois.D, suspendu.Value, clt)
     If res.Available Then
       Repeat
+        If CFloat(res!qte) = 0 Then Continue
         cdroit = New Calculdroit(res!coderegie, (res!volume / res!qte) * 100, res!degres, res!qte)
         If tabl.Exist(res!coderegie) Then
           dcl = tabl[res!coderegie]
