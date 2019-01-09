@@ -113,6 +113,10 @@ Private $soption As String
 Private $sreq As String
 Private $obs As Observer
 Private frais As String = "0"
+Private $bl As String = "Fiches_Bl"
+Private $ligbl As String = "Fiches_Ligbl"
+Private $fac As String = "Fiches_HistoFac"
+Private $ligfac As String = "Fiches_HistoLigfac"
 
 '**********************************************************
 '*initialisation écrans et gestion onglet client          *
@@ -219,7 +223,6 @@ End
 '**************************
 Public Sub recup_bl()
 
-  Dim Tab1 As String
   Dim Tab3 As String
   Dim Tab4 As String
   Dim Client As Result
@@ -227,13 +230,11 @@ Public Sub recup_bl()
   Dim totf As Result
   Dim Total, totalttc As String
   Dim dteN, dateinf As String
-  Dim Tab As String = "Fiches_Bl"
   Dim i As Integer
   Dim orientation As Boolean
   Dim gest As Boolean
   Dim ht, ttc, montfrais As Float
   
-  Tab1 = "Fiches_Ligbl"
   Tab3 = "Facturefm"
   Tab4 = "Bl"
   Total = "0"
@@ -261,9 +262,9 @@ Public Sub recup_bl()
   dteN = Right$(datej.Text, 4) & Mid$(datej.Text, 4, 2) & Left$(datej.Text, 2)
   If Radiobutton1.Value = True Then
     codeclient.Background = &HD4D0C8& '&HF9F9BD&
-    Client = Utils.db.Exec("SELECT * FROM " & Tab & " Left join " & Cbase.Table("TabCli") & " on cli_code = cdclibl where (type = &1 or type=&2) and totalht <> &3 and  cli_div = &5 and imp <> &4 and cli_div = &5" & $sreq & " order by cdclibl, numbl", "B", "F", 0, 1, Divers.value)
+    Client = Utils.db.Exec("SELECT * FROM " & $bl & " Left join " & Cbase.Table("TabCli") & " on cli_code = cdclibl where (type = &1 or type=&2) and totalht <> &3 and  cli_div = &5 and imp <> &4 and cli_div = &5" & $sreq & " order by cdclibl, numbl", "B", "F", 0, 1, Divers.value)
   Else
-    Client = Utils.db.Exec("SELECT * FROM " & Tab & " Left join " & Cbase.Table("TabCli") & " on cli_code = cdclibl where (cdclibl = &1 and type = &2 and totalht <> &4 and datebl <= &5 and cli_div = &7)  or (cdclibl = &1 and type = &3 and totalht <> &4 and datebl <= &5 and imp <> &6 and cli_div = &7)  order by cdclibl, numbl", codeclient.Text, "B", "F", 0, dteN, 1, Divers.value)
+    Client = Utils.db.Exec("SELECT * FROM " & $bl & " Left join " & Cbase.Table("TabCli") & " on cli_code = cdclibl where (cdclibl = &1 and type = &2 and totalht <> &4 and datebl <= &5 and cli_div = &7)  or (cdclibl = &1 and type = &3 and totalht <> &4 and datebl <= &5 and imp <> &6 and cli_div = &7)  order by cdclibl, numbl", codeclient.Text, "B", "F", 0, dteN, 1, Divers.value)
   Endif
   If Client.Available Then
     Codecli = Client!cdclibl
@@ -331,7 +332,7 @@ Public Sub recup_bl()
         Endif
       Endif
       Total = 0
-      Bl = Utils.db.Exec("SELECT * FROM " & Tab1 & " where num_ligbl = &1 order by num_ligbl", Client!numbl)
+      Bl = Utils.db.Exec("SELECT * FROM " & $ligbl & " where num_ligbl = &1 order by num_ligbl", Client!numbl)
       If Bl.Available Then
         Utils.db.Exec("INSERT INTO " & Tab4 & " (num, code, nom, date, ht, ttc) Values (&1, &2, &3, &4, &5, &6)", Client!numbl, Client!cdclibl, Nomcli, Client!datebl, Format(ht, "0.00"), Format(ttc, "0.00"))
       Endif
@@ -899,7 +900,7 @@ End
 Public Sub Impression()
 
   Dim Tab As String
-  Dim Tab0, Tab1, Tab2, Tab3, Tab4, Tab5, Tab6, Tab7, tab8, Tab9, Tab10 As String
+  Dim Tab2, Tab3, Tab4, Tab5, Tab6, Tab7, tab8, Tab9, Tab10 As String
   Dim adr11 As String
   Dim adr22 As String
   Dim ville As String
@@ -975,8 +976,6 @@ Public Sub Impression()
   Imagewidth = 1000
   Imageheight = 500
   Tab = "Fiches_Parametres"
-  Tab0 = "Fiches_Bl"
-  Tab1 = "Fiches_Ligbl"
   Tab2 = "Fiches_Societes"
   Tab3 = "Fiches_LibelFac"
   Tab4 = "Fiches_Echeances"
@@ -988,9 +987,9 @@ Public Sub Impression()
   Tab10 = "Totalisation"                  'cde comptable avec leurs totaux pour générer l'ecriture comptable
   Ventilation()
   If $soption = "B" Or $soption = "T" Then
-    Utils.db.Exec("LOCK TABLES " & Tab & " read, " & Tab0 & " WRITE, " & Tab1 & " WRITE, " & Tab2 & " WRITE," & Tab3 & " WRITE, " & Tab4 & " WRITE, " & Tab5 & " WRITE, " & Tab6 & " WRITE, " & Tab7 & " WRITE, " & Tab8 & " WRITE, " & Tab9 & " WRITE, " & Tab10 & " WRITE," & Cbase.Table("TabTleg") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, " & Cbase.Table("TabHisFac") & " WRITE, " & "Fiches_Suivis" & " WRITE, " & "Docs_Clients" & " WRITE, Fiches_ligcons WRITE, Fiches_ligregie WRITE, " & "Fiches_HistoFacM" & " WRITE, " & "Fiches_BlM" & " WRITE")
+    Utils.db.Exec("LOCK TABLES " & Tab & " read, Fiches_Bl WRITE, Fiches_Ligbl WRITE, Fiches_BlM WRITE, Fiches_LigblM WRITE, " & Tab2 & " WRITE," & Tab3 & " WRITE, " & Tab4 & " WRITE, " & Tab5 & " WRITE, " & Tab6 & " WRITE, " & Tab7 & " WRITE, " & Tab8 & " WRITE, " & Tab9 & " WRITE, " & Tab10 & " WRITE," & Cbase.Table("TabTleg") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, Fiches_HistoLigfac WRITE, Fiches_HistoLigfacM WRITE, " & "Fiches_Suivis" & " WRITE, " & "Docs_Clients" & " WRITE, Fiches_ligcons WRITE, Fiches_ligregie WRITE, Fiches_HistoFac WRITE, Fiches_HistoFacM WRITE ")
   Else
-    Utils.db.Exec("LOCK TABLES " & Tab & " read, " & Tab0 & " WRITE, " & Tab1 & " WRITE, " & Tab2 & " WRITE," & Tab3 & " WRITE, " & Tab4 & " WRITE, " & Tab5 & " WRITE, " & Tab6 & " WRITE, " & Tab7 & " WRITE, " & Tab8 & " WRITE, " & Tab9 & " WRITE, " & Tab10 & " WRITE," & Cbase.Table("TabTleg") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, " & Cbase.Table("TabHisFac") & " WRITE, " & "Fiches_Suivis" & " WRITE, " & "Docs_Clients" & " WRITE, " & "Fiches_HistoFacM" & " WRITE, " & "Fiches_BlM" & " WRITE")
+    Utils.db.Exec("LOCK TABLES " & Tab & " read, Fiches_Bl WRITE, Fiches_Ligbl WRITE, Fiches_BlM WRITE, Fiches_LigblM WRITE, " & Tab2 & " WRITE," & Tab3 & " WRITE, " & Tab4 & " WRITE, " & Tab5 & " WRITE, " & Tab6 & " WRITE, " & Tab7 & " WRITE, " & Tab8 & " WRITE, " & Tab9 & " WRITE, " & Tab10 & " WRITE," & Cbase.Table("TabTleg") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, Fiches_HistoLigfac WRITE, Fiches_HistoLigfacM WRITE, " & "Fiches_Suivis" & " WRITE, " & "Docs_Clients" & " WRITE, Fiches_HistoFac WRITE, Fiches_HistoFacM WRITE ")
   Endif
   If Start.LocalSettings["/Soc" & Start.Societe & "/glogo"] Then Try Logo = Image.Load(Settings["/Soc" & Start.Societe & "/Logo"])
   Shell "cd " & User.Home & ""
@@ -1053,7 +1052,7 @@ Public Sub Impression()
           Colbl.Item.Selected = True
           Pge = 1
           Nfac = Format$(Val(Nfac) + 1, "000000")
-          numbl = Utils.db.Exec("SELECT * FROM " & tab0 & " where cdclibl = &1 order by numbl", Colbl.Item[0])
+          numbl = Utils.db.Exec("SELECT * FROM " & $bl & " where cdclibl = &1 order by numbl", Colbl.Item[0])
           If numbl.Count <> 0 Then
             Ventilation()
             If borientation Then
@@ -1064,7 +1063,7 @@ Public Sub Impression()
               Bl = Utils.db.Exec("SELECT * FROM " & tab9 & " where num = &1", numbl!numbl)
               If Bl.Count <> 0 Then
                 Repeat
-                  Ligbl = Utils.db.Exec("SELECT * FROM " & tab1 & " where num_ligbl = &1", Bl!num)
+                  Ligbl = Utils.db.Exec("SELECT * FROM " & $ligbl & " where num_ligbl = &1", Bl!num)
                   cptlig = cptlig + Ligbl.Count
                 Until Bl.MoveNext()
               Endif
@@ -1203,7 +1202,7 @@ Public Sub Impression()
             Endif
             pdf.Level1F(Jour, Cde, Page, TvaCli)
             If borientation Then PosY = 104 Else PosY = 108
-            numbl = Utils.db.Exec("SELECT * FROM " & tab0 & " where cdclibl = &1 order by numbl", Colbl.Item[0])
+            numbl = Utils.db.Exec("SELECT * FROM " & $bl & " where cdclibl = &1 order by numbl", Colbl.Item[0])
             If numbl.Count <> 0 Then
               Repeat
                 If Val(.cpoint(numbl!remmobl)) <> 0 Or Val(.cpoint(numbl!remartbl)) <> 0 Then
@@ -1219,9 +1218,9 @@ Public Sub Impression()
             Tmo = "0"
             Teco = 0
             If Not Divers.value Then
-              numbl = Utils.db.Exec("SELECT * FROM " & tab0 & " where cdclibl = &1 order by numbl", Colbl.Item[0])
+              numbl = Utils.db.Exec("SELECT * FROM " & $bl & " where cdclibl = &1 order by numbl", Colbl.Item[0])
             Else
-              numbl = Utils.db.Exec("SELECT * FROM " & tab0 & " where cdclibl = &1 and nmclibl = &2order by numbl", Colbl.Item[0], Colbl.Item[1])
+              numbl = Utils.db.Exec("SELECT * FROM " & $bl & " where cdclibl = &1 and nmclibl = &2order by numbl", Colbl.Item[0], Colbl.Item[1])
             Endif
             If numbl.Count <> 0 Then
               If borientation Then PosY -= 4
@@ -1235,7 +1234,7 @@ Public Sub Impression()
                   Try TotAcpt = TotAcpt + numbl!acpt
                   Try Mfacttc = Mfacttc + numbl!totalttc
                   Toteuros = Val(.cpoint(Toteuros)) + Val(.cpoint(Bl!ht))
-                  Ligbl = Utils.db.Exec("SELECT * FROM " & tab1 & " where num_ligbl = &1", Bl!num)
+                  Ligbl = Utils.db.Exec("SELECT * FROM " & $ligbl & " where num_ligbl = &1", Bl!num)
                   If Ligbl.Count <> 0 Then
                     If Not borientation Then
                       If coln.Value Then pdf.Colonnes(PosY)
@@ -2164,7 +2163,7 @@ Public Sub Calc_tva(borientation As Boolean)
   Dim Tab As String = "Fiches_Tvaav"
   Dim Tab2 As String = "Totalisation"
 
-  Entf = "Fiches_HistoFac"
+  Entf = $fac
   Efacs = "Fiches_Cli"
   Nbtx = 1
   Tva = "0"
@@ -2285,15 +2284,11 @@ Public Sub Ent_Archives()
   Dim rTva As Result
   Dim Ligf As String
   Dim bn As String
-  Dim Entbon As String
-  Dim Ligbon As String
   Dim Dt As String
   Dim TauxTva As String
 
   Dt = numerofac
-  Ligf = "Fiches_HistoLigfac"
-  Entbon = "Fiches_Bl"
-  Ligbon = "Fiches_Ligbl"
+  Ligf = $ligfac
   Bn = "Bl"
   With Utils
     If Not Divers.value Then
@@ -2303,8 +2298,8 @@ Public Sub Ent_Archives()
     Endif
     If Bonl.Available Then
       Repeat
-        Entbonl = Utils.db.Exec("SELECT * FROM " & Entbon & " where numbl = &1", Bonl!num)
-        Ligbonl = Utils.db.Exec("SELECT * FROM " & Ligbon & " where num_ligbl = &1", Bonl!num)
+        Entbonl = Utils.db.Exec("SELECT * FROM " & $bl & " where numbl = &1", Bonl!num)
+        Ligbonl = Utils.db.Exec("SELECT * FROM " & $ligbl & " where num_ligbl = &1", Bonl!num)
         If Ligbonl.Available Then
           intituleb = "Bon n° " & Entbonl!numbl & " du " & .Cdate_Aff(Entbonl!datebl)
           Nlgn = Format$(Val(Nlgn) + 1, "0000")
@@ -2374,13 +2369,8 @@ End
 '**********************************************************
 Public Sub Bl_Sup()
 
-  Dim Entbn As String
-  Dim Ligbn As String
-
-  Entbn = "Fiches_Bl"
-  Ligbn = "Fiches_Ligbl"
-  Utils.db.Exec("DELETE FROM " & Entbn & " where numbl = &1", Bonl!num)
-  Utils.db.Exec("DELETE FROM " & Ligbn & " where num_ligbl = &1", Bonl!num)
+  Utils.db.Exec("DELETE FROM " & $bl & " where numbl = &1", Bonl!num)
+  Utils.db.Exec("DELETE FROM " & $ligbl & " where num_ligbl = &1", Bonl!num)
 
 End
 
@@ -2566,6 +2556,22 @@ Public Sub combregr_Click()
     datei.ReadOnly = False
     datei.SetFocus
     datei.SelectAll
+  Endif
+
+End
+
+Public Sub Checentr_Click()
+
+  If Checentr.Value Then
+    $bl = "Fiches_BlM"
+    $ligbl = "Fiches_LigblM"
+    $fac = "Fiches_HistoFacM"
+    $ligfac = "Fiches_HistoLigfacM"
+  Else
+    $bl = "Fiches_Bl"
+    $ligbl = "Fiches_Ligbl"
+    $fac = "Fiches_HistoFac"
+    $ligfac = "Fiches_HistoLigfac"
   Endif
 
 End
