@@ -114,6 +114,7 @@ Private $sreq As String
 Private $obs As Observer
 Private frais As String = "0"
 Private $bl As String = "Fiches_Bl"
+Private $process As Boolean = False
 Private $ligbl As String = "Fiches_Ligbl"
 Private $fac As String = "Fiches_HistoFac"
 Private $ligfac As String = "Fiches_HistoLigfac"
@@ -218,6 +219,17 @@ Public Sub _New()
 
 End
 
+Public Sub Form_Close()
+
+  If $process Then
+    If Message.Warning("Il y a une édition en cours : Fermer le programme peut provoquer des dommages sur la base de données \n Voulez vous fermer quand même ?", "Oui", "Non") = 2 Then
+      Stop Event
+    Else
+      If Exist(filename) Then Try Kill filename
+    Endif
+  Endif
+  
+End
 '**************************
 '*  On récupère les BL    *
 '**************************
@@ -598,6 +610,7 @@ End
 
 Public Sub Button1_Click()
 
+  If $process Then Return
   Colbl.Clear
   Coldetail.Clear
   Quittedate(datej)
@@ -659,7 +672,7 @@ End
 
 Public Sub Button5_Click()
 
-  If Exist(filename) Then Try Kill filename
+  
   Me.close
 
 End
@@ -794,9 +807,14 @@ End
 
 Public Sub Button14_Click()
 
+  If $process Then Return
+  $process = True
   If ExpMail.Value Then controleMail()
   If Not liste Then
-    If visudoc = False Then Button14.Enabled = False
+    If visudoc = False Then 
+      Button14.Enabled = False
+      Button16.Enabled = False
+    Endif
     Visudoc = False
     Colbl.MoveFirst()
     If Val(Colbl.item[5]) <> 0 Then
@@ -815,7 +833,10 @@ Public Sub Button14_Click()
             Music.Play
           Endif
           Try Message.Warning("Vous n'avez pas saisi le mode de règlement!")
-          If visudoc = False Then Button14.Enabled = True
+          If visudoc = False Then 
+            Button14.Enabled = True
+            Button16.Enabled = True
+          Endif
           Regmt.SetFocus
         Else
           If b = 0 Then
@@ -1568,6 +1589,8 @@ Public Sub Impression()
   Colbl.Clear
   Coldetail.Clear
   Button14.Enabled = True
+  Button16.Enabled = True
+  $process = False
   Button1_Click()
 
 End
@@ -2376,6 +2399,7 @@ End
 
 Public Sub Button9_Click()
 
+  If $process Then Return
   If Colbl.Count <> 0 Then
     Bl_Edit()
   Else
