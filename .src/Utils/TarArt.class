@@ -35,10 +35,15 @@ Public Sub _new(nart As String, ncli As String, Optional typec As String, cpromo
   prixht = resart!art_pvht - tax
   $lstpx.Add(["Prix de base", Round(prixht, -3)], "0")
   detail = "Prix de base"
-  If typec Then
+  If typec And Not ncli Then    'cas de l'edition d'un tarif sans n° client
+    rescli = Utils.db.Exec("SELECT ' ' AS cli_nom,' ' AS libelle FROM Fiches_Typec WHERE code=&1", typec)
+    If Not rescli.Available Then Return
+  Endif
+  If typec And ncli Then
     rescli = Utils.db.Exec("SELECT cli_nom,libelle FROM Fiches_Cli,Fiches_Typec WHERE code=&2 AND cli_code=&1", ncli, typec)
     If Not rescli.Available Then Return
-  Else
+  Endif
+  If Not Typec And ncli Then
     rescli = Utils.db.Exec("SELECT cli_nom,cli_typec,libelle FROM Fiches_Cli,Fiches_Typec WHERE cli_typec=code AND cli_code=&1", ncli)
     If Not rescli.Available Then Return
     typec = rescli!cli_typec
