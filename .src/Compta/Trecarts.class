@@ -36,11 +36,14 @@ Private son As Integer = Start.Son
 
 Public Sub _New()
 
+  Dim res As Result
+  
   Utils.Observers(Me)
 
   Music.Load(Start.Musique)
   Me.Center
-  montant.Text = "0,00"
+  res = Utils.db.Exec("SELECT ecart FROM Fiches_Parametres")
+  montant.Text = Format(res!ecart, "0.00")
 
 End
 
@@ -123,7 +126,7 @@ End
 
 Public Sub Button2_Click()
 
-  Dim cptResult As Result
+  Dim cptResult, respar As Result
   Dim EResult As Result
   Dim EcrResult As Result
   Dim LResult As Result
@@ -133,7 +136,7 @@ Public Sub Button2_Click()
   Dim Tab1 As String
   Dim jour As String
   Dim Intit As String
-  Dim dte As String
+  Dim dte As New LDate
   Dim numdoc As String
   Dim libelle As String
   Dim cptrplus As String ' compte de regul 758000
@@ -158,7 +161,7 @@ Public Sub Button2_Click()
       type = "F"
     Endif
     B = 0
-    dte = Format$(Now, "dd.mm.yyyy")
+'    dte = Format$(Now, "dd.mm.yyyy")
     montant.Text = .cpoint(montant.Text)
     If Val(montant.text) = Null Then
       If son Then
@@ -173,10 +176,10 @@ Public Sub Button2_Click()
       Me.Mouse = Mouse.wait
       ' On recupere le journal d'OD dans les parametres
       cptResult = .db.Exec("SELECT * FROM " & Tab1 & "")
-      jour = cptResult!jdr
+      jour = cptResult!jrnod
       cptrplus = cptResult!cptrplus
       cptrmoins = cptResult!cptrmoins
-      numecr = cptResult!numecriture
+'      numecr = cptResult!numecriture
       'On recupere les comptes clients ou fournisseurs
       cptResult = .db.Exec("SELECT * FROM " & Tab & " WHERE type_cc = &1 order by cast(compte_cc AS char)", type)
       If cptResult.Available Then
@@ -203,6 +206,7 @@ Public Sub Button2_Click()
                   Totc = Totc + Cred
                 Until EcrResult.MoveNext()
                 Tote = Totd - Totc
+                tote = Round(tote, -2)
                 Totd = 0
                 Totc = 0
                 If Tote < 0 Then
@@ -214,10 +218,12 @@ Public Sub Button2_Click()
                   Cred = Abs(Tote)
                 Endif
                 If Abs(Tote) > 0 And Abs(Tote) <= Val(montant.Text) Then
-                  numecr = numecr + 1
                   '  On genere nos ecritures
+                  Utils.db.Exec("LOCK TABLES Fiches_Comptes WRITE, Fiches_Mvt WRITE, Fiches_Parametres WRITE, Fiches_MvtM WRITE")
+                  respar = Utils.db.Exec("SELECT numecriture FROM Fiches_Parametres")
+                  numecr = respar!numecriture + 1
                   B = B + 1
-                  .db.Exec("INSERT INTO " & Tab2 & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16} )", jour, numecr, Compt, Intit, .cdate_Dbase(dte), numdoc, Snum, libelle, Deb, Cred, 1, 0, 0, 0, 1, 0)
+                  .db.Exec("INSERT INTO " & Tab2 & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16} )", jour, numecr, Compt, Intit, dte.G, numdoc, Snum, libelle, Deb, Cred, 1, 0, 0, 0, 1, 0)
                   ' Puis on met a jour les soldes du compte
                   LResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE compte_cc = &1", Compt)
                   If LResult.Available Then
@@ -227,7 +233,7 @@ Public Sub Button2_Click()
                   Endif
                   If Deb <> 0 Then
                     cptr = cptrplus
-                    .db.Exec("INSERT INTO " & Tab2 & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16} )", jour, numecr, cptr, Intit, .cdate_Dbase(dte), numdoc, Snum, libelle, Cred, Deb, 1, 0, 0, 0, 1, 0)
+                    .db.Exec("INSERT INTO " & Tab2 & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16} )", jour, numecr, cptr, Intit, dte.G, numdoc, Snum, libelle, Cred, Deb, 1, 0, 0, 0, 1, 0)
                     B = B + 1
                     LResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE compte_cc = &1", cptr)
                     If LResult.Available Then
@@ -238,7 +244,7 @@ Public Sub Button2_Click()
                   Endif
                   If Cred <> 0 Then
                     cptr = cptrmoins
-                    .db.Exec("INSERT INTO " & Tab2 & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16} )", jour, numecr, cptr, Intit, .cdate_Dbase(dte), numdoc, Snum, libelle, Cred, Deb, 1, 0, 0, 0, 1, 0)
+                    .db.Exec("INSERT INTO " & Tab2 & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16} )", jour, numecr, cptr, Intit, dte.G, numdoc, Snum, libelle, Cred, Deb, 1, 0, 0, 0, 1, 0)
                     LResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE compte_cc = &1", cptr)
                     If LResult.Available Then
                       Mnt = LResult!solde
@@ -257,7 +263,7 @@ Public Sub Button2_Click()
                     Mnt = Mnt + Deb - Cred
                     Utils.db.Exec("Update " & Tab & " set solde = &1 Where compte_cc = &2", Mnt, coll)
                   Endif
-                  .db.Exec("INSERT INTO " & Tab2 & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", jour, numecr, coll, Intit, .cdate_Dbase(dte), numdoc, Snum, libelle, Deb, Cred, 1, 0, 0, 0, 1, 0, 1)
+                  .db.Exec("INSERT INTO " & Tab2 & "(jour, numero, compte, intitule, dte, numdoc, numlot, libelle, montantd, montantc, validee, provisoire, tresorerie, pointee, lettree, cloturee, collectif) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11}, &{12}, &{13}, &{14}, &{15}, &{16}, &{17})", jour, numecr, coll, Intit, dte.G, numdoc, Snum, libelle, Deb, Cred, 1, 0, 0, 0, 1, 0, 1)
                   ' Puis on lettre toutes les ecritures
                   LResult = .db.Exec("SELECT * FROM " & Tab2 & " WHERE numlot = &1 and lettree = &2 and compte = &3 order by compte", num, 0, Compt)
                   If LResult.Available Then
@@ -266,6 +272,8 @@ Public Sub Button2_Click()
                     Until Lresult.MoveNext()
                   Endif
                   Sha1Calc.CalcSha1(Tab2, numecr)
+                  Utils.db.Exec("UPDATE Fiches_Parametres SET numecriture = &1", numecr)
+                  Utils.db.Exec("UNLOCK TABLES")
                 Endif
               Endif
             Until EResult.MoveNext()
