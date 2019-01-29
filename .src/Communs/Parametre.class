@@ -77,8 +77,8 @@ Public Sub _New()
   frais.nbdec = "2"
   version.reg = "[0-9]{0,2}[.]?[0-9]{0,2}"
   VersionPos.reg = version.reg
-  
-  
+  coretro.numerique = True
+  coretro.nbdec = "2"
   
 End
 
@@ -95,14 +95,14 @@ Public Sub Form_Open()
   Balloon.Delay = 2000
   With Utils
     Try datec.dte.G = rResult!dteclec ' date de cloture de l'exercice en cours
-    Try date1.Text = .Cdate_Aff(rResult!dteclec1) ' date de cloture de l'exercice N -1
-    Try date2.Text = .Cdate_Aff(rResult!dteclec2) ' date de cloture de l'exercice N -2
-    Try date3.Text = .Cdate_Aff(rResult!dteclec3) ' date de cloture de l'exercice N -3
-    Try date4.Text = .Cdate_Aff(rResult!dteclec4) ' date de cloture de l'exercice N -4
-    Try date5.Text = .Cdate_Aff(rResult!dteclec5) ' date de cloture de l'exercice N -5
-    Try datepc.Text = .Cdate_Aff(rResult!dtepc) ' date dernière période cloturée
-    Try datetdec.Text = .Cdate_Aff(rResult!dtetdec) ' date de traitement du dernier exercice cloturé
-    Try datefedec.Text = .Cdate_Aff(rResult!dtefedec) ' date fin d'exrcice du dernier exercice cloturé
+    Try date1.dte.G = rResult!dteclec1 ' date de cloture de l'exercice N -1
+    Try date2.dte.G = rResult!dteclec2 ' date de cloture de l'exercice N -2
+    Try date3.dte.G = rResult!dteclec3 ' date de cloture de l'exercice N -3
+    Try date4.dte.G = rResult!dteclec4 ' date de cloture de l'exercice N -4
+    Try date5.dte.G = rResult!dteclec5 ' date de cloture de l'exercice N -5
+    Try datepc.dte.G = rResult!dtepc ' date dernière période cloturée
+    Try datetdec.dte.G = rResult!dtetdec ' date de traitement du dernier exercice cloturé
+    Try datefedec.dte.G = rResult!dtefedec ' date fin d'exrcice du dernier exercice cloturé
     Try regulplus.Text = rResult!cptrplus ' Compte de resultat plus
     Try regulmoins.Text = rResult!cptrmoins 'Compte de résultat moins
     Try Jreport.Text = rResult!jdr ' Journal de report
@@ -313,8 +313,11 @@ Public Sub cpts_LostFocus()
   Endif
   bcompte = Verif_Compte(Last.Text)
   If Not bcompte Then
+    Stop Event
     If Message.question("ATTENTION ! Le compte " & Last.Text & " n'existe pas.\nVoulez-vous le créer ?", "Oui", "Non") = 1 Then
       Fcomptes.Show()
+      Last.SetFocus
+      Try Last.Select
     Else
       B = 1
       Last.SetFocus
@@ -356,24 +359,8 @@ End
 
 Public Sub coretro_LostFocus()
 
-  If Not IsNull(Coretro.Text) Then
-    Coretro.Text = Utils.cpoint(Coretro.Text)
-    If Val(Coretro.Text) <> 0 Then
-      Coretro.Text = Format$(Val(Coretro.Text), "0.00")
-      coretro.Background = Color.TextBackground
-      jrnal.SetFocus
-      jrnal.Select
-      b = 0
-    Else
-      If son Then
-        Music.Play
-      Endif
-      Balloon.Warning("Veuillez verifier votre saisie SVP !", Coretro)
-      b = 1
-    Endif
-  Else
-    Coretro.Text = "1"
-    b = 0
+  If Coretro.Value = 0 Then
+    Coretro.Value = 1
   Endif
 
 End
@@ -515,7 +502,7 @@ Public Sub Button2_Click()
   Endif
   With utils
     If b <> 1 Then
-      Utils.db.Exec("UPdate  " & Tab & "  SET  dteclec = &1, dteclec1 = &2, dteclec2 =&3,  dteclec3 =&4, dteclec4 =&5, dteclec5 =&6,  dtepc =&7, dtetdec =&8, dtefedec =&9, cptrplus =&{10}, cptrmoins =&{11}, jdr =&{12}, cptrsplus =&{13}, cptrsmoins =&{14},dnc = &{15}, dnf = &{16}, dnbon = &{17}, dnfac = &{18}, coretro = &{19}, jrnal = &{20}, jrnal2 = &{21}, jrnal3 = &{22}, devise = &{23}, dtepp = &{24}, dtepec = &{25}, viremc = &{26}, viremchq = &{27}, virema = &{28}, jrnal4 = &{29}, jrnal5 = &{30}, nfac = &{31}, version = &{32}, version_pos = &{33}", Utils.Cdate_Dbase(datec.Text), .Cdate_Dbase(date1.Text), .Cdate_Dbase(date2.Text), .Cdate_Dbase(date3.Text), .Cdate_Dbase(date4.Text), .Cdate_Dbase(date5.Text), .Cdate_Dbase(datepc.Text), .Cdate_Dbase(datetdec.Text), .Cdate_Dbase(datefedec.Text), regulplus.Text, regulmoins.Text, Jreport.Text, Resultplus.Text, Resultmoins.Text, dnclient.Text, dnfournisseur.Text, dnbon.Text, dnfac.Text, coretro.Text, jrnal.Text, jrnal2.Text, jrnal3.Text, devise.text, mc.Text, mc2.Text, Viremc.Text, Viremchq.Text, Virema.Text, jrnal4.Text, jrnal5.Text, NfacM.value, Version.text, VersionPos.text)
+      Utils.db.Exec("UPdate  " & Tab & "  SET  dteclec = &1, dteclec1 = &2, dteclec2 =&3,  dteclec3 =&4, dteclec4 =&5, dteclec5 =&6,  dtepc =&7, dtetdec =&8, dtefedec =&9, cptrplus =&{10}, cptrmoins =&{11}, jdr =&{12}, cptrsplus =&{13}, cptrsmoins =&{14},dnc = &{15}, dnf = &{16}, dnbon = &{17}, dnfac = &{18}, coretro = &{19}, jrnal = &{20}, jrnal2 = &{21}, jrnal3 = &{22}, devise = &{23}, dtepp = &{24}, dtepec = &{25}, viremc = &{26}, viremchq = &{27}, virema = &{28}, jrnal4 = &{29}, jrnal5 = &{30}, nfac = &{31}, version = &{32}, version_pos = &{33}", datec.dte.G, date1.dte.G, date2.dte.G, date3.dte.G, date4.dte.G, date5.dte.G, datepc.dte.G, datetdec.dte.G, datefedec.dte.G, regulplus.Text, regulmoins.Text, Jreport.Text, Resultplus.Text, Resultmoins.Text, dnclient.Text, dnfournisseur.Text, dnbon.Text, dnfac.Text, coretro.Text, jrnal.Text, jrnal2.Text, jrnal3.Text, devise.text, mc.Text, mc2.Text, Viremc.Text, Viremchq.Text, Virema.Text, jrnal4.Text, jrnal5.Text, NfacM.value, Version.text, VersionPos.text)
       Utils.db.Exec("UPdate  " & Tab & "  SET  frais = &1, cptfrais = &2, tvafrais = &3, cutk = &4, dntk = &5, jrnod = &6, ecart = &7", frais.Value, cptfrais.Text, tvafrais.Text, CuTicket.Text, DnTicket.Text, Jod.Text, Ecart.Value)
       If $soption = "B" Or $soption = "T" Then
          Utils.db.Exec("UPdate  " & Tab & "  SET conscli = &1, consfou = &2, nvign = &3, css = &4, tvass = &5,arrete=&6", conscli.Text, consfou.Text, nvign.Text, css.Text, tvass.Text, arretdr.Text) 
