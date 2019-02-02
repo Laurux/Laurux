@@ -14,17 +14,32 @@ End
 
 Private Sub affiche()
 
-  Dim resnum, resbl As Result
+  Dim resnum, resbl, res As Result
   Dim bl As String
-  Dim vgn As Float
 
   TreeView1.Clear
-  resnum = Utils.db.Exec("SELECT num FROM Fiches_ligregie WHERE cloture=False GROUP BY num")
+  resnum = Utils.db.Exec("SELECT num,type FROM Fiches_ligregie WHERE cloture=False GROUP BY num,type")
   If resnum.Available Then
     resnum.MoveFirst
     Repeat
       If suspendu(resnum!num) Then
-        TreeView1.Add(resnum!num, "Document N° : " & resnum!num)
+        If resnum!type = "S" Then
+          res = utils.db.Exec("SELECT nmclibl AS lib FROM Fiches_Bl WHERE numfac=&1", resnum!num)
+          If Not res.Available Then
+            res = utils.db.Exec("SELECT nmclifac AS lib FROM Fiches_HistoFac WHERE numfac=&1", resnum!num)
+            If Not res.Available Then
+              res = utils.db.Exec("SELECT 'mouvements exceptionnels' AS lib")
+            Endif
+          Endif
+        Else
+          If resnum!type = "E" Then
+            res = utils.db.Exec("SELECT fo_nom  AS lib FROM Fiches_Entrecpt, Fiches_Four WHERE four=fo_code   AND numrecpt=&1", resnum!num)
+            If Not res.Available Then
+              res = utils.db.Exec("SELECT 'mouvements exceptionnels' AS lib")
+            Endif
+          Endif
+        Endif
+        TreeView1.Add(resnum!num, "Document N° : " & resnum!num & " " & res!lib)
         resbl = utils.db.Exec("SELECT LEFT(numlig,6) as bl, vignette FROM Fiches_ligregie WHERE num=&1 AND type='S' AND cloture=False GROUP BY bl,vignette", resnum!num)
         If resbl.Available Then
           resbl.MoveFirst
@@ -37,8 +52,14 @@ Private Sub affiche()
         Endif
       Endif
     Until resnum.MoveNext()
-   
+  manquant 
   Endif
+End
+
+Private Sub manquant()
+   
+   Dim resnum As Result
+   Dim vgn As Float
    
    ColumnView1.Clear
    resnum = utils.db.Exec("SELECT vignette FROM Fiches_ligregie WHERE vignette<>'' GROUP BY vignette ORDER BY vignette")
@@ -66,6 +87,30 @@ Private Function suspendu(num As String) As Boolean
   
 End
 
+Private Sub Modif()
+
+  Dim txt As String[]
+  Dim res As Result
+  
+    txt = Split(TreeView1.Current.Key, "/")
+    If Not txt Then Return
+    If txt[1] Then
+      utils.db.Exec("UPDATE Fiches_ligregie SET vignette=&1 WHERE num=&2 AND numlig LIKE &3", Textvig.Text, txt[0], txt[1] & "%")
+    Else
+      utils.db.Exec("UPDATE Fiches_ligregie SET vignette=&1 WHERE num=&2 AND cloture=False", Textvig.Text, txt[0])
+    Endif
+    $bmod = False
+    If Len($ancienval) > 0 Then
+      TreeView1.Current.Text = Left(TreeView1.Current.Text, - Len($ancienval)) & Textvig.Text
+    Else
+      TreeView1.Current.Text = TreeView1.Current.Text & Textvig.Text
+    Endif
+    Textvig.Clear
+    $ancienval = ""
+    manquant()
+
+End
+
 Public Sub TreeView1_Activate()
 
   Dim txt As String[]
@@ -82,7 +127,6 @@ End
 
 Public Sub Textvig_LostFocus()
 
-  Dim txt As String[]
   Dim res As Result
   
   If Not $bmod Then Return
@@ -103,19 +147,9 @@ Public Sub Textvig_LostFocus()
       Textvig.Select
       Return 
     Endif
-    txt = Split(TreeView1.Current.Key, "/")
-    If Not txt Then Return
-    If txt[1] Then
-      utils.db.Exec("UPDATE Fiches_ligregie SET vignette=&1 WHERE num=&2 AND numlig LIKE &3", Textvig.Text, txt[0], txt[1] & "%")
-    Else
-      utils.db.Exec("UPDATE Fiches_ligregie SET vignette=&1 WHERE num=&2 AND cloture=False", Textvig.Text, txt[0])
-    Endif
-    Textvig.Clear
-    $ancienval = ""
-    $bmod = False
-    affiche
+    Modif
   Endif
-
+  
 End
 
 Public Sub Textvig_KeyPress()
@@ -127,3 +161,11 @@ Public Sub Textvig_KeyPress()
   Endif
 End
 
+
+Public Sub Button1_Click()
+
+  If Not Textvig.Text Then Return
+  Textvig.Clear
+  Modif()
+
+End
