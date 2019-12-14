@@ -1,5 +1,12 @@
 # Change Log
 
+## [v3.68.5](https://github.com/Laurux/Laurux/tree/v3.68.5) (2019-12-08)
+[Full Changelog](https://github.com/Laurux/Laurux/compare/v3.68.4...v3.68.5)
+
+**Implemented enhancements:**
+
+- Message erreur [\#88](https://github.com/Laurux/Laurux/issues/88)
+
 ## [v3.68.4](https://github.com/Laurux/Laurux/tree/v3.68.4) (2018-12-25)
 [Full Changelog](https://github.com/Laurux/Laurux/compare/v3.68.3...v3.68.4)
 
