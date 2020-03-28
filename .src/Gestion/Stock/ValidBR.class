@@ -551,6 +551,7 @@ Public Sub Gen_ecr(View As Boolean)
   Dim Tab7 As String
   Dim Tab10 As String
   Dim Tab11 As String
+  Dim Tab12 As String
   Dim Txtva As String
   Dim P As Integer 'Flag pour lignes si pied de facture
   Dim Pge As Integer ' numero de page
@@ -595,6 +596,7 @@ Public Sub Gen_ecr(View As Boolean)
   Tab7 = "Fiches_Mo"
   Tab10 = "Totalisation"
   Tab11 = "Br"
+  Tab12 = "Fiches_CdBarre"
   bchktva = True
   Ventilation()
   Filename = User.Home & "/tmp/BonReception.pdf"
@@ -610,9 +612,9 @@ Public Sub Gen_ecr(View As Boolean)
   Endif
   Raz_Ventilation()
   If $soption = "B" Or $soption = "T" Then
-    Utils.db.Exec("LOCK TABLES " & Tab & " WRITE, " & Tab0 & " WRITE, " & Tab1 & " WRITE, " & Tab2 & " WRITE, " & Tab4 & " WRITE, " & Tab5 & " WRITE, " & Tab6 & " WRITE, " & Tab7 & " WRITE, " & Tab10 & " WRITE, " & Tab11 & " WRITE," & Cbase.Table("TabTleg") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabMvtM") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, " & Cbase.Table("TabHisFac") & " WRITE, " & "Fiches_Tvaac" & " Write, " & Cbase.Table("TabCPTdocs") & " write, " & Cbase.Table("TabFdocs") & " write, Fiches_ligcons WRITE, Fiches_ligregie WRITE, Fiches_regie WRITE ")
+    Utils.db.Exec("LOCK TABLES " & Tab & " WRITE, " & Tab0 & " WRITE, " & Tab1 & " WRITE, " & Tab2 & " WRITE, " & Tab4 & " WRITE, " & Tab5 & " WRITE, " & Tab6 & " WRITE, " & Tab7 & " WRITE, " & Tab10 & " WRITE, " & Tab11 & " WRITE," & Tab12 & " WRITE," & Cbase.Table("TabTleg") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabMvtM") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, " & Cbase.Table("TabHisFac") & " WRITE, " & "Fiches_Tvaac" & " Write, " & Cbase.Table("TabCPTdocs") & " write, " & Cbase.Table("TabFdocs") & " write, Fiches_ligcons WRITE, Fiches_ligregie WRITE, Fiches_regie WRITE ")
   Else
-    Utils.db.Exec("LOCK TABLES " & Tab & " WRITE, " & Tab0 & " WRITE, " & Tab1 & " WRITE, " & Tab2 & " WRITE, " & Tab4 & " WRITE, " & Tab5 & " WRITE, " & Tab6 & " WRITE, " & Tab7 & " WRITE, " & Tab10 & " WRITE, " & Tab11 & " WRITE," & Cbase.Table("TabTleg") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabMvtM") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, " & Cbase.Table("TabHisFac") & " WRITE, " & "Fiches_Tvaac" & " Write, " & Cbase.Table("TabCPTdocs") & " write, " & Cbase.Table("TabFdocs") & " write ")
+    Utils.db.Exec("LOCK TABLES " & Tab & " WRITE, " & Tab0 & " WRITE, " & Tab1 & " WRITE, " & Tab2 & " WRITE, " & Tab4 & " WRITE, " & Tab5 & " WRITE, " & Tab6 & " WRITE, " & Tab7 & " WRITE, " & Tab10 & " WRITE, " & Tab11 & " WRITE," & Tab12 & " WRITE," & Cbase.Table("TabTleg") & " WRITE, " & Cbase.Table("TabFam") & " WRITE, " & Cbase.Table("TabComptes") & " WRITE, " & Cbase.Table("TabMvt") & " WRITE, " & Cbase.Table("TabMvtM") & " WRITE, " & Cbase.Table("TabTvav") & " WRITE, " & Cbase.Table("TabHisFac") & " WRITE, " & "Fiches_Tvaac" & " Write, " & Cbase.Table("TabCPTdocs") & " write, " & Cbase.Table("TabFdocs") & " write ")
   Endif
   Parametres()
   With Utils
@@ -649,28 +651,32 @@ Public Sub Gen_ecr(View As Boolean)
         Try NumeroBl = numbl!numrecpt
         If Not Error Then
           Try Mfacttc = Mfacttc + numbl!montant
-          Ligbl = Utils.db.Exec("SELECT * FROM " & tab1 & " left join  " & Cbase.Table("TabArt") & " on art_code = code where numrecpt = &1", numbl!numrecpt)
+          Ligbl = Utils.db.Exec("SELECT * FROM " & tab1 & " left join  " & Tab12 & " on code = codeb left join  " & Tab6 & " on art_code = codep or art_code = code where numrecpt = &1", numbl!numrecpt)
           If Ligbl.Count <> 0 Then
             Repeat
-              Txtva = Ligbl!art_tva
-              Txconv = Ligbl!art_txconv
-              If $soption = "N" Then Brutht = Ligbl!prvt Else Brutht = Ligbl!paht
-              totalht = Val(Brutht) * Val(Ligbl!qte)
-              If $soption = "B" Or $soption = "T" Then    'rajout au montant ht des droits d'accise si besoin & maj du fichier régie
-                If Ligbl!art_dra Then
-                  ccd = New Calculdroit(Ligbl!art_dra, Ligbl!art_volm, Ligbl!art_deg, Ligbl!qte)
-                  If ccd.drsurfac Then
-                    totalht = Format(utils.totobs([totalht, Str(ccd.droit)]), "0.00")
+              If (Ligbl!art_code <> Null) Then
+                Txtva = Ligbl!art_tva
+                Txconv = Ligbl!art_txconv
+                If $soption = "N" Then Brutht = Ligbl!prvt Else Brutht = Ligbl!paht
+                totalht = Val(Brutht) * Val(Ligbl!qte)
+                If $soption = "B" Or $soption = "T" Then    'rajout au montant ht des droits d'accise si besoin & maj du fichier régie
+                  If Ligbl!art_dra Then
+                    ccd = New Calculdroit(Ligbl!art_dra, Ligbl!art_volm, Ligbl!art_deg, Ligbl!qte)
+                    If ccd.drsurfac Then
+                      totalht = Format(utils.totobs([totalht, Str(ccd.droit)]), "0.00")
+                    Endif
+                    creadra(ccd, Ligbl!art_code, Ligbl!qte, Ligbl!daterecpt, Ligbl!numrecpt, Ligbl!nligne, Ligbl!art_deg)
                   Endif
-                  creadra(ccd, Ligbl!art_code, Ligbl!qte, Ligbl!daterecpt, Ligbl!numrecpt, Ligbl!nligne, Ligbl!art_deg)
                 Endif
+                Fam = Ligbl!art_fam
+                If Totttc = "" Then Totttc = "0"
+                If totalht = "" Then totalht = "0"
+                If Brutht = "" Then Brutht = "0"
+                totht = Format$(Val(Utils.cpoint(totht)) + Val(Utils.cpoint(totalht)), "0.00")
+                Maj_Totalisation()
+              Else
+                Message.Warning("Impossible de trouver l'article " & Ligbl!design & " (" & Ligbl!code & ") dans la base article, il sera donc ignoré.")
               Endif
-              Fam = Ligbl!art_fam
-              If Totttc = "" Then Totttc = "0"
-              If totalht = "" Then totalht = "0"
-              If Brutht = "" Then Brutht = "0"
-              totht = Format$(Val(Utils.cpoint(totht)) + Val(Utils.cpoint(totalht)), "0.00")
-              Maj_Totalisation()
             Until Ligbl.MoveNext()
           Endif
 
