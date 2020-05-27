@@ -2059,6 +2059,7 @@ Private Sub genfac()
   Dim rem As Float
   Dim pu, pxttc, mttc, mht, mtva, mremise As Float
   Dim snfac, snumlig, dnfac As String
+  Dim nbvente As Integer = 0
 
   'recuperation et maj du n° facture
   respar = utils.db.Exec("SELECT * FROM Fiches_Parametres")
@@ -2080,6 +2081,7 @@ Private Sub genfac()
         resligz.MoveFirst
         Repeat
           If resligz!type = "A" Then
+            Inc nbvente
             resligfac = utils.db.Create("Tmp_Caisse")
             'On regarde si la ligne suivante existe puis si c'est une remise, si non on revient en arriere. "O"= ligne ecotaxe
             If resligz.Index < (resligz.Length - 1) Then
@@ -2107,6 +2109,9 @@ Private Sub genfac()
       resentz.MoveNext
     Next
     utils.db.Commit
+
+      'Si il n'y a aucun article (ex moulinage avec juste des tickets de mouvement hors vente on ne produit pas de facture de caisse)
+      If nbvente = 0 Then Return
 
       'mise a jour entete facture
       utils.db.Begin
