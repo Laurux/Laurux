@@ -170,59 +170,46 @@ Public Sub Verif_Maj(Optional wwwlpath As String = wwwpath, Optional Update As B
   VersionAppArr = Split(VersionApp, ".")
   VersionApp = VersionAppArr[0] & "." & VersionAppArr[1]
 
-  If Not Exist(User.home & "/tmp") Then Mkdir User.home & "/tmp"
-  If Exist(User.Home & "/tmp/pb1.txt") Then Kill User.Home & "/tmp/pb1.txt"
-  If Exist(User.Home & "/tmp/ping.txt") Then Kill User.Home & "/tmp/ping.txt"
-  If Exist(User.Home & "/tmp/" & version_file) Then Kill User.Home & "/tmp/" & version_file
-  If Exist(User.Home & "/" & Application.Name & ".tar.gz") Then Kill User.Home & "/" & Application.Name & ".tar.gz"
-  Shell "ping -c 1 " & siteurl & " >" & User.Home & "/tmp/ping.txt 2>&1" Wait
-  If Exist(User.Home & "/tmp/ping.txt") Then
-    txt = Trim$(File.Load(User.Home & "/tmp/ping.txt"))
-  Endif
-  If InStr(txt, "cpanel1") <> 0 Then
-    Shell "wget -q" & " " & wwwlpath & "/" & version_file & " -P " & User.Home & "/tmp" Wait
-    If Exist(User.Home & "/tmp/" & version_file) Then
-      VersionWebFull = File.Load(User.Home & "/tmp/" & version_file)
-      VersionWeb = Trim$(Split(VersionWebFull, "\n")[0])
-      VersionWeb = Replace(VersionWeb, Application.Name & " ", "")
-      VersionWeb = Replace(VersionWeb, "V", "")
-      VersionWeb = Replace(VersionWeb, "v", "")
-      VersionWebArr = Split(VersionWeb, ".")
-      VersionWeb = VersionWebArr[0] & "." & VersionWebArr[1]
-      If update Then
-        If Val(VersionWebArr[1]) > Val(VersionAppArr[1]) Then
-          If Message.Question("Une mise à jour de version est disponible, Voulez-vous mettre a jour?", "OK", "Annuler") = 1 Then
-            Maj(VersionWebFull, wwwlpath)
-          Endif
-        Else
-          If Val(VersionWebArr[1]) = Val(VersionAppArr[1]) Then
-            If Not IsNull(VersionWebArr[2]) And Not IsNull(VersionAppArr[2]) Then
-              If Val(VersionWebArr[2]) > Val(VersionAppArr[2]) Then
-                If Message.Question("Une mise à jour de correctif est disponible, Voulez-vous mettre a jour?", "OK", "Annuler") = 1 Then
-                  Maj(VersionWebFull, wwwlpath)
-                Endif
-              Else
-                If Message.Question("Aucune mise à jour de correctif n'est a faire!", "OK", "Forcer") = 2 Then
-                  Maj(VersionWebFull, wwwlpath)
-                Endif
+  Shell "wget -q" & " " & wwwlpath & "/" & version_file & " -P " & User.Home & "/tmp" Wait
+  If Exist(User.Home & "/tmp/" & version_file) Then
+    VersionWebFull = File.Load(User.Home & "/tmp/" & version_file)
+    VersionWeb = Trim$(Split(VersionWebFull, "\n")[0])
+    VersionWeb = Replace(VersionWeb, Application.Name & " ", "")
+    VersionWeb = Replace(VersionWeb, "V", "")
+    VersionWeb = Replace(VersionWeb, "v", "")
+    VersionWebArr = Split(VersionWeb, ".")
+    VersionWeb = VersionWebArr[0] & "." & VersionWebArr[1]
+    If update Then
+      If Val(VersionWebArr[1]) > Val(VersionAppArr[1]) Then
+        If Message.Question("Une mise à jour de version est disponible, Voulez-vous mettre a jour?", "OK", "Annuler") = 1 Then
+          Maj(VersionWebFull, wwwlpath)
+        Endif
+      Else
+        If Val(VersionWebArr[1]) = Val(VersionAppArr[1]) Then
+          If Not IsNull(VersionWebArr[2]) And Not IsNull(VersionAppArr[2]) Then
+            If Val(VersionWebArr[2]) > Val(VersionAppArr[2]) Then
+              If Message.Question("Une mise à jour de correctif est disponible, Voulez-vous mettre a jour?", "OK", "Annuler") = 1 Then
+                Maj(VersionWebFull, wwwlpath)
+              Endif
+            Else
+              If Message.Question("Aucune mise à jour de correctif n'est a faire!", "OK", "Forcer") = 2 Then
+                Maj(VersionWebFull, wwwlpath)
               Endif
             Endif
-          Else
-            If Message.Question("Aucune mise à jour n'est a faire!", "OK", "Forcer") = 2 Then
-              Maj(VersionWebFull, wwwlpath)
-            Endif
+          Endif
+        Else
+          If Message.Question("Aucune mise à jour n'est a faire!", "OK", "Forcer") = 2 Then
+            Maj(VersionWebFull, wwwlpath)
           Endif
         Endif
       Endif
-      Return VersionWebArr
-    Else
-      If update Then Message.Warning("Problème de mise à jour! Veuillez vérifier votre connexion SVP.")
-      Return []
     Endif
+    Return VersionWebArr
   Else
     If update Then Message.Warning("Problème de mise à jour! Veuillez vérifier votre connexion SVP.")
     Return []
   Endif
+
 Catch
   Music.Load(Start.Musique)
   Music.Play
