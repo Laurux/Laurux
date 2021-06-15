@@ -152,7 +152,7 @@ Public Sub RecupVersion()
     Try Version = rResult!version
     version_file = "version.txt"
   Endif 
-  If Start.LocalSettings["/Majver"] And If Not Application.Path = "/usr/bin/" & Application.Name Then Verif_Maj()
+  If Start.LocalSettings["/Majver"] Then Verif_Maj()
 
 End
 
@@ -169,7 +169,7 @@ Public Sub Verif_Maj(Optional wwwlpath As String = wwwpath, Optional Update As B
   VersionApp = Application.Version
   VersionAppArr = Split(VersionApp, ".")
   VersionApp = VersionAppArr[0] & "." & VersionAppArr[1]
-
+  Try Kill User.Home & "/tmp/" & version_file
   Shell "wget -q" & " " & wwwlpath & "/" & version_file & " -P " & User.Home & "/tmp" Wait
   If Exist(User.Home & "/tmp/" & version_file) Then
     VersionWebFull = File.Load(User.Home & "/tmp/" & version_file)
@@ -247,6 +247,10 @@ Public Sub Maj(FullVersion As String, Optional wwwlpath As String = wwwpath)
   hpb.Y = 100
   $hForm.Move($hForm.ScreenX, $hForm.ScreenY, 600, 200)
   $hform.Center
+  If Not Access(Application.Path, gb.Write Or gb.Exec) Then
+    Message.Error("Impossible de mettre à jour l'application par cette méthode!\nVous n'avez pas les droits d'acces à " & Application.Path & ".\n\nLa mise à jour doit se faire par l'administrateur\nvia un update de paquet ou le snap store.")
+    Return
+  Endif
   If Exist(User.Home & "/" & version_file) Then Kill User.Home & "/" & version_file
   If Exist(User.Home & "/" & Application.Name & ".tar.gz") Then Kill User.Home & "/" & Application.Name & ".tar.gz"
   Shell "wget -q" & " " & wwwlpath & "/" & version_file & " -P " & User.Home Wait
