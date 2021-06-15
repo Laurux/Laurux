@@ -1,5 +1,9 @@
 # Changelog
 
+## [v3.68.7](https://github.com/Laurux/Laurux/tree/v3.68.7) (2021-06-15)
+
+[Full Changelog](https://github.com/Laurux/Laurux/compare/v3.68.6...v3.68.7)
+
 ## [v3.68.6](https://github.com/Laurux/Laurux/tree/v3.68.6) (2021-01-31)
 
 [Full Changelog](https://github.com/Laurux/Laurux/compare/v3.68.5...v3.68.6)
