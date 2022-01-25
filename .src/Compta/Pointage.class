@@ -183,19 +183,9 @@ End
 Public Sub Colcompt_Click()
 
   cpt.Text = Colcompt.Item[0]
-  intitule.Text = Colcompt.Item[1]
-  Sld = Colcompt.Item[2]
-  soldeBnq.Text = Format$(Sld, "0.00")
-  Sldfinal.Text = "0,00"
-  If Colcompt.Item[3] = "" Then
-    soldedepart.Text = "0,00"
-  Else
-    soldedepart.Text = Format$(Colcompt.Item[3], "0.00")
-    Sldtheorique.Text = soldedepart.Text
-    Ecart.Text = Format$(Val(soldedepart.Text) + Val(Totdeb.Text) - Val(Totcred.Text) - Val(Sldfinal.Text), "0.00")
-  Endif
   Colcompt.clear
   Colcompt.visible = False
+  cptman()
   affichage()
   Nrel.SetFocus
   Nrel.Select
@@ -236,6 +226,7 @@ Public Sub cptman()
 
   Dim rResult As Result
   Dim Tab As String
+  Dim soldepointee As String
 
   Tab = "Fiches_Comptes"
   rResult = Utils.db.Exec("SELECT * FROM " & Tab & " where compte_cc = &1", cpt.Text)
@@ -246,10 +237,16 @@ Public Sub cptman()
     Message.Error("Attention ! Ce compte n'existe pas.")
     b = 1
   Else
+    
     cpt.Text = rResult!compte_cc
     soldeBnq.Text = Format$(rResult!solde, "0.00")
     intitule.Text = rResult!intitule_cc
     Try soldedepart.Text = Format$(rResult!soldep, "0.00")
+    Tab = "Fiches_Mvt"
+    rResult = Utils.db.Exec("SELECT (sum(montantd)-sum(montantc)) as soldepointee FROM  " & Tab & " WHERE compte = &1 and ((cloturee = 1 and jour = 90 and libelle = &2) or pointee = 1)", cpt.Text, "Report a nouveau")
+    If rResult.Available Then
+      soldeBnq.Text = soldeBnq.Text & " (pointées : " & Format$(rResult!soldepointee, "0.00") & ")"
+    Endif
     If Error Then Soldedepart.Text = "0,00"
     Sldtheorique.Text = soldedepart.Text
     affichage()
@@ -398,48 +395,6 @@ Public Sub Colrlv_Man()
       Sldtheorique.Text = soldedepart.Text
       Try Ecart.Text = Format$(Val(soldedepart.Text) - Val(Sldfinal.Text), "0.00")
     Endif
-  End With
-
-End
-
-'********************************************
-'*   On mouvemente le columnview Colcli    *
-'********************************************
-Public Sub Mvt_colrlv()
-
-  Dim rResult As Result
-  Dim Tab As String
-
-  Tab = "Fiches_Mvt"
-  With Utils
-    If Colcli.Count Then
-      Colcli.clear
-    Endif
-    rResult = Utils.db.Exec("SELECT * FROM " & Tab & " WHERE nrlv = &1 order by nrlv ", Nrel.Text)
-    If rResult.Available Then
-      Do
-        Colcli.Add(rResult!numero & rResult!compte, rResult!numero & rResult!compte)
-        Colcli.Item[0] = rResult!compte
-        Colcli.Item[1] = .Cdate_Aff(rResult!dte)
-        Colcli.Item[2] = rResult!intitule
-        Colcli.Item[3] = rResult!numdoc
-        Colcli.Item[4] = rResult!numlot
-        Colcli.Item[5] = Format$(rResult!montantd, "0.00")
-        Colcli.Item[6] = Format$(rResult!montantc, "0.00")
-        Colcli.Item[7] = rResult!nrlv
-        Colcli.Item[8] = rResult!numero
-        Colcli.Item[9] = "P"
-      Loop Until rResult.MoveNext()
-    Endif
-    Colrlv.Clear
-    Colrlv.Visible = False
-    Totdeb.Text = "0,00"
-    Totcred.Text = "0,00"
-    Totd = 0
-    Totc = 0
-    Sldtheorique.Text = soldedepart.Text
-    Try Ecart.Text = Format$(Val(soldedepart.Text) - Val(Sldfinal.Text), "0.00")
-    'Sldfinal.ReadOnly = TRUE
   End With
 
 End
@@ -745,7 +700,13 @@ Public Sub affichage()
     Endif
     If rResult.Available Then
       Do
-        Try Colcli.Add(rResult!numero & rResult!lind, rResult!numero)
+        'filtrage simple pour l'instant avant mise en place Trigen
+        If Not IsNull(Montant.Text) Then
+          If (InStr(Utils.cpoint(rResult!montantc), Utils.cpoint(Montant.Text)) + InStr(Utils.cpoint(rResult!montantc), Utils.cpoint(Montant.Text))) = 0 Then
+            Continue
+          Endif
+        Endif
+        Colcli.Add(rResult!numero & rResult!lind, rResult!numero)
         Colcli.Item[0] = rResult!compte
         Colcli.Item[1] = .Cdate_Aff(rResult!dte)
         Colcli.Item[2] = rResult!libelle
@@ -773,9 +734,9 @@ End
 Public Sub Colcli_Click()
 
   With utils
-    TD = Val(.cpoint(Colcli.current[5]))
+    TD = Val(.cpoint(Colcli.Item[5]))
     If TD = Null Then TD = 0
-    TC = Val(.cpoint(Colcli.Current[6]))
+    TC = Val(.cpoint(Colcli.Item[6]))
     If TC = Null Then TC = 0
     If Not Sldfinal.Text Then Sldfinal.Text = "0,00"
     Sldfinal.Text = Format$(Val(.cpoint(Sldfinal.Text)), "0.00")
@@ -786,32 +747,32 @@ Public Sub Colcli_Click()
       Nrel.SetFocus
       Nrel.Select
     Else
-      If colcli.current.Selected And colcli.current[9] <> "*" And Ep.value = True Then
+      If colcli.Item.Selected And colcli.Item[9] <> "*" And Ep.value = True Then
         Totd = Totd + Td
         Totc = Totc + Tc
         Totdeb.Text = Format$(Totd, "0.00")
         Totcred.Text = Format$(Totc, "0.00")
         Sldtheorique.Text = Format$(Val(soldedepart.Text) - Val(Totdeb.Text) + Val(Totcred.Text), "0.00")
         Ecart.Text = Format$(Val(soldedepart.Text) - Val(Totdeb.Text) + Val(Totcred.Text) - Val(Sldfinal.Text), "0.00")
-        Colcli.Current[9] = "*"
+        Colcli.Item[9] = "*"
       Else
-        If colcli.current.Selected And colcli.current[9] = "" And Enp.value = True Then
+        If colcli.Item.Selected And colcli.Item[9] = "" And Enp.value = True Then
           Totd = Totd + Td
           Totc = Totc + Tc
           Totdeb.Text = Format$(Totd, "0.00")
           Totcred.Text = Format$(Totc, "0.00")
           Sldtheorique.Text = Format$(Val(soldedepart.Text) + Abs(Val(Totdeb.Text)) - Abs(Val(Totcred.Text)), "0.00")
           Ecart.Text = Format$(Val(soldedepart.Text) + Abs(Val(Totdeb.Text)) - Abs(Val(Totcred.Text)) - Val(Sldfinal.Text), "0.00")
-          Colcli.Current[9] = "*"
+          Colcli.Item[9] = "*"
         Else
-          If colcli.current.Selected And colcli.current[9] = "*" Then
+          If colcli.Item.Selected And colcli.Item[9] = "*" Then
             Totd = Totd - Td
             Totc = Totc - Tc
             Totdeb.Text = Format$(Totd, "0.00")
             Totcred.Text = Format$(Totc, "0.00")
             Sldtheorique.Text = Format$(Val(soldedepart.Text) - Val(Totdeb.Text) + Val(Totcred.Text), "0.00")
             Ecart.Text = Format$(Val(soldedepart.Text) - Val(Totdeb.Text) + Val(Totcred.Text) - Val(Sldfinal.Text), "0.00")
-            Colcli.Current[9] = ""
+            Colcli.Item[9] = ""
           Endif
         Endif
       Endif
@@ -963,7 +924,6 @@ End
 '**************************************
 Public Sub Calc_soldes()
 
-  Nrel.Text = ""
   Enp.Value = True
   Totdeb.Text = "0,00"
   Totcred.Text = "0,00"
@@ -975,6 +935,8 @@ Public Sub Calc_soldes()
   Sldfinal.Text = "0,00"
   dte.Text = Format$(Now, "dd.mm.yyyy")
   dterappro.Text = Format$(Now, "dd.mm.yyyy")
+  'on recharge le compte selectionné précédement
+  cptman()
 
 End
 
@@ -1147,6 +1109,10 @@ Public Sub Button1_Click()
     Endif
     pdf.Level3R(Totdeb2, Totcred2, Totpnp, Posy)
     Posy += 5
+    rResult = Utils.db.Exec("SELECT compte, intitule, (sum(montantd)-sum(montantc)) as soldepointee FROM  " & Tab & " WHERE compte = &1 and ((cloturee = 1 and jour = 90 and libelle = &2) or (pointee = 1 and nrlv <= &3))", cpt.Text, "Report a nouveau", Nrel.Text)
+    If rResult.Available Then
+      pdf.Level6(rResult!compte, rResult!intitule, rResult!soldepointee, Posy)
+    Endif
     pdf.Baspage()
     pdf.Output(Filename, False)
     Visualiseur.Prog_Editeur(Filename)
@@ -1179,5 +1145,25 @@ Public Sub Form_Close()
   If Exist(filename) Then Try Kill filename
   Start.LocalSettings["/Soc" & Start.Societe & "/Col/LcolP"] = "col0:" & Colcli.Columns[0].Width & ";" & "col1:" & Colcli.Columns[1].Width & ";" & "col2:" & Colcli.Columns[2].Width & ";" & "col3:" & Colcli.Columns[3].Width & ";" & "col4:" & Colcli.Columns[4].Width & ";" & "col5:" & Colcli.Columns[5].Width & ";" & "col6:" & Colcli.Columns[6].Width & ";" & "col7:" & Colcli.Columns[7].Width & ";" & "col8:" & Colcli.Columns[8].Width & ";" & "col9:" & Colcli.Columns[9].Width
   Start.LocalSettings.Save
+
+End
+
+Public Sub Montant_Change()
+
+  affichage()
+
+End
+
+Public Sub ToogleAll_Click()
+
+  If colcli.Available Then
+    colcli.MoveFirst()
+    Do
+      Colcli.Item.Selected = True
+      Colcli_Click()
+    Loop Until Colcli.Movenext()
+    colcli.UnselectAll()
+    colcli.MoveFirst()
+  Endif
 
 End
