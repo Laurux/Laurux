@@ -1124,6 +1124,26 @@ Public Sub Controle_Moulinage() As Boolean
         Endif
       Until rTck.MoveNext()
     Endif
+    
+    
+    'On rappelle dans la totalisation l'ensemble des ecritures concernant des comptes non present dans la totalisation (ventilé) par la facture de caisse et autres tickets (gestion de bug, etc...)
+    'Elle peuvent contenir notamment les 707999/445999/Charges(658)/Pertes(758) exceptionnel lié aux arrondis de TVA lors du moulinage, les corrections déjà appliquée notamment manuellement.
+    rResult = Utils.db.Exec("Select M.compte as mcompte, T.compte as tcompte, SUM(montantd) as montantd, SUM(montantc) as montantc from Fiches_Mvt as M left join Totalisation as T on T.compte=M.compte where jour = &1 and dte = &2 and M.compte != &3 and M.intitule != &4 and M.libelle like &5 and collectif is null and tresorerie = 0 and T.compte is NULL group by M.compte", Jnl, Format$(DateChooser1.Value, "yyyy-mm-dd"), client, "Reglement BL Caisse", "Caisse du " & Format$(DateChooser1.Value, "dd.mm.yyyy") & "%")
+    If rResult.Available Then
+      Repeat
+        ' l'ecriture etant solde on ajoute le montant dans les deux sens de la ventilation.
+        rcpt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", client)
+        If rcpt.Available Then
+          ivente = rcpt!intitule_cc
+        Endif
+        If (rResult!montantd - rResult!montantc) <> 0 Then Maj_Totalisation(client, ivente, Format$(Val(.CPoint(rResult!montantc - rResult!montantd)), "0.00"))
+        rcpt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", rResult!mcompte)
+        If rcpt.Available Then
+          ivente = rcpt!intitule_cc
+        Endif
+        If rResult!montantd <> 0 Then Maj_Totalisation(rResult!mcompte, ivente, Format$(Val(.CPoint(rResult!montantc - rResult!montantd)), "0.00"))
+      Until rResult.MoveNext()
+    Endif
 
     rResult = Utils.db.Exec("Select compte, numero, SUM(montantd) as montantd, SUM(montantc) as montantc, COUNT(*) as cnt From Fiches_Mvt where jour = &1 and dte = &2 and compte = &3 and intitule != &4 and libelle like &5 and collectif is null and tresorerie = 0 group by compte", Jnl, Format$(DateChooser1.Value, "yyyy-mm-dd"), client, "Reglement BL Caisse", "Caisse du " & Format$(DateChooser1.Value, "dd.mm.yyyy") & "%")
     If rResult.Available Then
@@ -1162,15 +1182,14 @@ Public Sub Controle_Moulinage() As Boolean
                 If rcpt.Available Then
                   ivente = rcpt!intitule_cc
                 Endif
-                Maj_Totalisation("707999", ivente, totalht)
+                Maj_Totalisation("707999", ivente, Format$(Val(.CPoint(totalht)), "0.00"))
                 
                 'Maj Totalisation TVA en erreur
                 rcpt = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabComptes") & " Where compte_cc = &1", "445999")
                 If rcpt.Available Then
                   iTva = rcpt!intitule_cc
                 Endif
-                Maj_Totalisation("445999", iTva, tva)
-  
+                Maj_Totalisation("445999", iTva, Format$(Val(.CPoint(tva)), "0.00"))
               Else
                 Message.Warning("Vous devez d'abord créer la code de TVA de vente pour le compte 445999\n(Taux max utilisé pour répondre aux critère fiscaux pour une TVA inconnue)")
                 Return False
@@ -1350,9 +1369,12 @@ Public Sub Recup_Art(numero As String, ligne As String, code As String, qtea As 
       If diffttc > 0 Then 'Le prix ttc calculé pour le bon de caisse du client est supérieur au prix public
         'Ceci peut provenir d'un arrondi de TVA puisque le calcul repars du HT pour faire le calcul ttc
         'au dela de 1 centimes par qte d'article on met un message, en dessous on applique une reduction du prix brut pour correspondre au prix public ttc
-        If diffttc > (0.01 * Val(.CPoint(Qtea))) Then
-          Message.Warning("Ticket " & numero & " Ligne " & ligne & " \nLe prix de vente ttc de l'article\n" & Code & " : " & Artdsg & "\nen caisse (" & mttc & ",remise:" & Artrm & "%) et en gestion (" & Arttc & ") sont incoherent\nLe prix en gestion sera utilisé!")
+        'dans le cas d'un article vendu au poids (Générique) ex vendu au gramme dans qte on verifie juste si le total différence est inférieur au centime
+        If (Val(.CPoint(Qtea)) >= 1 And diffttc > (0.01 * Val(.CPoint(Qtea)))) Or (Val(.CPoint(Qtea)) < 1 And diffttc > 0.01) Then
+          Message.Warning("Ticket " & numero & " Ligne " & ligne & " \nLe prix de vente ttc de l'article\n" & Code & " : " & Artdsg & "\nen caisse (" & mttc & ",qte:" & Qtea & ",remise:" & Artrm & "%) et en gestion (" & Arttc & ") sont incoherent\nLe prix en gestion sera utilisé!")
         Else
+          'Sinon on a applique la légère correction sur le prix HT (brut et net) lié à l'arrondi par article et on recalcule le TTC.
+          'Légèrement avantageux pour le client.
           Artbrut = Format(Val(.CPoint(Artbrut)) - diffttc, Nbdec)
           Artnet = Format(Val(.CPoint(Artnet)) - diffttc, Nbdec)
           CalcTTC()
