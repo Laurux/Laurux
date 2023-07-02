@@ -712,7 +712,8 @@ Public Sub Moulinage()
                   numlig = 0
                   Inc numlig
                   nmlig = Format$(Str(numlig), "0000")
-                  Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, intitule, type) VALUES (&1, &2, &3, &4)", rTck!numero, nmlig, "Ticket non enregistré sur BL car supprimé!", "C")
+                  ' v3.69 Passer le champ numlig de l'historique à 4 char et fixer l'ecriture du numero de ligne
+                  Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, intitule, type) VALUES (&1, &2, &3, &4)", rTck!numero, Right(nmlig, 3), "Ticket non enregistré sur BL car supprimé!", "C")
                   rlTck = Utils.db.Exec("SELECT * FROM " & Cbase.Table("TabLigTck") & " where numero = &1 order by cast(numlig as unsigned) asc", rTck!numero)
                   If rlTck.Available Then
                     Repeat
@@ -720,7 +721,8 @@ Public Sub Moulinage()
                       Inc numlig
                       nmlig = Format$(Str(numlig), "0000")
                       'on garde l'historique du ticket tel quel
-                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, rltck!numlig, code, $intit, rltck!montant, rltck!qte, rltck!type, Fam, rltck!mht, rltck!mrem, rltck!tva)
+                      ' v3.69 Passer le champ numlig de l'historique à 4 char et fixer l'ecriture du numero de ligne
+                      Utils.db.Exec("INSERT INTO " & Cbase.Table("TabHisLigTck") & " (numero, numlig, code, intitule, montant, qte, type, fam, mht, mrem, tva) VALUES (&1, &2, &3, &4, &5, &6, &7, &8, &9, &{10}, &{11})", rltck!numero, Right(nmlig, 3), code, $intit, rltck!montant, rltck!qte, rltck!type, Fam, rltck!mht, rltck!mrem, rltck!tva)
                     Until rlTck.MoveNext()
                   Endif
                 Else
@@ -853,23 +855,23 @@ next_ticket:
   End With
   Me.Mouse = mouse.Default
   
-  Catch
-    Utils.db.Exec("UNLOCK TABLES")
-    If Start.son Then
-      Music.Play
-    Endif
-    If Object.IsValid(rTck)
-      If rTck.Available Then msg_err = "Ticket " & rTck!numero Else msg_err = "Ticket " & "inconnu"
-    Else
-      msg_err = "Ticket " & "invalid"
-    Endif
-    If Object.IsValid(rlTck)
-      If rlTck.Available Then msg_err = msg_err & " Ligne " & rlTck!numlig Else msg_err = msg_err & " Ligne " & "inconnue"
-    Else
-      msg_err = msg_err & " Ligne " & "invalid"
-    Endif
-    message.Error(Error.Text & " " & Error.where & "\n\nErreur Fatal au moulinage!!\n" & msg_err & "\nVous devez restaurer la sauvegarde\n " & User.home & "/Sauve/" & Utils.db.Name & ".sql" & Format$(Now, "yyyymmdd") & "\nPuis faire suivre votre sauvegarde sur le forum pour analyse par les développeurs\net ne plus pratiquer de nouveau moulinage avant correction")
-    Me.Mouse = Mouse.Default
+  ' Catch
+  '   Utils.db.Exec("UNLOCK TABLES")
+  '   If Start.son Then
+  '     Music.Play
+  '   Endif
+  '   If Object.IsValid(rTck)
+  '     If rTck.Available Then msg_err = "Ticket " & rTck!numero Else msg_err = "Ticket " & "inconnu"
+  '   Else
+  '     msg_err = "Ticket " & "invalid"
+  '   Endif
+  '   If Object.IsValid(rlTck)
+  '     If rlTck.Available Then msg_err = msg_err & " Ligne " & rlTck!numlig Else msg_err = msg_err & " Ligne " & "inconnue"
+  '   Else
+  '     msg_err = msg_err & " Ligne " & "invalid"
+  '   Endif
+  '   message.Error(Error.Text & " " & Error.where & "\n\nErreur Fatal au moulinage!!\n" & msg_err & "\nVous devez restaurer la sauvegarde\n " & User.home & "/Sauve/" & Utils.db.Name & ".sql" & Format$(Now, "yyyymmdd") & "\nPuis faire suivre votre sauvegarde sur le forum pour analyse par les développeurs\net ne plus pratiquer de nouveau moulinage avant correction")
+  '   Me.Mouse = Mouse.Default
 
 End
 
